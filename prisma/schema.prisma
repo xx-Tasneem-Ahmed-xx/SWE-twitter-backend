@@ -13,3 +13,312 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id               String    @id @default(uuid())
+  name             String?
+  username         String    @unique
+  email            String    @unique
+  password         String
+  saltPassword     String
+  token            String
+  otp              Int?
+  otpExpiry        DateTime?
+  bio              String?
+  dateOfBirth      DateTime
+  joinDate         DateTime  @default(now())
+  verified         Boolean   @default(false)
+  address          String?
+  website          String?
+  protectedAccount Boolean   @default(false)
+  profilePhoto     String?
+  cover            String?
+
+  messages              Message[]
+  tweet                 Tweet[]
+  followers             Follow[]        @relation("UserFollowers")
+  followings            Follow[]        @relation("UserFollowings")
+  mentioner             Mention[]       @relation("Mentioner")
+  mentioned             Mention[]       @relation("Mentioned")
+  retweets              Retweet[]
+  tweetLikes            TweetLike[]
+  tweetBookmark         TweetBookmark[]
+  chatUsers             ChatUser[]
+  muters                Mute[]          @relation("Muter")
+  muted                 Mute[]          @relation("Muted")
+  blockers              Block[]         @relation("Blocker")
+  blocked               Block[]         @relation("Blocked")
+  notification          Notification[]  @relation("User")
+  notificationWithActor Notification[]  @relation("Actor")
+
+  // notificationWithActor will only include ones triggered by follows and retweets
+  @@map("users")
+}
+
+model Tweet {
+  id           String       @id @default(uuid())
+  userId       String
+  content      String       @db.Text
+  createdAt    DateTime     @default(now())
+  likesCount   Int          @default(0)
+  retweetCount Int          @default(0)
+  repliesCount Int          @default(0)
+  visibility   ReplyControl @default(EVERYONE)
+  parentId     String?
+  tweetType    TweetType
+
+  user          User            @relation(fields: [userId], references: [id])
+  parent        Tweet?          @relation("parentTweets", fields: [parentId], references: [id])
+  parentTweet   Tweet[]         @relation("parentTweets")
+  hashtags      TweetHash[]
+  tweetSummary  TweetSummary?
+  mention       Mention[]
+  retweets      Retweet[]
+  tweetLikes    TweetLike[]
+  tweetBookmark TweetBookmark[]
+  tweetMedia    TweetMedia[]
+  Notification  Notification[]
+
+  @@index([userId, createdAt])
+  @@map("tweets")
+}
+
+model Hash {
+  id       String @id @default(uuid())
+  tag_text String @unique
+
+  tweets TweetHash[]
+
+  @@map("hashes")
+}
+
+model TweetHash {
+  tweetId String @default(uuid())
+  hashId  String @default(uuid())
+
+  tweet Tweet @relation(fields: [tweetId], references: [id])
+  hash  Hash  @relation(fields: [hashId], references: [id])
+
+  @@id([tweetId, hashId])
+  @@map("tweetHashes")
+}
+
+model Message {
+  id        String        @id @default(uuid())
+  chatId    String
+  userId    String
+  content   String        @db.Text
+  createdAt DateTime      @default(now())
+  status    MessageStatus @default(PENDING)
+
+  chat         Chat           @relation(fields: [chatId], references: [id])
+  user         User           @relation(fields: [userId], references: [id])
+  messageMedia MessageMedia[]
+
+  @@index([chatId, createdAt])
+  @@map("messages")
+}
+
+model Chat {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  DMChat    Boolean
+
+  messages  Message[]
+  chatGroup ChatGroup[]
+  chatUsers ChatUser[]
+
+  @@map("chats")
+}
+
+model ChatGroup {
+  name        String?
+  description String?
+  photo       String?
+  chatId      String  @id
+
+  chat Chat @relation(fields: [chatId], references: [id])
+
+  @@map("chatGroups")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  content   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  userId    String
+  tweetId   String?
+  actorId   String?
+
+  user  User   @relation("User", fields: [userId], references: [id])
+  tweet Tweet? @relation(fields: [tweetId], references: [id])
+  actor User?  @relation("Actor", fields: [actorId], references: [id])
+
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model Media {
+  id   String    @id @default(uuid())
+  name String
+  url  String
+  type MediaType
+  size Int?
+
+  tweetMedia   TweetMedia[]
+  messageMedia MessageMedia[]
+
+  @@map("medias")
+}
+
+model TweetMedia {
+  tweetId String
+  mediaId String
+
+  tweet Tweet @relation(fields: [tweetId], references: [id])
+  media Media @relation(fields: [mediaId], references: [id])
+
+  @@id([tweetId, mediaId])
+}
+
+model MessageMedia {
+  messageId String
+  mediaId   String
+
+  message Message @relation(fields: [messageId], references: [id])
+  media   Media   @relation(fields: [mediaId], references: [id])
+
+  @@id([messageId, mediaId])
+}
+
+model TweetSummary {
+  id      String @id @default(uuid())
+  tweetId String @unique
+  summary String
+
+  tweet Tweet @relation(fields: [tweetId], references: [id])
+}
+
+model Follow {
+  followerId  String
+  followingId String
+
+  follower  User @relation("UserFollowings", fields: [followerId], references: [id])
+  following User @relation("UserFollowers", fields: [followingId], references: [id])
+
+  @@id([followerId, followingId])
+}
+
+model Mute {
+  mutedId String
+  muterId String
+
+  muter User @relation("Muter", fields: [muterId], references: [id])
+  muted User @relation("Muted", fields: [mutedId], references: [id])
+
+  @@id([muterId, mutedId])
+}
+
+model Block {
+  blockedId String
+  blockerId String
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id])
+  blocked User @relation("Blocked", fields: [blockedId], references: [id])
+
+  @@id([blockerId, blockedId])
+}
+
+model Mention {
+  tweetId     String
+  mentionerId String
+  mentionedId String
+
+  mentioner User  @relation("Mentioner", fields: [mentionerId], references: [id])
+  mentioned User  @relation("Mentioned", fields: [mentionedId], references: [id])
+  tweet     Tweet @relation(fields: [tweetId], references: [id])
+
+  @@id([tweetId, mentionerId, mentionedId])
+}
+
+model Retweet {
+  userId  String
+  tweetId String
+
+  user  User  @relation(fields: [userId], references: [id])
+  tweet Tweet @relation(fields: [tweetId], references: [id])
+
+  @@id([userId, tweetId])
+}
+
+model TweetLike {
+  tweetId String
+  userId  String
+
+  user  User  @relation(fields: [userId], references: [id])
+  tweet Tweet @relation(fields: [tweetId], references: [id])
+
+  @@id([userId, tweetId])
+}
+
+model TweetBookmark {
+  id      String @id @default(uuid())
+  userId  String
+  tweetId String
+
+  tweet Tweet @relation(fields: [tweetId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@map("tweetbookmarks")
+}
+
+model ChatUser {
+  id     String @id @default(uuid())
+  userId String
+  chatId String
+
+  user User @relation(fields: [userId], references: [id])
+  chat Chat @relation(fields: [chatId], references: [id])
+
+  @@unique([userId, chatId])
+  @@map("chatusers")
+}
+
+enum ReplyControl {
+  EVERYONE
+  FOLLOWINGS
+  VERIFIED
+  MENTIONED
+}
+
+enum TweetType {
+  TWEET
+  REPLY
+  QUOTE
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  READ
+}
+
+enum NotificationType {
+  LIKE
+  RETWEET
+  REPLY
+  QUOTE
+  FOLLOW
+  RequestToFollow
+  AcceptedFollow
+  MENTION
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  GIF
+}
