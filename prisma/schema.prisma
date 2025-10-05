@@ -63,7 +63,7 @@ model Tweet {
   likesCount   Int          @default(0)
   retweetCount Int          @default(0)
   repliesCount Int          @default(0)
-  visibility   ReplyControl @default(EVERYONE)
+  replyControl ReplyControl @default(EVERYONE)
   parentId     String?
   tweetType    TweetType
 
@@ -296,6 +296,7 @@ enum ReplyControl {
 
 enum TweetType {
   TWEET
+  RETWEET
   REPLY
   QUOTE
 }
