@@ -5,6 +5,7 @@ import morgan from "morgan";
 import compression from "compression";
 import swaggerUi from "swagger-ui-express";
 import swaggerDoc from "./swagger.json";
+import userInteractionsRoutes from "@/api/routes/userInteractions";
 
 const app = express();
 
@@ -13,6 +14,8 @@ app.use(helmet());
 app.use(morgan("dev"));
 app.use(compression());
 app.use(express.json());
+
+app.use("/api", userInteractionsRoutes);
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 
