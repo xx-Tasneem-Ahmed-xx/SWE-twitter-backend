@@ -5,7 +5,7 @@ import morgan from "morgan";
 import compression from "compression";
 import swaggerUi from "swagger-ui-express";
 import { swaggerDoc } from "@/docs";
-import tweetRoutes from "@/api/routes/tweets";
+//import tweetRoutes from "@/api/routes/tweets";
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { SocketService } from './application/services/socketService';
@@ -37,7 +37,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 
 app.use("/api/users/dm", directMessagesRouter);
 
-app.use("/api/tweets", tweetRoutes);
+//app.use("/api/tweets", tweetRoutes);
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
 
 export default httpServer;
