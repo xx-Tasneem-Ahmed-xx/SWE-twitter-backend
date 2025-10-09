@@ -1,19 +1,38 @@
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'], 
+// Singleton pattern to prevent multiple Prisma instances
+declare global {
+  var __prisma: PrismaClient | undefined;
+}
+
+const prisma = globalThis.__prisma || new PrismaClient({
+  log: ['error', 'warn'],
 });
+
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.__prisma = prisma;
+}
 
 
 export async function connectToDatabase() {
   try {
-    
+    console.log('🔄 Connecting to database...');
     await prisma.$connect();
     console.log('✅ Successfully connected to the database!');
+    
+    // Test the connection
+    const userCount = await prisma.user.count();
+    console.log(`📊 Total users in database: ${userCount}`);
     
     return prisma;
   } catch (error) {
     console.error('❌ Failed to connect to the database:', error);
+    
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('too many connections')) {
+      console.log('💡 Tip: Wait a few minutes for connections to timeout, or restart your application');
+    }
+    
     throw error;
   }
 }

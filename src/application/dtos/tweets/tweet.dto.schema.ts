@@ -1,5 +1,5 @@
 import z from "zod";
-import { ReplyControl, TweetType } from "@/prisma/client";
+import { ReplyControl, TweetType } from "@prisma/client";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
 extendZodWithOpenApi(z);

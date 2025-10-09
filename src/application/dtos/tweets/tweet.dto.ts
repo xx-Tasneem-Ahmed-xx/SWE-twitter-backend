@@ -3,7 +3,7 @@ import {
   CreateTweetDTOSchema,
   CreateReplyOrQuoteDTOSchema,
   CreateRetweetDTOSchema,
-} from "@/application/dtos/tweets/tweet.dto.schema";
+} from "./tweet.dto.schema";
 
 export type CreateTweetDTO = z.infer<typeof CreateTweetDTOSchema>;
 
