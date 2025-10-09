@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import prisma from "../../database";
 import {ChatInput, chatGroupUpdate, MessageData, newMessageInput} from '../../application/dtos/messages.dto';
 import { MediaType } from "@prisma/client";
+import { UUID } from "crypto";
 
 // Lazy import to avoid circular dependency
 let socketService: any = null;
@@ -11,16 +12,6 @@ const getSocketService = () => {
     }
     return socketService;
 };
-
-export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const users = await prisma.user.findMany();
-        res.json(users);
-    } catch (error) {
-        console.error('❌ Error fetching users:', error);
-        res.status(500).json({ error: 'Internal server error' });   
-    }
-}
 
 
 const getUnseenMessages = async (chatId: string) => {
@@ -55,98 +46,33 @@ const getUnseenMessages = async (chatId: string) => {
     }
 }
 
-const CreateChat = async (DMChat: boolean, participant_ids: string[], MessageData: any, userId: string) => {
+const CreateChatFun = async (DMChat: boolean, participant_ids: string[]) => {
     try{
-        if(DMChat){
-        //creating DM chat
-            const existingChat = await prisma.chat.findFirst({
-                where: {
-                    DMChat: true,
-                    chatUsers: {
-                        some: {
-                            userId: {
-                                in: participant_ids
-                            }
-                        }
-                    }
-                }
-            })  
-            //if chat already exists between the two users, return the chat id
-            if(existingChat){
-                return existingChat.id;
+        //ceating DM chat
+        const newChat = await prisma.chat.create({
+            data: {
+                DMChat: DMChat,
+                chatUsers: {
+                    create: participant_ids.map(id => ({ userId: id }))
+                },
             }
-            var newChat;
-            if(MessageData.content !== undefined){
-                newChat = await prisma.chat.create({
-                    data: {
-                        DMChat: true,
-                        chatUsers: {
-                            create: participant_ids.map(id => ({ userId: id }))
-                        },
-                        messages: {
-                            create: {
-                                userId: userId,
-                                content: MessageData.content,
-                                messageMedia: {
-                                    create: MessageData.messageMedia?.map((media: any) => ({
-                                        media: {
-                                            create: {
-                                                name: media.name,
-                                                url: media.url,
-                                                type: media.type,
-                                                size: media.size
-                                            }
-                                        }
-                                    }))
-                                }
-                            }
-                        }
-                    }
-                })
-            }
-            else{
-                newChat = await prisma.chat.create({
-                    data: {
-                        DMChat: true,
-                        chatUsers: {
-                            create: participant_ids.map(id => ({ userId: id }))
-                        },
-                    }
-                })
-            }
-            return newChat;
-        }else{
-            //creating group chat
-            //assuming that creat a new chat group has no initial message and no group photo and description
-            const names = await prisma.user.findMany({
+        })
+        if(!DMChat){
+            const users = await prisma.user.findMany({
                 where: {
                     id: { in: participant_ids }
                 },
                 select: { name: true }
-            })
-            const currUser = await prisma.user.findUnique({
-                where: { id: userId },
-                select: { name: true }
-            })
-            const groupName = names.map(user => user.name).join(', ');
-            groupName.concat(`, ${currUser?.name}`);
-            const newChat = await prisma.chat.create({
+            });
+            const groupName = users.map(user => user.name).join(', ');
+            await prisma.chatGroup.create({
                 data: {
-                    DMChat: true,
-                    chatUsers: {
-                        create: participant_ids.map(id => ({ userId: id }))
-                    },
-                    chatGroup: {
-                        create: {
-                            name: groupName,
-                            description: '',
-                            photo: '',
-                        }
-                    }
+                    chatId: newChat.id,
+                    name: groupName
                 }
             })
-            return newChat;
         }
+        return newChat;
     }catch(error){
             return error;
     }
@@ -294,20 +220,15 @@ export const updateMessageStatus = async (req: Request, res: Response, next: Nex
         res.status(500).json({ error: 'Internal server error' });
     }
 }
-//get unseen messages for a user in a chat
-// export const getUnseenMessagesForUser = async (req: Request, res: Response, next: NextFunction) => {
-//     try { 
-        
-//     } catch (error) {
-//         res.status(500).json({ error: 'Internal server error' });
-//     }
-// }
+
 
 
 
 export const createChat = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const{ DMChat, MessageData, participant_ids }: ChatInput = req.body;
+        const{ DMChat, participant_ids }: ChatInput = req.body;
+        console.log(DMChat, participant_ids);
+        
         const userId = req.params.userId;//that supposed to be from auth middleware
         if(participant_ids.length < 2 && DMChat === false){
             return res.status(400).json({ error: 'At least two participants are required to create a chat' });
@@ -320,7 +241,8 @@ export const createChat = async (req: Request, res: Response, next: NextFunction
                 return res.status(404).json({ error: `User with ID ${id} not found` });
             }
         }
-        const newChat = await CreateChat(DMChat, participant_ids, MessageData, userId);
+        participant_ids.push(userId as string);
+        const newChat = await CreateChatFun(DMChat, participant_ids);
         if(newChat !== undefined){
             return res.status(201).json({ newChat });
         }
@@ -334,9 +256,27 @@ export const deleteChat = async (req: Request, res: Response, next: NextFunction
     try {
         const chatId = req.params.chatId;
         if (chatId) {
-            await prisma.chat.delete({
-                where: { id: chatId }
+            // Use transaction to ensure data consistency
+            await prisma.$transaction(async (tx) => {
+                // First, delete all messages in the chat
+                await tx.message.deleteMany({
+                    where: { chatId: chatId }
+                });
+                
+                // Then, delete all chat users relationships
+                await tx.chatUser.deleteMany({
+                    where: { chatId: chatId }
+                });
+                await tx.chatGroup.deleteMany({
+                    where: { chatId: chatId }
+                });
+
+                // Finally, delete the chat
+                await tx.chat.delete({
+                    where: { id: chatId }
+                });
             });
+            
             res.status(200).json({ message: 'Chat deleted successfully' });
         } else {
             res.status(400).json({ error: 'Chat ID is required' });
@@ -352,12 +292,18 @@ export const updateChatGroup = async (req: Request, res: Response, next: NextFun
         const chatId = req.params.chatId;
         const { name, description, photo } : chatGroupUpdate = req.body;
         if(chatId){
+            const existingChatGroup = await prisma.chatGroup.findUnique({
+                where: { chatId: chatId }
+            });
+            if (!existingChatGroup) {
+                return res.status(404).json({ error: 'Chat group not found' });
+            }
             const updatedChatGroup = await prisma.chatGroup.update({
                 where: { chatId: chatId },
                 data: {
-                    name: name || '',
-                    description: description || '',
-                    photo: photo || ''
+                    name: name || existingChatGroup.name,
+                    description: description || existingChatGroup.description,
+                    photo: photo || existingChatGroup.photo
                 }
             });
             res.status(200).json({ updatedChatGroup });
@@ -376,18 +322,45 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
     try {
         const { userId } = req.params;//supposed to be from auth middleware
         const messageInput: newMessageInput = req.body;
-        const recipientId = messageInput.recipientId;
+        const recipientId = messageInput.recipientId as Array<string> || [];
         const chatId = messageInput.chatId;
         if (!messageInput.data || !messageInput.data.content) {
             return res.status(400).json({ error: 'Message content is required' });
         }
-        var chat: any;
-        if (!chatId && recipientId) {
-            chat = await CreateChat(true, [userId, ...recipientId], messageInput.data, userId);
+        let chat: any;
+        if (!chatId && recipientId.length > 0) {
+            if(recipientId.length === 1){
+                //check if DM chat already exists
+                const existingChat = await prisma.chat.findFirst({
+                    where: {
+                        DMChat: true,
+                        chatUsers: {
+                            every: {
+                                userId: {
+                                    in: [userId, ...recipientId]
+                                }
+                            }
+                        }
+                    }
+                });
+                if (existingChat) {
+                    chat = existingChat;
+                } else {
+                    chat = await CreateChatFun(true, [userId, ...recipientId]);
+                }
+            }else{
+                chat = await CreateChatFun(true, [userId, ...recipientId]);
+            }
         }else if(chatId){
             chat = await prisma.chat.findUnique({
                 where: { id: chatId }
             });
+            if(!chat){
+                return res.status(404).json({ error: 'Chat not found' });
+            }
+        }
+        else{
+            return res.status(400).json({ error: 'missing chatId or recipientId' });
         }
         const newMessage = await prisma.message.create({
             data: {

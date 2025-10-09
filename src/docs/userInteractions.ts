@@ -1,5 +1,5 @@
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
-import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
+import { UserInteractionParamsSchema } from "../application/dtos/userInteractions/userInteraction.dto.schema";
 
 export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
   registry.registerPath({

@@ -18,7 +18,6 @@ export class MessageData {
 
 export class ChatInput {
   DMChat!: boolean;
-  MessageData?: MessageData;
   participant_ids!: string[];
 }
 
@@ -30,6 +29,6 @@ export class chatGroupUpdate {
 
 export class newMessageInput {
   data!: MessageData;
-  recipientId!: string[];
-  chatId!: string;
+  recipientId?: string[];
+  chatId?: string;
 }

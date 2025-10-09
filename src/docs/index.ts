@@ -2,8 +2,8 @@ import {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
 } from "@asteasolutions/zod-to-openapi";
-import { registerTweetDocs } from "@/docs/tweets";
-import { registerUserInteractionsDocs } from "@/docs/userInteractions";
+import { registerTweetDocs } from "./tweets";
+import { registerUserInteractionsDocs } from "./userInteractions";
 
 const registry = new OpenAPIRegistry();
 registerTweetDocs(registry);

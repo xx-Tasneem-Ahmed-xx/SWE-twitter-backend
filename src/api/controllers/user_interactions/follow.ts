@@ -7,8 +7,8 @@ import {
   updateFollowStatus,
   isAlreadyFollowing,
   checkBlockStatus,
-} from "@/api/controllers/user_interactions/userInteractionUtils";
-import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
+} from "./userInteractionUtils";
+import { UserInteractionParamsSchema } from "../../../application/dtos/userInteractions/userInteraction.dto.schema";
 
 // Follow a user using their username
 export const followUser = async (req: Request, res: Response) => {

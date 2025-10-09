@@ -11,7 +11,7 @@ import { Server as SocketIOServer } from "socket.io";
 import { SocketService } from "./application/services/socketService";
 import directMessagesRouter from "./api/routes/directMessages";
 //import tweetRoutes from "@/api/routes/tweets";
-import userInteractionsRoutes from "@/api/routes/userInteractions";
+import userInteractionsRoutes from "./api/routes/userInteractions";
 
 const app = express();
 app.use(cors());

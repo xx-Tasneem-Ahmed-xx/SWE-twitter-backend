@@ -4,7 +4,7 @@ import {
   unfollowUser,
   acceptFollow,
   declineFollow,
-} from "@/api/controllers/user_interactions/follow";
+} from "../controllers/user_interactions/follow";
 
 const router = Router();
 
