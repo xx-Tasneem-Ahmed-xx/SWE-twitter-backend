@@ -4,13 +4,11 @@
   "description": "",
   "main": "dist/src/index.js",
   "scripts": {
-    "dev": "nodemon -r tsconfig-paths/register --watch 'src/**/*.ts' --exec npx ts-node src/index.ts",
+    "dev": "nodemon -r tsconfig-paths/register --watch 'src/**/*.ts' --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "nodemon dist/src/index.js"
   },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
-  },
+  
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CUFE-Software-Engineering-Project/SWE-twitter-backend.git"
