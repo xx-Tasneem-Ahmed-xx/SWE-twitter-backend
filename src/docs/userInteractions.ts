@@ -2,11 +2,7 @@ import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 
 const UsernameParams = z.object({
-  username: z.string().describe("Username of the user to follow/unfollow"),
-});
-
-const FollowerIdParams = z.object({
-  followerId: z.string().describe("ID of the follower"),
+  username: z.string().describe("Username of the user to interact with"),
 });
 
 const UserIdBody = z.object({
@@ -37,6 +33,7 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
     request: { params: UsernameParams },
     responses: {
       200: { description: "Unfollowed user or cancelled follow request" },
+      400: { description: "You are not following this user" },
       404: { description: "User not found" },
       500: { description: "Internal server error" },
     },
@@ -44,24 +41,28 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: "patch",
-    path: "/api/follow-responses/{followerId}",
+    path: "/api/follow-responses/{username}",
     summary: "Accept a follow request",
     tags: ["User Interactions"],
-    request: { params: FollowerIdParams },
+    request: { params: UsernameParams },
     responses: {
-      201: { description: "Follow request accepted" },
+      200: { description: "Follow request accepted" },
+      404: { description: "No follow request found" },
+      409: { description: "Follow request already accepted" },
       500: { description: "Internal server error" },
     },
   });
 
   registry.registerPath({
     method: "delete",
-    path: "/api/follow-responses/{followerId}",
-    summary: "Decline a follow request",
+    path: "/api/follow-responses/{username}",
+    summary: "Decline a follow request or remove a follower",
     tags: ["User Interactions"],
-    request: { params: FollowerIdParams },
+    request: { params: UsernameParams },
     responses: {
-      201: { description: "Follow request declined" },
+      200: { description: "Follow request declined" },
+      404: { description: "No follow request found" },
+      409: { description: "Follow request already accepted" },
       500: { description: "Internal server error" },
     },
   });

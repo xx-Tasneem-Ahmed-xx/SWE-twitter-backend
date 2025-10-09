@@ -13,7 +13,7 @@ router
   .post(followUser)
   .delete(unfollowUser);
 router
-  .route("/follow-responses/:followerId")
+  .route("/follow-responses/:username")
   .patch(acceptFollow)
   .delete(declineFollow);
 

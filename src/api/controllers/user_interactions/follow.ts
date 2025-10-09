@@ -22,8 +22,8 @@ export const followUser = async (req: Request, res: Response) => {
 
     if (userToFollow.id === currentUserId)
       return res.status(400).json({ error: "Cannot follow yourself" });
-    const blockStatus = await checkBlockStatus(currentUserId, userToFollow.id);
-    if (blockStatus)
+    const isBlocked = await checkBlockStatus(currentUserId, userToFollow.id);
+    if (isBlocked)
       return res.status(403).json({
         error: "Cannot follow a user you have blocked or who has blocked you",
       });
@@ -62,6 +62,13 @@ export const unfollowUser = async (req: Request, res: Response) => {
     if (!userToUnfollow)
       return res.status(404).json({ error: "User not found" });
 
+    const existingFollow = await isAlreadyFollowing(
+      currentUserId,
+      userToUnfollow.id
+    );
+    if (!existingFollow)
+      return res.status(400).json({ error: "You are not following this user" });
+
     await removeFollowRelation(currentUserId, userToUnfollow.id);
 
     return res.status(200).json({ message: "Successfully unfollowed user" });
@@ -74,14 +81,23 @@ export const unfollowUser = async (req: Request, res: Response) => {
 // Accept a follow request
 export const acceptFollow = async (req: Request, res: Response) => {
   try {
-    const { followerId } = req.params;
+    const { username } = req.params;
     //TODO: get currentUserId from auth middleware ( currentUserId from req body just for now)
     const currentUserId = req.body.id;
     if (!authenticated(currentUserId, res)) return;
 
-    await updateFollowStatus(followerId, currentUserId);
+    const follower = await findUserByUsername(username);
+    if (!follower) return res.status(404).json({ error: "User not found" });
 
-    return res.status(201).json({
+    const existingFollow = await isAlreadyFollowing(follower.id, currentUserId);
+    if (!existingFollow)
+      return res.status(404).json({ error: "No follow request found" });
+    if (existingFollow.status === "ACCEPTED")
+      return res.status(409).json({ error: "Follow request already accepted" });
+
+    await updateFollowStatus(follower.id, currentUserId);
+
+    return res.status(200).json({
       message: "Follow request accepted",
       currentUserId,
     });
@@ -94,15 +110,25 @@ export const acceptFollow = async (req: Request, res: Response) => {
 // Decline a follow request
 export const declineFollow = async (req: Request, res: Response) => {
   try {
-    const { followerId } = req.params;
+    const { username } = req.params;
     //TODO: get currentUserId from auth middleware ( currentUserId from req body just for now)
     const currentUserId = req.body.id;
     if (!authenticated(currentUserId, res)) return;
 
-    await removeFollowRelation(followerId, currentUserId);
+    const follower = await findUserByUsername(username);
+    if (!follower) return res.status(404).json({ error: "User not found" });
 
-    return res.status(201).json({
-      message: "Follow request declined",
+    const existingFollow = await isAlreadyFollowing(follower.id, currentUserId);
+    if (!existingFollow)
+      return res.status(404).json({ error: "No follow request found" });
+
+    await removeFollowRelation(follower.id, currentUserId);
+
+    return res.status(200).json({
+      message:
+        existingFollow.status === "PENDING"
+          ? "Follow request declined"
+          : "Follower removed",
       currentUserId,
     });
   } catch (error) {

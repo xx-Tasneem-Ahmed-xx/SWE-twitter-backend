@@ -22,16 +22,23 @@ export const createFollowRelation = async (
   followingId: string,
   followStatus: string
 ) => {
-  return prisma.follow.create({
-    data: {
-      followerId,
-      followingId,
-      status:
-        followStatus == "PENDING"
-          ? FollowStatus.PENDING
-          : FollowStatus.ACCEPTED,
-    },
-  });
+  try {
+    return await prisma.follow.create({
+      data: {
+        followerId,
+        followingId,
+        status:
+          followStatus == "PENDING"
+            ? FollowStatus.PENDING
+            : FollowStatus.ACCEPTED,
+      },
+    });
+  } catch (error: any) {
+    if (error.code === "P2002") {
+      throw new Error("Already following this user");
+    }
+    throw error;
+  }
 };
 
 // Remove a follow relationship
@@ -67,7 +74,7 @@ export const updateFollowStatus = async (
   });
 };
 
-// Check if user is already following another user
+// Check if user is already following another user and return the relationship with status if found
 export const isAlreadyFollowing = async (
   followerId: string,
   followingId: string
@@ -79,12 +86,17 @@ export const isAlreadyFollowing = async (
         followingId,
       },
     },
+    select: {
+      followerId: true,
+      followingId: true,
+      status: true,
+    },
   });
 };
 
 // Check if two users have blocked each other
 export const checkBlockStatus = async (userId1: string, userId2: string) => {
-  return prisma.block.findFirst({
+  const blockCount = await prisma.block.count({
     where: {
       OR: [
         { blockerId: userId1, blockedId: userId2 },
@@ -92,4 +104,5 @@ export const checkBlockStatus = async (userId1: string, userId2: string) => {
       ],
     },
   });
+  return blockCount > 0;
 };
