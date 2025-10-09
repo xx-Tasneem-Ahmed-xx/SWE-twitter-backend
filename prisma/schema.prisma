@@ -204,6 +204,7 @@ model TweetSummary {
 model Follow {
   followerId  String
   followingId String
+  status      FollowStatus @default(ACCEPTED)
 
   follower  User @relation("UserFollowings", fields: [followerId], references: [id])
   following User @relation("UserFollowers", fields: [followingId], references: [id])
@@ -320,4 +321,9 @@ enum MediaType {
   IMAGE
   VIDEO
   GIF
+}
+
+enum FollowStatus {
+  PENDING
+  ACCEPTED
 }
