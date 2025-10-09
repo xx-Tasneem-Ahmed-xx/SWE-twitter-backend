@@ -1,3 +1,3 @@
-import { PrismaClient, TweetType } from "@/generated/prisma";
+import { PrismaClient, TweetType, ReplyControl } from "@prisma/client";
 export const prisma = new PrismaClient();
-export { TweetType };
+export { TweetType, ReplyControl };
