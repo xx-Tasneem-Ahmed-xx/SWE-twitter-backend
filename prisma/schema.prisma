@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -205,6 +204,7 @@ model TweetSummary {
 model Follow {
   followerId  String
   followingId String
+  status      FollowStatus @default(ACCEPTED)
 
   follower  User @relation("UserFollowings", fields: [followerId], references: [id])
   following User @relation("UserFollowers", fields: [followingId], references: [id])
@@ -296,7 +296,6 @@ enum ReplyControl {
 
 enum TweetType {
   TWEET
-  RETWEET
   REPLY
   QUOTE
 }
@@ -322,4 +321,9 @@ enum MediaType {
   IMAGE
   VIDEO
   GIF
+}
+
+enum FollowStatus {
+  PENDING
+  ACCEPTED
 }
