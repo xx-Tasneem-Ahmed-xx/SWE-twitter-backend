@@ -12,16 +12,6 @@ const getSocketService = () => {
     return socketService;
 };
 
-export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const users = await prisma.user.findMany();
-        res.json(users);
-    } catch (error) {
-        console.error('❌ Error fetching users:', error);
-        res.status(500).json({ error: 'Internal server error' });   
-    }
-}
-
 
 const getUnseenMessages = async (chatId: string) => {
     try {
