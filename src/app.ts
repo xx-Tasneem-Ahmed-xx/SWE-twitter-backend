@@ -4,7 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
 import swaggerUi from "swagger-ui-express";
-import { swaggerDoc } from "@/docs";
+import { swaggerDoc } from "./docs";
 //import tweetRoutes from "@/api/routes/tweets";
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';

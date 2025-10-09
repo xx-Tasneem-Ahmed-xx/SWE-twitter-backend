@@ -2,14 +2,11 @@
   "name": "swe-twitter-backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "dev": "nodemon -r tsconfig-paths/register --watch 'src/**/*.ts' --exec npx ts-node src/index.ts",
     "build": "tsc",
-    "start": "nodemon dist/index.js"
-  },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "start": "nodemon dist/src/index.js"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

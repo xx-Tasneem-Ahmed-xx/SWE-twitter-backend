@@ -12,6 +12,15 @@ const getSocketService = () => {
     return socketService;
 };
 
+export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const users = await prisma.user.findMany();
+        res.json(users);
+    } catch (error) {
+        console.error('❌ Error fetching users:', error);
+        res.status(500).json({ error: 'Internal server error' });   
+    }
+}
 
 
 const getUnseenMessages = async (chatId: string) => {
@@ -299,7 +308,7 @@ export const updateMessageStatus = async (req: Request, res: Response, next: Nex
 export const createChat = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const{ DMChat, MessageData, participant_ids }: ChatInput = req.body;
-        const userId = req.params.userId;
+        const userId = req.params.userId;//that supposed to be from auth middleware
         if(participant_ids.length < 2 && DMChat === false){
             return res.status(400).json({ error: 'At least two participants are required to create a chat' });
         }
