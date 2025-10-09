@@ -103,4 +103,97 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
       500: { description: "Internal server error" },
     },
   });
+
+  registry.registerPath({
+    method: "post",
+    path: "/api/blocks/{username}",
+    summary: "Block a user",
+    tags: ["User Interactions"],
+    request: { params: UserInteractionParamsSchema },
+    responses: {
+      201: { description: "User blocked successfully" },
+      404: { description: "User not found" },
+      400: { description: "Can't block yourself or already blocked user" },
+      500: { description: "Internal server error" },
+    },
+  });
+
+  registry.registerPath({
+    method: "delete",
+    path: "/api/blocks/{username}",
+    summary: "Unblock a user",
+    tags: ["User Interactions"],
+    request: { params: UserInteractionParamsSchema },
+    responses: {
+      200: { description: "User unblocked successfully" },
+      400: { description: "You have not blocked this user" },
+      404: { description: "User not found" },
+      500: { description: "Internal server error" },
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/api/blocks",
+    summary: "Get a list of blocked users",
+    tags: ["User Interactions"],
+    responses: {
+      200: {
+        description: "List of blocked users retrieved successfully",
+        content: {
+          "application/json": {
+            schema: FollowsListResponseSchema,
+          },
+        },
+      },
+      500: { description: "Internal server error" },
+    },
+  });
+
+  registry.registerPath({
+    method: "post",
+    path: "/api/mutes/{username}",
+    summary: "Mute a user",
+    tags: ["User Interactions"],
+    request: { params: UserInteractionParamsSchema },
+    responses: {
+      201: { description: "User muted successfully" },
+      400: { description: "Can't mute yourself or already muted user" },
+      403: { description: "Can't mute blocked users /users who blocked you" },
+      404: { description: "User not found" },
+      500: { description: "Internal server error" },
+    },
+  });
+
+  registry.registerPath({
+    method: "delete",
+    path: "/api/mutes/{username}",
+    summary: "Unmute a user",
+    tags: ["User Interactions"],
+    request: { params: UserInteractionParamsSchema },
+    responses: {
+      200: { description: "User unmuted successfully" },
+      400: { description: "You have not muted this user" },
+      404: { description: "User not found" },
+      500: { description: "Internal server error" },
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/api/mutes",
+    summary: "Get a list of muted users",
+    tags: ["User Interactions"],
+    responses: {
+      200: {
+        description: "List of muted users retrieved successfully",
+        content: {
+          "application/json": {
+            schema: FollowsListResponseSchema,
+          },
+        },
+      },
+      500: { description: "Internal server error" },
+    },
+  });
 };

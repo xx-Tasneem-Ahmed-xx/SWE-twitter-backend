@@ -21,6 +21,7 @@ export const FollowsListResponseSchema = z
           name: z.string().describe("Display name"),
           photo: z.string().url().nullable().describe("Avatar URL"),
           bio: z.string().nullable().describe("User bio"),
+          verified: z.boolean().describe("Is the user verified"),
           isFollowing: z
             .boolean()
             .describe("Is the current user following this user"),
@@ -30,8 +31,5 @@ export const FollowsListResponseSchema = z
         })
       )
       .describe("List of followers or followings"),
-
-    followersCount: z.number().describe("Number of followers"),
-    followingsCount: z.number().describe("Number of followings"),
   })
   .openapi("FollowsListResponse");

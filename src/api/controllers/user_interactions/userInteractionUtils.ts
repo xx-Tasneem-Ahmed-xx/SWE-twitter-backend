@@ -114,6 +114,7 @@ type UserData = {
   name: string | null;
   profilePhoto: string | null;
   bio: string | null;
+  verified: boolean;
 };
 
 // Helper function to check follow relationships between users and current user
@@ -164,6 +165,7 @@ const formatUserForResponse = (
     name: user.name,
     photo: user.profilePhoto || null,
     bio: user.bio || null,
+    verified: user.verified,
     isFollowing,
     isFollower,
   };
@@ -174,14 +176,6 @@ export const getFollowersList = async (
   userId: string,
   currentUserId: string
 ) => {
-  const userCounts = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      _count: {
-        select: { followers: true, followings: true },
-      },
-    },
-  });
   const followers = await prisma.follow.findMany({
     where: { followingId: userId, status: FollowStatus.ACCEPTED },
     include: {
@@ -192,6 +186,7 @@ export const getFollowersList = async (
           name: true,
           profilePhoto: true,
           bio: true,
+          verified: true,
         },
       },
     },
@@ -209,8 +204,6 @@ export const getFollowersList = async (
 
   return {
     users: formattedFollowers,
-    followersCount: userCounts?._count.followers || 0,
-    followingsCount: userCounts?._count.followings || 0,
   };
 };
 
@@ -219,14 +212,6 @@ export const getFollowingsList = async (
   userId: string,
   currentUserId: string
 ) => {
-  const userCounts = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      _count: {
-        select: { followers: true, followings: true },
-      },
-    },
-  });
   const followings = await prisma.follow.findMany({
     where: { followerId: userId, status: FollowStatus.ACCEPTED },
     include: {
@@ -237,6 +222,7 @@ export const getFollowingsList = async (
           name: true,
           profilePhoto: true,
           bio: true,
+          verified: true,
         },
       },
     },
@@ -254,7 +240,5 @@ export const getFollowingsList = async (
 
   return {
     users: formattedFollowings,
-    followersCount: userCounts?._count.followers || 0,
-    followingsCount: userCounts?._count.followings || 0,
   };
 };
