@@ -8,11 +8,19 @@ import {
   isAlreadyFollowing,
   checkBlockStatus,
 } from "@/api/controllers/user_interactions/userInteractionUtils";
+import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 
 // Follow a user using their username
 export const followUser = async (req: Request, res: Response) => {
   try {
-    const { username } = req.params;
+    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
+    if (!paramsResult.success) {
+      return res.status(400).json({
+        error: "Invalid parameters",
+        details: paramsResult.error.format(),
+      });
+    }
+    const { username } = paramsResult.data;
     //TODO: get currentUserId from auth middleware ( currentUserId from req body just for now)
     const currentUserId = req.body.id;
     if (!authenticated(currentUserId, res)) return;
@@ -54,7 +62,14 @@ export const followUser = async (req: Request, res: Response) => {
 // Unfollow a user using their username
 export const unfollowUser = async (req: Request, res: Response) => {
   try {
-    const { username } = req.params;
+    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
+    if (!paramsResult.success) {
+      return res.status(400).json({
+        error: "Invalid parameters",
+        details: paramsResult.error.format(),
+      });
+    }
+    const { username } = paramsResult.data;
     //TODO: get currentUserId from auth middleware ( currentUserId from req body just for now)
     const currentUserId = req.body.id;
     if (!authenticated(currentUserId, res)) return;
@@ -81,7 +96,14 @@ export const unfollowUser = async (req: Request, res: Response) => {
 // Accept a follow request
 export const acceptFollow = async (req: Request, res: Response) => {
   try {
-    const { username } = req.params;
+    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
+    if (!paramsResult.success) {
+      return res.status(400).json({
+        error: "Invalid parameters",
+        details: paramsResult.error.format(),
+      });
+    }
+    const { username } = paramsResult.data;
     //TODO: get currentUserId from auth middleware ( currentUserId from req body just for now)
     const currentUserId = req.body.id;
     if (!authenticated(currentUserId, res)) return;
@@ -110,7 +132,16 @@ export const acceptFollow = async (req: Request, res: Response) => {
 // Decline a follow request
 export const declineFollow = async (req: Request, res: Response) => {
   try {
-    const { username } = req.params;
+    // Validate request parameters
+    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
+    if (!paramsResult.success) {
+      return res.status(400).json({
+        error: "Invalid parameters",
+        details: paramsResult.error.format(),
+      });
+    }
+
+    const { username } = paramsResult.data;
     //TODO: get currentUserId from auth middleware ( currentUserId from req body just for now)
     const currentUserId = req.body.id;
     if (!authenticated(currentUserId, res)) return;
