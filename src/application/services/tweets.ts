@@ -8,19 +8,19 @@ import {
   validToReply,
 } from "@/application/utils/tweets/utils";
 import {
-  CreateReplyOrQuoteInternalDTO,
-  CreateReTweetInternalDto,
-  CreateTweetInternalDto,
-} from "../dtos/tweets/internal/tweets.dto";
+  CreateReplyOrQuoteServiceDTO,
+  CreateReTweetServiceDto,
+  CreateTweetServiceDto,
+} from "../dtos/tweets/service/tweets.dto";
 
 export class TweetService {
-  async createTweet(dto: CreateTweetInternalDto) {
+  async createTweet(dto: CreateTweetServiceDto) {
     return prisma.tweet.create({
       data: { ...dto, tweetType: TweetType.TWEET },
     });
   }
 
-  async createQuote(dto: CreateReplyOrQuoteInternalDTO) {
+  async createQuote(dto: CreateReplyOrQuoteServiceDTO) {
     const valid = await validToRetweetOrQuote(dto.parentId);
     if (valid)
       return prisma.$transaction([
@@ -35,7 +35,7 @@ export class TweetService {
     else throw new Error("You cannot quote a protected tweet");
   }
 
-  async createReply(dto: CreateReplyOrQuoteInternalDTO) {
+  async createReply(dto: CreateReplyOrQuoteServiceDTO) {
     const valid = await validToReply(dto.parentId, dto.userId);
     console.log(valid);
     if (valid)
@@ -51,7 +51,7 @@ export class TweetService {
     else throw new Error("You cannot reply to this tweet");
   }
 
-  async createRetweet(dto: CreateReTweetInternalDto) {
+  async createRetweet(dto: CreateReTweetServiceDto) {
     const valid = await validToRetweetOrQuote(dto.parentId);
     if (valid)
       return prisma.$transaction([

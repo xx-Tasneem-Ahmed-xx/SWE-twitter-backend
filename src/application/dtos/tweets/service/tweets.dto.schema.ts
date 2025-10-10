@@ -4,16 +4,16 @@ import {
   CreateTweetDTOSchema,
 } from "@/application/dtos/tweets/tweet.dto.schema";
 
-export const createTweetInternalSchema = CreateTweetDTOSchema.extend({
+export const createTweetServiceSchema = CreateTweetDTOSchema.extend({
   userId: z.uuid(),
 });
 
-export const createReTweetInternalSchema = CreateRetweetDTOSchema.extend({
+export const createReTweetServiceSchema = CreateRetweetDTOSchema.extend({
   userId: z.uuid(),
   parentId: z.uuid(),
 });
 
-export const CreateReplyOrQuoteInternalSchema = CreateTweetDTOSchema.extend({
+export const CreateReplyOrQuoteServiceSchema = CreateTweetDTOSchema.extend({
   userId: z.uuid(),
   parentId: z.uuid(),
 });
