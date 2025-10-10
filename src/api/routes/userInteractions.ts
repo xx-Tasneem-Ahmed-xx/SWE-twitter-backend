@@ -4,17 +4,21 @@ import {
   unfollowUser,
   acceptFollow,
   declineFollow,
+  getFollowers,
+  getFollowings,
 } from "@/api/controllers/user_interactions/follow";
 
 const router = Router();
 
 router
-  .route("/follow-requests/:username")
+  .route("/followers/:username")
   .post(followUser)
-  .delete(unfollowUser);
+  .delete(unfollowUser)
+  .get(getFollowers);
 router
-  .route("/follow-responses/:username")
+  .route("/followings/:username")
   .patch(acceptFollow)
-  .delete(declineFollow);
+  .delete(declineFollow)
+  .get(getFollowings);
 
 export default router;

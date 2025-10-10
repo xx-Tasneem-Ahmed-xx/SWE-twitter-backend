@@ -1,5 +1,5 @@
 import z from "zod";
-import { ReplyControl, TweetType } from "@prisma/client";
+import { ReplyControl, TweetType } from "@/prisma/client";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
 extendZodWithOpenApi(z);
@@ -27,11 +27,6 @@ export const CreateTweetDTOSchema = z
 
 export const CreateRetweetDTOSchema = z.object({
   userId: z.uuid(),
-  parentId: z.uuid(),
-});
-
-export const CreateReplyOrQuoteDTOSchema = CreateTweetDTOSchema.extend({
-  parentId: z.uuid(),
 });
 
 export const TweetResponsesSchema = z.object({

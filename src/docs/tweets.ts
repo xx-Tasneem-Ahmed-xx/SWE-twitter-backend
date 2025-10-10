@@ -1,11 +1,10 @@
 import {
-  CreateReplyOrQuoteDTOSchema,
   CreateTweetDTOSchema,
   HashTagResponseSchema,
   TweetResponsesSchema,
   TweetSummaryResponse,
   UsersResponseSchema,
-} from "../application/dtos/tweets/tweet.dto.schema";
+} from "@/application/dtos/tweets/tweet.dto.schema";
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 
@@ -77,7 +76,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
         required: true,
         content: {
           "application/json": {
-            schema: CreateReplyOrQuoteDTOSchema,
+            schema: CreateTweetDTOSchema,
           },
         },
       },
@@ -99,7 +98,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
         required: true,
         content: {
           "application/json": {
-            schema: CreateReplyOrQuoteDTOSchema,
+            schema: CreateTweetDTOSchema,
           },
         },
       },

@@ -4,10 +4,20 @@ import {
 } from "@asteasolutions/zod-to-openapi";
 import { registerTweetDocs } from "@/docs/tweets";
 import { registerUserInteractionsDocs } from "@/docs/userInteractions";
+import { registerUserDocs } from "@/docs/users";
 
 const registry = new OpenAPIRegistry();
 registerTweetDocs(registry);
 registerUserInteractionsDocs(registry);
+registerUserDocs(registry);
+
+registry.registerComponent("securitySchemes", "bearerAuth", {
+  type: "http",
+  scheme: "bearer",
+  bearerFormat: "JWT",
+  description:
+    "Enter your JWT token in the format: **Bearer &lt;your_token&gt;**",
+});
 
 export const generator = new OpenApiGeneratorV3(registry.definitions);
 
@@ -22,6 +32,11 @@ export const swaggerDoc = generator.generateDocument({
     {
       url: "http://localhost:3000",
       description: "Local development server",
+    },
+  ],
+  security: [
+    {
+      bearerAuth: [],
     },
   ],
 });
