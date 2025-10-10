@@ -3,9 +3,11 @@ import {
   OpenApiGeneratorV3,
 } from "@asteasolutions/zod-to-openapi";
 import { registerTweetDocs } from "@/docs/tweets";
+import { registerUserInteractionsDocs } from "@/docs/userInteractions";
 
 const registry = new OpenAPIRegistry();
 registerTweetDocs(registry);
+registerUserInteractionsDocs(registry);
 
 export const generator = new OpenApiGeneratorV3(registry.definitions);
 
