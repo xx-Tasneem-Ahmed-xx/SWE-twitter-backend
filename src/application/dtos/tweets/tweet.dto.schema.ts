@@ -27,11 +27,6 @@ export const CreateTweetDTOSchema = z
 
 export const CreateRetweetDTOSchema = z.object({
   userId: z.uuid(),
-  parentId: z.uuid(),
-});
-
-export const CreateReplyOrQuoteDTOSchema = CreateTweetDTOSchema.extend({
-  parentId: z.uuid(),
 });
 
 export const TweetResponsesSchema = z.object({
