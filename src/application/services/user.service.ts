@@ -1,13 +1,9 @@
-// src/application/services/user.service.ts
 
-import { prisma } from "../../prisma/client";
+import prisma from "../../database";
 import { UpdateUserProfileDTO, UserProfileResponseDTO } from "../dtos/user.dto";
 
 export class UserService {
-  // Fetch a user by username
-  async getUserProfile(
-    username: string
-  ): Promise<UserProfileResponseDTO | null> {
+  async getUserProfile(username: string): Promise<UserProfileResponseDTO | null> {
     const user = await prisma.user.findUnique({
       where: { username },
       select: {
@@ -26,11 +22,9 @@ export class UserService {
         cover: true,
       },
     });
-
     return user;
   }
 
-  // Update user profile by ID
   async updateUserProfile(
     id: string,
     data: UpdateUserProfileDTO
@@ -54,7 +48,6 @@ export class UserService {
         cover: true,
       },
     });
-
     return updatedUser;
   }
 }

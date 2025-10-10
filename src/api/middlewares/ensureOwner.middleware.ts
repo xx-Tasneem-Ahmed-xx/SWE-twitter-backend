@@ -1,4 +1,3 @@
-// src/api/middlewares/ensureOwner.middleware.ts
 import { Request, Response, NextFunction } from "express";
 
 export const ensureOwner = (paramName = "id") => {

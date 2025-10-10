@@ -1,0 +1,99 @@
+import {
+  OpenAPIRegistry,
+  extendZodWithOpenApi,
+} from "@asteasolutions/zod-to-openapi";
+import z from "zod";
+
+extendZodWithOpenApi(z); 
+
+
+const UsernameParams = z.object({
+  username: z.string().describe("Unique username of the user"),
+});
+
+const UserIdParams = z.object({
+  id: z.string().uuid().describe("Unique ID of the user"),
+});
+
+const UpdateUserBody = z.object({
+  bio: z.string().optional().describe("User biography text"),
+  website: z.string().optional().describe("Personal website URL"),
+  profilePhoto: z.string().optional().describe("Profile photo URL"),
+  protectedAccount: z
+    .boolean()
+    .optional()
+    .describe("Whether the account is protected"),
+  address: z.string().optional().describe("User address"),
+  cover: z.string().optional().describe("Cover image URL"),
+  name: z.string().optional().describe("User's full name"),
+});
+
+const UserResponse = z.object({
+  id: z.string().uuid(),
+  username: z.string(),
+  email: z.string(),
+  bio: z.string().nullable(),
+  website: z.string().nullable(),
+  profilePhoto: z.string().nullable(),
+  protectedAccount: z.boolean(),
+  verified: z.boolean(),
+  joinDate: z.string().describe("Date the user joined the platform"),
+});
+
+export const registerUserDocs = (registry: OpenAPIRegistry) => {
+  registry.registerPath({
+    method: "get",
+    path: "/api/users/{username}",
+    summary: "Get user profile by username",
+    description:
+      "Fetch the public profile of a specific user by their username.",
+    tags: ["Users"],
+    request: {
+      params: UsernameParams,
+    },
+    responses: {
+      200: {
+        description: "User profile fetched successfully.",
+        content: {
+          "application/json": {
+            schema: UserResponse,
+          },
+        },
+      },
+      404: { description: "User not found." },
+    },
+  });
+registry.registerPath({
+  method: "patch",
+  path: "/api/users/{id}",
+  summary: "Update user profile by ID",
+  description: "Update the profile fields of the authenticated user.",
+  tags: ["Users"],
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: UserIdParams,
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: UpdateUserBody,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Profile updated successfully.",
+      content: {
+        "application/json": {
+          schema: UserResponse,
+        },
+      },
+    },
+    400: { description: "Invalid input data." },
+    401: { description: "Unauthorized — missing or invalid JWT token." },
+    403: { description: "You cannot update another user's profile." },
+    404: { description: "User not found." },
+  },
+});
+};

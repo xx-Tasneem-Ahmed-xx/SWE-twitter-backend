@@ -1,11 +1,8 @@
-// src/api/controllers/user.controller.ts
-
 import { Request, Response } from "express";
 import { UserService } from "../../application/services/user.service";
 
 const userService = new UserService();
 
-// GET /api/users/:username
 export const getUserProfile = async (req: Request, res: Response) => {
   try {
     const { username } = req.params;
@@ -19,7 +16,6 @@ export const getUserProfile = async (req: Request, res: Response) => {
   }
 };
 
-// PATCH /api/users/:id
 export const updateUserProfile = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

@@ -1,4 +1,3 @@
-// src/api/validators/user.validator.ts
 import { body, param } from "express-validator";
 
 export const updateUserValidator = [

@@ -1,4 +1,3 @@
-// src/api/routes/user.routes.ts
 import { Router } from "express";
 import {
   getUserProfile,
@@ -11,10 +10,8 @@ import { validateRequest } from "../middlewares/validateRequest.middleware";
 
 const router = Router();
 
-// Public profile access by username
 router.get("/:username", getUserProfile);
 
-// Protected update (must own the account)
 router.patch(
   "/:id",
   requireAuth,

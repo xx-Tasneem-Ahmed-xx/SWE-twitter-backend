@@ -4,8 +4,8 @@ import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
 import swaggerUi from "swagger-ui-express";
-import swaggerDoc from "./swagger.json";
 import userRouter from "./api/routes/user.routes";
+import { swaggerDoc } from "./docs";
 
 const app = express();
 
