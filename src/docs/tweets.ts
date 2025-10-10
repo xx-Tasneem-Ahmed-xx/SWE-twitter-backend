@@ -1,5 +1,4 @@
 import {
-  CreateReplyOrQuoteDTOSchema,
   CreateTweetDTOSchema,
   HashTagResponseSchema,
   TweetResponsesSchema,
@@ -77,7 +76,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
         required: true,
         content: {
           "application/json": {
-            schema: CreateReplyOrQuoteDTOSchema,
+            schema: CreateTweetDTOSchema,
           },
         },
       },
@@ -99,7 +98,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
         required: true,
         content: {
           "application/json": {
-            schema: CreateReplyOrQuoteDTOSchema,
+            schema: CreateTweetDTOSchema,
           },
         },
       },
