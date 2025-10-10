@@ -11,6 +11,7 @@ import { SocketService } from "@/application/services/socketService";
 import directMessagesRouter from "@/api/routes/directMessages";
 import tweetRoutes from "@/api/routes/tweets";
 import userInteractionsRoutes from "@/api/routes/userInteractions";
+import userRouter from "./api/routes/user.routes";
 
 const app = express();
 app.use(cors());
@@ -39,7 +40,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use("/api/users/dm", directMessagesRouter);
 
 app.use("/api/tweets", tweetRoutes);
-
+app.use("/api/users", userRouter);
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
 
 export default httpServer;

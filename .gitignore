@@ -38,3 +38,4 @@ coverage/
 .cache/
 
 /src/generated/prisma
+scripts/
