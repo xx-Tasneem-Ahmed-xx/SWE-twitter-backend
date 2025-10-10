@@ -2,10 +2,13 @@ import {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
 } from "@asteasolutions/zod-to-openapi";
+import { registerTweetDocs } from "@/docs/tweets";
+import { registerUserInteractionsDocs } from "@/docs/userInteractions";
 import { registerUserDocs } from "@/docs/users";
 
 const registry = new OpenAPIRegistry();
-
+registerTweetDocs(registry);
+registerUserInteractionsDocs(registry);
 registerUserDocs(registry);
 
 registry.registerComponent("securitySchemes", "bearerAuth", {

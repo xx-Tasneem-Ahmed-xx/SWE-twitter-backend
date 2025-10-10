@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",
-    "rootDir": "src",
+    "rootDirs": ["./src", "./prisma"],
     "outDir": "dist",
     "strict": true,
     "esModuleInterop": true,

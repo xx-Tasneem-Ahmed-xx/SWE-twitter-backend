@@ -9,8 +9,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User {
@@ -32,6 +33,11 @@ model User {
   protectedAccount Boolean   @default(false)
   profilePhoto     String?
   cover            String?
+  isEmailVerified  Boolean   @default(false)
+  tfaVerifed       Boolean   @default(false)
+  provider         String?
+  loginCodes       String?
+  loginCodesSet    Boolean   @default(false)
 
   messages              Message[]
   tweet                 Tweet[]
@@ -49,9 +55,52 @@ model User {
   blocked               Block[]         @relation("Blocked")
   notification          Notification[]  @relation("User")
   notificationWithActor Notification[]  @relation("Actor")
+  oldPassword           OldPassword[]
+  deviceRecord          DeviceRecord[]
 
   // notificationWithActor will only include ones triggered by follows and retweets
   @@map("users")
+}
+
+model OldPassword {
+  id       String @id @default(uuid())
+  userId   String
+  password String
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("oldPasswords")
+}
+
+model Session {
+  jti          String    @id
+  userId       String
+  isActive     Boolean   @default(true)
+  issuedAt     DateTime  @default(now())
+  deviceInfoId String?
+  expire_at    DateTime?
+
+  @@map("sessions")
+}
+
+model DeviceRecord {
+  id        String    @id @default(uuid())
+  city      String?
+  region    String?
+  country   String?
+  locale    String?
+  lat       Float?
+  lon       Float?
+  zipcode   String?
+  lastLogin DateTime?
+  browser   String?
+  userId    String
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("device_record")
 }
 
 model Tweet {
@@ -62,6 +111,7 @@ model Tweet {
   likesCount   Int          @default(0)
   retweetCount Int          @default(0)
   repliesCount Int          @default(0)
+  quotesCount  Int          @default(0)
   replyControl ReplyControl @default(EVERYONE)
   parentId     String?
   tweetType    TweetType
