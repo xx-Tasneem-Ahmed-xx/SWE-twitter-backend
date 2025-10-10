@@ -5,7 +5,7 @@ import {
   TweetResponsesSchema,
   TweetSummaryResponse,
   UsersResponseSchema,
-} from "../application/dtos/tweets/tweet.dto.schema";
+} from "@/application/dtos/tweets/tweet.dto.schema";
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 
