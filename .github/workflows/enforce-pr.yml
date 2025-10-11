@@ -7,27 +7,20 @@ on:
     branches: [main]
 
 permissions:
-  contents: write 
-  pull-requests: read
+  contents: read
 
 jobs:
   enforce-pr-policy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🚫 Block direct pushes to main
-        if: github.event_name == 'push'
+      - name: Block direct pushes to main
+        if: >
+          github.event_name == 'push' &&
+          !startsWith(github.event.head_commit.message, 'Merge pull request')
         run: |
           echo "❌ Direct push to 'main' detected!"
-          echo "All changes to main must go through a Pull Request."
-          echo "Reverting this unauthorized push..."
-          git config --global user.email "actions@github.com"
-          git config --global user.name "GitHub Action"
-          git clone https://github.com/${{ github.repository }} repo
-          cd repo
-          git revert -m 1 HEAD --no-edit || true
-          git push origin main --force
-          echo "🧹 Unauthorized commit reverted automatically."
+          echo "Please create a Pull Request instead of pushing directly to main."
           exit 1
 
       - name: ✅ Allow PR merges
