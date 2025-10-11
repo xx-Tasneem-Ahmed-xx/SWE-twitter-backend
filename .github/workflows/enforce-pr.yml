@@ -1,0 +1,29 @@
+name: Enforce Pull Request Workflow
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  enforce-pr-policy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Block direct pushes to main
+        if: >
+          github.event_name == 'push' &&
+          !startsWith(github.event.head_commit.message, 'Merge pull request')
+        run: |
+          echo "❌ Direct push to 'main' detected!"
+          echo "Please create a Pull Request instead of pushing directly to main."
+          exit 1
+
+      - name: ✅ Allow PR merges
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "✅ Pull Request detected — merge allowed!"
