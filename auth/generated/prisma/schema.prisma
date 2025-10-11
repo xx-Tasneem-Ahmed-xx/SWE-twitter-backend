@@ -1,0 +1,343 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Block {
+  blockedId                    String
+  blockerId                    String
+  users_Block_blockedIdTousers users  @relation("Block_blockedIdTousers", fields: [blockedId], references: [id])
+  users_Block_blockerIdTousers users  @relation("Block_blockerIdTousers", fields: [blockerId], references: [id])
+
+  @@id([blockerId, blockedId])
+}
+
+model Follow {
+  followerId                      String
+  followingId                     String
+  status                          FollowStatus @default(ACCEPTED)
+  users_Follow_followerIdTousers  users        @relation("Follow_followerIdTousers", fields: [followerId], references: [id])
+  users_Follow_followingIdTousers users        @relation("Follow_followingIdTousers", fields: [followingId], references: [id])
+
+  @@id([followerId, followingId])
+}
+
+model Mention {
+  tweetId                          String
+  mentionerId                      String
+  mentionedId                      String
+  users_Mention_mentionedIdTousers users  @relation("Mention_mentionedIdTousers", fields: [mentionedId], references: [id])
+  users_Mention_mentionerIdTousers users  @relation("Mention_mentionerIdTousers", fields: [mentionerId], references: [id])
+  tweets                           tweets @relation(fields: [tweetId], references: [id])
+
+  @@id([tweetId, mentionerId, mentionedId])
+}
+
+model MessageMedia {
+  messageId String
+  mediaId   String
+  medias    medias   @relation(fields: [mediaId], references: [id])
+  messages  messages @relation(fields: [messageId], references: [id])
+
+  @@id([messageId, mediaId])
+}
+
+model Mute {
+  mutedId                   String
+  muterId                   String
+  users_Mute_mutedIdTousers users  @relation("Mute_mutedIdTousers", fields: [mutedId], references: [id])
+  users_Mute_muterIdTousers users  @relation("Mute_muterIdTousers", fields: [muterId], references: [id])
+
+  @@id([muterId, mutedId])
+}
+
+model Retweet {
+  userId  String
+  tweetId String
+  tweets  tweets @relation(fields: [tweetId], references: [id])
+  users   users  @relation(fields: [userId], references: [id])
+
+  @@id([userId, tweetId])
+}
+
+model TweetLike {
+  tweetId String
+  userId  String
+  tweets  tweets @relation(fields: [tweetId], references: [id])
+  users   users  @relation(fields: [userId], references: [id])
+
+  @@id([userId, tweetId])
+}
+
+model TweetMedia {
+  tweetId String
+  mediaId String
+  medias  medias @relation(fields: [mediaId], references: [id])
+  tweets  tweets @relation(fields: [tweetId], references: [id])
+
+  @@id([tweetId, mediaId])
+}
+
+model TweetSummary {
+  id      String @id
+  tweetId String @unique
+  summary String
+  tweets  tweets @relation(fields: [tweetId], references: [id])
+}
+
+model chatGroups {
+  name        String?
+  description String?
+  photo       String?
+  chatId      String  @id
+  chats       chats   @relation(fields: [chatId], references: [id])
+}
+
+model chats {
+  id         String      @id
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime
+  DMChat     Boolean
+  chatGroups chatGroups?
+  chatusers  chatusers[]
+  messages   messages[]
+}
+
+model chatusers {
+  id     String @id
+  userId String
+  chatId String
+  chats  chats  @relation(fields: [chatId], references: [id])
+  users  users  @relation(fields: [userId], references: [id])
+
+  @@unique([userId, chatId])
+}
+
+model hashes {
+  id          String        @id
+  tag_text    String        @unique
+  tweetHashes tweetHashes[]
+}
+
+model medias {
+  id           String         @id
+  name         String
+  url          String
+  type         MediaType
+  size         Int?
+  MessageMedia MessageMedia[]
+  TweetMedia   TweetMedia[]
+}
+
+model messages {
+  id           String         @id
+  chatId       String
+  userId       String
+  content      String
+  createdAt    DateTime       @default(now())
+  status       MessageStatus  @default(PENDING)
+  MessageMedia MessageMedia[]
+  chats        chats          @relation(fields: [chatId], references: [id])
+  users        users          @relation(fields: [userId], references: [id])
+
+  @@index([chatId, createdAt])
+}
+
+model notifications {
+  id                                 String           @id
+  type                               NotificationType
+  content                            String
+  isRead                             Boolean          @default(false)
+  createdAt                          DateTime         @default(now())
+  userId                             String
+  tweetId                            String?
+  actorId                            String?
+  users_notifications_actorIdTousers users?           @relation("notifications_actorIdTousers", fields: [actorId], references: [id])
+  tweets                             tweets?          @relation(fields: [tweetId], references: [id])
+  users_notifications_userIdTousers  users            @relation("notifications_userIdTousers", fields: [userId], references: [id])
+
+  @@index([createdAt])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model spatial_ref_sys {
+  srid      Int     @id
+  auth_name String? @db.VarChar(256)
+  auth_srid Int?
+  srtext    String? @db.VarChar(2048)
+  proj4text String? @db.VarChar(2048)
+}
+
+model tweetHashes {
+  tweetId String
+  hashId  String
+  hashes  hashes @relation(fields: [hashId], references: [id])
+  tweets  tweets @relation(fields: [tweetId], references: [id])
+
+  @@id([tweetId, hashId])
+}
+
+model tweetbookmarks {
+  id      String @id
+  userId  String
+  tweetId String
+  tweets  tweets @relation(fields: [tweetId], references: [id])
+  users   users  @relation(fields: [userId], references: [id])
+}
+
+model tweets {
+  id             String           @id
+  userId         String
+  content        String
+  createdAt      DateTime         @default(now())
+  likesCount     Int              @default(0)
+  retweetCount   Int              @default(0)
+  repliesCount   Int              @default(0)
+  parentId       String?
+  tweetType      TweetType
+  replyControl   ReplyControl     @default(EVERYONE)
+  Mention        Mention[]
+  Retweet        Retweet[]
+  TweetLike      TweetLike[]
+  TweetMedia     TweetMedia[]
+  TweetSummary   TweetSummary?
+  notifications  notifications[]
+  tweetHashes    tweetHashes[]
+  tweetbookmarks tweetbookmarks[]
+  tweets         tweets?          @relation("tweetsTotweets", fields: [parentId], references: [id])
+  other_tweets   tweets[]         @relation("tweetsTotweets")
+  users          users            @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+model users {
+  id                String         @id @default(uuid())
+  name              String?
+  username          String         @unique
+  email             String         @unique
+  is_email_verified Boolean        @default(false)
+  password          String
+  saltPassword      String
+  otp               Int?
+  otpExpiry         DateTime?
+  tfa_verifed       Boolean        @default(false)
+  bio               String?
+  dateOfBirth       DateTime
+  joinDate          DateTime       @default(now())
+  verified          Boolean        @default(false)
+  address           String?
+  website           String?
+  protectedAccount  Boolean        @default(false)
+  profilePhoto      String?
+  cover             String?
+  provider          String?
+  device_record     DeviceRecord[]
+  old_passwords     OldPassword[]
+  login_codes       String?
+  login_codes_set   Boolean        @default(false)
+
+  Block_Block_blockedIdTousers               Block[]          @relation("Block_blockedIdTousers")
+  Block_Block_blockerIdTousers               Block[]          @relation("Block_blockerIdTousers")
+  Follow_Follow_followerIdTousers            Follow[]         @relation("Follow_followerIdTousers")
+  Follow_Follow_followingIdTousers           Follow[]         @relation("Follow_followingIdTousers")
+  Mention_Mention_mentionedIdTousers         Mention[]        @relation("Mention_mentionedIdTousers")
+  Mention_Mention_mentionerIdTousers         Mention[]        @relation("Mention_mentionerIdTousers")
+  Mute_Mute_mutedIdTousers                   Mute[]           @relation("Mute_mutedIdTousers")
+  Mute_Mute_muterIdTousers                   Mute[]           @relation("Mute_muterIdTousers")
+  Retweet                                    Retweet[]
+  TweetLike                                  TweetLike[]
+  chatusers                                  chatusers[]
+  messages                                   messages[]
+  notifications_notifications_actorIdTousers notifications[]  @relation("notifications_actorIdTousers")
+  notifications_notifications_userIdTousers  notifications[]  @relation("notifications_userIdTousers")
+  tweetbookmarks                             tweetbookmarks[]
+  tweets                                     tweets[]
+}
+
+enum FollowStatus {
+  PENDING
+  ACCEPTED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  GIF
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  READ
+}
+
+enum NotificationType {
+  LIKE
+  RETWEET
+  REPLY
+  QUOTE
+  FOLLOW
+  RequestToFollow
+  AcceptedFollow
+  MENTION
+}
+
+enum ReplyControl {
+  EVERYONE
+  FOLLOWINGS
+  VERIFIED
+  MENTIONED
+}
+
+enum TweetType {
+  TWEET
+  REPLY
+  QUOTE
+}
+
+model DeviceRecord {
+  id         Int       @id @default(autoincrement())
+  userid     String
+  city       String?
+  region     String?
+  country    String?
+  locale     String?
+  lat        Float?
+  lon        Float?
+  zipcode    String?
+  last_login DateTime?
+  browser    String?
+
+  // Relations
+  user users @relation(fields: [userid], references: [id], onDelete: Cascade)
+
+  @@map("device_record")
+}
+
+model OldPassword {
+  id       Int    @id @default(autoincrement())
+  user_id  String
+  password String
+
+  // Relations
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("old_password")
+}
+
+model Session {
+  jti            String    @id
+  user_id        Int
+  is_active      Boolean   @default(true)
+  issued_at      DateTime  @default(now())
+  device_info_id Int?
+  expire_at      DateTime?
+
+  @@map("session")
+}
