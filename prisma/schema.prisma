@@ -22,7 +22,7 @@ model User {
   password         String
   saltPassword     String
   token            String
-  otp              Int?
+  otp              String?
   otpExpiry        DateTime?
   bio              String?
   dateOfBirth      DateTime
