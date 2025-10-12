@@ -1,37 +1,33 @@
 // Auth.ts
 
 import jwt from "jsonwebtoken";
-import { prisma } from "../config/database.js";
-import * as utils from "../utils/utils.js";
-import { redisClient } from "../config/redis.js";
-import { Request, Response, NextFunction } from "express"; // Import Express types
+import  prisma  from "../../database.js";
+import * as utils from "../../application/utils/tweets/utils.js";
+import { redisClient } from "../../config/redis.js";
+import { Request, Response, NextFunction } from "express"; 
 // Using utils.JwtUserPayload for type checking the payload structure
-import { JwtUserPayload, GeoData } from "../utils/utils.js"; // Adjust path as necessary
+import { JwtUserPayload, GeoData } from "../../application/utils/tweets/utils.js"; 
 
 // --- Custom Type Definitions ---
 
 // Minimal required user structure to attach to the request
 interface AuthUser {
-  id: number;
+  id: string;
   username: string;
   email: string;
   role: string;
 }
 
 // Custom properties added to the Request object by this middleware
+// FIX: Removed conflicting properties (ip, connection, socket) to resolve TS error.
 interface RequestWithAuth extends Request {
   user?: AuthUser;
   jti?: string;
   version?: number;
-  devid?: number;
-  // Express has req.ip, req.connection.remoteAddress, req.socket.remoteAddress
-  ip?: string;
-  connection?: {
-    remoteAddress?: string;
-  };
-  socket?: {
-    remoteAddress?: string;
-  };
+  devid?: string;
+  
+  // Standard Express properties (ip, connection, socket) are REMOVED
+  // and will be inherited correctly from the base 'Request' type.
 }
 
 // Minimal Prisma User structure for database read (assuming this structure)
@@ -49,10 +45,6 @@ interface DeviceRecord {
 /**
  * Auth middleware
  * - Expects Authorization: Bearer <token>
- * - Validates JWT signature & expiry via utils.ValidateToken
- * - Checks token jti against Redis Blocklist
- * - Checks token version matches DB user's token_version
- * - Loads devinfo from DeviceRecord and checks city hasn't changed
  * - Sets: req.user (partial), req.jti, req.version, req.devid
  */
 export default function Auth() {
@@ -62,7 +54,6 @@ export default function Auth() {
       const tokenCandidate: string | null = header.startsWith("Bearer") ? header.slice(6).trim() : null;
       if (!tokenCandidate) return utils.SendError(res, 401, "invaild token");
 
-      // Assuming utils.ValidateToken returns { ok: boolean, payload?: JwtUserPayload, err?: Error }
       const validationResult: { ok: boolean; payload?: JwtUserPayload; err?: Error } = utils.ValidateToken(tokenCandidate);
       const { ok, payload, err } = validationResult;
       
@@ -72,7 +63,6 @@ export default function Auth() {
       }
 
       // require version claim
-      // Accessing optional claims using the union operator for compatibility
       const version: number | null | undefined = payload.version ?? (payload as any).token_version ?? (payload as any).tokenVersion;
       if (version === null || version === undefined) return utils.SendError(res, 401, "you are unauthorized");
 
@@ -80,12 +70,10 @@ export default function Auth() {
       const email: string = payload.email;
       if (!email) return utils.SendError(res, 401, "you are unauthorized");
 
-      // NOTE: Original used `prisma.User.findOne`. Prisma Client V2+ uses `findUnique` or `findFirst`. 
-      // Assuming you intended `findUnique` if email is unique.
-      const user: PrismaUser | null = await (prisma.user as any).findOne({ where: { email } });
+      // NOTE: Using 'findFirst' as a substitute for the deprecated 'findOne' used in the original JS logic.
+      const user: PrismaUser | null = await (prisma.user as any).findFirst({ where: { email } });
       if (!user) return utils.SendError(res, 401, "something went wrong");
 
-      // Type assertion is needed here because the version might be null in DB
       if ((user.token_version ?? 0) !== Number(version)) {
         return utils.SendError(res, 401, "token version is old try logging in again");
       }
@@ -95,27 +83,32 @@ export default function Auth() {
       if (jti) {
         const exists: number = await redisClient.exists(`Blocklist:${jti}`);
         if (exists === 1) return utils.SendError(res, 401, "you already logged out sign in again");
-        req.jti = jti;
+        (req as any).jti = jti; // Use type assertion on req for custom properties
       } else {
-        // jti missing — continue but warn
         console.warn("⚠️ jti missing from JWT");
       }
 
       // set user info on request for handlers
-      req.user = { id: payload.id as number, username: payload.Username as string, email, role: payload.role as string };
-      req.version = Number(version);
+      (req as any).user = { 
+        id: payload.id as string, 
+        username: (payload as any).Username as string, // Access Username via type assertion if needed
+        email, 
+        role: payload.role as string 
+      };
+      (req as any).version = Number(version);
 
       // device check
-      const devid: number | undefined = payload.devid as number;
+      const devid: string | undefined = payload.devid as string;
       let devinfo: DeviceRecord | null = null;
       if (devid) {
-        req.devid = Number(devid);
-        // NOTE: Original used `prisma.deviceRecord.findOne`. Assuming `findUnique` is intended.
-        devinfo = await (prisma.deviceRecord as any).findOne({ where: { id: Number(devid) } });
+        (req as any).devid = devid;
+        // NOTE: Using 'findFirst' for the deprecated 'findOne'
+        devinfo = await (prisma.deviceRecord as any).findFirst({ where: { id: devid } });
         if (!devinfo) return utils.SendError(res, 500, "something went wrong");
       }
 
       // Geo check: compare token device city with current remote city
+      // Accessing standard Express properties from the base type
       const remoteAddr: string | undefined = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress;
       const date: GeoData | null = await utils.Sendlocation(remoteAddr).catch(() => null);
       

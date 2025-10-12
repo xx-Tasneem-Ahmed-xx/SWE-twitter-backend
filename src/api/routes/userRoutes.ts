@@ -1,14 +1,14 @@
 import express, { Router, Request, Response, NextFunction } from "express";
 
 // Importing the default export and giving it an appropriate type (assuming it's an object of async functions)
-import authController from "../controller/user.js"; 
+import authController from "../controllers/user.js"; 
 
 // Importing middleware functions (which are default exports, typically untyped in JS)
-import Auth from "../middlerware/Auth.js";
-import AdminAuth from "../middlerware/AdminAuth.js";
-import Reauth from "../middlerware/Reauth.js";
-import DeactivateUser from "../middlerware/DeactivateUser.js";
-import AfterChange from "../middlerware/AfterChange.js";
+import Auth from "../middlewares/Auth";
+import AdminAuth from "../middlewares/AdminAuth";
+import Reauth from "../middlewares/Reauth";
+import DeactivateUser from "../middlewares/DeactivateUser";
+import AfterChange from "../middlewares/AfterChange";
 
 // Type assertion for the controller functions to satisfy TS and keep the code clean
 // This assumes authController is an object where keys are controller names and values are Express handlers.

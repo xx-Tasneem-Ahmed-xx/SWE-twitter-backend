@@ -5,12 +5,12 @@ import nodemailer from "nodemailer";
 
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
-import fetch from "node-fetch";
+import fetch, { Response as FetchResponse } from "node-fetch";
 import zxcvbn from "zxcvbn";
 import { promisify } from "util";
 // The following imports assume you have 'prisma' and 'redisClient' configured
 
-import { redisClient } from "../config/redis.js";
+import { redisClient } from "../../../config/redis.js";
 // import { sendEmailSMTP as _sendEmailSMTP } from "./email-helper.js"; // optional: separate email helper
 import { performance } from "perf_hooks";
 // Use appropriate types for Express Request and Response
@@ -121,10 +121,10 @@ export interface JwtUserPayload extends JwtPayload {
   Username: string;
   email: string;
   role: string;
-  id: number; // Assuming user ID is a number based on prisma use below
+  id: string; // Assuming user ID is a number based on prisma use below
   version: number;
   jti: string;
-  devid: number | null; // Assuming devid is a number or null
+  devid: string | null; // Assuming devid is a number or null
 }
 
 // Define the structure of the GeoData response from ip-api.com
@@ -146,10 +146,10 @@ export interface GeoData {
 // Define the structure of a Redis Session record
 export interface UserSession {
   Jti: string;
-  UserID: number; // Assuming user ID is a number
+  UserID: string; // Assuming user ID is a number
   IsActive: boolean;
   IssuedAT: string;
-  DeviceInfoId: number | null;
+  DeviceInfoId: string| null;
   ExpireAt: string;
 }
 
@@ -196,11 +196,11 @@ export function SendError(res: Response, status: number, message: string): void 
 export function GenerateJwt({ username, email, id, role = "user", expiresInSeconds = 900, version = 0, devid = null }: {
   username: string;
   email: string;
-  id: number;
+  id: string;
   role?: string;
   expiresInSeconds?: number;
   version?: number;
-  devid?: number | null;
+  devid?: string | null;
 }): { token: string; jti: string; payload: JwtUserPayload } {
   const jti: string = uuidv4();
   const now: number = Math.floor(Date.now() / 1000);
@@ -384,7 +384,7 @@ export async function IncrAttempts(res: Response, email: string): Promise<boolea
 
 /* ------------------------------ Password history ------------------------------ */
 
-export async function AddPasswordHistory(hashed: string, userId: number): Promise<boolean> {
+export async function AddPasswordHistory(hashed: string, userId: string): Promise<boolean> {
   try {
     await prisma.oldPassword.create({
       data: {
@@ -399,7 +399,7 @@ export async function AddPasswordHistory(hashed: string, userId: number): Promis
   }
 }
 
-export async function NotOldPassword(passwordPlain: string, userId: number): Promise<string> {
+export async function NotOldPassword(passwordPlain: string, userId: string): Promise<string> {
   try {
     // fetch last 5 passwords
     const history = await prisma.oldPassword.findMany({
@@ -546,7 +546,7 @@ export async function Sendlocation(remoteAddr: string | undefined | null): Promi
     // call ip-api.com (keep same as Go)
     const target: string = ip.includes("127.0.0.1") || ip.includes("::1") ? "8.8.8.8" : ip;
     console.log("🌍 Sending location request for:", target);
-    const resp: Response = await fetch(`http://ip-api.com/json/${target}`);
+    const resp: FetchResponse = await fetch(`http://ip-api.com/json/${target}`);
     console.log("🌎 Geo API status:", resp.status);
     if (!resp.ok) throw new Error("failed to fetch geo info");
     const data: any = await resp.json();
@@ -647,7 +647,7 @@ The Racist Team
  * Mirrors the Go logic: stores or updates DeviceRecord by userID
  */
 // The original function returns 0 on failure, so I'll adjust the return type and keep the internal logic
-export async function SetDeviceInfo(req: Request, res: Response, email: string): Promise<{ devid: number; deviceRecord: any }> {
+export async function SetDeviceInfo(req: Request, res: Response, email: string): Promise<{ devid: string; deviceRecord: any }> {
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
@@ -683,7 +683,7 @@ console.log("Inside SetDeviceInfo received user:", user);
         },
       });
       (req as any).devid = updated.id;
-      let devid: number = updated.id;
+      let devid: string = updated.id;
       return {devid, deviceRecord: updated};
     } else {
       const created = await prisma.deviceRecord.create({
@@ -701,7 +701,7 @@ console.log("Inside SetDeviceInfo received user:", user);
         },
       });
       (req as any).devid = created.id;
-     let devid: number = created.id;
+     let devid: string = created.id;
       return {devid, deviceRecord: created};
     }
   } catch (err) {
@@ -763,7 +763,7 @@ export async function ValidatePassword(password: string): Promise<string> {
   const sha1sum: string = crypto.createHash("sha1").update(password).digest("hex").toUpperCase();
   const prefix: string = sha1sum.slice(0, 5);
   try {
-    const resp: Response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`);
+    const resp: FetchResponse = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`);
     if (!resp.ok) return "something went wrong while validating";
     const body: string = await resp.text();
     const lines: string[] = body.split("\r\n");
@@ -791,7 +791,7 @@ export function StricerPassword(scoreObj: zxcvbn.ZXCVBNResult): number {
   // approximate logic copied from Go
   if (new Date().getHours() > 2) {
     if (scoreObj.score < 3) return -1;
-    if ((scoreObj.entropy || 0) < 60) return -1;
+    if ((scoreObj.guesses_log10 || 0) < 6) return -1; // 10^6 guesses ~ entropy 60 bits
   }
   return 1;
 }
@@ -801,14 +801,14 @@ export function StricerPassword(scoreObj: zxcvbn.ZXCVBNResult): number {
 /**
  * SetSession(req, res) - stores session info in redis key: session:<userId>:<jti>
  */
-export async function SetSession(req: Request, userId: number, jti: string): Promise<boolean> {
+export async function SetSession(req: Request, userId: string, jti: string): Promise<boolean> {
   try {
     if (!userId) {
       console.error("SetSession: missing user id");
       return false;
     }
 console.log("setsessions been called");
-    const devid: number | null = (req as any).devid || (req.body as any)?.devid || null;
+    const devid: string | null = (req as any).devid || (req.body as any)?.devid || null;
 
     const session: UserSession = {
       Jti: jti || uuidv4(),

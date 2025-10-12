@@ -4,7 +4,7 @@ import express, { Router, Request, Response, NextFunction } from "express";
 import userRoutes from "./userRoutes.js"; 
 
 // GeoGurd is a default-exported middleware function
-import GeoGurd from "../middleware/GeoGuard.js";
+import GeoGurd from "../middlewares/GeoGuard.js";
 
 // Define the type for an Express Middleware function
 type MiddlewareFunction = (req: Request, res: Response, next: NextFunction) => Promise<any> | void;

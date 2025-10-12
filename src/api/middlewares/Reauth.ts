@@ -1,14 +1,16 @@
 // Reauth.ts
-import { prisma } from "../config/database.js";
-import * as utils from "../utils/utils.js";
-import { redisClient } from "../config/redis.js";
+import * as utils from "../../application/utils/tweets/utils.js";
+import { redisClient } from "../../config/redis.js";
+import { GeoData } from "../../application/utils/tweets/utils.js"; // <-- FIX: Import GeoData
+
 import { Request, Response, NextFunction } from "express";
 
 // Define the custom user object expected on the Request
 interface RequestWithAuthEmail extends Request {
   user?: {
+    id: string;
     email?: string;
-    // Add other user properties here if necessary (e.g., id, role)
+    [key: string]: any;
   };
 }
 

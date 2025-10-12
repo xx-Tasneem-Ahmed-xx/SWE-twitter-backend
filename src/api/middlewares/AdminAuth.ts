@@ -1,13 +1,17 @@
 // AdminAuth.ts
 
-import * as utils from "../utils/utils.js";
+// Adjust the import path below if your utils file is located elsewhere
+import * as utils from "../../application/utils/tweets/utils.js";
 import { Request, Response, NextFunction } from "express";
 
-// Define an interface to extend the Request object with the custom 'user' property
+// Define an interface to extend the Request object with the custom 'user' property.
+// We must include 'id: string' to satisfy the existing conflicting declaration
+// (which likely comes from your Auth.ts middleware or an external type declaration).
 interface RequestWithUserRole extends Request {
   user?: {
+    id: string; // <-- REQUIRED FIX: Added the missing 'id' property with type string
     role?: string; // Expecting role to be set by a preceding Auth middleware
-    // Add other user properties here if necessary (e.g., id, email)
+    // Add other user properties here if necessary (e.g., email, username)
   };
 }
 

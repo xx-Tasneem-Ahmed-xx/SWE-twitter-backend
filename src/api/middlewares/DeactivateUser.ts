@@ -1,7 +1,7 @@
 // DeactivateUser.ts
-import { prisma } from "../config/database.js";
-import * as utils from "../utils/utils.js";
-import { redisClient } from "../config/redis.js";
+import  prisma  from "../../database.js";
+import * as utils from "../../application/utils/tweets/utils.js";
+import { redisClient } from "../../config/redis.js";
 import { Request, Response, NextFunction } from "express";
 
 // --- Type Definitions for Context ---
@@ -14,7 +14,7 @@ import { Request, Response, NextFunction } from "express";
 interface DbMock {
   User: {
     // Mimics the Sequelize update signature returning [affectedCount]
-    update: (data: { is_active: boolean }, options: { where: { id: number } }) => Promise<[number]>;
+    update: (data: { is_active: boolean }, options: { where: { id: string } }) => Promise<[number]>;
   };
 }
 // You must declare `db` globally or import it from the correct path. 
@@ -24,7 +24,7 @@ declare const db: DbMock;
 // Custom request interface to include the user object set by a preceding Auth middleware
 interface RequestWithAuthId extends Request {
   user?: {
-    id: number;
+    id: string;
     // Add other user properties here if needed
   };
 }
@@ -37,7 +37,7 @@ export default function DeactivateUser() {
   return async function (req: RequestWithAuthId, res: Response, next: NextFunction): Promise<void | Response> {
     try {
       // Safely access req.user.id or req.body.id
-      const id: number | undefined = req.user?.id ?? (req.body && Number(req.body.id));
+      const id: string | undefined = req.user?.id ?? (req.body && Number(req.body.id));
       if (!id) return utils.SendError(res, 401, "unauthorized");
 
       // Assuming db.User.update is available and returns [affectedCount: number]

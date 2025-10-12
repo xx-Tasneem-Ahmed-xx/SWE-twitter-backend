@@ -15,7 +15,7 @@ declare const sendError: (res: Response, status: number, message: string) => Res
 
 // Define the expected structure of the decoded JWT payload
 interface AuthPayload extends JwtPayload {
-  id: number;
+  id: string;
   Username?: string;
   username?: string;
   email: string;
@@ -25,7 +25,7 @@ interface AuthPayload extends JwtPayload {
 
 // Define the user object attached to the request
 interface AuthUser {
-  id: number;
+  id: string;
   Username?: string;
   username?: string;
   email: string;
@@ -81,7 +81,7 @@ export default function ModeratorAuth() {
       };
 
       // role must be moderator
-      const role: string | undefined = req.user.role;
+      const role: string | undefined = req.user?.role;
       if (!role || role !== "moderator") return sendError(res, 401, "only moderator can enter this section");
 
       next();

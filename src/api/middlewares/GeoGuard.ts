@@ -1,17 +1,16 @@
 // GeoGuard.ts
-import * as utils from "../utils/utils.js";
-import { Request, Response, NextFunction } from "express";
-import { GeoData } from "../utils/utils.js"; // Importing GeoData type from utils
+// FIX: Added necessary imports from 'express' and 'GeoData' from 'utils'
+import { Request, Response, NextFunction } from "express"; // <-- FIX: Import NextFunction
+// import { prisma } from "../../database.js";
+import * as utils from "../../application/utils/tweets/utils.js";
+import { redisClient } from "../../config/redis.js";
+import { GeoData } from "../../application/utils/tweets/utils.js"; // <-- FIX: Import GeoData
 
 // Custom request interface to safely access IP properties
+// FIX: Removed conflicting standard Express properties (ip, connection, socket)
 interface RequestWithIP extends Request {
-  ip?: string;
-  connection?: {
-    remoteAddress?: string;
-  };
-  socket?: {
-    remoteAddress?: string;
-  };
+  // We rely on the base Request type for standard properties (ip, connection, socket).
+  // This resolves the common TS conflict errors.
 }
 
 /**
@@ -22,6 +21,7 @@ interface RequestWithIP extends Request {
 export default function GeoGurd() {
   return async function (req: RequestWithIP, res: Response, next: NextFunction): Promise<void | Response> {
     try {
+      // Access standard properties from the base Request type
       const remoteAddr: string | undefined = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress;
       
       // Use the imported function utils.Sendlocation

@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 // Alias for utility functions - must be compatible with your utils.ts/js
-import * as utils from "../utils/utils.js"; 
+import * as utils from "../../application/utils/tweets/utils.js";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
@@ -9,8 +9,8 @@ import zxcvbn from "zxcvbn";
 import qrcode from "qrcode";
 import speakeasy from "speakeasy";
 import nodemailer from "nodemailer";
-import { prisma } from "../config/database.js";
-import { redisClient } from "../config/redis.js";
+import  prisma  from "../../database.js";
+import { redisClient } from "../../config/redis.js";
 import fetch from "node-fetch";
 import crypto from "crypto";
 // Import Express types for request and response objects
@@ -24,23 +24,23 @@ interface LocalJwtPayload extends JwtPayload {
   username?: string;
   email: string;
   role: string;
-  id: number;
+  id: string;
   version: number;
   jti: string;
-  devid: number | null;
+  devid: string| null;
 }
 
 // Define a minimal User type for database results
 // In a real TS project, this would come from Prisma Client's generated types (e.g., import { User } from '@prisma/client')
 interface PrismaUser {
-    id: number;
+    id: string;
     username: string;
     name: string;
     email: string;
     role: string;
     password: string;
     saltPassword: string;
-    token_version: number;
+   token_version: number;
     tfaVerifed: boolean;
     loginCodesSet: boolean;
     loginCodes: string | null;
@@ -78,11 +78,11 @@ function gen6(): string {
 function generateJwt({ username, email, id, role, expiresInSeconds, version, devid }: {
     username: string;
     email: string;
-    id: number;
+    id: string;
     role: string;
     expiresInSeconds: number | undefined;
     version: number | undefined;
-    devid: number | null | undefined;
+    devid: string | null | undefined;
 }): { token: string; jti: string; payload: LocalJwtPayload } {
   const jti: string = uuidv4();
   const now: number = Math.floor(Date.now() / 1000);
@@ -168,7 +168,15 @@ Welcome aboard,  
 
 export async function SignupCaptcha(req: Request, res: Response): Promise<Response | void> {
   try {
-    const email: string | undefined | string[] = req.query.email;
+    let email: string | undefined;
+    const emailQuery = req.query.email;
+    if (typeof emailQuery === "string") {
+      email = emailQuery;
+    } else if (Array.isArray(emailQuery) && typeof emailQuery[0] === "string") {
+      email = emailQuery[0];
+    } else {
+      email = undefined;
+    }
     if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return utils.SendError(res, 400, "Email is Required");
     await redisClient.set(`signup_captcha:passed:${email}`, "1", { EX: 15 * 60 });
     return utils.SendRes(res, { Message: "You passed the Captcha you can continue regster now " });
@@ -314,7 +322,7 @@ console.log("User inside Verify_email:", user);
     const accessObj = generateJwt({
       username: user.username,
       email,
-      id: Number(user.id),
+      id: user.id,
       role: user.role || "user",
       expiresInSeconds: 15 * 60,
       version: user.token_version || 0,
@@ -323,7 +331,7 @@ console.log("User inside Verify_email:", user);
     const refreshObj = generateJwt({
       username: user.username,
       email,
-      id: Number(user.id),
+      id: user.id,
       role: user.role || "user",
       expiresInSeconds: 7 * 24 * 60 * 60,
       version: user.token_version || 0,
@@ -363,7 +371,7 @@ export async function Refresh(req: Request, res: Response): Promise<Response | v
     const payload: LocalJwtPayload = validated.payload as LocalJwtPayload;
     const username: string = payload.Username || payload.username || "";
     const email: string = payload.email;
-    const id: number = payload.id;
+    const id: string = payload.id;
     const role: string = payload.role;
     const version: number = payload.version || 0;
 
@@ -414,7 +422,7 @@ export async function Logout(req: Request, res: Response): Promise<Response | vo
     if (tokenString === refreshToken) return utils.SendError(res, 401, "token and refreshToken cannot be the same");
 
     const accessPayload: LocalJwtPayload = accessVal.payload as LocalJwtPayload;
-    const userId: number | undefined = accessPayload.id || (req.user as any)?.id;
+    const userId: string | undefined = accessPayload.id || (req.user as any)?.id;
     const jti: string | null = accessPayload.jti || req.body?.jti || null;
     if (userId && jti) {
       await redisClient.del(`session:${userId}:${jti}`);
@@ -430,7 +438,15 @@ export async function Logout(req: Request, res: Response): Promise<Response | vo
 
 export async function Captcha(req: Request, res: Response): Promise<Response | void> {
   try {
-    const email: string | undefined | string[] = req.query.email;
+   const emailQuery = req.query.email;
+let email: string | undefined;
+if (Array.isArray(emailQuery)) {
+  email = typeof emailQuery[0] === "string" ? emailQuery[0] : undefined;
+} else if (typeof emailQuery === "string") {
+  email = emailQuery;
+} else {
+  email = undefined;
+}
     if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return utils.SendError(res, 400, "Email is Required");
     await redisClient.set(`captcha:passed:${email}`, "1", { EX: 15 * 60 });
     return utils.SendRes(res, { Message: "You passed the Captcha you can login now " });
@@ -444,10 +460,10 @@ export async function Create_2fA(req: Request, res: Response): Promise<Response 
   try {
     const { email } = req.body;
     if (!email) return utils.SendError(res, 400, "email required");
-    const secret: speakeasy.Secret = speakeasy.generateSecret({ issuer: "SOAH", name: email });
+    const secret = speakeasy.generateSecret({ issuer: "SOAH", name: email });
     await redisClient.set(`Login:2fa:${email}`, secret.base32);
     await prisma.user.updateMany({ where: { email }, data: { otp: secret.base32 } });
-    const png: string = await qrcode.toDataURL(secret.otpauth_url, { width: 256 });
+    const png: string = await qrcode.toDataURL(secret.otpauth_url || "", { width: 256 });
     await prisma.user.updateMany({ where: { email }, data: { tfaVerifed: true } });
     return utils.SendRes(res, { Email: email, Png: png, Secret: secret.base32 });
   } catch (err) {
@@ -472,8 +488,8 @@ console.log("secret :",secret);
 console.log("user :",user);
     // Use utils.SetDeviceInfo
     const { devid } = await utils.SetDeviceInfo(req, res, email);
-    const accessObj = generateJwt({ username: user.username, email, id: Number(user.id), role: user.role, expiresInSeconds: 15 * 60, version: user.token_version || 0, devid });
-    const refreshObj = generateJwt({ username: user.username, email, id: Number(user.id), role: user.role, expiresInSeconds: 7 * 24 * 60 * 60, version: user.token_version || 0, devid });
+    const accessObj = generateJwt({ username: user.username, email, id: user.id, role: user.role, expiresInSeconds: 15 * 60, version: user.token_version || 0, devid });
+    const refreshObj = generateJwt({ username: user.username, email, id: user.id, role: user.role, expiresInSeconds: 7 * 24 * 60 * 60, version: user.token_version || 0, devid });
     res.cookie("refresh_token", refreshObj.token, { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.COOKIE_SECURE === "true", sameSite: "lax", domain: CLIENT_DOMAIN });
    
   //  await utils.SetSession(req, user.id, refreshObj.jti);
@@ -523,8 +539,8 @@ export async function VerifyLoginCode(req: Request, res: Response): Promise<Resp
     if (!found) return utils.SendError(res, 401, "Enter your Login_codes correctly");
     // Use utils.SetDeviceInfo
     const { devid } = await utils.SetDeviceInfo(req, res, email);
-    const accessObj = generateJwt({ username: user.username, email, id: Number(user.id), role: user.role, expiresInSeconds: 15 * 60, version: user.token_version || 0, devid });
-    const refreshObj = generateJwt({ username: user.username, email, id: Number(user.id), role: user.role, expiresInSeconds: 7 * 24 * 60 * 60, version: user.token_version || 0, devid });
+    const accessObj = generateJwt({ username: user.username, email, id: user.id, role: user.role, expiresInSeconds: 15 * 60, version: user.token_version || 0, devid });
+    const refreshObj = generateJwt({ username: user.username, email, id: user.id, role: user.role, expiresInSeconds: 7 * 24 * 60 * 60, version: user.token_version || 0, devid });
     await prisma.user.updateMany({ where: { email }, data: { loginCodes: copy.join(",") } });
     res.cookie("refresh_token", refreshObj.token, { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.COOKIE_SECURE === "true", sameSite: "lax", domain: CLIENT_DOMAIN });
     // Use utils.SetSession
@@ -596,7 +612,7 @@ export async function GetDeviceInfo(req: Request, res: Response): Promise<Respon
     const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser | null;
     if (!user) return utils.SendError(res, 500, "something went wrong");
     // Assuming deviceRecord has 'userid' field
-    const device = await prisma.deviceRecord.findFirst({ where: { userId: Number(user.id) } });
+    const device = await prisma.deviceRecord.findFirst({ where: { userId: user.id } });
     if (!device) return utils.SendError(res, 500, "something went wrong");
     return utils.SendRes(res, device);
   } catch (err) {
@@ -777,15 +793,15 @@ export async function GetUser(req: Request, res: Response): Promise<Response | v
 
 export async function LogoutALL(req: Request, res: Response): Promise<Response | void> {
   try {
-    const id: number | undefined = (req.user as any)?.id || req.body?.id || (req.query?.id as number);
+    const id: number | undefined = (req.user as any)?.id || req.body?.id || (req.query?.id as string);
     if (!id) return utils.SendError(res, 401, "unauthorized");
-    let cursor: string | number = "0";
+    let cursor: string = "0";
     const pattern: string = `session:${id}:*`;
     do {
-        // scanRes type can be simplified for Redis client
-      const scanRes: { cursor: string | number, keys: string[] } = await redisClient.scan(cursor, { MATCH: pattern, COUNT: 100 }) as { cursor: string | number, keys: string[] };
+      // scanRes type can be simplified for Redis client
+      const scanRes: { cursor: string, keys: string[] } = await redisClient.scan(cursor, { MATCH: pattern, COUNT: 100 }) as { cursor: string, keys: string[] };
       cursor = scanRes.cursor;
-      const keys: string[] = scanRes.keys || scanRes[1] || [];
+      const keys: string[] = scanRes.keys || [];
       if (keys.length) {
         for (const key of keys) {
           const parts: string[] = key.split(":");
@@ -794,7 +810,7 @@ export async function LogoutALL(req: Request, res: Response): Promise<Response |
             await redisClient.set(`Blocklist:${jti}`, "1", { EX: 15 * 60 });
           }
         }
-        await redisClient.del(...keys);
+        await redisClient.del(keys);
       }
     } while (cursor !== "0");
     return utils.SendRes(res, "you logout all session successfully");
@@ -806,15 +822,15 @@ export async function LogoutALL(req: Request, res: Response): Promise<Response |
 
 export async function GetSession(req: Request, res: Response): Promise<Response | void> {
   try {
-    const id: number | undefined = (req.user as any)?.id || (req.query?.id as number) || req.body?.id;
+    const id: number | undefined = (req.user as any)?.id || (req.query?.id as string) || req.body?.id;
     if (!id) return utils.SendError(res, 401, "unauthorized");
-    let cursor: string | number = "0";
+    let cursor: string = "0";
     const pattern: string = `session:${id}:*`;
     const sessions: any[] = [];
     do {
-      const scanRes: { cursor: string | number, keys: string[] } = await redisClient.scan(cursor, { MATCH: pattern, COUNT: 100 }) as { cursor: string | number, keys: string[] };
+      const scanRes: { cursor: string, keys: string[] } = await redisClient.scan(cursor, { MATCH: pattern, COUNT: 100 }) as { cursor: string, keys: string[] };
       cursor = scanRes.cursor;
-      const keys: string[] = scanRes.keys || scanRes[1] || [];
+      const keys: string[] = scanRes.keys || [];
       if (keys.length) {
         for (const key of keys) {
           const val: string | null = await redisClient.get(key);
@@ -838,7 +854,7 @@ export async function GetSession(req: Request, res: Response): Promise<Response 
 export async function LogoutSession(req: Request, res: Response): Promise<Response | void> {
   try {
     const sessionid: string = req.params.sessionid;
-    const userId: number | undefined = (req.user as any)?.id || req.body?.id || (req.query?.id as number);
+    const userId: string| undefined = (req.user as any)?.id || req.body?.id || (req.query?.id as string);
     if (!sessionid || !userId) return utils.SendError(res, 400, "missing");
     await redisClient.del(`session:${userId}:${sessionid}`);
     await redisClient.set(`Blocklist:${sessionid}`, "1", { EX: 15 * 60 });
