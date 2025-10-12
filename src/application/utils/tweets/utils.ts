@@ -10,7 +10,8 @@ import zxcvbn from "zxcvbn";
 import { promisify } from "util";
 // The following imports assume you have 'prisma' and 'redisClient' configured
 
-import { redisClient } from "../../../config/redis.js";
+// import { redisClient } from "../../../config/redis.js";
+import { redisClient } from "@/config/redis";
 // import { sendEmailSMTP as _sendEmailSMTP } from "./email-helper.js"; // optional: separate email helper
 import { performance } from "perf_hooks";
 // Use appropriate types for Express Request and Response
@@ -112,8 +113,6 @@ const evaluateReplyControl = async (
 // npm install jsonwebtoken bcryptjs uuid node-fetch zxcvbn qrcode speakeasy nodemailer @prisma/client
 // You will also need: npm install -D @types/express @types/jsonwebtoken @types/bcryptjs @types/uuid @types/node-fetch @types/nodemailer @types/zxcvbn
 
-
-
 // --- Custom Type Definitions ---
 
 // Define the structure of the payload you put into the JWT
@@ -149,7 +148,7 @@ export interface UserSession {
   UserID: string; // Assuming user ID is a number
   IsActive: boolean;
   IssuedAT: string;
-  DeviceInfoId: string| null;
+  DeviceInfoId: string | null;
   ExpireAt: string;
 }
 
@@ -167,7 +166,10 @@ export function SendRes(res: Response, payload: any): void {
   const accept: string = res.get("Accept") || "application/json";
   if (accept.includes("application/xml")) {
     // simple xml fallback
-    res.type("application/xml").status(200).send(`<response>${JSON.stringify(payload)}</response>`);
+    res
+      .type("application/xml")
+      .status(200)
+      .send(`<response>${JSON.stringify(payload)}</response>`);
   } else if (accept.includes("application/x-yaml")) {
     res.type("application/x-yaml").status(200).send(JSON.stringify(payload)); // simple fallback
   } else {
@@ -175,11 +177,18 @@ export function SendRes(res: Response, payload: any): void {
   }
 }
 
-export function SendError(res: Response, status: number, message: string): void {
+export function SendError(
+  res: Response,
+  status: number,
+  message: string
+): void {
   if (res.headersSent) return;
   const accept: string = res.get("Accept") || "application/json";
   if (accept.includes("application/xml")) {
-    res.type("application/xml").status(status).send(`<error>${message}</error>`);
+    res
+      .type("application/xml")
+      .status(status)
+      .send(`<error>${message}</error>`);
   } else if (accept.includes("application/x-yaml")) {
     res.type("application/x-yaml").status(status).send(`${message}`);
   } else {
@@ -193,7 +202,15 @@ export function SendError(res: Response, status: number, message: string): void 
  * Generate JWT and set some context in return object
  * returns signed token string and jti
  */
-export function GenerateJwt({ username, email, id, role = "user", expiresInSeconds = 900, version = 0, devid = null }: {
+export function GenerateJwt({
+  username,
+  email,
+  id,
+  role = "user",
+  expiresInSeconds = 900,
+  version = 0,
+  devid = null,
+}: {
   username: string;
   email: string;
   id: string;
@@ -222,10 +239,17 @@ export function GenerateJwt({ username, email, id, role = "user", expiresInSecon
 /**
  * validate token and return {ok, payload, error}
  */
-export function ValidateToken(tokenString: string): { ok: boolean; payload?: JwtUserPayload; err?: Error } {
+export function ValidateToken(tokenString: string): {
+  ok: boolean;
+  payload?: JwtUserPayload;
+  err?: Error;
+} {
   try {
     // We assert the type to our custom payload interface
-    const payload: JwtUserPayload = jwt.verify(tokenString, JWT_SECRET) as JwtUserPayload;
+    const payload: JwtUserPayload = jwt.verify(
+      tokenString,
+      JWT_SECRET
+    ) as JwtUserPayload;
     return { ok: true, payload };
   } catch (err) {
     return { ok: false, err: err as Error };
@@ -234,11 +258,17 @@ export function ValidateToken(tokenString: string): { ok: boolean; payload?: Jwt
 
 /* ------------------------------ Password helpers ------------------------------ */
 
-export async function HashPassword(password: string, salt: string): Promise<string> {
+export async function HashPassword(
+  password: string,
+  salt: string
+): Promise<string> {
   return await bcrypt.hash(password + PEPPER + salt, 10);
 }
 
-export async function CheckPass(password: string, hashed: string): Promise<boolean> {
+export async function CheckPass(
+  password: string,
+  hashed: string
+): Promise<boolean> {
   try {
     return await bcrypt.compare(password + PEPPER, hashed);
   } catch {
@@ -256,7 +286,9 @@ export function GenterUserName(name: string | undefined | null): string {
 
 /* ------------------------------ Email checks (gmail-only logic preserved) ------------------------------ */
 
-function _localAndDomain(email: string | null | undefined): { local: string; domain: string } | null {
+function _localAndDomain(
+  email: string | null | undefined
+): { local: string; domain: string } | null {
   if (!email || !email.includes("@")) return null;
   const parts: string[] = email.split("@");
   if (parts.length !== 2) return null;
@@ -291,9 +323,15 @@ async function _getTTL(key: string): Promise<number> {
 export async function Attempts(res: Response, email: string): Promise<boolean> {
   // returns true if blocked / should stop, false otherwise
   try {
-    const blockedVal: string | null = await redisClient.get(`Login:block:${email}`);
+    const blockedVal: string | null = await redisClient.get(
+      `Login:block:${email}`
+    );
     if (blockedVal === "1") {
-      SendError(res, 429, "you are blocked wait 15 min utils you can try again");
+      SendError(
+        res,
+        429,
+        "you are blocked wait 15 min utils you can try again"
+      );
       return true;
     }
 
@@ -318,13 +356,17 @@ export async function Attempts(res: Response, email: string): Promise<boolean> {
 
     if (num === 3) {
       // ask captcha
-      await redisClient.set(`Login:fail:${email}`, String(num + 1), { EX: ttl > 0 ? ttl : 300 });
+      await redisClient.set(`Login:fail:${email}`, String(num + 1), {
+        EX: ttl > 0 ? ttl : 300,
+      });
       SendError(res, 401, "Solve Captcha first");
       return true;
     }
 
     if (num > 3 && num < 5) {
-      const captchaPassed: number = await redisClient.exists(`captcha:passed:${email}`);
+      const captchaPassed: number = await redisClient.exists(
+        `captcha:passed:${email}`
+      );
       if (!captchaPassed) {
         SendError(res, 401, "You should Solve Captcha First");
         return true;
@@ -336,7 +378,11 @@ export async function Attempts(res: Response, email: string): Promise<boolean> {
       // lock user
       await SendEmail_FAILED_LOGIN(res, email).catch(console.error);
       await redisClient.set(`Login:block:${email}`, "1", { EX: 5 * 60 });
-      SendError(res, 401, `You exceeded number of Attempts wait for ${ttl} seconds`);
+      SendError(
+        res,
+        401,
+        `You exceeded number of Attempts wait for ${ttl} seconds`
+      );
       return true;
     }
 
@@ -357,7 +403,10 @@ export async function RestAttempts(email: string): Promise<void> {
   }
 }
 
-export async function IncrAttempts(res: Response, email: string): Promise<boolean> {
+export async function IncrAttempts(
+  res: Response,
+  email: string
+): Promise<boolean> {
   try {
     const exists: number = await redisClient.exists(`Login:fail:${email}`);
     if (!exists) {
@@ -384,7 +433,10 @@ export async function IncrAttempts(res: Response, email: string): Promise<boolea
 
 /* ------------------------------ Password history ------------------------------ */
 
-export async function AddPasswordHistory(hashed: string, userId: string): Promise<boolean> {
+export async function AddPasswordHistory(
+  hashed: string,
+  userId: string
+): Promise<boolean> {
   try {
     await prisma.oldPassword.create({
       data: {
@@ -399,7 +451,10 @@ export async function AddPasswordHistory(hashed: string, userId: string): Promis
   }
 }
 
-export async function NotOldPassword(passwordPlain: string, userId: string): Promise<string> {
+export async function NotOldPassword(
+  passwordPlain: string,
+  userId: string
+): Promise<string> {
   try {
     // fetch last 5 passwords
     const history = await prisma.oldPassword.findMany({
@@ -425,11 +480,20 @@ export async function NotOldPassword(passwordPlain: string, userId: string): Pro
 
 /* ------------------------------ Reset attempts (similar to login attempts) ------------------------------ */
 
-export async function ResetAttempts(res: Response, email: string): Promise<boolean> {
+export async function ResetAttempts(
+  res: Response,
+  email: string
+): Promise<boolean> {
   try {
-    const blocked: string | null = await redisClient.get(`reset:block:${email}`);
+    const blocked: string | null = await redisClient.get(
+      `reset:block:${email}`
+    );
     if (blocked === "1") {
-      SendError(res, 429, "you are blocked wait 15 min utils you can try again");
+      SendError(
+        res,
+        429,
+        "you are blocked wait 15 min utils you can try again"
+      );
       return true;
     }
     const exists: number = await redisClient.exists(`reset:fail:${email}`);
@@ -440,12 +504,16 @@ export async function ResetAttempts(res: Response, email: string): Promise<boole
     const ttl: number = await _getTTL(`reset:fail:${email}`);
 
     if (num === 3) {
-      await redisClient.set(`reset:fail:${email}`, String(num + 1), { EX: ttl > 0 ? ttl : 300 });
+      await redisClient.set(`reset:fail:${email}`, String(num + 1), {
+        EX: ttl > 0 ? ttl : 300,
+      });
       SendError(res, 401, "Solve Captcha first");
       return true;
     }
     if (num > 3 && num < 5) {
-      const captchaPassed: number = await redisClient.exists(`captcha:passed:${email}`);
+      const captchaPassed: number = await redisClient.exists(
+        `captcha:passed:${email}`
+      );
       if (!captchaPassed) {
         SendError(res, 401, "You should Solve Captcha First");
         return true;
@@ -454,7 +522,11 @@ export async function ResetAttempts(res: Response, email: string): Promise<boole
     }
     if (num >= 5) {
       await redisClient.set(`reset:block:${email}`, "1", { EX: 5 * 60 });
-      SendError(res, 401, `You exceeded number of Attempts wait for ${ttl} seconds`);
+      SendError(
+        res,
+        401,
+        `You exceeded number of Attempts wait for ${ttl} seconds`
+      );
       return true;
     }
     return false;
@@ -474,7 +546,10 @@ export async function RsetResetAttempts(email: string): Promise<void> {
   }
 }
 
-export async function IncrResetAttempts(res: Response, email: string): Promise<boolean> {
+export async function IncrResetAttempts(
+  res: Response,
+  email: string
+): Promise<boolean> {
   try {
     const exists: number = await redisClient.exists(`reset:fail:${email}`);
     if (!exists) {
@@ -488,7 +563,9 @@ export async function IncrResetAttempts(res: Response, email: string): Promise<b
     const num: number = parseInt(numStr.trim(), 10) || 0;
     const next: number = num + 1;
     const ttl: number = await _getTTL(`reset:fail:${email}`);
-    await redisClient.set(`reset:fail:${email}`, String(next), { EX: ttl > 0 ? ttl : 5 });
+    await redisClient.set(`reset:fail:${email}`, String(next), {
+      EX: ttl > 0 ? ttl : 5,
+    });
     return true;
   } catch (err) {
     console.error("IncrResetAttempts err:", err);
@@ -500,7 +577,11 @@ export async function IncrResetAttempts(res: Response, email: string): Promise<b
 /* ------------------------------ Send mailers & notifications ------------------------------ */
 
 // export async function SendEmailSmtp(res, to, message) { ... }
-export async function SendEmailSmtp(res: Response, email: string, message: string): Promise<Response<any> | void> {
+export async function SendEmailSmtp(
+  res: Response,
+  email: string,
+  message: string
+): Promise<Response<any> | void> {
   try {
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
@@ -521,17 +602,25 @@ export async function SendEmailSmtp(res: Response, email: string, message: strin
 
     await transporter.sendMail(mailOptions);
 
-    return res.status(200).json({ success: true, message: "Email sent successfully" });
+    return res
+      .status(200)
+      .json({ success: true, message: "Email sent successfully" });
   } catch (err) {
     // The error is typed as 'any' in the catch block for simplicity, but you can narrow it down (e.g., to Error)
-    return SendError(res, 500, `Something went wrong: ${(err as Error).message}`);
+    return SendError(
+      res,
+      500,
+      `Something went wrong: ${(err as Error).message}`
+    );
   }
 }
 
 /**
  * SendEmail and SendEmail_FAILED_LOGIN mirror Go versions: they use Sendlocation and DB user data
  */
-export async function Sendlocation(remoteAddr: string | undefined | null): Promise<GeoData> {
+export async function Sendlocation(
+  remoteAddr: string | undefined | null
+): Promise<GeoData> {
   try {
     // remoteAddr may be "ip:port" or direct ip; handle both
     let ip: string = remoteAddr || "";
@@ -544,14 +633,16 @@ export async function Sendlocation(remoteAddr: string | undefined | null): Promi
     }
     // For local testing or if IP is 127.0.0.1, fallback to external ip
     // call ip-api.com (keep same as Go)
-    const target: string = ip.includes("127.0.0.1") || ip.includes("::1") ? "8.8.8.8" : ip;
+    const target: string =
+      ip.includes("127.0.0.1") || ip.includes("::1") ? "8.8.8.8" : ip;
     console.log("🌍 Sending location request for:", target);
     const resp: FetchResponse = await fetch(`http://ip-api.com/json/${target}`);
     console.log("🌎 Geo API status:", resp.status);
     if (!resp.ok) throw new Error("failed to fetch geo info");
     const data: any = await resp.json();
     console.log("🌎 Geo API raw data:", data);
-    if (!data || data.status !== "success") throw new Error("failed to get geo info");
+    if (!data || data.status !== "success")
+      throw new Error("failed to get geo info");
     // normalize to GeoData fields used previously
     return {
       Query: data.query,
@@ -572,9 +663,15 @@ export async function Sendlocation(remoteAddr: string | undefined | null): Promi
   }
 }
 
-export async function SendEmail_FAILED_LOGIN(res: Response, email: string): Promise<void> {
+export async function SendEmail_FAILED_LOGIN(
+  res: Response,
+  email: string
+): Promise<void> {
   try {
-    const ipAddr: string = (res.req as Request)?.ip || (res.req as Request)?.connection?.remoteAddress || "0.0.0.0";
+    const ipAddr: string =
+      (res.req as Request)?.ip ||
+      (res.req as Request)?.connection?.remoteAddress ||
+      "0.0.0.0";
     const geo: GeoData | null = await Sendlocation(ipAddr).catch(() => null);
 
     const user = await prisma.user.findUnique({ where: { email } });
@@ -610,10 +707,15 @@ The Racist Team
 
 export async function SendEmail(res: Response, email: string): Promise<void> {
   try {
-    const ipAddr: string = (res.req as Request)?.ip || (res.req as Request)?.connection?.remoteAddress || "0.0.0.0";
+    const ipAddr: string =
+      (res.req as Request)?.ip ||
+      (res.req as Request)?.connection?.remoteAddress ||
+      "0.0.0.0";
     const geo: GeoData | null = await Sendlocation(ipAddr).catch(() => null);
     const user = await prisma.user.findUnique({ where: { email } });
-    const message: string = `Subject: 🎉 Welcome to Racist Team, ${user?.username || ""}!
+    const message: string = `Subject: 🎉 Welcome to Racist Team, ${
+      user?.username || ""
+    }!
 
 Hello ${user?.username || ""} 👋,
 
@@ -647,12 +749,15 @@ The Racist Team
  * Mirrors the Go logic: stores or updates DeviceRecord by userID
  */
 // The original function returns 0 on failure, so I'll adjust the return type and keep the internal logic
-export async function SetDeviceInfo(req: Request, res: Response, email: string): Promise<{ devid: string; deviceRecord: any }> {
+export async function SetDeviceInfo(
+  req: Request,
+  res: Response,
+  email: string
+): Promise<{ devid: string; deviceRecord: any }> {
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-     throw new Error("failed to load user")
-
+      throw new Error("failed to load user");
     }
     const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
     const browser: string = req.get("User-Agent") || "";
@@ -661,12 +766,14 @@ export async function SetDeviceInfo(req: Request, res: Response, email: string):
     try {
       geo = await Sendlocation(ip);
     } catch (err) {
-      throw new Error("something went wrong")
+      throw new Error("something went wrong");
     }
-console.log("Inside SetDeviceInfo received user:", user);
+    console.log("Inside SetDeviceInfo received user:", user);
 
     // Upsert device record: find existing by userID, then update or create
-    const existing = await prisma.deviceRecord.findFirst({ where: { userId: user.id } });
+    const existing = await prisma.deviceRecord.findFirst({
+      where: { userId: user.id },
+    });
     if (existing) {
       const updated = await prisma.deviceRecord.update({
         where: { id: existing.id },
@@ -684,7 +791,7 @@ console.log("Inside SetDeviceInfo received user:", user);
       });
       (req as any).devid = updated.id;
       let devid: string = updated.id;
-      return {devid, deviceRecord: updated};
+      return { devid, deviceRecord: updated };
     } else {
       const created = await prisma.deviceRecord.create({
         data: {
@@ -701,21 +808,30 @@ console.log("Inside SetDeviceInfo received user:", user);
         },
       });
       (req as any).devid = created.id;
-     let devid: string = created.id;
-      return {devid, deviceRecord: created};
+      let devid: string = created.id;
+      return { devid, deviceRecord: created };
     }
   } catch (err) {
     console.error("SetDeviceInfo err:", err);
-    throw new Error("something went wrong")
+    throw new Error("something went wrong");
   }
 }
 
 /* ------------------------------ Email change helper ------------------------------ */
 
-export async function VerifEmailHelper(res: Response, email: string, oldEmail: string): Promise<boolean> {
+export async function VerifEmailHelper(
+  res: Response,
+  email: string,
+  oldEmail: string
+): Promise<boolean> {
   try {
-    const code: string = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
-    await redisClient.set(`ChangeEmail:code:${oldEmail}`, code, { EX: 10 * 60 });
+    const code: string = String(Math.floor(Math.random() * 1_000_000)).padStart(
+      6,
+      "0"
+    );
+    await redisClient.set(`ChangeEmail:code:${oldEmail}`, code, {
+      EX: 10 * 60,
+    });
     const message: string = `Hello,
 
 We received a request to change the email address associated with your account. To confirm this change and verify your new email address, please use the verification code below:
@@ -740,7 +856,8 @@ The SOAH Security Team
 
 export async function ValidatePassword(password: string): Promise<string> {
   if (!password) return "password required";
-  if (password.length < 12 || password.length > 128) return "password should be between 12 and 128";
+  if (password.length < 12 || password.length > 128)
+    return "password should be between 12 and 128";
 
   let upper: number = 0,
     lower: number = 0,
@@ -760,10 +877,16 @@ export async function ValidatePassword(password: string): Promise<string> {
   if (num < 3) return "password should contain atleast 3 num";
 
   // check Pwned Passwords via k-anonymity (sha1 range API)
-  const sha1sum: string = crypto.createHash("sha1").update(password).digest("hex").toUpperCase();
+  const sha1sum: string = crypto
+    .createHash("sha1")
+    .update(password)
+    .digest("hex")
+    .toUpperCase();
   const prefix: string = sha1sum.slice(0, 5);
   try {
-    const resp: FetchResponse = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`);
+    const resp: FetchResponse = await fetch(
+      `https://api.pwnedpasswords.com/range/${prefix}`
+    );
     if (!resp.ok) return "something went wrong while validating";
     const body: string = await resp.text();
     const lines: string[] = body.split("\r\n");
@@ -783,7 +906,13 @@ export async function ValidatePassword(password: string): Promise<string> {
 // You might need to import the Prisma 'User' type if you want to strictly type 'user'
 export function AnalisePass(password: string, user: any): zxcvbn.ZXCVBNResult {
   // user is prisma user object
-  const inputs: string[] = [user?.username, user?.email, user?.name, "SOAH", "support"].filter(Boolean) as string[];
+  const inputs: string[] = [
+    user?.username,
+    user?.email,
+    user?.name,
+    "SOAH",
+    "support",
+  ].filter(Boolean) as string[];
   return zxcvbn(password, inputs);
 }
 
@@ -801,14 +930,19 @@ export function StricerPassword(scoreObj: zxcvbn.ZXCVBNResult): number {
 /**
  * SetSession(req, res) - stores session info in redis key: session:<userId>:<jti>
  */
-export async function SetSession(req: Request, userId: string, jti: string): Promise<boolean> {
+export async function SetSession(
+  req: Request,
+  userId: string,
+  jti: string
+): Promise<boolean> {
   try {
     if (!userId) {
       console.error("SetSession: missing user id");
       return false;
     }
-console.log("setsessions been called");
-    const devid: string | null = (req as any).devid || (req.body as any)?.devid || null;
+    console.log("setsessions been called");
+    const devid: string | null =
+      (req as any).devid || (req.body as any)?.devid || null;
 
     const session: UserSession = {
       Jti: jti || uuidv4(),
@@ -837,4 +971,3 @@ console.log("setsessions been called");
   }
 }
 //////HOSSAM//////////////////
-
