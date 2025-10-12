@@ -23,7 +23,7 @@ interface LocalJwtPayload extends JwtPayload {
   Username?: string;
   username?: string;
   email: string;
-  role: string;
+
   id: string;
   version: number;
   jti: string;
@@ -37,7 +37,7 @@ interface PrismaUser {
     username: string;
     name: string;
     email: string;
-    role: string;
+  
     password: string;
     saltPassword: string;
    token_version: number;
@@ -75,11 +75,11 @@ function gen6(): string {
   return Math.floor(Math.random() * 1000000).toString().padStart(6, "0");
 }
 
-function generateJwt({ username, email, id, role, expiresInSeconds, version, devid }: {
+function generateJwt({ username, email, id ,expiresInSeconds, version, devid }: {
     username: string;
     email: string;
     id: string;
-    role: string;
+   
     expiresInSeconds: number | undefined;
     version: number | undefined;
     devid: string | null | undefined;
@@ -89,7 +89,7 @@ function generateJwt({ username, email, id, role, expiresInSeconds, version, dev
   const payload: LocalJwtPayload = {
     Username: username,
     email,
-    role,
+    
     id,
     exp: now + (expiresInSeconds || 900),
     iat: now,
@@ -217,17 +217,19 @@ if (isNaN(parsedDate.getTime())) {
   parsedDate = new Date("2001-11-03T00:00:00.000Z");
 }
     const created: PrismaUser = await prisma.user.create({
-      data: {
-        username,
-        name: input.name,
-        email: input.email,
-       // role: "user",
-token:"dummy",
-        password: hashed,
-        saltPassword : salt,
-dateOfBirth: parsedDate,
-      },
-    }) as PrismaUser;
+      data: {
+        username,
+
+        tokenVersion: 1,
+        name: input.name,
+        email: input.email,
+        // role: "user",
+        token: "dummy",
+        password: hashed,
+        saltPassword: salt,
+        dateOfBirth: parsedDate,
+      },
+    }) as unknown as PrismaUser;
 
     utils.SendEmailSmtp(res, created.email, `Subject: Welcome to artimsia\n\nWelcome ${created.name}`).catch(console.error);
 
@@ -323,7 +325,7 @@ console.log("User inside Verify_email:", user);
       username: user.username,
       email,
       id: user.id,
-      role: user.role || "user",
+     
       expiresInSeconds: 15 * 60,
       version: user.token_version || 0,
       devid,
@@ -332,7 +334,7 @@ console.log("User inside Verify_email:", user);
       username: user.username,
       email,
       id: user.id,
-      role: user.role || "user",
+     
       expiresInSeconds: 7 * 24 * 60 * 60,
       version: user.token_version || 0,
       devid,
@@ -372,7 +374,7 @@ export async function Refresh(req: Request, res: Response): Promise<Response | v
     const username: string = payload.Username || payload.username || "";
     const email: string = payload.email;
     const id: string = payload.id;
-    const role: string = payload.role;
+    
     const version: number = payload.version || 0;
 
     // Use utils.SetDeviceInfo
@@ -385,7 +387,7 @@ export async function Refresh(req: Request, res: Response): Promise<Response | v
       username,
       email,
       id,
-      role,
+     
       expiresInSeconds: 7 * 60,
       version,
       devid,
@@ -488,8 +490,8 @@ console.log("secret :",secret);
 console.log("user :",user);
     // Use utils.SetDeviceInfo
     const { devid } = await utils.SetDeviceInfo(req, res, email);
-    const accessObj = generateJwt({ username: user.username, email, id: user.id, role: user.role, expiresInSeconds: 15 * 60, version: user.token_version || 0, devid });
-    const refreshObj = generateJwt({ username: user.username, email, id: user.id, role: user.role, expiresInSeconds: 7 * 24 * 60 * 60, version: user.token_version || 0, devid });
+    const accessObj = generateJwt({ username: user.username, email, id: user.id, expiresInSeconds: 15 * 60, version: user.token_version || 0, devid });
+    const refreshObj = generateJwt({ username: user.username, email, id: user.id, expiresInSeconds: 7 * 24 * 60 * 60, version: user.token_version || 0, devid });
     res.cookie("refresh_token", refreshObj.token, { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.COOKIE_SECURE === "true", sameSite: "lax", domain: CLIENT_DOMAIN });
    
   //  await utils.SetSession(req, user.id, refreshObj.jti);
@@ -539,8 +541,8 @@ export async function VerifyLoginCode(req: Request, res: Response): Promise<Resp
     if (!found) return utils.SendError(res, 401, "Enter your Login_codes correctly");
     // Use utils.SetDeviceInfo
     const { devid } = await utils.SetDeviceInfo(req, res, email);
-    const accessObj = generateJwt({ username: user.username, email, id: user.id, role: user.role, expiresInSeconds: 15 * 60, version: user.token_version || 0, devid });
-    const refreshObj = generateJwt({ username: user.username, email, id: user.id, role: user.role, expiresInSeconds: 7 * 24 * 60 * 60, version: user.token_version || 0, devid });
+    const accessObj = generateJwt({ username: user.username, email, id: user.id,  expiresInSeconds: 15 * 60, version: user.token_version || 0, devid });
+    const refreshObj = generateJwt({ username: user.username, email, id: user.id,  expiresInSeconds: 7 * 24 * 60 * 60, version: user.token_version || 0, devid });
     await prisma.user.updateMany({ where: { email }, data: { loginCodes: copy.join(",") } });
     res.cookie("refresh_token", refreshObj.token, { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.COOKIE_SECURE === "true", sameSite: "lax", domain: CLIENT_DOMAIN });
     // Use utils.SetSession

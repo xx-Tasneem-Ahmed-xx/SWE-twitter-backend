@@ -33,7 +33,7 @@ export const io: SocketIOServer = new SocketIOServer(httpServer, {
 const socketService = new SocketService(io);
 export { socketService };
 
-app.use("/api", userInteractionsRoutes);
+app.use("/api", userInteractionsRoutes,userRouter);
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 

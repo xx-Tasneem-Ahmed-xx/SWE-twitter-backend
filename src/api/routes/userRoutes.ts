@@ -5,7 +5,7 @@ import authController from "../controllers/user.js";
 
 // Importing middleware functions (which are default exports, typically untyped in JS)
 import Auth from "../middlewares/Auth";
-import AdminAuth from "../middlewares/AdminAuth";
+
 import Reauth from "../middlewares/Reauth";
 import DeactivateUser from "../middlewares/DeactivateUser";
 import AfterChange from "../middlewares/AfterChange";
@@ -21,7 +21,7 @@ const typedAuthController = authController as AuthController;
 type MiddlewareFunction = (req: Request, res: Response, next: NextFunction) => Promise<any> | void;
 
 const typedAuth = Auth as unknown as MiddlewareFunction;
-const typedAdminAuth = AdminAuth as unknown as MiddlewareFunction;
+
 const typedReauth = Reauth as unknown as MiddlewareFunction;
 const typedDeactivateUser = DeactivateUser as unknown as MiddlewareFunction;
 const typedAfterChange = AfterChange as unknown as MiddlewareFunction;
@@ -36,38 +36,38 @@ router.post("/login", typedAuthController.Login); //tested
 router.post("/verify-login", typedAuthController.Verify_email); //tested
 
 // --- 2FA / Login Code Setup & Verification Routes (Require Auth & AdminAuth) ---
-router.post("/2fa/setup", typedAuth, typedAdminAuth, typedAuthController.Create_2fA); //tested
+router.post("/2fa/setup", typedAuth,  typedAuthController.Create_2fA); //tested
 router.post("/2fa/verify", typedAuthController.Verify_2fA); //tested
-router.post("/generate-login-codes", typedAuth, typedAdminAuth, typedAuthController.GenerteLoginCodes); //tested
+router.post("/generate-login-codes", typedAuth,  typedAuthController.GenerteLoginCodes); //tested
 router.post("/verify-login-code", typedAuthController.VerifyLoginCode); //tested
 
 // --- Password Management Routes ---
-router.post("/forget-password", typedAuth, typedAdminAuth, typedAuthController.ForgetPassword);
-router.post("/reset-password", typedAuth, typedAdminAuth, typedAuthController.ResetPassword);
+router.post("/forget-password", typedAuth,  typedAuthController.ForgetPassword);
+router.post("/reset-password", typedAuth,  typedAuthController.ResetPassword);
 
 // --- Session & Logout Routes ---
-router.get("/refresh", typedAuth, typedAdminAuth, typedAuthController.Refresh);
-router.post("/logout", typedAuth, typedAdminAuth, typedAuthController.Logout, typedDeactivateUser); //tested
-router.post("/logout-all", typedAuth, typedAdminAuth, typedAuthController.LogoutALL, typedDeactivateUser);
+router.get("/refresh", typedAuth,  typedAuthController.Refresh);
+router.post("/logout", typedAuth,  typedAuthController.Logout, typedDeactivateUser); //tested
+router.post("/logout-all", typedAuth,  typedAuthController.LogoutALL, typedDeactivateUser);
 
 // --- Captcha Routes ---
-router.get("/captcha", typedAuth, typedAdminAuth, typedAuthController.Captcha);
-router.post("/signup_captcha", typedAuth, typedAdminAuth, typedAuthController.SignupCaptcha); //tested
+router.get("/captcha", typedAuth,  typedAuthController.Captcha);
+router.post("/signup_captcha", typedAuth,  typedAuthController.SignupCaptcha); //tested
 
 // --- Re-Authentication Routes ---
-router.post("/reauth-password", typedAuth, typedAdminAuth, typedAuthController.ReauthPassword);
-router.post("/reauth-tfa", typedAuth, typedAdminAuth, typedAuthController.ReauthTFA); //tested
-router.post("/reauth-code", typedAuth, typedAdminAuth, typedAuthController.ReauthCode); //tested
+router.post("/reauth-password", typedAuth,  typedAuthController.ReauthPassword);
+router.post("/reauth-tfa", typedAuth,  typedAuthController.ReauthTFA); //tested
+router.post("/reauth-code", typedAuth,  typedAuthController.ReauthCode); //tested
 
 // --- Sensitive Change Routes (Require Auth & Reauth) ---
-router.post("/change-password", typedAuth, typedAdminAuth, typedReauth, typedAuthController.ChangePassword); //tested
-router.post("/change-email", typedAuth, typedAdminAuth, typedReauth, typedAuthController.ChangeEmail); //tested
-router.post("/verify-new-email", typedAuth, typedAdminAuth, typedAuthController.VerifyNewEmail); //tested
+router.post("/change-password", typedAuth,  typedReauth, typedAuthController.ChangePassword); //tested
+router.post("/change-email", typedAuth,  typedReauth, typedAuthController.ChangeEmail); //tested
+router.post("/verify-new-email", typedAuth,  typedAuthController.VerifyNewEmail); //tested
 
 // --- User Info & Session Retrieval/Management Routes ---
-router.get("/user", typedAuth, typedAdminAuth, typedAuthController.GetUser); //tested
-router.get("/sessions", typedAuth, typedAdminAuth, typedAuthController.GetSession); //tested
-router.delete("/session/:sessionid", typedAuth, typedAdminAuth, typedAuthController.LogoutSession);
+router.get("/user", typedAuth,  typedAuthController.GetUser); //tested
+router.get("/sessions", typedAuth,  typedAuthController.GetSession); //tested
+router.delete("/session/:sessionid", typedAuth,  typedAuthController.LogoutSession);
 
 // --- Post-Request Cleanup Middleware ---
 router.use(typedAfterChange);
