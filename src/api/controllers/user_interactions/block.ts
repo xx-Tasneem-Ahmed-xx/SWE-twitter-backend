@@ -1,0 +1,88 @@
+import { Request, Response } from "express";
+import {
+  authenticated,
+  findUserByUsername,
+  checkBlockStatus,
+} from "./userInteractionUtils";
+import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
+
+// Block a user using their username
+export const blockUser = async (req: Request, res: Response) => {
+  try {
+    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
+    if (!paramsResult.success) {
+      return res.status(400).json({
+        error: "Invalid parameters",
+        details: paramsResult.error.format(),
+      });
+    }
+    const { username } = paramsResult.data;
+    //TODO: get currentUserId from auth middleware ( currentUserId from req body just for now)
+    const currentUserId = req.body.id;
+    if (!authenticated(currentUserId, res)) return;
+
+    const userToBlock = await findUserByUsername(username);
+    if (!userToBlock) return res.status(404).json({ error: "User not found" });
+
+    if (userToBlock.id === currentUserId)
+      return res.status(400).json({ error: "Cannot block yourself" });
+    const isBlocked = await checkBlockStatus(currentUserId, userToBlock.id);
+    if (isBlocked)
+      return res.status(403).json({
+        error: "Your are already blocking this user",
+      });
+
+    // block logic to be implemented
+  } catch (error) {
+    console.error("Block user error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Unblock a user using their username
+export const unblockUser = async (req: Request, res: Response) => {
+  try {
+    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
+    if (!paramsResult.success) {
+      return res.status(400).json({
+        error: "Invalid parameters",
+        details: paramsResult.error.format(),
+      });
+    }
+    const { username } = paramsResult.data;
+    //TODO: get currentUserId from auth middleware ( currentUserId from req body just for now)
+    const currentUserId = req.body.id;
+    if (!authenticated(currentUserId, res)) return;
+
+    const userToUnBlock = await findUserByUsername(username);
+    if (!userToUnBlock)
+      return res.status(404).json({ error: "User not found" });
+
+    if (userToUnBlock.id === currentUserId)
+      return res.status(400).json({ error: "Cannot Unblock yourself" });
+    const isBlocked = await checkBlockStatus(currentUserId, userToUnBlock.id);
+    if (!isBlocked)
+      return res.status(403).json({
+        error: "Your are not blocking this user",
+      });
+
+    // unblock logic to be implemented
+  } catch (error) {
+    console.error("Unblock user error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Get a list of accounts blocked by the current user
+export const getBlockedUsers = async (req: Request, res: Response) => {
+  try {
+    //TODO: get currentUserId from auth middleware ( currentUserId from req body just for now)
+    const currentUserId = req.body.id;
+    if (!authenticated(currentUserId, res)) return;
+
+    // Fetch blocked users logic to be implemented
+  } catch (error) {
+    console.error("Get blocked users error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};

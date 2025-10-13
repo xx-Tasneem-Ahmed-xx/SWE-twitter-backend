@@ -10,10 +10,7 @@ import {
   getFollowersList,
   getFollowingsList,
 } from "@/api/controllers/user_interactions/userInteractionUtils";
-import {
-  UserInteractionParamsSchema,
-  FollowsListResponseSchema,
-} from "@/application/dtos/userInteractions/userInteraction.dto.schema";
+import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 
 // Follow a user using their username
 export const followUser = async (req: Request, res: Response) => {
