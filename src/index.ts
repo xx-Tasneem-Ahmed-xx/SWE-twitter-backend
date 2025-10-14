@@ -11,24 +11,24 @@ async function start() {
     await connectToDatabase();
     
     httpServer.listen(PORT, () => {
-      console.log(`🌟 Server running on port ${PORT}`);
-      console.log(`📡 API available at http://localhost:${PORT}`);
-      console.log(`🔌 Socket.IO server ready for connections`);
+      console.log(`Server running on port ${PORT}`);
+      console.log(`API available at http://localhost:${PORT}`);
+      console.log(`Socket.IO server ready for connections`);
     });
   } catch (error) {
-    console.error('💥 Failed to start server:', error);
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 }
 
 process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
+  console.log('\nShutting down gracefully...');
   await disconnectFromDatabase();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
+  console.log('\nShutting down gracefully...');
   await disconnectFromDatabase();
   process.exit(0);
 });

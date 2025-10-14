@@ -4,7 +4,6 @@ export class CreateChatInput {
 }
 
 export class MessageAttachment {
-  media!: File;
   name?: string;
   url?: string;
   size?: number;

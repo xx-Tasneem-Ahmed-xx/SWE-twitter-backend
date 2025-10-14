@@ -4,10 +4,12 @@ import {
 } from "@asteasolutions/zod-to-openapi";
 import { registerTweetDocs } from "./tweets";
 import { registerUserInteractionsDocs } from "./userInteractions";
+import { registerChatDocs } from "./chats";
 
 const registry = new OpenAPIRegistry();
 registerTweetDocs(registry);
 registerUserInteractionsDocs(registry);
+registerChatDocs(registry);
 
 export const generator = new OpenApiGeneratorV3(registry.definitions);
 

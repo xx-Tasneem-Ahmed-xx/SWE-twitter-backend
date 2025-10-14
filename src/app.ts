@@ -37,7 +37,7 @@ app.use("/api", userInteractionsRoutes);
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 
-app.use("/api/users/dm", directMessagesRouter);
+app.use("/api/dm", directMessagesRouter);
 
 //app.use("/api/tweets", tweetRoutes);
 
