@@ -3,7 +3,10 @@ import {
   authenticated,
   findUserByUsername,
   checkBlockStatus,
-} from "./userInteractionUtils";
+  getBlockedList,
+  createBlockRelation,
+  removeBlockRelation,
+} from "../../../application/services/userInteractions";
 import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 
 // Block a user using their username
@@ -17,7 +20,7 @@ export const blockUser = async (req: Request, res: Response) => {
       });
     }
     const { username } = paramsResult.data;
-    //TODO: get currentUserId from auth middleware ( currentUserId from req body just for now)
+    //TODO: get currentUserId from auth middleware (currentUserId from req body just for now)
     const currentUserId = req.body.id;
     if (!authenticated(currentUserId, res)) return;
 
@@ -28,11 +31,15 @@ export const blockUser = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Cannot block yourself" });
     const isBlocked = await checkBlockStatus(currentUserId, userToBlock.id);
     if (isBlocked)
-      return res.status(403).json({
-        error: "Your are already blocking this user",
+      return res.status(400).json({
+        error: "You are already blocking this user",
       });
 
-    // block logic to be implemented
+    createBlockRelation(currentUserId, userToBlock.id);
+    return res.status(201).json({
+      message: "User blocked successfully",
+      currentUserId,
+    });
   } catch (error) {
     console.error("Block user error:", error);
     return res.status(500).json({ error: "Internal server error" });
@@ -59,14 +66,18 @@ export const unblockUser = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "User not found" });
 
     if (userToUnBlock.id === currentUserId)
-      return res.status(400).json({ error: "Cannot Unblock yourself" });
+      return res.status(400).json({ error: "Cannot unblock yourself" });
     const isBlocked = await checkBlockStatus(currentUserId, userToUnBlock.id);
     if (!isBlocked)
-      return res.status(403).json({
-        error: "Your are not blocking this user",
+      return res.status(400).json({
+        error: "You are not blocking this user",
       });
 
-    // unblock logic to be implemented
+    removeBlockRelation(currentUserId, userToUnBlock.id);
+    return res.status(200).json({
+      message: "User unblocked successfully",
+      currentUserId,
+    });
   } catch (error) {
     console.error("Unblock user error:", error);
     return res.status(500).json({ error: "Internal server error" });
@@ -80,7 +91,8 @@ export const getBlockedUsers = async (req: Request, res: Response) => {
     const currentUserId = req.body.id;
     if (!authenticated(currentUserId, res)) return;
 
-    // Fetch blocked users logic to be implemented
+    const blockedUsersData = await getBlockedList(currentUserId);
+    return res.status(200).json(blockedUsersData);
   } catch (error) {
     console.error("Get blocked users error:", error);
     return res.status(500).json({ error: "Internal server error" });

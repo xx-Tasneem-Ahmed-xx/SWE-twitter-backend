@@ -7,6 +7,12 @@ import {
   getFollowers,
   getFollowings,
 } from "@/api/controllers/user_interactions/follow";
+import {
+  blockUser,
+  unblockUser,
+  getBlockedUsers,
+} from "@/api/controllers/user_interactions/block";
+//import { muteUser, unmuteUser, getMutedUsers } from "@/api/controllers/user_interactions/mute";
 
 const router = Router();
 
@@ -20,5 +26,8 @@ router
   .patch(acceptFollow)
   .delete(declineFollow)
   .get(getFollowings);
+
+router.route("/blocks/:username").post(blockUser).delete(unblockUser);
+router.route("/blocks").get(getBlockedUsers);
 
 export default router;

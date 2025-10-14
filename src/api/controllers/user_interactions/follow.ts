@@ -9,7 +9,7 @@ import {
   checkBlockStatus,
   getFollowersList,
   getFollowingsList,
-} from "@/api/controllers/user_interactions/userInteractionUtils";
+} from "@/application/services/userInteractions";
 import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 
 // Follow a user using their username
@@ -230,10 +230,7 @@ export const getFollowings = async (req: Request, res: Response) => {
           "Cannot view followings of blocked users or who have blocked you",
       });
 
-    // Get the followings list using our optimized utility function
     const followingsData = await getFollowingsList(user.id, currentUserId);
-
-    // Return the formatted response matching our DTO structure
     return res.status(200).json(followingsData);
   } catch (error) {
     console.error("Get Followings error:", error);
