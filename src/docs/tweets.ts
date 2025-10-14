@@ -1,19 +1,23 @@
 import {
   CreateTweetDTOSchema,
   HashTagResponseSchema,
+  timelineResponeSchema,
   TweetResponsesSchema,
   TweetSummaryResponse,
   UsersResponseSchema,
 } from "@/application/dtos/tweets/tweet.dto.schema";
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
+import { listErrors } from "@/docs/errors";
+
+const errors = listErrors();
 
 const TweetIdParams = z.object({
   id: z.uuid().describe("Tweet ID"),
 });
 
-const UserIdParams = z.object({
-  id: z.uuid().describe("User ID"),
+const UsernameParams = z.object({
+  username: z.string().describe("Username"),
 });
 
 const TrendingTweetsParams = z.object({
@@ -24,6 +28,33 @@ const SearchQuery = z.object({
   q: z.string().describe("Search keyword"),
   limit: z.number().default(20).describe("Result limit"),
 });
+
+function registerSubList(
+  registry: OpenAPIRegistry,
+  name: string,
+  description: string,
+  schema: z.ZodTypeAny,
+  tag: string
+) {
+  registry.registerPath({
+    method: "get",
+    path: `/api/tweets/{id}/${name}`,
+    summary: `Get tweet ${name}`,
+    tags: [tag],
+    request: { params: TweetIdParams },
+    responses: {
+      200: {
+        description,
+        content: {
+          "application/json": {
+            schema: schema,
+          },
+        },
+      },
+      ...errors,
+    },
+  });
+}
 
 export const registerTweetDocs = (registry: OpenAPIRegistry) => {
   registry.registerPath({
@@ -43,13 +74,13 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     },
     responses: {
       201: { description: "Tweet created successfully" },
-      400: { description: "Failed to create tweet" },
+      ...errors,
     },
   });
 
   registry.registerPath({
     method: "post",
-    path: "/api/tweets/{id}/retweet",
+    path: "/api/tweets/{id}/retweets",
     summary: "Retweet a tweet",
     tags: ["Tweets"],
     request: { params: TweetIdParams },
@@ -58,7 +89,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: "delete",
-    path: "/api/tweets/{id}/retweet",
+    path: "/api/tweets/{id}/retweets",
     summary: "Delete a retweet",
     tags: ["Tweets"],
     request: { params: TweetIdParams },
@@ -67,7 +98,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: "post",
-    path: "/api/tweets/{id}/reply",
+    path: "/api/tweets/{id}/replies",
     summary: "Reply to a tweet",
     tags: ["Tweets"],
     request: {
@@ -83,13 +114,13 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     },
     responses: {
       201: { description: "Reply created successfully" },
-      403: { description: "Not allowed to reply" },
+      ...errors,
     },
   });
 
   registry.registerPath({
     method: "post",
-    path: "/api/tweets/{id}/quote",
+    path: "/api/tweets/{id}/quotes",
     summary: "Quote a tweet",
     tags: ["Tweets"],
     request: {
@@ -105,7 +136,27 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     },
     responses: {
       201: { description: "Quote created successfully" },
-      403: { description: "Not allowed to quote" },
+      ...errors,
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/api/tweets/{id}/quotes",
+    summary: "Get tweet quotes",
+    tags: ["Tweets"],
+    request: {
+      params: TweetIdParams,
+    },
+    responses: {
+      200: {
+        description: "List of quoters",
+        content: {
+          "application/json": {
+            schema: z.array(TweetResponsesSchema),
+          },
+        },
+      },
     },
   });
 
@@ -124,7 +175,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
           },
         },
       },
-      404: { description: "Tweet not found" },
+      ...errors,
     },
   });
 
@@ -147,7 +198,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     },
     responses: {
       200: { description: "Tweet updated successfully" },
-      403: { description: "Not authorized to update this tweet" },
+      ...errors,
     },
   });
 
@@ -160,124 +211,24 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     request: { params: TweetIdParams },
     responses: {
       204: { description: "Tweet deleted successfully" },
-      403: { description: "Not authorized" },
-      404: { description: "Tweet not found" },
+      ...errors,
     },
   });
 
-  registry.registerPath({
-    method: "get",
-    path: "/api/tweets/{id}/likers",
-    summary: "Get users who liked a tweet",
-    tags: ["Tweets"],
-    request: { params: TweetIdParams },
-    responses: {
-      200: {
-        description: "Tweet likers fetched successfully",
-        content: {
-          "application/json": {
-            schema: UsersResponseSchema,
-          },
-        },
-      },
-      404: { description: "Failed to fetch likers" },
-    },
-  });
-
-  registry.registerPath({
-    method: "get",
-    path: "/api/tweets/{id}/retweeters",
-    summary: "Get users who retweeted a tweet",
-    tags: ["Tweets"],
-    request: { params: TweetIdParams },
-    responses: {
-      200: {
-        description: "Tweet retweeters fetched successfully",
-        content: {
-          "application/json": {
-            schema: UsersResponseSchema,
-          },
-        },
-      },
-      404: { description: "Failed to fetch retweeters" },
-    },
-  });
-
-  registry.registerPath({
-    method: "get",
-    path: "/api/tweets/search",
-    summary: "Search for tweets",
-    description: "Search tweets by content, hashtag, or users.",
-    tags: ["Tweets"],
-    request: {
-      query: SearchQuery,
-    },
-    responses: {
-      200: {
-        description: "List of matching tweets",
-        content: {
-          "application/json": {
-            schema: TweetResponsesSchema,
-          },
-        },
-      },
-    },
-  });
-
-  registry.registerPath({
-    method: "get",
-    path: "/api/tweets/user/{userId}",
-    summary: "Get tweets by user",
-    description: "Returns all tweets authored by the specified user.",
-    tags: ["Timeline and Feed"],
-    request: { params: UserIdParams },
-    responses: {
-      200: {
-        description: "Tweets retrieved successfully",
-        content: {
-          "application/json": {
-            schema: z.array(TweetResponsesSchema),
-          },
-        },
-      },
-    },
-  });
-
-  registry.registerPath({
-    method: "get",
-    path: "/api/tweets/user/{userId}/likedtweets",
-    summary: "Get tweets liked by the user",
-    tags: ["Timeline and Feed"],
-    request: { params: UserIdParams },
-    responses: {
-      200: {
-        description: "Liked tweets fetched successfully",
-        content: {
-          "application/json": {
-            schema: z.array(TweetResponsesSchema),
-          },
-        },
-      },
-    },
-  });
-
-  registry.registerPath({
-    method: "get",
-    path: "/api/tweets/user/{userId}/mentioned",
-    summary: "Get tweets that the user is mentioned in",
-    tags: ["Timeline and Feed"],
-    request: { params: UserIdParams },
-    responses: {
-      200: {
-        description: "Mentioned tweets fetched successfully",
-        content: {
-          "application/json": {
-            schema: z.array(TweetResponsesSchema),
-          },
-        },
-      },
-    },
-  });
+  registerSubList(
+    registry,
+    "retweets",
+    "Users who retweeted the tweet",
+    UsersResponseSchema,
+    "Tweets"
+  );
+  registerSubList(
+    registry,
+    "replies",
+    "Replies under the tweet",
+    z.array(TweetResponsesSchema),
+    "Tweets"
+  );
 
   registry.registerPath({
     method: "get",
@@ -290,49 +241,121 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
         description: "Timeline tweets fetched successfully",
         content: {
           "application/json": {
-            schema: z.array(TweetResponsesSchema),
+            schema: timelineResponeSchema,
           },
         },
+      },
+      ...errors,
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/api/tweets/search",
+    summary: "Search for tweets",
+    description: "Search tweets by content, hashtag, or users.",
+    tags: ["Timeline and Feed"],
+    request: {
+      query: SearchQuery,
+    },
+    responses: {
+      200: {
+        description: "List of matching tweets",
+        content: {
+          "application/json": {
+            schema: TweetResponsesSchema,
+          },
+        },
+        ...errors,
       },
     },
   });
 
   registry.registerPath({
-    method: "post",
-    path: "/api/tweets/{id}/like",
-    summary: "Like a tweet",
-    description: "Likes a tweet on behalf of the current user.",
-    tags: ["Tweets Interactions"],
-    request: { params: TweetIdParams },
-    responses: { 200: { description: "Tweet liked successfully" } },
-  });
-
-  registry.registerPath({
-    method: "delete",
-    path: "/api/tweets/{id}/like",
-    summary: "Unlike a tweet",
-    description: "Removes a like from the tweet.",
-    tags: ["Tweets Interactions"],
-    request: { params: TweetIdParams },
-    responses: { 200: { description: "Tweet unliked successfully" } },
-  });
-
-  registry.registerPath({
     method: "get",
-    path: "/api/tweets/{id}/replies",
-    summary: "Get all replies",
-    description: "Fetches all replies under a specific tweet.",
-    tags: ["Tweets"],
-    request: { params: TweetIdParams },
+    path: "/api/tweets/user/{username}",
+    summary: "Get user's tweets",
+    description: "Returns all tweets authored by the specified user.",
+    tags: ["Timeline and Feed"],
+    request: { params: UsernameParams },
     responses: {
       200: {
-        description: "Replies fetched successfully",
+        description: "Tweets retrieved successfully",
         content: {
           "application/json": {
             schema: z.array(TweetResponsesSchema),
           },
         },
       },
+      ...errors,
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/api/tweets/user/{username}/mentioned",
+    summary: "Get tweets that the user is mentioned in",
+    tags: ["Timeline and Feed"],
+    request: { params: UsernameParams },
+    responses: {
+      200: {
+        description: "Mentioned tweets fetched successfully",
+        content: {
+          "application/json": {
+            schema: z.array(TweetResponsesSchema),
+          },
+        },
+      },
+      ...errors,
+    },
+  });
+
+  registry.registerPath({
+    method: "post",
+    path: "/api/tweets/{id}/likes",
+    summary: "Like a tweet",
+    description: "Likes a tweet on behalf of the current user.",
+    tags: ["Tweets Interactions"],
+    request: { params: TweetIdParams },
+    responses: { 200: { description: "Tweet liked successfully" }, ...errors },
+  });
+
+  registry.registerPath({
+    method: "delete",
+    path: "/api/tweets/{id}/likes",
+    summary: "Unlike a tweet",
+    description: "Removes a like from the tweet.",
+    tags: ["Tweets Interactions"],
+    request: { params: TweetIdParams },
+    responses: {
+      200: { description: "Tweet unliked successfully" },
+      ...errors,
+    },
+  });
+
+  registerSubList(
+    registry,
+    "likes",
+    "Users who liked the tweet",
+    UsersResponseSchema,
+    "Tweets Interactions"
+  );
+
+  registry.registerPath({
+    method: "get",
+    path: "/api/tweets/likedtweets",
+    summary: "Get tweets liked by the user",
+    tags: ["Tweets Interactions"],
+    responses: {
+      200: {
+        description: "Liked tweets fetched successfully",
+        content: {
+          "application/json": {
+            schema: z.array(TweetResponsesSchema),
+          },
+        },
+      },
+      ...errors,
     },
   });
 
@@ -343,7 +366,10 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     description: "Adds a tweet to the user’s bookmarks.",
     tags: ["Tweets Interactions"],
     request: { params: TweetIdParams },
-    responses: { 200: { description: "Tweet bookmarked successfully" } },
+    responses: {
+      200: { description: "Tweet bookmarked successfully" },
+      ...errors,
+    },
   });
 
   registry.registerPath({
@@ -353,7 +379,10 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     description: "Removes the tweet from user’s bookmarks.",
     tags: ["Tweets Interactions"],
     request: { params: TweetIdParams },
-    responses: { 200: { description: "Bookmark removed successfully" } },
+    responses: {
+      200: { description: "Bookmark removed successfully" },
+      ...errors,
+    },
   });
 
   registry.registerPath({
@@ -372,6 +401,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
           },
         },
       },
+      ...errors,
     },
   });
 
@@ -392,6 +422,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
           },
         },
       },
+      ...errors,
     },
   });
 
@@ -400,18 +431,8 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     path: "/trends",
     summary: "Get a list of available trends",
     description:
-      "Returns the currently trending hashtags or topics globally or by location.",
+      "Returns the currently trending hashtags or topics in the last 24 hours.",
     tags: ["Trends"],
-    //TODO: confirm from TA trend entity
-    // request: {
-    //   query: {
-    //     location: {
-    //       type: "string",
-    //       required: false,
-    //       description: "Optional location (e.g., 'egypt', 'us').",
-    //     },
-    //   },
-    // },
     responses: {
       200: {
         description: "List of trending topics returned successfully.",
@@ -421,6 +442,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
           },
         },
       },
+      ...errors,
     },
   });
 
@@ -441,7 +463,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
           },
         },
       },
-      404: { description: "Trend not found." },
+      ...errors,
     },
   });
 };
