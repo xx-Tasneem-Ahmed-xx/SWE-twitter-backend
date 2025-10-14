@@ -40,7 +40,7 @@ interface PrismaUser {
   
     password: string;
     saltPassword: string;
-   token_version: number;
+   tokenVersion: number;
     tfaVerifed: boolean;
     loginCodesSet: boolean;
     loginCodes: string | null;
@@ -128,6 +128,7 @@ export async function Create(req: Request, res: Response): Promise<Response | vo
      await redisClient.del(`signup_captcha:passed:${input.email}`);
   const passRes: string = await utils.ValidatePassword(input.password);
     if (passRes !== "0") return utils.SendError(res, 400, passRes);
+
 
     // email basic validation
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return utils.SendError(res, 400, "invalid email");
@@ -217,11 +218,11 @@ let parsedDate: Date = new Date(input.dateOfBirth);
 if (isNaN(parsedDate.getTime())) {
   parsedDate = new Date("2001-11-03T00:00:00.000Z");
 }
+
     const created: PrismaUser = await prisma.user.create({
       data: {
         username,
-
-        tokenVersion: 1,
+       
         name: input.name,
         email: input.email,
         // role: "user",
@@ -328,7 +329,7 @@ console.log("User inside Verify_email:", user);
       id: user.id,
      
       expiresInSeconds: 15 * 60,
-      version: user.token_version || 0,
+      version: user.tokenVersion || 0,
       devid,
     });
     const refreshObj = generateJwt({
@@ -337,7 +338,7 @@ console.log("User inside Verify_email:", user);
       id: user.id,
      
       expiresInSeconds: 7 * 24 * 60 * 60,
-      version: user.token_version || 0,
+      version: user.tokenVersion || 0,
       devid,
     });
 
@@ -491,8 +492,8 @@ console.log("secret :",secret);
 console.log("user :",user);
     // Use utils.SetDeviceInfo
     const { devid } = await utils.SetDeviceInfo(req, res, email);
-    const accessObj = generateJwt({ username: user.username, email, id: user.id, expiresInSeconds: 15 * 60, version: user.token_version || 0, devid });
-    const refreshObj = generateJwt({ username: user.username, email, id: user.id, expiresInSeconds: 7 * 24 * 60 * 60, version: user.token_version || 0, devid });
+    const accessObj = generateJwt({ username: user.username, email, id: user.id, expiresInSeconds: 15 * 60, version: user.tokenVersion || 0, devid });
+    const refreshObj = generateJwt({ username: user.username, email, id: user.id, expiresInSeconds: 7 * 24 * 60 * 60, version: user.tokenVersion || 0, devid });
     res.cookie("refresh_token", refreshObj.token, { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.COOKIE_SECURE === "true", sameSite: "lax", domain: CLIENT_DOMAIN });
    
   //  await utils.SetSession(req, user.id, refreshObj.jti);
@@ -542,8 +543,8 @@ export async function VerifyLoginCode(req: Request, res: Response): Promise<Resp
     if (!found) return utils.SendError(res, 401, "Enter your Login_codes correctly");
     // Use utils.SetDeviceInfo
     const { devid } = await utils.SetDeviceInfo(req, res, email);
-    const accessObj = generateJwt({ username: user.username, email, id: user.id,  expiresInSeconds: 15 * 60, version: user.token_version || 0, devid });
-    const refreshObj = generateJwt({ username: user.username, email, id: user.id,  expiresInSeconds: 7 * 24 * 60 * 60, version: user.token_version || 0, devid });
+    const accessObj = generateJwt({ username: user.username, email, id: user.id,  expiresInSeconds: 15 * 60, version: user.tokenVersion || 0, devid });
+    const refreshObj = generateJwt({ username: user.username, email, id: user.id,  expiresInSeconds: 7 * 24 * 60 * 60, version: user.tokenVersion || 0, devid });
     await prisma.user.updateMany({ where: { email }, data: { loginCodes: copy.join(",") } });
     res.cookie("refresh_token", refreshObj.token, { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.COOKIE_SECURE === "true", sameSite: "lax", domain: CLIENT_DOMAIN });
     // Use utils.SetSession
@@ -732,6 +733,7 @@ We’re letting you know that the password for your account (${email}) was just 
 
 If you did NOT change your password, please secure your account immediately.
 `;
+await prisma.user.updateMany({ where: { email }, data: { tokenVersion: (user.tokenVersion || 0) + 1 } });
     utils.SendEmailSmtp(res, email, message).catch(console.error);
     
     return utils.SendRes(res, { Message: "password updated correctly", Score: score });
@@ -772,8 +774,8 @@ export async function VerifyNewEmail(req: Request, res: Response): Promise<Respo
     if (stored !== code) return utils.SendError(res, 401, "Enter code correctly");
     await prisma.user.updateMany({ where: { email: currentEmail }, data: { email: desiredEmail } });
     const updated = await prisma.user.findUnique({ where: { email: desiredEmail } });
-    //if (!updated) return utils.SendError(res, 500, "something went wrong updating user with the new email");
-    //await prisma.user.updateMany({ where: { email: desiredEmail }, data: { token_version: (updated.token_version || 0) + 1 } });
+    if (!updated) return utils.SendError(res, 500, "something went wrong updating user with the new email");
+    await prisma.user.updateMany({ where: { email: desiredEmail }, data: { tokenVersion: (updated.tokenVersion || 0) + 1 } });
     return utils.SendRes(res, "email changed correctly");
   } catch (err) {
     console.error("VerifyNewEmail err:", err);
@@ -783,7 +785,7 @@ export async function VerifyNewEmail(req: Request, res: Response): Promise<Respo
 
 export async function GetUser(req: Request, res: Response): Promise<Response | void> {
   try {
-    const email: string | undefined = (req.user as any)?.email || (req.query?.email as string);
+    const email: string | undefined = (req.user as any)?.email || (req.query?.email as string)||(req.body?.email as string);
     if (!email) return utils.SendError(res, 401, "user isnot authorized this route ");
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return utils.SendError(res, 500, "something went wrong");

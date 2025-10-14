@@ -157,6 +157,7 @@ export interface UserSession {
 }
 
 // --- Environment Variables (type assertions) ---
+console.log("JWT_SECRET used here:", process.env.JWT_SECRET);
 
 const JWT_SECRET: string = process.env.JWT_SECRET as string;
 const PEPPER: string = process.env.PEPPER || "";
@@ -243,12 +244,14 @@ export async function GenerateJwt({
 /**
  * validate token and return {ok, payload, error}
  */
-export function ValidateToken(tokenString: string): {
+export function ValidateToken(tokenString: string,): {
   ok: boolean;
   payload?: JwtUserPayload;
   err?: Error;
 } {
   try {
+    //console.log("Token:", token);
+
     // We assert the type to our custom payload interface
     const payload: JwtUserPayload = jwt.verify(
       tokenString,

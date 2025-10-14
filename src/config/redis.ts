@@ -22,6 +22,7 @@ redisClient.on("connect", () => {
   console.log("🔌 Connected to Redis successfully");
 });
 
+
 export async function connectRedis(): Promise<void> {
   try {
     // The client starts disconnected, so we call connect() first
