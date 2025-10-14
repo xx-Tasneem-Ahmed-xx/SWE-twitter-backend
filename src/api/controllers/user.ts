@@ -178,6 +178,7 @@ export async function SignupCaptcha(req: Request, res: Response): Promise<Respon
       email = undefined;
     }
     if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return utils.SendError(res, 400, "Email is Required");
+console.log("Redis connected?", redisClient.isOpen);
     await redisClient.set(`signup_captcha:passed:${email}`, "1", { EX: 15 * 60 });
     return utils.SendRes(res, { Message: "You passed the Captcha you can continue regster now " });
   } catch (err) {

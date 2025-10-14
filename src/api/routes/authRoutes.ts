@@ -56,7 +56,7 @@ router.post("/logout-all", typedAuth,  typedAuthController.LogoutALL, typedDeact
 
 // --- Captcha Routes ---
 router.get("/captcha", typedAuth,  typedAuthController.Captcha);
-router.post("/signup_captcha", typedAuth,  typedAuthController.SignupCaptcha); //tested
+router.post("/signup_captcha",  typedAuthController.SignupCaptcha); //tested
 
 // --- Re-Authentication Routes ---
 router.post("/reauth-password", typedAuth,  typedAuthController.ReauthPassword);
