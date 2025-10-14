@@ -4,8 +4,7 @@
   "description": "",
   "main": "dist/src/index.js",
   "scripts": {
-    "dev": "nodemon --watch src --exec \"node --loader ts-node/esm -r tsconfig-paths/register src/index.ts\"",
-
+    "dev": "nodemon -r tsconfig-paths/register --watch 'src/**/*.ts' --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "nodemon dist/src/index.js"
   },
@@ -22,12 +21,12 @@
   "homepage": "https://github.com/CUFE-Software-Engineering-Project/SWE-twitter-backend#readme",
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^8.1.0",
-    "@prisma/client": "^6.17.1",
+    "@prisma/client": "^6.16.2",
     "@types/socket.io": "^3.0.1",
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "express-validator": "^7.2.1",
     "helmet": "^8.1.0",
@@ -35,15 +34,15 @@
     "jsonwebtoken": "^9.0.2",
     "module-alias": "^2.2.3",
     "morgan": "^1.10.1",
-    "node-fetch": "^3.3.2",
+    "node-fetch": "^2.7.0",
     "nodemailer": "^7.0.9",
     "pg": "^8.16.3",
     "qrcode": "^1.5.4",
-    "redis": "^5.8.3",
+    "redis": "^5.8.2",
     "socket.io": "^4.8.1",
     "speakeasy": "^2.0.0",
     "swagger-ui-express": "^5.0.1",
-    "uuid": "^13.0.0",
+    "uuid": "^8.3.2",
     "zod": "^4.1.12",
     "zxcvbn": "^4.4.2"
   },
@@ -53,24 +52,22 @@
     "@types/cors": "^2.8.19",
     "@types/dotenv": "^6.1.1",
     "@types/express": "^5.0.3",
-    "@types/express-validator": "^2.20.33",
+    "@types/express-validator": "^3.0.2",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
-    "@types/node": "^24.7.2",
+    "@types/node": "^24.5.2",
+    "@types/node-fetch": "^2.6.13",
     "@types/nodemailer": "^7.0.2",
     "@types/qrcode": "^1.5.5",
     "@types/speakeasy": "^2.0.10",
     "@types/swagger-ui-express": "^4.1.8",
+    "@types/uuid": "^8.3.4",
     "@types/zxcvbn": "^4.4.5",
     "nodemon": "^3.1.10",
     "prisma": "^6.16.2",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.9.3"
-  },
-  "type": "module",
-  "_moduleAliases": {
-    "@": "src"
+    "typescript": "^5.9.2"
   }
 }

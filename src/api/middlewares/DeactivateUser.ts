@@ -1,7 +1,7 @@
 // DeactivateUser.ts
-import  prisma  from "../../database.js";
-import * as utils from "../../application/utils/tweets/utils.js";
-import { redisClient } from "../../config/redis.js";
+import  prisma  from "../../database";
+import * as utils from "../../application/utils/tweets/utils";
+import { redisClient } from "../../config/redis";
 import { Request, Response, NextFunction } from "express";
 
 // --- Type Definitions for Context ---

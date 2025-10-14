@@ -3,7 +3,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 
-import { v4 as uuidv4 } from "uuid";
+//import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import fetch, { Response as FetchResponse } from "node-fetch";
 import zxcvbn from "zxcvbn";
@@ -16,6 +16,10 @@ import { redisClient } from "@/config/redis";
 import { performance } from "perf_hooks";
 // Use appropriate types for Express Request and Response
 import { Request, Response } from "express";
+const uuidv4 = async () => {
+  const { v4 } = await import('uuid');
+  return v4();
+};
 export const validToRetweetOrQuote = async (parentTweetId: string) => {
   const rightToTweet = await prisma.tweet.findUnique({
     where: { id: parentTweetId },
@@ -202,7 +206,7 @@ export function SendError(
  * Generate JWT and set some context in return object
  * returns signed token string and jti
  */
-export function GenerateJwt({
+export async function GenerateJwt({
   username,
   email,
   id,
@@ -218,8 +222,8 @@ export function GenerateJwt({
   expiresInSeconds?: number;
   version?: number;
   devid?: string | null;
-}): { token: string; jti: string; payload: JwtUserPayload } {
-  const jti: string = uuidv4();
+}): Promise<{ token: string; jti: string; payload: JwtUserPayload }> {
+  const jti: string = await uuidv4();
   const now: number = Math.floor(Date.now() / 1000);
   const payload: JwtUserPayload = {
     Username: username,
@@ -278,9 +282,9 @@ export async function CheckPass(
 
 /* ------------------------------ Username generator ------------------------------ */
 
-export function GenterUserName(name: string | undefined | null): string {
+export async function GenterUserName(name: string | undefined | null): Promise<string> {
   const clean: string = (name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const suffix: string = uuidv4().slice(0, 8);
+  const suffix: string = (await uuidv4()).slice(0, 8);
   return `${clean || "user"}_${suffix}`;
 }
 
@@ -945,7 +949,7 @@ export async function SetSession(
       (req as any).devid || (req.body as any)?.devid || null;
 
     const session: UserSession = {
-      Jti: jti || uuidv4(),
+      Jti: jti || await uuidv4(),
       UserID: userId,
       IsActive: true,
       IssuedAT: new Date().toISOString(),

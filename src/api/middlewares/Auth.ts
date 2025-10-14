@@ -1,12 +1,12 @@
 // Auth.ts
 
 import jwt from "jsonwebtoken";
-import  prisma  from "../../database.js";
-import * as utils from "../../application/utils/tweets/utils.js";
-import { redisClient } from "../../config/redis.js";
+import  prisma  from "../../database";
+import * as utils from "../../application/utils/tweets/utils";
+import { redisClient } from "../../config/redis";
 import { Request, Response, NextFunction } from "express"; 
 // Using utils.JwtUserPayload for type checking the payload structure
-import { JwtUserPayload, GeoData } from "../../application/utils/tweets/utils.js"; 
+import { JwtUserPayload, GeoData } from "../../application/utils/tweets/utils"; 
 
 // --- Custom Type Definitions ---
 

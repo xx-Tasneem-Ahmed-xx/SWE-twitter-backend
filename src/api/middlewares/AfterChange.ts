@@ -1,9 +1,9 @@
 // AfterChange.ts
 
 //import { prisma } from "../config/database.js";
-import *as utils from "../../application/utils/tweets/utils.js";
+import *as utils from "../../application/utils/tweets/utils";
 // Adjust path if your Sequelize models are elsewhere
-import { redisClient } from "../../config/redis.js";
+import { redisClient } from "../../config/redis";
 import { Request, Response, NextFunction } from "express"; // Import Express types
 
 /**

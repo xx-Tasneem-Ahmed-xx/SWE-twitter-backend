@@ -2,9 +2,9 @@
 // FIX: Added necessary imports from 'express' and 'GeoData' from 'utils'
 import { Request, Response, NextFunction } from "express"; // <-- FIX: Import NextFunction
 // import { prisma } from "../../database.js";
-import * as utils from "../../application/utils/tweets/utils.js";
-import { redisClient } from "../../config/redis.js";
-import { GeoData } from "../../application/utils/tweets/utils.js"; // <-- FIX: Import GeoData
+import * as utils from "../../application/utils/tweets/utils";
+import { redisClient } from "../../config/redis";
+import { GeoData } from "../../application/utils/tweets/utils"; // <-- FIX: Import GeoData
 
 // Custom request interface to safely access IP properties
 // FIX: Removed conflicting standard Express properties (ip, connection, socket)

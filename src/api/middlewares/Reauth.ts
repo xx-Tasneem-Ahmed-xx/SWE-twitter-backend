@@ -1,7 +1,7 @@
 // Reauth.ts
-import * as utils from "../../application/utils/tweets/utils.js";
-import { redisClient } from "../../config/redis.js";
-import { GeoData } from "../../application/utils/tweets/utils.js"; // <-- FIX: Import GeoData
+import * as utils from "../../application/utils/tweets/utils";
+import { redisClient } from "../../config/redis";
+import { GeoData } from "../../application/utils/tweets/utils"; // <-- FIX: Import GeoData
 
 import { Request, Response, NextFunction } from "express";
 

@@ -1,7 +1,7 @@
 import express, { Router, Request, Response, NextFunction } from "express";
 
 // Importing the default export and giving it an appropriate type (assuming it's an object of async functions)
-import authController from "../controllers/user.js"; 
+import authController from "../controllers/user"; 
 
 // Importing middleware functions (which are default exports, typically untyped in JS)
 import Auth from "../middlewares/Auth";
@@ -17,8 +17,12 @@ type AuthController = {
 };
 const typedAuthController = authController as AuthController;
 
-// Type assertion for middleware functions which are exported as default functions
+
+
+import GeoGurd from "../middlewares/GeoGuard";
 type MiddlewareFunction = (req: Request, res: Response, next: NextFunction) => Promise<any> | void;
+const typedGeoGurd = GeoGurd as unknown as MiddlewareFunction;
+// Define the type for an Express Middleware function
 
 const typedAuth = Auth as unknown as MiddlewareFunction;
 
@@ -71,5 +75,5 @@ router.delete("/session/:sessionid", typedAuth,  typedAuthController.LogoutSessi
 
 // --- Post-Request Cleanup Middleware ---
 router.use(typedAfterChange);
-
+router.use(typedGeoGurd);
 export default router;

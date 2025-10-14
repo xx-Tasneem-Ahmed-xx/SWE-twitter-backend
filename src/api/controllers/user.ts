@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 // Alias for utility functions - must be compatible with your utils.ts/js
-import * as utils from "../../application/utils/tweets/utils.js";
+import * as utils from "../../application/utils/tweets/utils";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
@@ -9,8 +9,8 @@ import zxcvbn from "zxcvbn";
 import qrcode from "qrcode";
 import speakeasy from "speakeasy";
 import nodemailer from "nodemailer";
-import  prisma  from "../../database.js";
-import { redisClient } from "../../config/redis.js";
+import  prisma  from "../../database";
+import { redisClient } from "../../config/redis";
 import fetch from "node-fetch";
 import crypto from "crypto";
 // Import Express types for request and response objects
