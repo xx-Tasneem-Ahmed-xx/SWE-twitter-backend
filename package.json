@@ -4,7 +4,8 @@
   "description": "",
   "main": "dist/src/index.js",
   "scripts": {
-    "dev": "nodemon -r tsconfig-paths/register --watch 'src/**/*.ts' --exec ts-node src/index.ts",
+    "dev": "nodemon --watch src --exec \"node --loader ts-node/esm -r tsconfig-paths/register src/index.ts\"",
+
     "build": "tsc",
     "start": "nodemon dist/src/index.js"
   },
@@ -52,10 +53,10 @@
     "@types/cors": "^2.8.19",
     "@types/dotenv": "^6.1.1",
     "@types/express": "^5.0.3",
-    "@types/express-validator": "^3.0.2",
+    "@types/express-validator": "^2.20.33",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
-    "@types/node": "^24.5.2",
+    "@types/node": "^24.7.2",
     "@types/nodemailer": "^7.0.2",
     "@types/qrcode": "^1.5.5",
     "@types/speakeasy": "^2.0.10",
@@ -68,7 +69,8 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
   },
+  "type": "module",
   "_moduleAliases": {
-  "@": "dist/src"
-}
+    "@": "src"
+  }
 }

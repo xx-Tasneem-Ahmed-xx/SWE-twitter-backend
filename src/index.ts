@@ -1,6 +1,8 @@
 import dotenv from "dotenv";
 import httpServer from "@/app";
 import { connectToDatabase, disconnectFromDatabase } from "@/database";
+import 'module-alias/register';
+
 dotenv.config();
 
 const PORT = process.env.PORT;

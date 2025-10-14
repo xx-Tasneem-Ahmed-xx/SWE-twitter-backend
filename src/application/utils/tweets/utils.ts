@@ -1,4 +1,4 @@
-import { prisma, ReplyControl } from "@/prisma/client";
+import { prisma, ReplyControl } from "@/prisma/client"
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
