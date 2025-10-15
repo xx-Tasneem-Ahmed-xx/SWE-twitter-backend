@@ -5,11 +5,13 @@ import {
 import { registerTweetDocs } from "./tweets";
 import { registerUserInteractionsDocs } from "./userInteractions";
 import { registerChatDocs } from "./chats";
+import { registerMediaDocs } from "./media";
 
 const registry = new OpenAPIRegistry();
 registerTweetDocs(registry);
 registerUserInteractionsDocs(registry);
 registerChatDocs(registry);
+registerMediaDocs(registry);
 
 export const generator = new OpenApiGeneratorV3(registry.definitions);
 

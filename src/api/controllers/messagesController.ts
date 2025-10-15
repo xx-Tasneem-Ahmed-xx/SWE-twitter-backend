@@ -382,13 +382,22 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
             }
         });
         if(messageInput.data.messageMedia && messageInput.data.messageMedia.length > 0){
-            for(const media of messageInput.data.messageMedia){
+            for(const mediaRaw of messageInput.data.messageMedia){
+                // If mediaRaw is a Zod schema, parse it first
+                let mediaObj: any;
+                if (typeof mediaRaw.safeParse === 'function') {
+                    const result = mediaRaw.safeParse(mediaRaw);
+                    mediaObj = result.success ? result.data : {};
+                } else {
+                    mediaObj = mediaRaw;
+                }
+                
                 const createdMedia = await prisma.media.create({
                     data: {
-                        url: media.url || '',
-                        type: media.type as MediaType || 'IMAGE' as MediaType,
-                        name: media.name || '',
-                        size: media.size || 0
+                        url: mediaObj.url || '',
+                        type: mediaObj.type as MediaType || 'IMAGE' as MediaType,
+                        name: mediaObj.name || '',
+                        size: mediaObj.size || 0
                     }
                 });
                 await prisma.messageMedia.create({
