@@ -1,11 +1,11 @@
+import { TimelineSchema } from "@/application/dtos/tweets/tweet.dto.schema";
 import { TweetService } from "@/application/services/tweets";
-import { Console } from "console";
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 
 const tweetService = new TweetService();
 
 export class TweetController {
-  async createTweet(req: Request, res: Response) {
+  async createTweet(req: Request, res: Response, next: NextFunction) {
     try {
       const data = req.body;
       // TODO: uncomment when auth is ready
@@ -14,11 +14,11 @@ export class TweetController {
       const tweet = await tweetService.createTweet({ ...data, userId: userId });
       res.status(201).json(tweet);
     } catch (error) {
-      res.status(400).json(`Failed to create tweet. ${error}`);
+      next(error);
     }
   }
 
-  async createReTweet(req: Request, res: Response) {
+  async createReTweet(req: Request, res: Response, next: NextFunction) {
     try {
       const parentId = req.params.id;
       // TODO: uncomment when auth is ready
@@ -30,11 +30,11 @@ export class TweetController {
       });
       res.status(201).json(retweet);
     } catch (error) {
-      res.status(400).json(`Failed to create retweet. ${error}`);
+      next(error);
     }
   }
 
-  async createQuote(req: Request, res: Response) {
+  async createQuote(req: Request, res: Response, next: NextFunction) {
     try {
       const data = req.body;
       const parentId = req.params.id;
@@ -48,11 +48,11 @@ export class TweetController {
       });
       res.status(201).json(quote);
     } catch (error) {
-      res.status(400).json("Failed to create quote");
+      next(error);
     }
   }
 
-  async createReply(req: Request, res: Response) {
+  async createReply(req: Request, res: Response, next: NextFunction) {
     try {
       const data = req.body;
       const parentId = req.params.id;
@@ -66,49 +66,88 @@ export class TweetController {
       });
       res.status(201).json(reply);
     } catch (error) {
-      res.status(400).json(`Failed to create reply. ${error}`);
+      next(error);
     }
   }
 
-  async getTweet(req: Request, res: Response) {
+  async getTweet(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
       const tweet = await tweetService.getTweet(id);
       res.status(200).json(tweet);
     } catch (error) {
-      res.status(404).json("Tweet not found");
+      next(error);
     }
   }
 
-  async deleteTweet(req: Request, res: Response) {
+  async deleteTweet(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
       await tweetService.deleteTweet(id);
       res.status(200).json("Tweet deleted successfuly");
     } catch (error) {
-      console.log(error);
-      res.status(400).json("Failed to delete tweet");
+      next(error);
     }
   }
 
-  async deleteRetweet(req: Request, res: Response) {
+  async deleteRetweet(req: Request, res: Response, next: NextFunction) {
     try {
       const { userId } = req.body;
       const { id } = req.params;
       await tweetService.deleteRetweet(userId, id);
       res.status(200).json("Retweet deleted successfuly");
     } catch (error) {
-      console.log(error);
-      res.status(400).json("Failed to delete Retweet");
+      next(error);
     }
   }
-  async updateTweet(req: Request, res: Response) {
+  async updateTweet(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
       const { content } = req.body;
       await tweetService.updateTweet(id, content);
+      res.status(200).json("Tweet updated successfully");
     } catch (error) {
-      res.status(404).json("Failed to update tweet");
+      next(error);
+    }
+  }
+
+  async getLikedTweets(req: Request, res: Response, next: NextFunction) {
+    try {
+      // TODO obtain userid from auth
+      const userId = "3540a1a2-48fa-456f-ac0b-ebbe93328376";
+      const tweets = await tweetService.getLikedTweets(userId);
+      res.status(200).json(tweets);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getTweetReplies(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const replies = await tweetService.getTweetReplies(id);
+      res.status(200).json(replies);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getTimeline(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = "3540a1a2-48fa-456f-ac0b-ebbe93328376";
+
+      const parsedPayload = TimelineSchema.parse({
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+        cursor: req.query.cursor,
+      });
+
+      const timeline = await tweetService.getTimeline({
+        userId,
+        ...parsedPayload,
+      });
+      res.status(200).json(timeline);
+    } catch (error) {
+      next(error);
     }
   }
 }

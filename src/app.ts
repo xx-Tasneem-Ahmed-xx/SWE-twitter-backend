@@ -9,14 +9,20 @@ import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { SocketService } from "@/application/services/socketService";
 import directMessagesRouter from "@/api/routes/directMessages";
+import mediaRouter from "./api/routes/media";
 import tweetRoutes from "@/api/routes/tweets";
-import userInteractionsRoutes from "@/api/routes/userInteractions";
+import userInteractionsRoutes from "./api/routes/userInteractions";
 import userRouter from "./api/routes/user.routes";
+import { errorHandler } from "./api/middlewares/errorHandler";
+import authRoutes from "./api/routes/authRoutes";
+
+
+// Type assertion for GeoGurd
 
 const app = express();
 app.use(cors());
 app.use(helmet());
-app.use(morgan("dev"));
+app.use(morgan("dev")); 
 app.use(compression());
 app.use(express.json());
 
@@ -33,15 +39,18 @@ export const io: SocketIOServer = new SocketIOServer(httpServer, {
 const socketService = new SocketService(io);
 export { socketService };
 
-app.use("/api", userInteractionsRoutes);
+// app.use("/api", userInteractionsRoutes);
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 
-app.use("/api/users/dm", directMessagesRouter);
+app.use("/api/dm", directMessagesRouter);
+app.use("/api/media", mediaRouter);
 
 app.use("/api/tweets", tweetRoutes);
 app.use("/api/users", userRouter);
-app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
+app.use("/api/auth",authRoutes);
 
+app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
+app.use(errorHandler);
 export default httpServer;
 export { app };
