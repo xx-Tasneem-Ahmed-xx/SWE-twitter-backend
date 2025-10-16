@@ -1,9 +1,5 @@
 import { prisma, TweetType } from "@/prisma/client";
 import {
-  CreateTweetDTO,
-  CreateRetweetDTO,
-} from "@/application/dtos/tweets/tweet.dto";
-import {
   validToRetweetOrQuote,
   validToReply,
 } from "@/application/utils/tweets/utils";
@@ -37,7 +33,6 @@ export class TweetService {
 
   async createReply(dto: CreateReplyOrQuoteServiceDTO) {
     const valid = await validToReply(dto.parentId, dto.userId);
-    console.log(valid);
     if (valid)
       return prisma.$transaction([
         prisma.tweet.create({
@@ -140,5 +135,78 @@ export class TweetService {
         data: { retweetCount: { decrement: 1 } },
       }),
     ]);
+  }
+
+  async getLikedTweets(userId: string) {
+    return prisma.tweetLike.findMany({
+      where: { userId },
+      select: {
+        tweet: {
+          include: {
+            user: {
+              select: {
+                username: true,
+                name: true,
+                profilePhoto: true,
+                verified: true,
+                protectedAccount: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async getTweetReplies(tweetId: string) {
+    return prisma.tweet.findMany({
+      where: { parentId: tweetId },
+      include: {
+        user: {
+          select: {
+            username: true,
+            name: true,
+            profilePhoto: true,
+            verified: true,
+            protectedAccount: true,
+          },
+        },
+      },
+    });
+  }
+
+  // till now return mine and my followers tweets and retweets
+  async getTimeline(userId: string) {
+    const followersRecords = await prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+
+    const followersId = followersRecords.map(
+      (follower) => follower.followingId
+    );
+
+    return prisma.tweet.findMany({
+      where: {
+        userId: { in: [...followersId, userId] },
+      },
+      include: {
+        retweets: {
+          where: { userId: { in: [...followersId, userId] } },
+          select: {
+            user: {
+              select: {
+                username: true,
+                name: true,
+                profilePhoto: true,
+                verified: true,
+                protectedAccount: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
   }
 }
