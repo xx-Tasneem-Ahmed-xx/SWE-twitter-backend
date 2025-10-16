@@ -13,11 +13,15 @@ import tweetRoutes from "@/api/routes/tweets";
 import userInteractionsRoutes from "@/api/routes/userInteractions";
 import userRouter from "./api/routes/user.routes";
 import { errorHandler } from "./api/middlewares/errorHandler";
+import authRoutes from "./api/routes/authRoutes";
+
+
+// Type assertion for GeoGurd
 
 const app = express();
 app.use(cors());
 app.use(helmet());
-app.use(morgan("dev"));
+app.use(morgan("dev")); 
 app.use(compression());
 app.use(express.json());
 
@@ -42,6 +46,8 @@ app.use("/api/users/dm", directMessagesRouter);
 
 app.use("/api/tweets", tweetRoutes);
 app.use("/api/users", userRouter);
+app.use("/api/auth",authRoutes);
+
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
 app.use(errorHandler);
 export default httpServer;
