@@ -1,3 +1,4 @@
+import { TimelineSchema } from "@/application/dtos/tweets/tweet.dto.schema";
 import { TweetService } from "@/application/services/tweets";
 import { Request, Response, NextFunction } from "express";
 
@@ -134,7 +135,16 @@ export class TweetController {
   async getTimeline(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = "3540a1a2-48fa-456f-ac0b-ebbe93328376";
-      const timeline = await tweetService.getTimeline(userId);
+
+      const parsedPayload = TimelineSchema.parse({
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+        cursor: req.query.cursor,
+      });
+
+      const timeline = await tweetService.getTimeline({
+        userId,
+        ...parsedPayload,
+      });
       res.status(200).json(timeline);
     } catch (error) {
       next(error);

@@ -23,15 +23,10 @@ export const UsersResponseSchema = z.object({
 
 export const CreateTweetDTOSchema = z
   .object({
-    userId: z.uuid(),
     content: StringSchema,
     replyControl: z.enum(ReplyControl).optional(),
   })
   .openapi("CreateTweetDTO");
-
-export const CreateRetweetDTOSchema = z.object({
-  userId: z.uuid(),
-});
 
 export const TweetResponsesSchema = z.object({
   id: z.uuid(),
@@ -61,3 +56,8 @@ export const HashTagResponseSchema = z.array(
     hash: z.object({ id: z.uuid(), tag_text: StringSchema }),
   })
 );
+
+export const TimelineSchema = z.object({
+  limit: z.number().int().min(1).max(100).default(20),
+  cursor: z.string().optional(),
+});
