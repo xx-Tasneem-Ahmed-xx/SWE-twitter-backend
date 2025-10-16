@@ -493,3 +493,6 @@ export const getUnseenChatsCount = async (req: Request, res: Response, next: Nex
         return res.status(500).json({ error: 'Internal server error' });
     }
 }
+
+
+///commented code for reference
