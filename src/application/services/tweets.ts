@@ -174,4 +174,39 @@ export class TweetService {
       },
     });
   }
+
+  // till now return mine and my followers tweets and retweets
+  async getTimeline(userId: string) {
+    const followersRecords = await prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+
+    const followersId = followersRecords.map(
+      (follower) => follower.followingId
+    );
+
+    return prisma.tweet.findMany({
+      where: {
+        userId: { in: [...followersId, userId] },
+      },
+      include: {
+        retweets: {
+          where: { userId: { in: [...followersId, userId] } },
+          select: {
+            user: {
+              select: {
+                username: true,
+                name: true,
+                profilePhoto: true,
+                verified: true,
+                protectedAccount: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
 }

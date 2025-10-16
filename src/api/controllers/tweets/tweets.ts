@@ -1,5 +1,6 @@
 import { TweetService } from "@/application/services/tweets";
 import { Request, Response, NextFunction } from "express";
+
 const tweetService = new TweetService();
 
 export class TweetController {
@@ -130,5 +131,13 @@ export class TweetController {
     }
   }
 
- 
+  async getTimeline(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = "3540a1a2-48fa-456f-ac0b-ebbe93328376";
+      const timeline = await tweetService.getTimeline(userId);
+      res.status(200).json(timeline);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
