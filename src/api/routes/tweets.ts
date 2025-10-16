@@ -12,6 +12,8 @@ router
   .route("/")
   .post(validateBody(CreateTweetDTOSchema), tweetController.createTweet);
 
+router.route("/likedtweets").get(tweetController.getLikedTweets);
+
 router
   .route("/:id")
   .get(tweetController.getTweet)
@@ -19,16 +21,17 @@ router
   .delete(tweetController.deleteTweet);
 
 router
-  .route("/:id/retweet")
+  .route("/:id/retweets")
   .post(validateBody(CreateRetweetDTOSchema), tweetController.createReTweet)
   .delete(tweetController.deleteRetweet);
 
 router
-  .route("/:id/quote")
+  .route("/:id/quotes")
   .post(validateBody(CreateTweetDTOSchema), tweetController.createQuote);
 
 router
-  .route("/:id/reply")
+  .route("/:id/replies")
+  .get(tweetController.getTweetReplies)
   .post(validateBody(CreateTweetDTOSchema), tweetController.createReply);
 
 export default router;
