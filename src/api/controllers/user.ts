@@ -1068,7 +1068,6 @@ username: utils.generateUsername(name),
 name,
 password: '',
 saltPassword: '',
-token: '',
 dateOfBirth: "2001-11-03T00:00:00.000Z",
 }});
 // optionally send email
@@ -1079,7 +1078,7 @@ const token = await utils.GenerateJwt(payload);
 const refreshToken =await  utils.GenerateJwt(payload);
 await redisClient.set(`refresh-token:${user.email}:${deviceId}`, refreshToken.token, { EX: 60*60*24*30 });
 res.cookie('refresh-token', refreshToken, { maxAge: 1000*60*60*24*30, httpOnly: true, secure: true, domain: process.env.FRONTEND_HOST });
-await prisma.user.update({ where: { email }, data: { tokenVersion: (user.tokenVersion || 0) + 1, provider: 'github' } });
+await prisma.user.update({ where: { email }, data: { tokenVersion: (user.tokenVersion || 0) + 1 } });
 const userRefreshed = await prisma.user.findUnique({ where: { email } });
 return res.json({ token, user: userRefreshed, device: { id: deviceId } });
 }catch(err:any){
@@ -1107,7 +1106,6 @@ username: utils.generateUsername(name),
 name,
 password: '',
 saltPassword: '',
-token: '',
 dateOfBirth:  "2001-11-03T00:00:00.000Z",
 }});
 }
@@ -1119,7 +1117,7 @@ res.cookie('refresh-token', refreshToken, { maxAge: 1000*60*60*24*24*30, httpOnl
 
 await prisma.user.update({
   where: { email },
-  data: { tokenVersion: (user.tokenVersion || 0) + 1, provider: 'google' }
+  data: { tokenVersion: (user.tokenVersion || 0) + 1 }
 });
 
 const userRefreshed = await prisma.user.findUnique({ where: { email } });

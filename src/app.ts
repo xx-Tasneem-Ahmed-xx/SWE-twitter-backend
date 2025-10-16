@@ -4,7 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
 import swaggerUi from "swagger-ui-express";
-import  swaggerDoc  from "./docs/index";
+import swaggerDoc from "./docs/index";
 import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { SocketService } from "@/application/services/socketService";
@@ -15,9 +15,15 @@ import userInteractionsRoutes from "@/api/routes/userInteractions";
 import userRouter from "@/api/routes/user.routes";
 import { errorHandler } from "@/api/middlewares/errorHandler";
 import authRoutes from "@/api/routes/authRoutes";
-import Auth from "@/api/middlewares/Auth";import oauthRoutes from "./api/routes/oauthRoutes";
+import Auth from "@/api/middlewares/Auth";
+import oauthRoutes from "./api/routes/oauthRoutes";
 import fs from "fs";
-import { Request, ParamsDictionary, Response, NextFunction } from "express-serve-static-core";
+import {
+  Request,
+  ParamsDictionary,
+  Response,
+  NextFunction,
+} from "express-serve-static-core";
 import { ParsedQs } from "qs";
 
 // Type assertion for GeoGurd
@@ -58,14 +64,13 @@ export { socketService };
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 
 app.use("/api/auth", authRoutes);
+app.use("/oauth2", oauthRoutes);
 app.use(Auth());
 app.use("/api/dm", directMessagesRouter);
 app.use("/api/media", mediaRouter);
 
 app.use("/api/tweets", tweetRoutes);
 app.use("/api/users", userRouter);
-app.use("/api/auth",authRoutes);
-app.use("/oauth2",oauthRoutes);
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
 app.use(errorHandler);
 export default httpServer;
