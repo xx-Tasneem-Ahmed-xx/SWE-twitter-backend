@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   getUserProfile,
   updateUserProfile,
+  searchUsers,
 } from "../controllers/user.controller";
 import { requireAuth } from "../middlewares/auth.middleware";
 import { ensureOwner } from "../middlewares/ensureOwner.middleware";
@@ -10,7 +11,10 @@ import { validateRequest } from "../middlewares/validateRequest.middleware";
 
 const router = Router();
 
+router.get("/search", searchUsers);
 router.get("/:username", getUserProfile);
+
+
 
 router.patch(
   "/:id",
@@ -20,5 +24,7 @@ router.patch(
   ensureOwner("id"),
   updateUserProfile
 );
+
+
 
 export default router;

@@ -31,3 +31,19 @@ export const updateUserProfile = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+
+
+export const searchUsers = async (req: Request, res: Response) => {
+  try {
+    const { q } = req.query;
+    if (typeof q !== "string" || !q.trim()) {
+      return res.status(400).json({ message: "Invalid search query" });
+    }
+    const users = await userService.searchUsers(q as string);
+    return res.status(200).json(users);
+  }
+  catch (error) {
+    console.error("Error searching users:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};

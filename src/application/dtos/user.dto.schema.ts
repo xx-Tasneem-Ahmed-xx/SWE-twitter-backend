@@ -37,3 +37,19 @@ export const UserResponseDTOSchema = z
     cover: z.string().url().optional().nullable(),
   })
   .openapi("UserProfileResponseDTO");
+
+export const SearchUserQuerySchema = z
+  .object({
+    query: z.string().min(1, "Query cannot be empty"),
+  })
+  .openapi("SearchUserQueryDTO");
+
+export const SearchUserResponseDTOSchema = z
+  .object({
+    id: z.string().uuid(),
+    username: z.string(),
+    name: z.string().nullable(),
+    profilePhoto: z.string().url().nullable().optional(),
+    verified: z.boolean(),
+  })
+  .openapi("SearchUserResponseDTO");
