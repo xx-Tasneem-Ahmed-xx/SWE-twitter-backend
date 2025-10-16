@@ -13,7 +13,6 @@ async function seed() {
           email: "alice@example.com",
           password: "hashed_password_1",
           saltPassword: "random_salt_1",
-          token: "token_1",
           dateOfBirth: new Date("1995-06-15"),
         },
         {
@@ -22,7 +21,6 @@ async function seed() {
           email: "bob@example.com",
           password: "hashed_password_2",
           saltPassword: "random_salt_2",
-          token: "token_2",
           dateOfBirth: new Date("1993-03-20"),
         },
         {
@@ -31,7 +29,6 @@ async function seed() {
           email: "charlie@example.com",
           password: "hashed_password_3",
           saltPassword: "random_salt_3",
-          token: "token_3",
           dateOfBirth: new Date("1990-12-02"),
         },
         {
@@ -40,7 +37,6 @@ async function seed() {
           email: "david@example.com",
           password: "hashed_password_4",
           saltPassword: "random_salt_4",
-          token: "token_4",
           dateOfBirth: new Date("1998-08-10"),
         },
         {
@@ -49,7 +45,6 @@ async function seed() {
           email: "eve@example.com",
           password: "hashed_password_5",
           saltPassword: "random_salt_5",
-          token: "token_5",
           dateOfBirth: new Date("1997-09-25"),
         },
       ],
