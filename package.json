@@ -23,6 +23,7 @@
     "@asteasolutions/zod-to-openapi": "^8.1.0",
     "@prisma/client": "^6.16.2",
     "@types/socket.io": "^3.0.1",
+    "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -47,6 +48,7 @@
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
+    "@types/axios": "^0.14.4",
     "@types/bcryptjs": "^3.0.0",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",

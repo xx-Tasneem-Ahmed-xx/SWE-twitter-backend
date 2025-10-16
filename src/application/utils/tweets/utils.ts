@@ -285,11 +285,12 @@ export async function CheckPass(
 
 /* ------------------------------ Username generator ------------------------------ */
 
-export async function GenterUserName(name: string | undefined | null): Promise<string> {
-  const clean: string = (name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const suffix: string = (await uuidv4()).slice(0, 8);
-  return `${clean || "user"}_${suffix}`;
+export function generateUsername(name: string): string {
+  const base = name.toLowerCase().replace(/\s+/g, '');
+  const rand = Math.floor(Math.random() * 10000);
+  return `${base}${rand}`;
 }
+
 
 /* ------------------------------ Email checks (gmail-only logic preserved) ------------------------------ */
 
@@ -960,8 +961,8 @@ export async function SetSession(
       ExpireAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     };
 
-    const key: string = `User:sessions:${userId}`;
-
+    const key: string = `User:sessions:${userId}:${jti}`;
+console.log("Storing session in Redis key:", key, "session:", session);
     // Push new session into Redis list (acts like array)
     await redisClient.rPush(key, JSON.stringify(session));
 

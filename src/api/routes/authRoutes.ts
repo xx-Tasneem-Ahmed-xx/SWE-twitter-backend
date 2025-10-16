@@ -1,7 +1,7 @@
 import express, { Router, Request, Response, NextFunction } from "express";
 
 // Importing the default export and giving it an appropriate type (assuming it's an object of async functions)
-import authController from "../controllers/user"; 
+import {authController} from "../controllers/user"; 
 
 // Importing middleware functions (which are default exports, typically untyped in JS)
 import Auth from "../middlewares/Auth";
@@ -50,7 +50,7 @@ router.post("/forget-password", Auth(),  typedAuthController.ForgetPassword);
 router.post("/reset-password", Auth(),  typedAuthController.ResetPassword);
 
 // --- Session & Logout Routes ---
-router.get("/refresh",Auth(),  typedAuthController.Refresh);
+router.get("/refresh",  typedAuthController.Refresh);
 router.post("/logout", Auth(),  typedAuthController.Logout, DeactivateUser()); //tested
 router.post("/logout-all", Auth(),  typedAuthController.LogoutALL, DeactivateUser());
 
@@ -72,7 +72,7 @@ router.post("/verify-new-email",Auth(),  typedAuthController.VerifyNewEmail); //
 router.get("/user", Auth(),  typedAuthController.GetUser); //tested
 router.get("/sessions", Auth(),  typedAuthController.GetSession); //tested
 router.delete("/session/:sessionid", Auth(),  typedAuthController.LogoutSession);
-
+// router.post("/debug-redis",Auth(),typedAuthController.DebugRedis); //tested
 // --- Post-Request Cleanup Middleware ---
 router.use(AfterChange());
 router.use(GeoGurd());

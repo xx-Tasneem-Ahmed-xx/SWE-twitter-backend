@@ -17,7 +17,8 @@ import crypto from "crypto";
 import { Request, Response, NextFunction } from "express";
 
 // --- Custom Type Definitions ---
-
+import axios from 'axios';
+import qs from 'querystring';
 // Define the structure of the JWT payload used locally
 interface LocalJwtPayload extends JwtPayload {
   Username?: string;
@@ -296,7 +297,8 @@ console.log("code",code)
 
 export async function Verify_email(req: Request, res: Response): Promise<Response | void> {
   try {
-    const { email, code } = req.body;
+const { email} = req.body;   
+    const {code}=req.body;
     if (!email || !code) return utils.SendError(res, 400, "email and code required");
 
     const stored: string | null = await redisClient.get(`Login:code:${email}`);
@@ -354,7 +356,7 @@ console.log("User inside Verify_email:", user);
 console.log("here is it req",req);
 console.log("user",user);
 
-    //await utils.SetSession(req, user.id, refreshObj.jti);
+ await utils.SetSession(req, user.id, refreshObj.jti);
 console.log("Device Info:", { devid, deviceRecord });
 
     return utils.SendRes(res, { User: user, DeviceRecord:deviceRecord ,Token: accessObj.token, Refresh_token: refreshObj.token });
@@ -397,7 +399,7 @@ export async function Refresh(req: Request, res: Response): Promise<Response | v
 
     const jti: string = uuidv4();
     // Use utils.SetSession
-    //await utils.SetSession(req, id, jti);
+   await utils.SetSession(req, id, jti);
 
     return utils.SendRes(res, { NewAcesstoken: newAccess.token });
   } catch (err) {
@@ -462,7 +464,8 @@ if (Array.isArray(emailQuery)) {
 
 export async function Create_2fA(req: Request, res: Response): Promise<Response | void> {
   try {
-    const { email } = req.body;
+    const email = (req.user as any)?.email || req.body?.email;
+    console.log("req.user::",req.user);
     if (!email) return utils.SendError(res, 400, "email required");
     const secret = speakeasy.generateSecret({ issuer: "SOAH", name: email });
     await redisClient.set(`Login:2fa:${email}`, secret.base32);
@@ -478,7 +481,11 @@ export async function Create_2fA(req: Request, res: Response): Promise<Response 
 
 export async function Verify_2fA(req: Request, res: Response): Promise<Response | void> {
   try {
-    const { email, code } = req.body;
+    const email = (req.user as any)?.email || req.body?.email;  
+    const {code}=req.body?.code;
+
+  console.log("code:",code);
+  console.log("email::",email);
     if (!email || !code) return utils.SendError(res, 400, "email & code required");
     const secret: string | null = await redisClient.get(`Login:2fa:${email}`);
 console.log("secret :",secret);
@@ -496,7 +503,7 @@ console.log("user :",user);
     const refreshObj = generateJwt({ username: user.username, email, id: user.id, expiresInSeconds: 7 * 24 * 60 * 60, version: user.tokenVersion || 0, devid });
     res.cookie("refresh_token", refreshObj.token, { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.COOKIE_SECURE === "true", sameSite: "lax", domain: CLIENT_DOMAIN });
    
-  //  await utils.SetSession(req, user.id, refreshObj.jti);
+    await utils.SetSession(req, user.id, refreshObj.jti);
     return utils.SendRes(res, { User: user, Token: accessObj.token, Refresh_token: refreshObj.token });
   } catch (err) {
     console.error("Verify_2fA err:", err);
@@ -548,7 +555,7 @@ export async function VerifyLoginCode(req: Request, res: Response): Promise<Resp
     await prisma.user.updateMany({ where: { email }, data: { loginCodes: copy.join(",") } });
     res.cookie("refresh_token", refreshObj.token, { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.COOKIE_SECURE === "true", sameSite: "lax", domain: CLIENT_DOMAIN });
     // Use utils.SetSession
-   // await utils.SetSession(req, user.id, refreshObj.jti);
+    await utils.SetSession(req, user.id, refreshObj.jti);
     return utils.SendRes(res, { User: user, Token: accessObj.token, Refresh_token: refreshObj.token });
   } catch (err) {
     console.error("VerifyLoginCode err:", err);
@@ -826,35 +833,106 @@ export async function LogoutALL(req: Request, res: Response): Promise<Response |
 }
 
 export async function GetSession(req: Request, res: Response): Promise<Response | void> {
-  try {
-    const id: number | undefined = (req.user as any)?.id || (req.query?.id as string) || req.body?.id;
-    if (!id) return utils.SendError(res, 401, "unauthorized");
-    let cursor: string = "0";
-    const pattern: string = `session:${id}:*`;
-    const sessions: any[] = [];
-    do {
-      const scanRes: { cursor: string, keys: string[] } = await redisClient.scan(cursor, { MATCH: pattern, COUNT: 100 }) as { cursor: string, keys: string[] };
-      cursor = scanRes.cursor;
-      const keys: string[] = scanRes.keys || [];
-      if (keys.length) {
-        for (const key of keys) {
-          const val: string | null = await redisClient.get(key);
-          if (!val) continue;
-          try {
-            sessions.push(JSON.parse(val));
-          } catch (e) {
-            console.error("GetSession unmarshal", e);
-            return utils.SendError(res, 500, "something went wrong");
-          }
-        }
-      }
-    } while (cursor !== "0");
-    return utils.SendRes(res, sessions);
-  } catch (err) {
-    console.error("GetSession err:", err);
-    return utils.SendError(res, 500, "something went wrong");
-  }
+  try {
+    const id: string | undefined = (req.user as any)?.id || (req.query?.id as string) || req.body?.id;
+    console.log("GetSession called with id:", id);
+    
+    if (!id) return utils.SendError(res, 401, "unauthorized");
+    
+    let cursor: string = "0";
+    const pattern: string = `User:sessions:${id}:*`;
+    console.log("Searching for pattern:", pattern);
+    
+    const sessions: any[] = [];
+    const allKeys: string[] = [];
+    
+    // First, collect all matching keys
+    do {
+      console.log("Scanning with cursor:", cursor);
+      const scanRes = await redisClient.scan(cursor, {
+        MATCH: pattern,
+        COUNT: 100
+      }) as { cursor: number | string, keys: string[] };
+      
+      console.log("Scan result:", scanRes);
+      
+      cursor = String(scanRes.cursor);
+      const keys: string[] = scanRes.keys || [];
+      
+      if (keys.length > 0) {
+        console.log("Found keys in this iteration:", keys);
+        allKeys.push(...keys);
+      }
+    } while (cursor !== "0");
+    
+    console.log(`Found ${allKeys.length} session keys for user ${id}`, allKeys);
+    
+    // Then fetch all list items from each key
+    for (const key of allKeys) {
+      try {
+        console.log("Reading from key:", key);
+        const listItems = await redisClient.lRange(key, 0, -1);
+        console.log("List items:", listItems);
+        
+        for (const val of listItems) {
+          try {
+            const session = JSON.parse(val);
+            console.log("Parsed session:", session);
+            // Optional: filter out expired sessions
+            if (new Date(session.ExpireAt) > new Date()) {
+              sessions.push(session);
+            } else {
+              console.log("Session expired, skipping");
+            }
+          } catch (e) {
+            console.error("GetSession unmarshal", e);
+          }
+        }
+      } catch (e) {
+        console.error(`Error reading key ${key}:`, e);
+      }
+    }
+    
+    console.log("Final sessions from GetSession:", sessions);
+    return utils.SendRes(res, sessions);
+  } catch (err) {
+    console.error("GetSession err:", err);
+    return utils.SendError(res, 500, "something went wrong");
+  }
 }
+// export async function DebugRedis(req: Request, res: Response): Promise<Response | void> {
+//   try {
+//     const id: string = (req.query?.id as string) || req.body?.id;
+//     console.log("Debug: Looking for sessions with id:", id);
+    
+//     // Get ALL session keys in Redis
+//     const allRedisKeys = await redisClient.keys("User:sessions:*");
+//     console.log("All session keys in Redis:", allRedisKeys);
+    
+//     // Try to find keys for this specific user
+//     const userKeys = await redisClient.keys(`User:sessions:${id}:*`);
+//     console.log(`Keys for user ${id}:`, userKeys);
+    
+//     // Read data from user keys
+//     const data: any = {};
+//     for (const key of userKeys) {
+//       const listItems = await redisClient.lRange(key, 0, -1);
+//       data[key] = listItems.map(item => JSON.parse(item));
+//     }
+    
+//     return utils.SendRes(res, { 
+//       searchId: id,
+//       allRedisKeys, 
+//       userKeys,
+//       data 
+//     });
+//   } catch (err) {
+//     console.error("DebugRedis err:", err);
+//     return utils.SendError(res, 500, "debug error");
+//   }
+// }
+
+
 
 export async function LogoutSession(req: Request, res: Response): Promise<Response | void> {
   try {
@@ -872,6 +950,187 @@ export async function LogoutSession(req: Request, res: Response): Promise<Respon
 
 
 /* --------------------- Export default --------------------- */
+
+////////////////////////////////////////////////////
+
+
+
+export async function exchangeGithubCode(code: string){
+const params = {
+client_id: process.env.GITHUB_CLIENT_ID,
+client_secret: process.env.GITHUB_CLIENT_SECRET,
+code,
+redirect_uri: process.env.GITHUB_RED_URL,
+};
+const resp = await axios.post('https://github.com/login/oauth/access_token', qs.stringify(params), {
+headers: { 'Accept': 'application/json' }
+});
+return resp.data; // contains access_token
+}
+
+
+export async function fetchGithubEmails(accessToken: string){
+const resp = await axios.get('https://api.github.com/user/emails', {
+headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' }
+});
+return resp.data;
+}
+
+
+export async function fetchGithubUser(accessToken: string){
+const resp = await axios.get('https://api.github.com/user', {
+headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' }
+});
+return resp.data;
+}
+
+
+export async function exchangeGoogleCode(code: string){
+const params = {
+code,
+client_id: process.env.CLIENT_ID,
+client_secret: process.env.CLIENT_SECRET,
+redirect_uri: process.env.RED_URL,
+grant_type: 'authorization_code'
+};
+const resp = await axios.post('https://oauth2.googleapis.com/token', qs.stringify(params), {
+headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+});
+return resp.data; // contains id_token and access_token
+}
+
+
+export async function exchangeLinkedinCode(code: string){
+const params = {
+grant_type: 'authorization_code',
+code,
+redirect_uri: process.env.LINKDIN_RED_URL,
+client_id: process.env.LINKDIN_CLIENT_ID,
+client_secret: process.env.LINKDIN_CLIENT_SECRET,
+};
+const resp = await axios.post('https://www.linkedin.com/oauth/v2/accessToken', qs.stringify(params), {
+headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+});
+return resp.data;
+}
+
+
+export async function fetchLinkedinProfile(accessToken: string){
+const resp = await axios.get('https://api.linkedin.com/v2/me', {
+headers: { Authorization: `Bearer ${accessToken}` }
+});
+return resp.data;
+}
+
+
+export async function fetchLinkedinEmail(accessToken: string){
+const resp = await axios.get('https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))', {
+headers: { Authorization: `Bearer ${accessToken}` }
+});
+return resp.data;
+}
+
+///////////////////////////////////////////
+export async function Authorize(req: Request, res: Response){
+const provider = req.params?.provider;
+if(provider === 'google'){
+const scope = encodeURIComponent('openid email profile');
+const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.RED_URL!)}&response_type=code&scope=${scope}&state=${process.env.GOOGLE_STATE}`;
+return res.redirect(url);
+}
+if(provider === 'github'){
+const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.GITHUB_RED_URL!)}&scope=user%20user:email&state=${process.env.GITHUB_STATE}&prompt=select_account`;
+return res.redirect(url);
+}
+// if(provider === 'linkedin'){
+// const scope = encodeURIComponent('r_liteprofile r_emailaddress');
+// const url = `https://www.linkedin.com/oauth/v2/authorization?client_id=${process.env.LINKDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.LINKDIN_RED_URL!)}&state=${process.env.LINKDIN_STATE}&scope=${scope}&response_type=code`;
+// return res.redirect(url);
+// }
+return res.status(400).json({ error: 'unsupported provider' });
+}
+
+////////////////////////////////////////////////////////////////////////////
+export async function CallbackGithub(req: Request, res: Response){
+try{
+const code = req.query.code as string;
+const tokenResp = await exchangeGithubCode(code);
+const accessToken = tokenResp.access_token as string;
+const emails = await fetchGithubEmails(accessToken);
+const primary = emails.find((e: any) => e.primary && e.verified);
+if(!primary) return res.status(400).json({ error: 'No verified email found' });
+const email = primary.email as string;
+const userProfile = await fetchGithubUser(accessToken);
+const name = userProfile.name || userProfile.login;
+let user = await prisma.user.findUnique({ where: { email } });
+if(!user){
+user = await prisma.user.create({ data: {
+email,
+username: utils.generateUsername(name),
+name,
+password: '',
+saltPassword: '',
+token: '',
+dateOfBirth: "2001-11-03T00:00:00.000Z",
+}});
+// optionally send email
+}
+const deviceId = Math.floor(Math.random()*100000);
+const payload = { username: user.username, email: user.email, id: user.id, role: 'user' };
+const token = await utils.GenerateJwt(payload);
+const refreshToken =await  utils.GenerateJwt(payload);
+await redisClient.set(`refresh-token:${user.email}:${deviceId}`, refreshToken.token, { EX: 60*60*24*30 });
+res.cookie('refresh-token', refreshToken, { maxAge: 1000*60*60*24*30, httpOnly: true, secure: true, domain: process.env.FRONTEND_HOST });
+await prisma.user.update({ where: { email }, data: { tokenVersion: (user.tokenVersion || 0) + 1, provider: 'github' } });
+const userRefreshed = await prisma.user.findUnique({ where: { email } });
+return res.json({ token, user: userRefreshed, device: { id: deviceId } });
+}catch(err:any){
+return res.status(500).json({ error: err.message });
+}
+}
+
+
+export async function CallbackGoogle(req: Request, res: Response){
+try{
+const code = req.query.code as string;
+const tokenObj = await exchangeGoogleCode(code);
+const idToken = tokenObj.id_token as string;
+// decode payload
+const parts = idToken.split('.');
+if(parts.length < 2) return res.status(401).json({ error: 'invalid id_token' });
+const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+const email = payload.email as string;
+const name = payload.given_name || payload.name || 'unknown';
+let user = await prisma.user.findUnique({ where: { email } });
+if(!user){
+user = await prisma.user.create({ data: {
+email,
+username: utils.generateUsername(name),
+name,
+password: '',
+saltPassword: '',
+token: '',
+dateOfBirth:  "2001-11-03T00:00:00.000Z",
+}});
+}
+const deviceId = Math.floor(Math.random()*100000);
+const token = await utils.GenerateJwt({ username: user.username, email: user.email, id: user.id, role: 'user' });
+const refreshToken = await utils.GenerateJwt({ username: user.username, email: user.email, id: user.id, role: 'user' });
+await redisClient.set(`refresh-token:${user.email}:${deviceId}`,  refreshToken.token, { EX: 60*60*24*30 });
+res.cookie('refresh-token', refreshToken, { maxAge: 1000*60*60*24*24*30, httpOnly: true, secure: true, domain: process.env.FRONTEND_HOST });
+
+await prisma.user.update({
+  where: { email },
+  data: { tokenVersion: (user.tokenVersion || 0) + 1, provider: 'google' }
+});
+
+const userRefreshed = await prisma.user.findUnique({ where: { email } });
+return res.json({ token, user: userRefreshed, device: { id: deviceId } });
+
+}catch(err:any){
+  return res.status(500).json({ error: err.message });
+}
+}
 const authController = {
   Create,
   Verify_signup_email,
@@ -899,5 +1158,10 @@ const authController = {
 SignupCaptcha,
 
 };
-
-export default authController;
+const oauthController = {
+  Authorize,
+  CallbackGoogle,
+  CallbackGithub,
+  // callbackLinkedin, // Implement similarly if needed
+};
+export { authController, oauthController };

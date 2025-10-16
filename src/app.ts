@@ -13,7 +13,7 @@ import tweetRoutes from "@/api/routes/tweets";
 import userInteractionsRoutes from "@/api/routes/userInteractions";
 import userRouter from "./api/routes/user.routes";
 import authRoutes from "./api/routes/authRoutes";
-
+import oauthRoutes from "./api/routes/oauthRoutes";
 
 // Type assertion for GeoGurd
 
@@ -46,7 +46,7 @@ app.use("/api/users/dm", directMessagesRouter);
 app.use("/api/tweets", tweetRoutes);
 app.use("/api/users", userRouter);
 app.use("/api/auth",authRoutes);
-
+app.use("/oauth2",oauthRoutes);
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
 
 export default httpServer;
