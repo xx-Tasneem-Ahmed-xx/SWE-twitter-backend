@@ -17,7 +17,12 @@ const TweetIdParams = z.object({
 });
 
 const UsernameParams = z.object({
-  username: z.string().describe("Username"),
+  username: z
+    .string()
+    .min(3)
+    .max(30)
+    .regex(/^[a-zA-Z0-9_]+$/)
+    .describe("Username"),
 });
 
 const TrendingTweetsParams = z.object({
@@ -26,7 +31,16 @@ const TrendingTweetsParams = z.object({
 
 const SearchQuery = z.object({
   q: z.string().describe("Search keyword"),
-  limit: z.number().default(20).describe("Result limit"),
+  limit: z.number().min(1).max(100).default(20).describe("Result limit"),
+  offset: z.number().default(0),
+});
+
+const CursorPaginationQuery = z.object({
+  limit: z.number().min(1).max(50).default(20),
+  cursor: z
+    .string()
+    .optional()
+    .describe("The cursor for pagination (createdAt of last tweet)"),
 });
 
 function registerSubList(
@@ -236,12 +250,19 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     summary: "Get timeline tweets",
     description: "Fetches tweets from users the current user follows.",
     tags: ["Timeline and Feed"],
+    request: { query: CursorPaginationQuery },
     responses: {
       200: {
         description: "Timeline tweets fetched successfully",
         content: {
           "application/json": {
-            schema: timelineResponeSchema,
+            schema: z.object({
+              data: z.array(TweetResponsesSchema),
+              nextCursor: z
+                .string()
+                .nullable()
+                .describe("Cursor for next page"),
+            }),
           },
         },
       },
