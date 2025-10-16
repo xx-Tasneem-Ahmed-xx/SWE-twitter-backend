@@ -22,15 +22,15 @@ export async function connectToDatabase() {
     
     // Test the connection
     const userCount = await prisma.user.count();
-    console.log(`📊 Total users in database: ${userCount}`);
+    console.log(`Total users in database: ${userCount}`);
     
     return prisma;
   } catch (error) {
-    console.error('❌ Failed to connect to the database:', error);
+    console.error('Failed to connect to the database:', error);
     
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (errorMessage.includes('too many connections')) {
-      console.log('💡 Tip: Wait a few minutes for connections to timeout, or restart your application');
+      console.log('Tip: Wait a few minutes for connections to timeout, or restart your application');
     }
     
     throw error;
@@ -40,9 +40,9 @@ export async function connectToDatabase() {
 export async function disconnectFromDatabase() {
   try {
     await prisma.$disconnect();
-    console.log('🔌 Disconnected from database');
+    console.log('Disconnected from database');
   } catch (error) {
-    console.error('❌ Error disconnecting from database:', error);
+    console.error('Error disconnecting from database:', error);
   }
 }
 
@@ -60,10 +60,10 @@ export async function createSampleUser() {
       },
     });
     
-    console.log('✨ Created sample user:', user.username);
+    console.log('Created sample user:', user.username);
     return user;
   } catch (error) {
-    console.error('❌ Error creating sample user:', error);
+    console.error('Error creating sample user:', error);
     throw error;
   }
 }
