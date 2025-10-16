@@ -1,16 +1,16 @@
 import { Router } from "express";
-import { getChatInfo, getUserChats, getUnseenMessagesCount, updateMessageStatus, createChat, deleteChat, updateChatGroup, addMessageToChat} from "../controllers/messagesController";
+import { getChatInfo, getUserChats, getUnseenMessagesCount, updateMessageStatus, createChat, updateChatGroup, addMessageToChat, getUnseenChatsCount} from "../controllers/messagesController";
 const router = Router();
 
 
-router.get("/messages/:chatId", getChatInfo)
-router.get("/userChats/:userId", getUserChats)
-router.get("/unseenMessagesCount/:chatId", getUnseenMessagesCount)
-router.put("/messageStatus/:chatId", updateMessageStatus)// a little bit modification needed
-router.post("/createChat/:userId", createChat)
-router.delete("/Chat/:chatId", deleteChat)
-router.put("/chatGroup/:chatId", updateChatGroup)
-router.post("/message/:userId", addMessageToChat)
+router.get("/chat/:chatId", getChatInfo)
+    //router.get("/chat/:userId", getUserChats)
+router.get("/chat/:chatId/unseenMessagesCount", getUnseenMessagesCount)
+router.put("/chat/:chatId/messageStatus", updateMessageStatus)// a little modification needed
+router.post("/chat/:userId/createchat", createChat)
+router.put("/chat/:chatId/group", updateChatGroup)
+router.post("/chat/:userId/message", addMessageToChat)
+router.get("/chat/:userId/unseenChats", getUnseenChatsCount)
 
 
 

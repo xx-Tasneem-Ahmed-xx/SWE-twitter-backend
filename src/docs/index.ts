@@ -52,8 +52,10 @@ import {
 type OpenAPIObject = Record<string, any>;
 
 // 🧱 Step 1: Import your Zod-based docs
-import { registerTweetDocs } from "@/docs/tweets";
-import { registerUserInteractionsDocs } from "@/docs/userInteractions";
+import { registerTweetDocs } from "./tweets";
+import { registerUserInteractionsDocs } from "./userInteractions";
+import { registerChatDocs } from "./chats";
+import { registerMediaDocs } from "./media";
 import { registerUserDocs } from "@/docs/users";
 
 // ✅ Step 2: Build Zod-based OpenAPI doc
@@ -68,6 +70,8 @@ registry.registerComponent("securitySchemes", "bearerAuth", {
   bearerFormat: "JWT",
   description: "Enter your JWT token in the format: **Bearer <your_token>**",
 });
+registerChatDocs(registry);
+registerMediaDocs(registry);
 
 const generator = new OpenApiGeneratorV3(registry.definitions);
 

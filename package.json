@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "main": "dist/src/index.js",
+  "_moduleAliases": {
+    "@": "dist/src"
+  },
   "scripts": {
     "dev": "nodemon -r tsconfig-paths/register --watch 'src/**/*.ts' --exec ts-node src/index.ts",
     "build": "tsc",
-    "start": "nodemon dist/src/index.js",
-    "docs:watch": "nodemon --watch src/api/routes -e ts,js --exec 'npx ts-node src/docs/swagger.ts'"
+    "start": "node -r module-alias/register dist/src/index.js"
   },
   "repository": {
     "type": "git",
@@ -21,7 +23,8 @@
   },
   "homepage": "https://github.com/CUFE-Software-Engineering-Project/SWE-twitter-backend#readme",
   "dependencies": {
-    "@prisma/client": "^6.16.2",
+    "@asteasolutions/zod-to-openapi": "^8.1.0",
+    "@prisma/client": "^6.17.1",
     "@types/socket.io": "^3.0.1",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
