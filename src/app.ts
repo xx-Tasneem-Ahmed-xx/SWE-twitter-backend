@@ -9,13 +9,13 @@ import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { SocketService } from "@/application/services/socketService";
 import directMessagesRouter from "@/api/routes/directMessages";
-import mediaRouter from "./api/routes/media";
+import mediaRouter from "@/api/routes/media";
 import tweetRoutes from "@/api/routes/tweets";
-import userInteractionsRoutes from "./api/routes/userInteractions";
-import userRouter from "./api/routes/user.routes";
-import { errorHandler } from "./api/middlewares/errorHandler";
-import authRoutes from "./api/routes/authRoutes";
-import oauthRoutes from "./api/routes/oauthRoutes";
+import userInteractionsRoutes from "@/api/routes/userInteractions";
+import userRouter from "@/api/routes/user.routes";
+import { errorHandler } from "@/api/middlewares/errorHandler";
+import authRoutes from "@/api/routes/authRoutes";
+import Auth from "@/api/middlewares/Auth";import oauthRoutes from "./api/routes/oauthRoutes";
 import fs from "fs";
 import { Request, ParamsDictionary, Response, NextFunction } from "express-serve-static-core";
 import { ParsedQs } from "qs";
@@ -25,7 +25,7 @@ import { ParsedQs } from "qs";
 const app = express();
 app.use(cors());
 app.use(helmet());
-app.use(morgan("dev")); 
+app.use(morgan("dev"));
 app.use(compression());
 app.use(express.json());
 
@@ -57,6 +57,8 @@ export { socketService };
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 
+app.use("/api/auth", authRoutes);
+app.use(Auth());
 app.use("/api/dm", directMessagesRouter);
 app.use("/api/media", mediaRouter);
 
