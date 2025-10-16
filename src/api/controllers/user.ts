@@ -225,8 +225,6 @@ if (isNaN(parsedDate.getTime())) {
        
         name: input.name,
         email: input.email,
-        // role: "user",
-        token: "dummy",
         password: hashed,
         saltPassword: salt,
         dateOfBirth: parsedDate,
