@@ -8,9 +8,8 @@ export class TweetController {
   async createTweet(req: Request, res: Response, next: NextFunction) {
     try {
       const data = req.body;
-      // TODO: uncomment when auth is ready
-      // const userId = (req as any).user.id;
-      const userId = req.body.userId;
+      const userId = (req as any).user.id;
+      console.log(req.user);
       const tweet = await tweetService.createTweet({ ...data, userId: userId });
       res.status(201).json(tweet);
     } catch (error) {
@@ -21,9 +20,7 @@ export class TweetController {
   async createReTweet(req: Request, res: Response, next: NextFunction) {
     try {
       const parentId = req.params.id;
-      // TODO: uncomment when auth is ready
-      // const userId = (req as any).user.id;
-      const userId = req.body.userId;
+      const userId = (req as any).user.id;
       const retweet = await tweetService.createRetweet({
         parentId,
         userId: userId,
@@ -38,9 +35,7 @@ export class TweetController {
     try {
       const data = req.body;
       const parentId = req.params.id;
-      // TODO: uncomment when auth is ready
-      // const userId = (req as any).user.id;
-      const { userId } = req.body;
+      const userId = (req as any).user.id;
       const quote = await tweetService.createQuote({
         ...data,
         userId: userId,
@@ -56,9 +51,7 @@ export class TweetController {
     try {
       const data = req.body;
       const parentId = req.params.id;
-      // TODO: uncomment when auth is ready
-      // const userId = (req as any).user.id;
-      const { userId } = req.body;
+      const userId = (req as any).user.id;
       const reply = await tweetService.createReply({
         ...data,
         userId: userId,
@@ -92,7 +85,7 @@ export class TweetController {
 
   async deleteRetweet(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId } = req.body;
+      const userId = (req as any).user.id;
       const { id } = req.params;
       await tweetService.deleteRetweet(userId, id);
       res.status(200).json("Retweet deleted successfuly");
@@ -113,8 +106,7 @@ export class TweetController {
 
   async getLikedTweets(req: Request, res: Response, next: NextFunction) {
     try {
-      // TODO obtain userid from auth
-      const userId = "3540a1a2-48fa-456f-ac0b-ebbe93328376";
+      const userId = (req as any).user.id;
       const tweets = await tweetService.getLikedTweets(userId);
       res.status(200).json(tweets);
     } catch (error) {
@@ -134,8 +126,7 @@ export class TweetController {
 
   async getTimeline(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = "3540a1a2-48fa-456f-ac0b-ebbe93328376";
-
+      const userId = (req as any).user.id;
       const parsedPayload = TimelineSchema.parse({
         limit: req.query.limit ? Number(req.query.limit) : undefined,
         cursor: req.query.cursor,
