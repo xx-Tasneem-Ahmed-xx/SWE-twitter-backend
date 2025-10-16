@@ -446,26 +446,26 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
     }
 }
 
-export const updateMessageStatus = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const chatId = req.params.chatId;
-        if(chatId){
-            await prisma.message.updateMany({
-                where: {
-                    chatId: chatId
-                },
-                data: {
-                    status: 'READ'
-                }
-            })
-            res.status(200).json({ message: 'Message status updated successfully' });    
-        }
+// export const updateMessageStatus = async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//         const chatId = req.params.chatId;
+//         if(chatId){
+//             await prisma.message.updateMany({
+//                 where: {
+//                     chatId: chatId
+//                 },
+//                 data: {
+//                     status: 'READ'
+//                 }
+//             })
+//             res.status(200).json({ message: 'Message status updated successfully' });    
+//         }
 
-    } catch (error) {
-        console.error('Error updating message status:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-}
+//     } catch (error) {
+//         console.error('Error updating message status:', error);
+//         res.status(500).json({ error: 'Internal server error' });
+//     }
+// }
 
 export const getUnseenChatsCount = async (req: Request, res: Response, next: NextFunction) => {
     try {
