@@ -36,7 +36,6 @@ model User {
   cover            String?
   isEmailVerified  Boolean   @default(false)
   tfaVerifed       Boolean   @default(false)
-  provider         String?
   loginCodes       String?
   loginCodesSet    Boolean   @default(false)
 

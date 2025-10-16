@@ -11,7 +11,7 @@ async function start() {
   try {
     console.log("🚀 Starting server...");
     await connectToDatabase();
-    // await connectRedis();
+    await connectRedis();
     httpServer.listen(PORT, () => {
       console.log(`🌟 Server running on port ${PORT}`);
       console.log(`📡 API available at http://localhost:${PORT}`);
