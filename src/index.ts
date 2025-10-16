@@ -1,7 +1,7 @@
+import "module-alias/register";
 import dotenv from "dotenv";
 import httpServer from "@/app";
 import { connectToDatabase, disconnectFromDatabase } from "@/database";
-import "module-alias/register";
 import { connectRedis } from "./config/redis";
 dotenv.config();
 

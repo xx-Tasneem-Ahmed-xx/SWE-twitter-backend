@@ -1,4 +1,4 @@
-import { FollowStatus } from "@prisma/client";
+import { FollowStatus } from "@/prisma/client";
 import prisma from "../../../database";
 import { Response } from "express";
 
