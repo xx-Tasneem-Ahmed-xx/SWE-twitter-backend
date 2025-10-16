@@ -1,24 +1,26 @@
+import {z} from "zod";
+import type { mediaSchema } from "../media/media.schema.dto";
+
+
 export class CreateChatInput {
   DMChat?: boolean;
   userId!: string;
 }
 
-export class MessageAttachment {
-  media!: File;
-  name?: string;
-  url?: string;
-  size?: number;
-  type?: string;
-}
+// export class MessageAttachment {
+//   name?: string;
+//   url?: string;
+//   size?: number;
+//   type?: string;
+// }
 
 export class MessageData {
-  messageMedia?: MessageAttachment[];
+  messageMedia?: typeof mediaSchema[];
   content?: string;
 }
 
 export class ChatInput {
   DMChat!: boolean;
-  MessageData?: MessageData;
   participant_ids!: string[];
 }
 
@@ -30,6 +32,6 @@ export class chatGroupUpdate {
 
 export class newMessageInput {
   data!: MessageData;
-  recipientId!: string[];
-  chatId!: string;
+  recipientId?: string[];
+  chatId?: string;
 }

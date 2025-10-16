@@ -2,8 +2,10 @@ import {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
 } from "@asteasolutions/zod-to-openapi";
-import { registerTweetDocs } from "@/docs/tweets";
-import { registerUserInteractionsDocs } from "@/docs/userInteractions";
+import { registerTweetDocs } from "./tweets";
+import { registerUserInteractionsDocs } from "./userInteractions";
+import { registerChatDocs } from "./chats";
+import { registerMediaDocs } from "./media";
 import { registerUserDocs } from "@/docs/users";
 
 const registry = new OpenAPIRegistry();
@@ -18,6 +20,8 @@ registry.registerComponent("securitySchemes", "bearerAuth", {
   description:
     "Enter your JWT token in the format: **Bearer &lt;your_token&gt;**",
 });
+registerChatDocs(registry);
+registerMediaDocs(registry);
 
 export const generator = new OpenApiGeneratorV3(registry.definitions);
 
