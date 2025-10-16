@@ -242,3 +242,107 @@ export const getFollowingsList = async (
     users: formattedFollowings,
   };
 };
+
+// Block a user
+export const createBlockRelation = async (
+  blockerId: string,
+  blockedId: string
+) => {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await tx.follow.deleteMany({
+        where: {
+          OR: [
+            { followerId: blockerId, followingId: blockedId },
+            { followerId: blockedId, followingId: blockerId },
+          ],
+        },
+      });
+      return await tx.block.create({
+        data: {
+          blockerId,
+          blockedId,
+        },
+      });
+    });
+  } catch (error) {
+    console.error("Create block relation error:", error);
+    throw new Error("Failed to create block relation");
+  }
+};
+
+// Unblock a user
+export const removeBlockRelation = async (
+  blockerId: string,
+  blockedId: string
+) => {
+  try {
+    await prisma.block.delete({
+      where: {
+        blockerId_blockedId: {
+          blockerId,
+          blockedId,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Remove block relation error:", error);
+    throw new Error("Failed to remove block relation");
+  }
+};
+
+// Get list of users blocked
+export const getBlockedList = async (blockerId: string) => {
+  const blockedUsers = await prisma.block.findMany({
+    where: { blockerId },
+    include: {
+      blocked: {
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          profilePhoto: true,
+          bio: true,
+          verified: true,
+        },
+      },
+    },
+  });
+  const formattedBlockedUsers = blockedUsers.map((block) => {
+    const user = block.blocked;
+    return formatUserForResponse(user, false, false);
+  });
+  return {
+    users: formattedBlockedUsers,
+  };
+};
+
+// mute a user
+
+// unmute a user
+
+// Get list of users muted
+export const getMutedList = async (muterId: string) => {
+  const mutedUsers = await prisma.mute.findMany({
+    where: { muterId },
+    include: {
+      muted: {
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          profilePhoto: true,
+          bio: true,
+          verified: true,
+        },
+      },
+    },
+  });
+  const formattedMutedUsers = mutedUsers.map((mute) => {
+    const user = mute.muted;
+    return formatUserForResponse(user, false, false);
+  });
+  return {
+    users: formattedMutedUsers,
+  };
+};
