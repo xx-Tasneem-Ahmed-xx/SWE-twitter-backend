@@ -649,6 +649,9 @@ export async function Sendlocation(
       ip = "8.8.8.8"; // fallback for localhost
     }
     // call ip-api.com (keep same as Go)
+    if (!ip || ip === ":" || ip === "::1" || ip === "127.0.0.1") {
+      ip = "8.8.8.8"; // fallback for localhost
+    }
     const target: string =
       ip.includes("127.0.0.1") || ip.includes("::1") ? "8.8.8.8" : ip;
     console.log("🌍 Sending location request for:", target);
