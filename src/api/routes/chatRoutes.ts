@@ -3,8 +3,8 @@ import { getChatInfo, getUserChats, getUnseenMessagesCount, updateMessageStatus,
 const router = Router();
 
 
+router.get("/chat/user", getUserChats)
 router.get("/chat/:chatId", getChatInfo)
-    //router.get("/chat/:userId", getUserChats)
 router.get("/chat/:chatId/unseenMessagesCount", getUnseenMessagesCount)
 router.put("/chat/:chatId/messageStatus", updateMessageStatus)// a little modification needed
 router.post("/chat/:userId/createchat", createChat)

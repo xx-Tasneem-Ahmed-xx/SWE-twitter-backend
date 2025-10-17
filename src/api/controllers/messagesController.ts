@@ -284,40 +284,40 @@ export const createChat = async (req: Request, res: Response, next: NextFunction
     }
 }
 
-// export const deleteChat = async (req: Request, res: Response, next: NextFunction) => {
-//     try {
-//         const chatId = req.params.chatId;
-//         if (chatId) {
-//             // Use transaction to ensure data consistency
-//             await prisma.$transaction(async (tx) => {
-//                 // First, delete all messages in the chat
-//                 await tx.message.deleteMany({
-//                     where: { chatId: chatId }
-//                 });
+export const deleteChat = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const chatId = req.params.chatId;
+        if (chatId) {
+            // Use transaction to ensure data consistency
+            await prisma.$transaction(async (tx) => {
+                // First, delete all messages in the chat
+                await tx.message.deleteMany({
+                    where: { chatId: chatId }
+                });
                 
-//                 // Then, delete all chat users relationships
-//                 await tx.chatUser.deleteMany({
-//                     where: { chatId: chatId }
-//                 });
-//                 await tx.chatGroup.deleteMany({
-//                     where: { chatId: chatId }
-//                 });
+                // Then, delete all chat users relationships
+                await tx.chatUser.deleteMany({
+                    where: { chatId: chatId }
+                });
+                await tx.chatGroup.deleteMany({
+                    where: { chatId: chatId }
+                });
 
-//                 // Finally, delete the chat
-//                 await tx.chat.delete({
-//                     where: { id: chatId }
-//                 });
-//             });
+                // Finally, delete the chat
+                await tx.chat.delete({
+                    where: { id: chatId }
+                });
+            });
             
-//             res.status(200).json({ message: 'Chat deleted successfully' });
-//         } else {
-//             res.status(400).json({ error: 'Chat ID is required' });
-//         }
-//     } catch (error) {
-//         console.error('Error deleting chat:', error);
-//         res.status(500).json({ error: 'Internal server error' });
-//     }
-// }
+            res.status(200).json({ message: 'Chat deleted successfully' });
+        } else {
+            res.status(400).json({ error: 'Chat ID is required' });
+        }
+    } catch (error) {
+        console.error('Error deleting chat:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+}
 
 export const updateChatGroup = async (req: Request, res: Response, next: NextFunction) => {
     try {
