@@ -149,7 +149,7 @@ export const getChatInfo = async (req: Request, res: Response, next: NextFunctio
 //get all chats for a user======>1
 export const getUserChats = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const userId = req.params.userId;
+        const userId = req.user?.id;
         if (!userId) {
             return res.status(400).json({ error: 'User ID is required' });
         }

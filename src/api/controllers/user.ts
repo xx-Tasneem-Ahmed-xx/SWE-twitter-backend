@@ -244,6 +244,8 @@ if (isNaN(parsedDate.getTime())) {
 export async function Login(req: Request, res: Response): Promise<Response | void> {
   try {
     const { email, password } = req.body;
+console.log(email, password);
+
     if (!email || !password) return utils.SendError(res, 400, "missing email or password");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return utils.SendError(res, 403, "enter valid email");
 
@@ -251,6 +253,8 @@ export async function Login(req: Request, res: Response): Promise<Response | voi
     if (await utils.Attempts(res, email)) return;
 
     const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser | null;
+console.log(user);
+
     if (!user) {
       await utils.IncrAttempts(res, email);
       return utils.SendError(res, 401, "try again and enter your info correctly");
