@@ -10,15 +10,7 @@ import { MediaType } from "@/prisma/client";
 import { socketService } from "@/app";
 
 
-export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const users = await prisma.user.findMany();
-        res.json(users);
-    } catch (error) {
-        console.error('❌ Error fetching users:', error);
-        res.status(500).json({ error: 'Internal server error' });   
-    }
-}
+
 
 
 const getUnseenMessages = async (chatId: string) => {
@@ -146,7 +138,7 @@ export const getChatInfo = async (req: Request, res: Response, next: NextFunctio
     }
 };
 
-//get all chats for a user======>1
+
 export const getUserChats = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = req.user?.id;
@@ -219,12 +211,7 @@ export const getUnseenMessagesCount = async (req: Request, res: Response, next: 
 
 
 
-//update message status to READ=========>1
-export const updateMessageStatus = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const updateMessageStatus = async (req: Request, res: Response) => {
   try {
     const chatId = req.params.chatId;
     if (chatId) {
@@ -243,25 +230,14 @@ export const updateMessageStatus = async (
     res.status(500).json({ error: "Internal server error" });
   }
 };
-//get unseen messages for a user in a chat
-// export const getUnseenMessagesForUser = async (req: Request, res: Response, next: NextFunction) => {
-//     try {
-
-//     } catch (error) {
-//         console.error('Error updating message status:', error);
-//         res.status(500).json({ error: 'Internal server error' });
-//     }
-// }
 
 
 
 
 export const createChat = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const{ DMChat, participant_ids }: ChatInput = req.body;
-        console.log(DMChat, participant_ids);
-        
-        const userId = req.params.userId;//that supposed to be from auth middleware
+        const{ DMChat, participant_ids }: ChatInput = req.body;        
+        const userId = req.user?.id;
         if(participant_ids.length < 2 && DMChat === false){
             return res.status(400).json({ error: 'At least two participants are required to create a chat' });
         }
@@ -350,7 +326,7 @@ export const updateChatGroup = async (req: Request, res: Response, next: NextFun
 
 export const addMessageToChat = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { userId } = req.params;//supposed to be from auth middleware
+        const userId = req.user?.id as string;
         const messageInput: newMessageInput = req.body;
         const recipientId = messageInput.recipientId as Array<string> || [];
         const chatId = messageInput.chatId;
@@ -438,30 +414,9 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
     }
 }
 
-// export const updateMessageStatus = async (req: Request, res: Response, next: NextFunction) => {
-//     try {
-//         const chatId = req.params.chatId;
-//         if(chatId){
-//             await prisma.message.updateMany({
-//                 where: {
-//                     chatId: chatId
-//                 },
-//                 data: {
-//                     status: 'READ'
-//                 }
-//             })
-//             res.status(200).json({ message: 'Message status updated successfully' });    
-//         }
-
-//     } catch (error) {
-//         console.error('Error updating message status:', error);
-//         res.status(500).json({ error: 'Internal server error' });
-//     }
-// }
-
 export const getUnseenChatsCount = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const userId = req.params.userId; //supposed to be from auth middleware
+        const userId = req.user?.id; //supposed to be from auth middleware
         if (!userId) {
             return res.status(400).json({ error: 'User ID is required' });
         }

@@ -3170,7 +3170,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-17T19:59:26.393Z"
+                        "default": "2025-10-17T21:30:23.432Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3330,7 +3330,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-17T19:59:26.393Z"
+                      "default": "2025-10-17T21:30:23.432Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3553,7 +3553,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-17T19:59:26.393Z"
+                            "default": "2025-10-17T21:30:23.432Z"
                           },
                           "userId": {
                             "type": "string",
@@ -3689,7 +3689,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-17T19:59:26.393Z"
+                      "default": "2025-10-17T21:30:23.432Z"
                     },
                     "userId": {
                       "type": "string",

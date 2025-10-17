@@ -1,6 +1,7 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import prisma from '../../database';
-// import jwt from 'jsonwebtoken'; // TODO: Install and uncomment when implementing JWT authentication
+import * as utils from '../utils/tweets/utils';
+import { redisClient } from '../../config/redis';
 
 export class SocketService {
     public io: SocketIOServer;
@@ -43,22 +44,66 @@ export class SocketService {
 
     private async authenticateSocket(socket: Socket): Promise<string | null> {
         try {
-            // Extract token from socket handshake
-            const token = socket.handshake.auth.token || socket.handshake.headers.authorization;
-            
-            if (!token) {
+            const raw = (socket.handshake.auth?.token as string | undefined)
+                || (socket.handshake.headers?.authorization as string | undefined)
+                || '';
+
+            if (!raw) {
                 console.log('No token provided in socket connection');
                 return null;
             }
-            //TODO: Verify token here-------------------------->>>>>>>>>>>
-            // In production, verify JWT token here
-            // const decoded = jwt.verify(token, process.env.JWT_SECRET!);
-            // return decoded.userId;
+            const token = raw.startsWith('Bearer ') ? raw.substring('Bearer '.length).trim() : raw.trim();
+            const validationResult = utils.ValidateToken(token);
+            const { ok, payload, err } = validationResult;
+            if (!ok || !payload) {
+                console.error('Socket token validation failed:', err);
+                return null;
+            }
+            const version = payload.version ?? (payload as any).tokenVersion;
+            if (version === null || version === undefined) {
+                console.error('Token missing version');
+                return null;
+            }
+            const email = payload.email;
+            if (!email) {
+                console.error('Token missing email');
+                return null;
+            }
+
+            const user = await prisma.user.findFirst({ where: { email } });
+            if (!user) {
+                console.error('User not found for token email');
+                return null;
+            }
+
+            if ((user.tokenVersion ?? 0) !== Number(version)) {
+                console.warn('Token version mismatch - user may have logged out');
+                return null;
+            }
+
+            // Check if token is blacklisted (same as Auth middleware)
+            const jti = payload.jti;
+            if (jti) {
+                const exists = await redisClient.exists(`Blocklist:${jti}`);
+                if (exists === 1) {
+                    console.warn('Token is blacklisted (user logged out)');
+                    return null;
+                }
+            }
+
+            const userId = payload.id as string;
+            if (!userId) {
+                console.error('Token missing user id');
+                return null;
+            }
+
+            socket.data.userId = userId;
+            socket.data.email = email;
+            socket.data.username = (payload as any).Username || payload.username;
             
-            // For now, return mock user ID
-            return 'userB-123';
+            return userId;
         } catch (error) {
-            console.error('Token verification failed:', error);
+            console.error('Socket authentication error:', error);
             return null;
         }
     }
@@ -76,7 +121,7 @@ export class SocketService {
                 }
             }
         })
-        return usersId?.chatUsers.map((user) => user.userId) || [];
+        return usersId?.chatUsers.map((user: { userId: string }) => user.userId) || [];
     }
     
     private setupUserEvents(socket: Socket, userId: string): void {
@@ -121,7 +166,3 @@ export class SocketService {
         return this.io.sockets.sockets.size;
     }
 }
-
-
-
-//needed here: verify token function, and handle userId
