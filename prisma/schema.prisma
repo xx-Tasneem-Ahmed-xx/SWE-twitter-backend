@@ -15,29 +15,31 @@ datasource db {
 }
 
 model User {
-  id                    String          @id @default(uuid())
-  name                  String?
-  username              String          @unique
-  email                 String          @unique
-  password              String
-  saltPassword          String
-  tokenVersion          Int?
-  otp                   String?
-  otpExpiry             DateTime?
-  bio                   String?
-  dateOfBirth           DateTime
-  joinDate              DateTime        @default(now())
-  verified              Boolean         @default(false)
-  address               String?
-  website               String?
-  protectedAccount      Boolean         @default(false)
-  profilePhoto          String?
-  cover                 String?
-  isEmailVerified       Boolean         @default(false)
-  tfaVerifed            Boolean         @default(false)
-  loginCodes            String?
-  loginCodesSet         Boolean         @default(false)
-  unseenChatCount       Int             @default(0)
+  id                      String    @id @default(uuid())
+  name                    String?
+  username                String    @unique
+  email                   String    @unique
+  password                String
+  saltPassword            String
+  tokenVersion            Int?
+  otp                     String?
+  otpExpiry               DateTime?
+  bio                     String?
+  dateOfBirth             DateTime
+  joinDate                DateTime  @default(now())
+  verified                Boolean   @default(false)
+  address                 String?
+  website                 String?
+  protectedAccount        Boolean   @default(false)
+  profilePhoto            String?
+  cover                   String?
+  isEmailVerified         Boolean   @default(false)
+  tfaVerifed              Boolean   @default(false)
+  loginCodes              String?
+  loginCodesSet           Boolean   @default(false)
+  unseenChatCount         Int       @default(0)
+  unseenNotificationCount Int       @default(0)
+
   messages              Message[]
   tweet                 Tweet[]
   followers             Follow[]        @relation("UserFollowers")
@@ -57,7 +59,6 @@ model User {
   oldPassword           OldPassword[]
   deviceRecord          DeviceRecord[]
 
-  // notificationWithActor will only include ones triggered by follows and retweets
   @@map("users")
 }
 
@@ -66,7 +67,6 @@ model OldPassword {
   userId   String
   password String
 
-  // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("oldPasswords")
@@ -96,7 +96,6 @@ model DeviceRecord {
   browser   String?
   userId    String
 
-  // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("device_record")
@@ -115,8 +114,8 @@ model Tweet {
   parentId     String?
   tweetType    TweetType
 
-  user          User            @relation(fields: [userId], references: [id])
-  parent        Tweet?          @relation("parentTweets", fields: [parentId], references: [id])
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent        Tweet?          @relation("parentTweets", fields: [parentId], references: [id], onDelete: Cascade)
   parentTweet   Tweet[]         @relation("parentTweets")
   hashtags      TweetHash[]
   tweetSummary  TweetSummary?
@@ -144,8 +143,8 @@ model TweetHash {
   tweetId String @default(uuid())
   hashId  String @default(uuid())
 
-  tweet Tweet @relation(fields: [tweetId], references: [id])
-  hash  Hash  @relation(fields: [hashId], references: [id])
+  tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+  hash  Hash  @relation(fields: [hashId], references: [id], onDelete: Cascade)
 
   @@id([tweetId, hashId])
   @@map("tweetHashes")
@@ -159,8 +158,8 @@ model Message {
   createdAt DateTime      @default(now())
   status    MessageStatus @default(PENDING)
 
-  chat         Chat           @relation(fields: [chatId], references: [id])
-  user         User           @relation(fields: [userId], references: [id])
+  chat         Chat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   messageMedia MessageMedia[]
 
   @@index([chatId, createdAt])
@@ -186,7 +185,7 @@ model ChatGroup {
   photo       String?
   chatId      String  @id
 
-  chat Chat @relation(fields: [chatId], references: [id])
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@map("chatGroups")
 }
@@ -201,9 +200,9 @@ model Notification {
   tweetId   String?
   actorId   String?
 
-  user  User   @relation("User", fields: [userId], references: [id])
-  tweet Tweet? @relation(fields: [tweetId], references: [id])
-  actor User?  @relation("Actor", fields: [actorId], references: [id])
+  user  User   @relation("User", fields: [userId], references: [id], onDelete: Cascade)
+  tweet Tweet? @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+  actor User?  @relation("Actor", fields: [actorId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
   @@map("notifications")
@@ -226,8 +225,8 @@ model TweetMedia {
   tweetId String
   mediaId String
 
-  tweet Tweet @relation(fields: [tweetId], references: [id])
-  media Media @relation(fields: [mediaId], references: [id])
+  tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@id([tweetId, mediaId])
 }
@@ -236,8 +235,8 @@ model MessageMedia {
   messageId String
   mediaId   String
 
-  message Message @relation(fields: [messageId], references: [id])
-  media   Media   @relation(fields: [mediaId], references: [id])
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  media   Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@id([messageId, mediaId])
 }
@@ -247,7 +246,7 @@ model TweetSummary {
   tweetId String @unique
   summary String
 
-  tweet Tweet @relation(fields: [tweetId], references: [id])
+  tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
 }
 
 model Follow {
@@ -255,8 +254,8 @@ model Follow {
   followingId String
   status      FollowStatus @default(ACCEPTED)
 
-  follower  User @relation("UserFollowings", fields: [followerId], references: [id])
-  following User @relation("UserFollowers", fields: [followingId], references: [id])
+  follower  User @relation("UserFollowings", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@id([followerId, followingId])
 }
@@ -265,8 +264,8 @@ model Mute {
   mutedId String
   muterId String
 
-  muter User @relation("Muter", fields: [muterId], references: [id])
-  muted User @relation("Muted", fields: [mutedId], references: [id])
+  muter User @relation("Muter", fields: [muterId], references: [id], onDelete: Cascade)
+  muted User @relation("Muted", fields: [mutedId], references: [id], onDelete: Cascade)
 
   @@id([muterId, mutedId])
 }
@@ -275,8 +274,8 @@ model Block {
   blockedId String
   blockerId String
 
-  blocker User @relation("Blocker", fields: [blockerId], references: [id])
-  blocked User @relation("Blocked", fields: [blockedId], references: [id])
+  blocker User @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
 
   @@id([blockerId, blockedId])
 }
@@ -286,9 +285,9 @@ model Mention {
   mentionerId String
   mentionedId String
 
-  mentioner User  @relation("Mentioner", fields: [mentionerId], references: [id])
-  mentioned User  @relation("Mentioned", fields: [mentionedId], references: [id])
-  tweet     Tweet @relation(fields: [tweetId], references: [id])
+  mentioner User  @relation("Mentioner", fields: [mentionerId], references: [id], onDelete: Cascade)
+  mentioned User  @relation("Mentioned", fields: [mentionedId], references: [id], onDelete: Cascade)
+  tweet     Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
 
   @@id([tweetId, mentionerId, mentionedId])
 }
@@ -297,8 +296,8 @@ model Retweet {
   userId  String
   tweetId String
 
-  user  User  @relation(fields: [userId], references: [id])
-  tweet Tweet @relation(fields: [tweetId], references: [id])
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
 
   @@id([userId, tweetId])
 }
@@ -307,8 +306,8 @@ model TweetLike {
   tweetId String
   userId  String
 
-  user  User  @relation(fields: [userId], references: [id])
-  tweet Tweet @relation(fields: [tweetId], references: [id])
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
 
   @@id([userId, tweetId])
 }
@@ -318,8 +317,8 @@ model TweetBookmark {
   userId  String
   tweetId String
 
-  tweet Tweet @relation(fields: [tweetId], references: [id])
-  user  User  @relation(fields: [userId], references: [id])
+  tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("tweetbookmarks")
 }
@@ -329,8 +328,8 @@ model ChatUser {
   userId String
   chatId String
 
-  user User @relation(fields: [userId], references: [id])
-  chat Chat @relation(fields: [chatId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@unique([userId, chatId])
   @@map("chatusers")
