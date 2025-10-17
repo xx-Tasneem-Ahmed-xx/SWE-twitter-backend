@@ -1,9 +1,5 @@
 import { prisma, TweetType } from "@/prisma/client";
 import {
-  CreateTweetDTO,
-  CreateRetweetDTO,
-} from "@/application/dtos/tweets/tweet.dto";
-import {
   validToRetweetOrQuote,
   validToReply,
 } from "@/application/utils/tweets/utils";
@@ -11,6 +7,7 @@ import {
   CreateReplyOrQuoteServiceDTO,
   CreateReTweetServiceDto,
   CreateTweetServiceDto,
+  TimelineServiceDTO,
 } from "../dtos/tweets/service/tweets.dto";
 
 export class TweetService {
@@ -37,7 +34,6 @@ export class TweetService {
 
   async createReply(dto: CreateReplyOrQuoteServiceDTO) {
     const valid = await validToReply(dto.parentId, dto.userId);
-    console.log(valid);
     if (valid)
       return prisma.$transaction([
         prisma.tweet.create({
@@ -140,5 +136,89 @@ export class TweetService {
         data: { retweetCount: { decrement: 1 } },
       }),
     ]);
+  }
+
+  async getLikedTweets(userId: string) {
+    return prisma.tweetLike.findMany({
+      where: { userId },
+      select: {
+        tweet: {
+          include: {
+            user: {
+              select: {
+                username: true,
+                name: true,
+                profilePhoto: true,
+                verified: true,
+                protectedAccount: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async getTweetReplies(tweetId: string) {
+    return prisma.tweet.findMany({
+      where: { parentId: tweetId },
+      include: {
+        user: {
+          select: {
+            username: true,
+            name: true,
+            profilePhoto: true,
+            verified: true,
+            protectedAccount: true,
+          },
+        },
+      },
+    });
+  }
+
+  // till now return mine and my followers tweets and retweets
+  async getTimeline(dto: TimelineServiceDTO) {
+    const followersRecords = await prisma.follow.findMany({
+      where: { followerId: dto.userId },
+      select: { followingId: true },
+    });
+
+    const followersId = followersRecords.map(
+      (follower) => follower.followingId
+    );
+
+    const timline = await prisma.tweet.findMany({
+      where: {
+        userId: { in: [...followersId, dto.userId] },
+      },
+      include: {
+        retweets: {
+          where: { userId: { in: [...followersId, dto.userId] } },
+          select: {
+            user: {
+              select: {
+                username: true,
+                name: true,
+                profilePhoto: true,
+                verified: true,
+                protectedAccount: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: dto.limit + 1,
+      ...(dto.cursor && { cursor: { id: dto.cursor }, skip: 1 }),
+    });
+
+    const hasNextPage = timline.length > dto.limit;
+    const paginatedTweets = hasNextPage ? timline.slice(0, -1) : timline;
+    return {
+      data: paginatedTweets,
+      nextCursor: hasNextPage
+        ? paginatedTweets[paginatedTweets.length - 1].id
+        : null,
+    };
   }
 }

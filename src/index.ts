@@ -1,6 +1,8 @@
 import dotenv from "dotenv";
 import httpServer from "@/app";
 import { connectToDatabase, disconnectFromDatabase } from "@/database";
+import "module-alias/register";
+import { connectRedis } from "./config/redis";
 dotenv.config();
 
 const PORT = process.env.PORT;
@@ -9,7 +11,7 @@ async function start() {
   try {
     console.log("🚀 Starting server...");
     await connectToDatabase();
-
+    await connectRedis();
     httpServer.listen(PORT, () => {
       console.log(`🌟 Server running on port ${PORT}`);
       console.log(`📡 API available at http://localhost:${PORT}`);
