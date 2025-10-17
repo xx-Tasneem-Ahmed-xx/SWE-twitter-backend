@@ -50,8 +50,6 @@ export const io: SocketIOServer = new SocketIOServer(httpServer, {
 const socketService = new SocketService(io);
 export { socketService };
 
-// app.use("/api", userInteractionsRoutes);
-
 // app.use("/api-docs/auth", swaggerUi.serve, (req: Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>, res: Response<any, Record<string, any>, number>, next: NextFunction) => {
 //   const authDoc = JSON.parse(fs.readFileSync("./src/doc/authRoutes.json", "utf-8"));
 //   swaggerUi.setup(authDoc)(req, res, next);
@@ -74,6 +72,7 @@ app.use("/api/notifications", notificationRoutes);
 
 app.use("/api/tweets", tweetRoutes);
 app.use("/api/users", userRouter);
+app.use("/api", userInteractionsRoutes);
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
 app.use(errorHandler);
 export default httpServer;
