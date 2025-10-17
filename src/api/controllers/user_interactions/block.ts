@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import {
   authenticated,
   findUserByUsername,
@@ -10,7 +10,11 @@ import {
 import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 
 // Block a user using their username
-export const blockUser = async (req: Request, res: Response) => {
+export const blockUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
     if (!paramsResult.success) {
@@ -20,8 +24,7 @@ export const blockUser = async (req: Request, res: Response) => {
       });
     }
     const { username } = paramsResult.data;
-    //TODO: get currentUserId from auth middleware (currentUserId from req body just for now)
-    const currentUserId = req.body.id;
+    const currentUserId = (req as any).user.id;
     if (!authenticated(currentUserId, res)) return;
 
     const userToBlock = await findUserByUsername(username);
@@ -35,19 +38,22 @@ export const blockUser = async (req: Request, res: Response) => {
         error: "You are already blocking this user",
       });
 
-    createBlockRelation(currentUserId, userToBlock.id);
+    await createBlockRelation(currentUserId, userToBlock.id);
     return res.status(201).json({
       message: "User blocked successfully",
       currentUserId,
     });
   } catch (error) {
-    console.error("Block user error:", error);
-    return res.status(500).json({ error: "Internal server error" });
+    next(error);
   }
 };
 
 // Unblock a user using their username
-export const unblockUser = async (req: Request, res: Response) => {
+export const unblockUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
     if (!paramsResult.success) {
@@ -57,8 +63,7 @@ export const unblockUser = async (req: Request, res: Response) => {
       });
     }
     const { username } = paramsResult.data;
-    //TODO: get currentUserId from auth middleware ( currentUserId from req body just for now)
-    const currentUserId = req.body.id;
+    const currentUserId = (req as any).user.id;
     if (!authenticated(currentUserId, res)) return;
 
     const userToUnBlock = await findUserByUsername(username);
@@ -73,28 +78,29 @@ export const unblockUser = async (req: Request, res: Response) => {
         error: "You are not blocking this user",
       });
 
-    removeBlockRelation(currentUserId, userToUnBlock.id);
+    await removeBlockRelation(currentUserId, userToUnBlock.id);
     return res.status(200).json({
       message: "User unblocked successfully",
       currentUserId,
     });
   } catch (error) {
-    console.error("Unblock user error:", error);
-    return res.status(500).json({ error: "Internal server error" });
+    next(error);
   }
 };
 
 // Get a list of accounts blocked by the current user
-export const getBlockedUsers = async (req: Request, res: Response) => {
+export const getBlockedUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    //TODO: get currentUserId from auth middleware ( currentUserId from req body just for now)
-    const currentUserId = req.body.id;
+    const currentUserId = (req as any).user.id;
     if (!authenticated(currentUserId, res)) return;
 
     const blockedUsersData = await getBlockedList(currentUserId);
     return res.status(200).json(blockedUsersData);
   } catch (error) {
-    console.error("Get blocked users error:", error);
-    return res.status(500).json({ error: "Internal server error" });
+    next(error);
   }
 };

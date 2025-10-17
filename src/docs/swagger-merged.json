@@ -29,10 +29,6 @@
       "CreateTweetDTO": {
         "type": "object",
         "properties": {
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
           "content": {
             "type": "string",
             "minLength": 1
@@ -48,7 +44,6 @@
           }
         },
         "required": [
-          "userId",
           "content"
         ]
       },
@@ -107,6 +102,327 @@
         },
         "required": [
           "users"
+        ]
+      },
+      "ChatUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "profilePhoto": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "name",
+          "profilePhoto"
+        ]
+      },
+      "Media": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "VIDEO",
+              "GIF"
+            ]
+          },
+          "size": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "url",
+          "type",
+          "size"
+        ]
+      },
+      "MessageMedia": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mediaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "media": {
+            "$ref": "#/components/schemas/Media"
+          }
+        },
+        "required": [
+          "messageId",
+          "mediaId",
+          "media"
+        ]
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "chatId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "SENT",
+              "READ"
+            ]
+          },
+          "user": {
+            "$ref": "#/components/schemas/ChatUser"
+          },
+          "messageMedia": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageMedia"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "chatId",
+          "userId",
+          "content",
+          "createdAt",
+          "status",
+          "user",
+          "messageMedia"
+        ]
+      },
+      "ChatUserRelation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "chatId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user": {
+            "$ref": "#/components/schemas/ChatUser"
+          }
+        },
+        "required": [
+          "id",
+          "chatId",
+          "userId",
+          "user"
+        ]
+      },
+      "ChatGroup": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "photo": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "photo",
+          "description"
+        ]
+      },
+      "ChatInfo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "DMChat": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            }
+          },
+          "chatUsers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatUserRelation"
+            }
+          },
+          "chatGroup": {
+            "$ref": "#/components/schemas/ChatGroup"
+          }
+        },
+        "required": [
+          "id",
+          "DMChat",
+          "createdAt",
+          "updatedAt",
+          "messages",
+          "chatUsers",
+          "chatGroup"
+        ]
+      },
+      "ChatErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Chat ID is required"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "CreateChatInput": {
+        "type": "object",
+        "properties": {
+          "DMChat": {
+            "type": "boolean"
+          },
+          "participant_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "participant_ids"
+        ]
+      },
+      "UpdateChatGroupInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "New name for the group chat"
+          },
+          "description": {
+            "type": "string",
+            "description": "New description for the group chat"
+          },
+          "photo": {
+            "type": "string",
+            "format": "uri",
+            "description": "New photo URL for the group chat"
+          }
+        }
+      },
+      "newMessageInput": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "messageMedia": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "size": {
+                      "type": "number"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "content": {
+                "type": "string"
+              }
+            }
+          },
+          "recipientId": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "chatId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "data"
         ]
       }
     },
@@ -1004,6 +1320,29 @@
         "tags": [
           "Timeline and Feed"
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The cursor for pagination (createdAt of last tweet)"
+            },
+            "required": false,
+            "description": "The cursor for pagination (createdAt of last tweet)",
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Timeline tweets fetched successfully",
@@ -1012,89 +1351,54 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "content": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date"
-                    },
-                    "likesCount": {
-                      "type": "integer"
-                    },
-                    "retweetCount": {
-                      "type": "integer"
-                    },
-                    "repliesCount": {
-                      "type": "integer"
-                    },
-                    "replyControl": {
-                      "type": "string",
-                      "enum": [
-                        "EVERYONE",
-                        "FOLLOWINGS",
-                        "VERIFIED",
-                        "MENTIONED"
-                      ]
-                    },
-                    "parentId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "tweetType": {
-                      "type": "string",
-                      "enum": [
-                        "TWEET",
-                        "REPLY",
-                        "QUOTE"
-                      ]
-                    },
-                    "user": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "name": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "username": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "profilePhoto": {
-                          "type": "string",
-                          "format": "uri"
-                        },
-                        "verified": {
-                          "type": "boolean"
-                        },
-                        "protectedAccount": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "name",
-                        "username",
-                        "profilePhoto",
-                        "verified",
-                        "protectedAccount"
-                      ]
-                    },
-                    "retweets": {
-                      "type": "object",
-                      "properties": {
-                        "users": {
-                          "type": "array",
-                          "items": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "content": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "likesCount": {
+                            "type": "integer"
+                          },
+                          "retweetCount": {
+                            "type": "integer"
+                          },
+                          "repliesCount": {
+                            "type": "integer"
+                          },
+                          "replyControl": {
+                            "type": "string",
+                            "enum": [
+                              "EVERYONE",
+                              "FOLLOWINGS",
+                              "VERIFIED",
+                              "MENTIONED"
+                            ]
+                          },
+                          "parentId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "tweetType": {
+                            "type": "string",
+                            "enum": [
+                              "TWEET",
+                              "REPLY",
+                              "QUOTE"
+                            ]
+                          },
+                          "user": {
                             "type": "object",
                             "properties": {
                               "id": {
@@ -1129,24 +1433,29 @@
                               "protectedAccount"
                             ]
                           }
-                        }
-                      },
-                      "required": [
-                        "users"
-                      ]
+                        },
+                        "required": [
+                          "id",
+                          "content",
+                          "createdAt",
+                          "likesCount",
+                          "retweetCount",
+                          "repliesCount",
+                          "replyControl",
+                          "tweetType",
+                          "user"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Cursor for next page"
                     }
                   },
                   "required": [
-                    "id",
-                    "content",
-                    "createdAt",
-                    "likesCount",
-                    "retweetCount",
-                    "repliesCount",
-                    "replyControl",
-                    "tweetType",
-                    "user",
-                    "retweets"
+                    "data",
+                    "nextCursor"
                   ]
                 }
               }
@@ -1194,12 +1503,23 @@
           {
             "schema": {
               "type": "number",
+              "minimum": 1,
+              "maximum": 100,
               "default": 20,
               "description": "Result limit"
             },
             "required": false,
             "description": "Result limit",
             "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
             "in": "query"
           }
         ],
@@ -1336,6 +1656,9 @@
           {
             "schema": {
               "type": "string",
+              "minLength": 3,
+              "maxLength": 30,
+              "pattern": "^[a-zA-Z0-9_]+$",
               "description": "Username"
             },
             "required": true,
@@ -1479,6 +1802,9 @@
           {
             "schema": {
               "type": "string",
+              "minLength": 3,
+              "maxLength": 30,
+              "pattern": "^[a-zA-Z0-9_]+$",
               "description": "Username"
             },
             "required": true,
@@ -2102,12 +2428,23 @@
           {
             "schema": {
               "type": "number",
+              "minimum": 1,
+              "maximum": 100,
               "default": 20,
               "description": "Result limit"
             },
             "required": false,
             "description": "Result limit",
             "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
             "in": "query"
           }
         ],
@@ -2990,6 +3327,1114 @@
           },
           "404": {
             "description": "User not found."
+          }
+        }
+      }
+    },
+    "/api/users/search": {
+      "get": {
+        "summary": "Search for users by username or screen name",
+        "description": "Searches for users whose username or display name matches the provided query (case-insensitive).",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Part of username or screen name to search for"
+            },
+            "required": true,
+            "description": "Part of username or screen name to search for",
+            "name": "query",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching users retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "username": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "profilePhoto": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "verified": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "username",
+                      "name",
+                      "verified"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid search query."
+          }
+        }
+      }
+    },
+    "/api/dm/chat/{chatId}": {
+      "get": {
+        "summary": "Get chat information",
+        "description": "Retrieve detailed information about a specific chat including messages, participants, and group details",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Chat ID"
+            },
+            "required": true,
+            "description": "Chat ID",
+            "name": "chatId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chat information retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - Chat ID is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chat not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ChatErrorResponse"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "description": "Chat not found"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ChatErrorResponse"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "description": "Internal server error"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dm/chat/{userId}": {
+      "get": {
+        "summary": "Retrieve all chats that a specific user is participating in",
+        "description": "Fetch a list of all chats that a user is involved in, including both direct messages and group chats",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "User ID"
+            },
+            "required": true,
+            "description": "User ID",
+            "name": "userId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of chats retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChatInfo"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - User ID is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ChatErrorResponse"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "description": "User ID is required"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No chats found for user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ChatErrorResponse"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "description": "No chats found for user"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ChatErrorResponse"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "description": "Internal server error"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dm/chat/{chatId}/unseenMessagesCount": {
+      "get": {
+        "summary": "get unseen messages count",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Chat ID"
+            },
+            "required": true,
+            "description": "Chat ID",
+            "name": "chatId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unseen messages count retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "unseenMessagesCount": {
+                      "type": "number",
+                      "description": "Count of unseen messages"
+                    }
+                  },
+                  "required": [
+                    "unseenMessagesCount"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - Chat ID is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Chat ID is required"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No unseen messages found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "No unseen messages found"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal server error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/dm/chat/{userId}/createchat": {
+      "post": {
+        "summary": "Create a new chat",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "User ID to create chat with"
+            },
+            "required": true,
+            "description": "User ID to create chat with",
+            "name": "userId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChatInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Chat created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - Invalid input data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "At least two participants are required to create a chat"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "User not found"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal server error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/dm/chat/{chatId}": {
+      "delete": {
+        "summary": "Delete a chat by its ID",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The ID of the chat to delete"
+            },
+            "required": true,
+            "description": "The ID of the chat to delete",
+            "name": "chatId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chat deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "description": "Chat deleted successfully"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Chat ID is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Chat ID is required"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal server error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/dm/chat/{chatId}/group": {
+      "put": {
+        "summary": "Update group chat details",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The ID of the group chat to update"
+            },
+            "required": true,
+            "description": "The ID of the group chat to update",
+            "name": "chatId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChatGroupInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Group chat updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Chat ID is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Chat ID is required"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal server error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/dm/chat/{userId}/message": {
+      "post": {
+        "summary": "Add a message to a chat",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The ID of the user to send the message to"
+            },
+            "required": true,
+            "description": "The ID of the user to send the message to",
+            "name": "userId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/newMessageInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Message added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Invalid input data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Message content is required or missing chatId or recipientId"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chat not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Chat not found"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal server error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/dm/chat/{chatId}/messageStatus": {
+      "put": {
+        "summary": "Update message status in a chat",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The ID of the chat containing the message"
+            },
+            "required": true,
+            "description": "The ID of the chat containing the message",
+            "name": "chatId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Message status updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "description": "Message status updated successfully"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal server error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/dm/chat/{userId}/unseenChats": {
+      "get": {
+        "summary": "Get unseen chats count for a user",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The ID of the user"
+            },
+            "required": true,
+            "description": "The ID of the user",
+            "name": "userId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unseen chats count retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "unseenChatsCount": {
+                      "type": "number",
+                      "description": "The count of unseen chats for the user"
+                    }
+                  },
+                  "required": [
+                    "unseenChatsCount"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - User ID is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "User ID is required"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal server error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/media/{tweetId}/addMediaToTweet": {
+      "post": {
+        "summary": "Add media to a tweet",
+        "tags": [
+          "Media"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "tweetId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "media": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "IMAGE",
+                            "VIDEO",
+                            "GIF"
+                          ]
+                        },
+                        "size": {
+                          "type": "number",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "url",
+                        "type",
+                        "size"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "media"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Media added to tweet successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/media/{tweetId}/getTweetMedia": {
+      "get": {
+        "summary": "Get media for a tweet",
+        "tags": [
+          "Media"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "tweetId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Media retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "IMAGE",
+                              "VIDEO",
+                              "GIF"
+                            ]
+                          },
+                          "size": {
+                            "type": "number",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "url",
+                          "type",
+                          "size"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "media"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tweet not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }

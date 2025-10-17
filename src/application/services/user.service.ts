@@ -3,7 +3,9 @@ import prisma from "../../database";
 import { UpdateUserProfileDTO, UserProfileResponseDTO } from "../dtos/user.dto";
 
 export class UserService {
-  async getUserProfile(username: string): Promise<UserProfileResponseDTO | null> {
+  async getUserProfile(
+    username: string
+  ): Promise<UserProfileResponseDTO | null> {
     const user = await prisma.user.findUnique({
       where: { username },
       select: {
@@ -50,4 +52,27 @@ export class UserService {
     });
     return updatedUser;
   }
+
+  async searchUsers(query: string) {
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          { username: { contains: query, mode: "insensitive" } },
+          { name: { contains: query, mode: "insensitive" } },
+        ],
+      },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        profilePhoto: true,
+        verified: true,
+      },
+      take: 10,
+    });
+
+    return users;
+  }
 }
+
+
