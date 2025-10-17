@@ -57,11 +57,13 @@ import { registerUserInteractionsDocs } from "./userInteractions";
 import { registerChatDocs } from "./chats";
 import { registerMediaDocs } from "./media";
 import { registerUserDocs } from "@/docs/users";
+import { registerNotificationDocs } from "./notification";
 
 // ✅ Step 2: Build Zod-based OpenAPI doc
 const registry = new OpenAPIRegistry();
 registerTweetDocs(registry);
 registerUserInteractionsDocs(registry);
+registerNotificationDocs(registry);
 registerUserDocs(registry);
 
 registry.registerComponent("securitySchemes", "bearerAuth", {
