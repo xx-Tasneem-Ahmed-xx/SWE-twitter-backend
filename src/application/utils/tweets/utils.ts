@@ -645,6 +645,9 @@ export async function Sendlocation(
       if (maybe) ip = maybe;
     }
     // For local testing or if IP is 127.0.0.1, fallback to external ip
+    if (!ip || ip === ":" || ip === "::1" || ip === "127.0.0.1") {
+      ip = "8.8.8.8"; // fallback for localhost
+    }
     // call ip-api.com (keep same as Go)
     if (!ip || ip === ":" || ip === "::1" || ip === "127.0.0.1") {
       ip = "8.8.8.8"; // fallback for localhost
