@@ -12,7 +12,11 @@ import {
   unblockUser,
   getBlockedUsers,
 } from "@/api/controllers/user_interactions/block";
-//import { muteUser, unmuteUser, getMutedUsers } from "@/api/controllers/user_interactions/mute";
+import {
+  muteUser,
+  unmuteUser,
+  getMutedUsers,
+} from "@/api/controllers/user_interactions/mute";
 
 const router = Router();
 
@@ -29,5 +33,8 @@ router
 
 router.route("/blocks/:username").post(blockUser).delete(unblockUser);
 router.route("/blocks").get(getBlockedUsers);
+
+router.route("/mutes/:username").post(muteUser).delete(unmuteUser);
+router.route("/mutes").get(getMutedUsers);
 
 export default router;

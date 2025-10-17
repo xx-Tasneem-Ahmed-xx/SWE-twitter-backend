@@ -33,7 +33,7 @@ export async function connectRedis(): Promise<void> {
 
     // Equivalent to Rdb.FlushAll(Ctx).Err()
     // The original comment says "add at later", but the JS code included it, so we keep it.
-    await redisClient.flushAll(); 
+    // await redisClient.flushAll(); //added in Procution (LOOK AT ME)
 
     console.log("🧹 Redis connected and cache cleared (FlushAll complete)");
   } catch (err) {
