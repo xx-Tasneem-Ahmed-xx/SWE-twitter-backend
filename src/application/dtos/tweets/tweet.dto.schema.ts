@@ -17,6 +17,10 @@ const UserSchema = z.object({
   protectedAccount: z.boolean(),
 });
 
+export const UsersResponseSchema = z.object({
+  users: z.array(UserSchema),
+});
+
 export const CreateTweetDTOSchema = z
   .object({
     userId: z.uuid(),
@@ -42,8 +46,8 @@ export const TweetResponsesSchema = z.object({
   user: UserSchema,
 });
 
-export const UsersResponseSchema = z.object({
-  users: z.array(UserSchema),
+export const timelineResponeSchema = TweetResponsesSchema.extend({
+  retweets: UsersResponseSchema,
 });
 
 export const TweetSummaryResponse = z.object({

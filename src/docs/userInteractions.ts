@@ -55,9 +55,8 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
     tags: ["User Interactions"],
     request: { params: UserInteractionParamsSchema },
     responses: {
-      200: { description: "Follow request declined" },
+      200: { description: "Follow request declined or follower removed" },
       404: { description: "No follow request found" },
-      409: { description: "Follow request already accepted" },
       500: { description: "Internal server error" },
     },
   });
@@ -113,7 +112,7 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
     responses: {
       201: { description: "User blocked successfully" },
       404: { description: "User not found" },
-      400: { description: "Can't block yourself or already blocked user" },
+      400: { description: "Can't block yourself or already blocked users" },
       500: { description: "Internal server error" },
     },
   });
@@ -126,7 +125,7 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
     request: { params: UserInteractionParamsSchema },
     responses: {
       200: { description: "User unblocked successfully" },
-      400: { description: "You have not blocked this user" },
+      400: { description: "Can't unblock yourself or already unblocked users" },
       404: { description: "User not found" },
       500: { description: "Internal server error" },
     },

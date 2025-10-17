@@ -39,7 +39,14 @@ export const isFollower = async (followerId: string, followingId: string) => {
   });
   return !!row;
 };
-
+export const resolveUsernameToId = async (username: string) => {
+  const user = await prisma.user.findUnique({
+    where: { username },
+    select: { id: true },
+  });
+  if (!user?.id) throw new Error("User not found");
+  return user.id;
+};
 export const isVerified = async (id: string) => {
   const user = await prisma.user.findUnique({
     where: { id },
@@ -95,7 +102,6 @@ const evaluateReplyControl = async (
   replieeId: string,
   replierId: string
 ) => {
-  console.log("ehhe", type);
   switch (type) {
     case "EVERYONE":
       return true;

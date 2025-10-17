@@ -134,12 +134,27 @@
             "description": "Tweet created successfully"
           },
           "400": {
-            "description": "Failed to create tweet"
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       }
     },
-    "/api/tweets/{id}/retweet": {
+    "/api/tweets/{id}/retweets": {
       "post": {
         "summary": "Retweet a tweet",
         "tags": [
@@ -187,9 +202,101 @@
             "description": "Retweet deleted successfully"
           }
         }
+      },
+      "get": {
+        "summary": "Get tweet retweets",
+        "tags": [
+          "Tweets"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Tweet ID"
+            },
+            "required": true,
+            "description": "Tweet ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users who retweeted the tweet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "username": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "profilePhoto": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "verified": {
+                            "type": "boolean"
+                          },
+                          "protectedAccount": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "username",
+                          "profilePhoto",
+                          "verified",
+                          "protectedAccount"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "users"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
       }
     },
-    "/api/tweets/{id}/reply": {
+    "/api/tweets/{id}/replies": {
       "post": {
         "summary": "Reply to a tweet",
         "tags": [
@@ -222,13 +329,170 @@
           "201": {
             "description": "Reply created successfully"
           },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
           "403": {
-            "description": "Not allowed to reply"
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get tweet replies",
+        "tags": [
+          "Tweets"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Tweet ID"
+            },
+            "required": true,
+            "description": "Tweet ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Replies under the tweet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "content": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      "likesCount": {
+                        "type": "integer"
+                      },
+                      "retweetCount": {
+                        "type": "integer"
+                      },
+                      "repliesCount": {
+                        "type": "integer"
+                      },
+                      "replyControl": {
+                        "type": "string",
+                        "enum": [
+                          "EVERYONE",
+                          "FOLLOWINGS",
+                          "VERIFIED",
+                          "MENTIONED"
+                        ]
+                      },
+                      "parentId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "tweetType": {
+                        "type": "string",
+                        "enum": [
+                          "TWEET",
+                          "REPLY",
+                          "QUOTE"
+                        ]
+                      },
+                      "user": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "username": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "profilePhoto": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "verified": {
+                            "type": "boolean"
+                          },
+                          "protectedAccount": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "username",
+                          "profilePhoto",
+                          "verified",
+                          "protectedAccount"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "content",
+                      "createdAt",
+                      "likesCount",
+                      "retweetCount",
+                      "repliesCount",
+                      "replyControl",
+                      "tweetType",
+                      "user"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       }
     },
-    "/api/tweets/{id}/quote": {
+    "/api/tweets/{id}/quotes": {
       "post": {
         "summary": "Quote a tweet",
         "tags": [
@@ -261,8 +525,147 @@
           "201": {
             "description": "Quote created successfully"
           },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
           "403": {
-            "description": "Not allowed to quote"
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get tweet quotes",
+        "tags": [
+          "Tweets"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Tweet ID"
+            },
+            "required": true,
+            "description": "Tweet ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of quoters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "content": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      "likesCount": {
+                        "type": "integer"
+                      },
+                      "retweetCount": {
+                        "type": "integer"
+                      },
+                      "repliesCount": {
+                        "type": "integer"
+                      },
+                      "replyControl": {
+                        "type": "string",
+                        "enum": [
+                          "EVERYONE",
+                          "FOLLOWINGS",
+                          "VERIFIED",
+                          "MENTIONED"
+                        ]
+                      },
+                      "parentId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "tweetType": {
+                        "type": "string",
+                        "enum": [
+                          "TWEET",
+                          "REPLY",
+                          "QUOTE"
+                        ]
+                      },
+                      "user": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "username": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "profilePhoto": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "verified": {
+                            "type": "boolean"
+                          },
+                          "protectedAccount": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "username",
+                          "profilePhoto",
+                          "verified",
+                          "protectedAccount"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "content",
+                      "createdAt",
+                      "likesCount",
+                      "retweetCount",
+                      "repliesCount",
+                      "replyControl",
+                      "tweetType",
+                      "user"
+                    ]
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -387,8 +790,23 @@
               }
             }
           },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
           "404": {
-            "description": "Tweet not found"
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       },
@@ -515,8 +933,23 @@
           "200": {
             "description": "Tweet updated successfully"
           },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
           "403": {
-            "description": "Not authorized to update this tweet"
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       },
@@ -543,169 +976,199 @@
           "204": {
             "description": "Tweet deleted successfully"
           },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
           "403": {
-            "description": "Not authorized"
+            "description": "Forbidden : You don’t have permission to access this resource"
           },
           "404": {
-            "description": "Tweet not found"
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       }
     },
-    "/api/tweets/{id}/likers": {
+    "/api/tweets/timeline": {
       "get": {
-        "summary": "Get users who liked a tweet",
+        "summary": "Get timeline tweets",
+        "description": "Fetches tweets from users the current user follows.",
         "tags": [
-          "Tweets"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Tweet ID"
-            },
-            "required": true,
-            "description": "Tweet ID",
-            "name": "id",
-            "in": "path"
-          }
+          "Timeline and Feed"
         ],
         "responses": {
           "200": {
-            "description": "Tweet likers fetched successfully",
+            "description": "Timeline tweets fetched successfully",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "users": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "name": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "username": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "profilePhoto": {
-                            "type": "string",
-                            "format": "uri"
-                          },
-                          "verified": {
-                            "type": "boolean"
-                          },
-                          "protectedAccount": {
-                            "type": "boolean"
-                          }
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "content": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "likesCount": {
+                      "type": "integer"
+                    },
+                    "retweetCount": {
+                      "type": "integer"
+                    },
+                    "repliesCount": {
+                      "type": "integer"
+                    },
+                    "replyControl": {
+                      "type": "string",
+                      "enum": [
+                        "EVERYONE",
+                        "FOLLOWINGS",
+                        "VERIFIED",
+                        "MENTIONED"
+                      ]
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "tweetType": {
+                      "type": "string",
+                      "enum": [
+                        "TWEET",
+                        "REPLY",
+                        "QUOTE"
+                      ]
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
                         },
-                        "required": [
-                          "id",
-                          "name",
-                          "username",
-                          "profilePhoto",
-                          "verified",
-                          "protectedAccount"
-                        ]
-                      }
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "username": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "profilePhoto": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "verified": {
+                          "type": "boolean"
+                        },
+                        "protectedAccount": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "username",
+                        "profilePhoto",
+                        "verified",
+                        "protectedAccount"
+                      ]
+                    },
+                    "retweets": {
+                      "type": "object",
+                      "properties": {
+                        "users": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "username": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "profilePhoto": {
+                                "type": "string",
+                                "format": "uri"
+                              },
+                              "verified": {
+                                "type": "boolean"
+                              },
+                              "protectedAccount": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "username",
+                              "profilePhoto",
+                              "verified",
+                              "protectedAccount"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "users"
+                      ]
                     }
                   },
                   "required": [
-                    "users"
+                    "id",
+                    "content",
+                    "createdAt",
+                    "likesCount",
+                    "retweetCount",
+                    "repliesCount",
+                    "replyControl",
+                    "tweetType",
+                    "user",
+                    "retweets"
                   ]
                 }
               }
             }
           },
-          "404": {
-            "description": "Failed to fetch likers"
-          }
-        }
-      }
-    },
-    "/api/tweets/{id}/retweeters": {
-      "get": {
-        "summary": "Get users who retweeted a tweet",
-        "tags": [
-          "Tweets"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Tweet ID"
-            },
-            "required": true,
-            "description": "Tweet ID",
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Tweet retweeters fetched successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "users": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "name": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "username": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "profilePhoto": {
-                            "type": "string",
-                            "format": "uri"
-                          },
-                          "verified": {
-                            "type": "boolean"
-                          },
-                          "protectedAccount": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "username",
-                          "profilePhoto",
-                          "verified",
-                          "protectedAccount"
-                        ]
-                      }
-                    }
-                  },
-                  "required": [
-                    "users"
-                  ]
-                }
-              }
-            }
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
           },
           "404": {
-            "description": "Failed to fetch retweeters"
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       }
@@ -715,7 +1178,7 @@
         "summary": "Search for tweets",
         "description": "Search tweets by content, hashtag, or users.",
         "tags": [
-          "Tweets"
+          "Timeline and Feed"
         ],
         "parameters": [
           {
@@ -742,6 +1205,24 @@
         ],
         "responses": {
           "200": {
+            "400": {
+              "description": "Bad Request : The request data is invalid or missing fields"
+            },
+            "401": {
+              "description": "Unauthorized : Authentication is required or token is invalid"
+            },
+            "403": {
+              "description": "Forbidden : You don’t have permission to access this resource"
+            },
+            "404": {
+              "description": "Not Found : The requested resource could not be found"
+            },
+            "409": {
+              "description": "Conflict : Resource already exists or constraint violation"
+            },
+            "500": {
+              "description": "Internal Server Error : Something went wrong on the server"
+            },
             "description": "List of matching tweets",
             "content": {
               "application/json": {
@@ -844,9 +1325,9 @@
         }
       }
     },
-    "/api/tweets/user/{userId}": {
+    "/api/tweets/user/{username}": {
       "get": {
-        "summary": "Get tweets by user",
+        "summary": "Get user's tweets",
         "description": "Returns all tweets authored by the specified user.",
         "tags": [
           "Timeline and Feed"
@@ -855,12 +1336,11 @@
           {
             "schema": {
               "type": "string",
-              "format": "uuid",
-              "description": "User ID"
+              "description": "Username"
             },
             "required": true,
-            "description": "User ID",
-            "name": "id",
+            "description": "Username",
+            "name": "username",
             "in": "path"
           }
         ],
@@ -967,137 +1447,29 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       }
     },
-    "/api/tweets/user/{userId}/likedtweets": {
-      "get": {
-        "summary": "Get tweets liked by the user",
-        "tags": [
-          "Timeline and Feed"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "User ID"
-            },
-            "required": true,
-            "description": "User ID",
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Liked tweets fetched successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "content": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date"
-                      },
-                      "likesCount": {
-                        "type": "integer"
-                      },
-                      "retweetCount": {
-                        "type": "integer"
-                      },
-                      "repliesCount": {
-                        "type": "integer"
-                      },
-                      "replyControl": {
-                        "type": "string",
-                        "enum": [
-                          "EVERYONE",
-                          "FOLLOWINGS",
-                          "VERIFIED",
-                          "MENTIONED"
-                        ]
-                      },
-                      "parentId": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "tweetType": {
-                        "type": "string",
-                        "enum": [
-                          "TWEET",
-                          "REPLY",
-                          "QUOTE"
-                        ]
-                      },
-                      "user": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "name": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "username": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "profilePhoto": {
-                            "type": "string",
-                            "format": "uri"
-                          },
-                          "verified": {
-                            "type": "boolean"
-                          },
-                          "protectedAccount": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "username",
-                          "profilePhoto",
-                          "verified",
-                          "protectedAccount"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "content",
-                      "createdAt",
-                      "likesCount",
-                      "retweetCount",
-                      "repliesCount",
-                      "replyControl",
-                      "tweetType",
-                      "user"
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/tweets/user/{userId}/mentioned": {
+    "/api/tweets/user/{username}/mentioned": {
       "get": {
         "summary": "Get tweets that the user is mentioned in",
         "tags": [
@@ -1107,12 +1479,11 @@
           {
             "schema": {
               "type": "string",
-              "format": "uuid",
-              "description": "User ID"
+              "description": "Username"
             },
             "required": true,
-            "description": "User ID",
-            "name": "id",
+            "description": "Username",
+            "name": "username",
             "in": "path"
           }
         ],
@@ -1219,125 +1590,29 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       }
     },
-    "/api/tweets/timeline": {
-      "get": {
-        "summary": "Get timeline tweets",
-        "description": "Fetches tweets from users the current user follows.",
-        "tags": [
-          "Timeline and Feed"
-        ],
-        "responses": {
-          "200": {
-            "description": "Timeline tweets fetched successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "content": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date"
-                      },
-                      "likesCount": {
-                        "type": "integer"
-                      },
-                      "retweetCount": {
-                        "type": "integer"
-                      },
-                      "repliesCount": {
-                        "type": "integer"
-                      },
-                      "replyControl": {
-                        "type": "string",
-                        "enum": [
-                          "EVERYONE",
-                          "FOLLOWINGS",
-                          "VERIFIED",
-                          "MENTIONED"
-                        ]
-                      },
-                      "parentId": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "tweetType": {
-                        "type": "string",
-                        "enum": [
-                          "TWEET",
-                          "REPLY",
-                          "QUOTE"
-                        ]
-                      },
-                      "user": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "name": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "username": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "profilePhoto": {
-                            "type": "string",
-                            "format": "uri"
-                          },
-                          "verified": {
-                            "type": "boolean"
-                          },
-                          "protectedAccount": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "username",
-                          "profilePhoto",
-                          "verified",
-                          "protectedAccount"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "content",
-                      "createdAt",
-                      "likesCount",
-                      "retweetCount",
-                      "repliesCount",
-                      "replyControl",
-                      "tweetType",
-                      "user"
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/tweets/{id}/like": {
+    "/api/tweets/{id}/likes": {
       "post": {
         "summary": "Like a tweet",
         "description": "Likes a tweet on behalf of the current user.",
@@ -1360,6 +1635,24 @@
         "responses": {
           "200": {
             "description": "Tweet liked successfully"
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       },
@@ -1385,16 +1678,31 @@
         "responses": {
           "200": {
             "description": "Tweet unliked successfully"
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
-      }
-    },
-    "/api/tweets/{id}/replies": {
+      },
       "get": {
-        "summary": "Get all replies",
-        "description": "Fetches all replies under a specific tweet.",
+        "summary": "Get tweet likes",
         "tags": [
-          "Tweets"
+          "Tweets Interactions"
         ],
         "parameters": [
           {
@@ -1411,7 +1719,88 @@
         ],
         "responses": {
           "200": {
-            "description": "Replies fetched successfully",
+            "description": "Users who liked the tweet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "username": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "profilePhoto": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "verified": {
+                            "type": "boolean"
+                          },
+                          "protectedAccount": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "username",
+                          "profilePhoto",
+                          "verified",
+                          "protectedAccount"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "users"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
+      }
+    },
+    "/api/tweets/likedtweets": {
+      "get": {
+        "summary": "Get tweets liked by the user",
+        "tags": [
+          "Tweets Interactions"
+        ],
+        "responses": {
+          "200": {
+            "description": "Liked tweets fetched successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -1512,6 +1901,24 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       }
@@ -1539,6 +1946,24 @@
         "responses": {
           "200": {
             "description": "Tweet bookmarked successfully"
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       },
@@ -1564,6 +1989,24 @@
         "responses": {
           "200": {
             "description": "Bookmark removed successfully"
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       }
@@ -1617,6 +2060,24 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       }
@@ -1685,6 +2146,24 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       }
@@ -1692,7 +2171,7 @@
     "/trends": {
       "get": {
         "summary": "Get a list of available trends",
-        "description": "Returns the currently trending hashtags or topics globally or by location.",
+        "description": "Returns the currently trending hashtags or topics in the last 24 hours.",
         "tags": [
           "Trends"
         ],
@@ -1731,6 +2210,24 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       }
@@ -1858,8 +2355,23 @@
               }
             }
           },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
           "404": {
-            "description": "Trend not found."
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
           }
         }
       }
@@ -2029,13 +2541,10 @@
         ],
         "responses": {
           "200": {
-            "description": "Follow request declined"
+            "description": "Follow request declined or follower removed"
           },
           "404": {
             "description": "No follow request found"
-          },
-          "409": {
-            "description": "Follow request already accepted"
           },
           "500": {
             "description": "Internal server error"
@@ -2107,7 +2616,7 @@
             "description": "User blocked successfully"
           },
           "400": {
-            "description": "Can't block yourself or already blocked user"
+            "description": "Can't block yourself or already blocked users"
           },
           "404": {
             "description": "User not found"
@@ -2140,7 +2649,7 @@
             "description": "User unblocked successfully"
           },
           "400": {
-            "description": "You have not blocked this user"
+            "description": "Can't unblock yourself or already unblocked users"
           },
           "404": {
             "description": "User not found"

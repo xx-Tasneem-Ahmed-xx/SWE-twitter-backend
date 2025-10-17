@@ -12,6 +12,7 @@ import directMessagesRouter from "@/api/routes/directMessages";
 import tweetRoutes from "@/api/routes/tweets";
 import userInteractionsRoutes from "@/api/routes/userInteractions";
 import userRouter from "./api/routes/user.routes";
+import { errorHandler } from "./api/middlewares/errorHandler";
 import authRoutes from "./api/routes/authRoutes";
 import oauthRoutes from "./api/routes/oauthRoutes";
 import fs from "fs";
@@ -40,7 +41,7 @@ export const io: SocketIOServer = new SocketIOServer(httpServer, {
 const socketService = new SocketService(io);
 export { socketService };
 
-app.use("/api", userInteractionsRoutes);
+// app.use("/api", userInteractionsRoutes);
 
 // app.use("/api-docs/auth", swaggerUi.serve, (req: Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>, res: Response<any, Record<string, any>, number>, next: NextFunction) => {
 //   const authDoc = JSON.parse(fs.readFileSync("./src/doc/authRoutes.json", "utf-8"));
@@ -62,6 +63,6 @@ app.use("/api/users", userRouter);
 app.use("/api/auth",authRoutes);
 app.use("/oauth2",oauthRoutes);
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
-
+app.use(errorHandler);
 export default httpServer;
 export { app };
