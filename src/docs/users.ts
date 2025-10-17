@@ -40,6 +40,21 @@ const UserResponse = z.object({
   joinDate: z.string().describe("Date the user joined the platform"),
 });
 
+const SearchUserQuery = z.object({
+  query: z
+    .string()
+    .min(1)
+    .describe("Part of username or screen name to search for"),
+});
+
+const SearchUserResponse = z.object({
+  id: z.string().uuid(),
+  username: z.string(),
+  name: z.string().nullable(),
+  profilePhoto: z.string().nullable().optional(),
+  verified: z.boolean(),
+});
+
 export const registerUserDocs = (registry: OpenAPIRegistry) => {
   registry.registerPath({
     method: "get",
@@ -96,4 +111,27 @@ registry.registerPath({
     404: { description: "User not found." },
   },
 });
+  
+  registry.registerPath({
+    method: "get",
+    path: "/api/users/search",
+    summary: "Search for users by username or screen name",
+    description:
+      "Searches for users whose username or display name matches the provided query (case-insensitive).",
+    tags: ["Users"],
+    request: {
+      query: SearchUserQuery,
+    },
+    responses: {
+      200: {
+        description: "Matching users retrieved successfully.",
+        content: {
+          "application/json": {
+            schema: z.array(SearchUserResponse),
+          },
+        },
+      },
+      400: { description: "Missing or invalid search query." },
+    },
+  });
 };

@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "nodemon -r tsconfig-paths/register --watch 'src/**/*.ts' --exec ts-node src/index.ts",
     "build": "tsc",
-    "start": "node -r module-alias/register dist/src/index.js"
+    "start": "ts-node --project tsconfig.json -r tsconfig-paths/register src/index.ts"
   },
   "repository": {
     "type": "git",

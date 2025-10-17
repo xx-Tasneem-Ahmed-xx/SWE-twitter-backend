@@ -3331,6 +3331,72 @@
         }
       }
     },
+    "/api/users/search": {
+      "get": {
+        "summary": "Search for users by username or screen name",
+        "description": "Searches for users whose username or display name matches the provided query (case-insensitive).",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Part of username or screen name to search for"
+            },
+            "required": true,
+            "description": "Part of username or screen name to search for",
+            "name": "query",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching users retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "username": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "profilePhoto": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "verified": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "username",
+                      "name",
+                      "verified"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid search query."
+          }
+        }
+      }
+    },
     "/api/dm/chat/{chatId}": {
       "get": {
         "summary": "Get chat information",
