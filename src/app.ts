@@ -8,7 +8,8 @@ import swaggerDoc from "./docs/index";
 import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { SocketService } from "@/application/services/socketService";
-import directMessagesRouter from "@/api/routes/directMessages";
+import ChatRouter from "@/api/routes/chatRoutes";
+import notificationRoutes from "@/api/routes/notificationRoutes";
 import mediaRouter from "@/api/routes/media";
 import tweetRoutes from "@/api/routes/tweets";
 import userInteractionsRoutes from "@/api/routes/userInteractions";
@@ -25,6 +26,7 @@ import {
   NextFunction,
 } from "express-serve-static-core";
 import { ParsedQs } from "qs";
+import { no } from "zod/v4/locales";
 
 // Type assertion for GeoGurd
 
@@ -64,8 +66,9 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use("/api/auth", authRoutes);
 app.use("/oauth2", oauthRoutes);
 app.use(Auth());
-app.use("/api/dm", directMessagesRouter);
+app.use("/api/dm", ChatRouter);
 app.use("/api/media", mediaRouter);
+app.use("/api/notifications", notificationRoutes);
 
 app.use("/api/tweets", tweetRoutes);
 app.use("/api/users", userRouter);
