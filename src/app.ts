@@ -19,6 +19,8 @@ import oauthRoutes from "./api/routes/oauthRoutes";
 import fs from "fs";
 import { Request, ParamsDictionary, Response, NextFunction } from "express-serve-static-core";
 import { ParsedQs } from "qs";
+import cookieParser from "cookie-parser";
+
 
 // Type assertion for GeoGurd
 
@@ -28,7 +30,7 @@ app.use(helmet());
 app.use(morgan("dev")); 
 app.use(compression());
 app.use(express.json());
-
+app.use(cookieParser());
 // Create HTTP server and Socket.IO server
 const httpServer = createServer(app);
 export const io: SocketIOServer = new SocketIOServer(httpServer, {
@@ -65,6 +67,6 @@ app.use("/api/users", userRouter);
 app.use("/api/auth",authRoutes);
 app.use("/oauth2",oauthRoutes);
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
-app.use(errorHandler);
+
 export default httpServer;
 export { app };

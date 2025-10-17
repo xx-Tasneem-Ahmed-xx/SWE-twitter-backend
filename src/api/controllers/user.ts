@@ -150,7 +150,7 @@ This code will expire in 15 minutes. ⏳  
 If you didn’t sign up for this account, you can safely ignore this message.
 
 Welcome aboard,  
-— The SOAH Security Team 🛡️
+— The Artemisa Team 🛡️
 `;
     // Use the imported SendEmailSmtp from utils
     utils.SendEmailSmtp(res, input.email, message).catch(console.error);
@@ -277,6 +277,7 @@ export async function Login(req: Request, res: Response): Promise<Response | voi
 🔐 Your 2FA verification code: ${code}
 
 This code is valid for 15 minutes.
+— The Artemisa Team
 `;
 console.log("code",code)
     utils.SendEmailSmtp(res, email, message).catch(console.error);
@@ -480,7 +481,7 @@ export async function Create_2fA(req: Request, res: Response): Promise<Response 
 export async function Verify_2fA(req: Request, res: Response): Promise<Response | void> {
   try {
     const email = (req.user as any)?.email || req.body?.email;  
-    const {code}=req.body?.code;
+    const code=req.body?.code;
 
   console.log("code:",code);
   console.log("email::",email);
@@ -518,7 +519,7 @@ export async function GenerteLoginCodes(req: Request, res: Response): Promise<Re
     const joined: string = codes.join(",");
     const updated = await prisma.user.updateMany({ where: { email }, data: { loginCodes: joined, loginCodesSet: true } });
     if (updated.count === 0) return utils.SendError(res, 500, "something went wrong");
-    const msg: string = `Hello [UserName],\n\nYour backup codes:\n${codes.join("\n")}`;
+    const msg: string = `Hello [UserName],\n\nYour backup codes:\n${codes.join("\n")} \n — The Artemisa Team`;
     // Note: Original code passes "Backup Login Codes" as the third argument (subject), but utils.SendEmailSmtp expects the third arg to be the message text.
     // I'm keeping the parameter count and passing the message text (`msg`) as the second message part.
     utils.SendEmailSmtp(res, email, msg).catch(console.error);
@@ -577,7 +578,21 @@ export async function ForgetPassword(req: Request, res: Response): Promise<Respo
 
     const token: string = uuidv4();
     const link: string = `${process.env.GMAIL_FORGET_PASSWORD || ""}${token}&email=${encodeURIComponent(email)}`;
-    const message: string = `Hi ${email.split("@")[0]},\n\nReset link:\n${link}\n\nThis link will expire in 15 minutes for your protection.`;
+  const message: string = `
+Hi ${email.split("@")[0]},
+
+You recently requested to reset your password for your Artemisa account.
+
+🔗 Reset your password using the link below:
+${link}
+
+⚠️ Please note: This link will expire in 15 minutes for your security.
+
+If you didn’t request this change, please ignore this email or contact Artemisa support immediately.
+
+— The Artemisa Team
+`;
+
     await redisClient.set(`Reset:token:${email}`, token, { EX: 15 * 60 });
     utils.SendEmailSmtp(res, email, message).catch(console.error);
     return utils.SendRes(res, "Token sent by email check your email");
@@ -737,6 +752,7 @@ We’re letting you know that the password for your account (${email}) was just 
 🖥️ Device: ${req.get("User-Agent") || ""}
 
 If you did NOT change your password, please secure your account immediately.
+— The Artemisa Team
 `;
 await prisma.user.updateMany({ where: { email }, data: { tokenVersion: (user.tokenVersion || 0) + 1 } });
     utils.SendEmailSmtp(res, email, message).catch(console.error);
@@ -1068,7 +1084,7 @@ username: utils.generateUsername(name),
 name,
 password: '',
 saltPassword: '',
-token: '',
+
 dateOfBirth: "2001-11-03T00:00:00.000Z",
 }});
 // optionally send email
@@ -1079,7 +1095,7 @@ const token = await utils.GenerateJwt(payload);
 const refreshToken =await  utils.GenerateJwt(payload);
 await redisClient.set(`refresh-token:${user.email}:${deviceId}`, refreshToken.token, { EX: 60*60*24*30 });
 res.cookie('refresh-token', refreshToken, { maxAge: 1000*60*60*24*30, httpOnly: true, secure: true, domain: process.env.FRONTEND_HOST });
-await prisma.user.update({ where: { email }, data: { tokenVersion: (user.tokenVersion || 0) + 1, provider: 'github' } });
+await prisma.user.update({ where: { email }, data: { tokenVersion: (user.tokenVersion || 0) + 1 } });
 const userRefreshed = await prisma.user.findUnique({ where: { email } });
 return res.json({ token, user: userRefreshed, device: { id: deviceId } });
 }catch(err:any){
@@ -1107,7 +1123,7 @@ username: utils.generateUsername(name),
 name,
 password: '',
 saltPassword: '',
-token: '',
+
 dateOfBirth:  "2001-11-03T00:00:00.000Z",
 }});
 }
@@ -1119,7 +1135,7 @@ res.cookie('refresh-token', refreshToken, { maxAge: 1000*60*60*24*24*30, httpOnl
 
 await prisma.user.update({
   where: { email },
-  data: { tokenVersion: (user.tokenVersion || 0) + 1, provider: 'google' }
+  data: { tokenVersion: (user.tokenVersion || 0) + 1 }
 });
 
 const userRefreshed = await prisma.user.findUnique({ where: { email } });

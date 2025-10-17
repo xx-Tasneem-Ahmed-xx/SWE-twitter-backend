@@ -54,7 +54,7 @@ export async function createSampleUser() {
         email: `user_${Date.now()}@example.com`,
         password: 'hashedpassword',
         saltPassword: 'salt',
-        token: 'token',
+      
         dateOfBirth: new Date('1990-01-01'),
         bio: 'Sample user created for testing',
       },
