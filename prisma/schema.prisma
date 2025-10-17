@@ -15,31 +15,29 @@ datasource db {
 }
 
 model User {
-  id               String    @id @default(uuid())
-  name             String?
-  username         String    @unique
-  email            String    @unique
-  password         String
-  saltPassword     String
-  token            String
-  tokenVersion     Int?
-  otp              String?
-  otpExpiry        DateTime?
-  bio              String?
-  dateOfBirth      DateTime
-  joinDate         DateTime  @default(now())
-  verified         Boolean   @default(false)
-  address          String?
-  website          String?
-  protectedAccount Boolean   @default(false)
-  profilePhoto     String?
-  cover            String?
-  isEmailVerified  Boolean   @default(false)
-  tfaVerifed       Boolean   @default(false)
-  provider         String?
-  loginCodes       String?
-  loginCodesSet    Boolean   @default(false)
-
+  id                    String          @id @default(uuid())
+  name                  String?
+  username              String          @unique
+  email                 String          @unique
+  password              String
+  saltPassword          String
+  tokenVersion          Int?
+  otp                   String?
+  otpExpiry             DateTime?
+  bio                   String?
+  dateOfBirth           DateTime
+  joinDate              DateTime        @default(now())
+  verified              Boolean         @default(false)
+  address               String?
+  website               String?
+  protectedAccount      Boolean         @default(false)
+  profilePhoto          String?
+  cover                 String?
+  isEmailVerified       Boolean         @default(false)
+  tfaVerifed            Boolean         @default(false)
+  loginCodes            String?
+  loginCodesSet         Boolean         @default(false)
+  unseenChatCount       Int             @default(0)
   messages              Message[]
   tweet                 Tweet[]
   followers             Follow[]        @relation("UserFollowers")

@@ -11,10 +11,9 @@ import { validateRequest } from "../middlewares/validateRequest.middleware";
 
 const router = Router();
 
-router.get("/search", searchUsers);
-router.get("/:username", getUserProfile);
-
-
+// All profile and search endpoints require auth
+router.get("/search", requireAuth, searchUsers);
+router.get("/:username", requireAuth, getUserProfile);
 
 router.patch(
   "/:id",
@@ -24,7 +23,5 @@ router.patch(
   ensureOwner("id"),
   updateUserProfile
 );
-
-
 
 export default router;
