@@ -4,7 +4,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
 extendZodWithOpenApi(z);
 
-const StringSchema = z
+export const StringSchema = z
   .string()
   .min(1, { message: "Content must not be empty" });
 
