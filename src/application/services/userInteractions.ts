@@ -1,13 +1,6 @@
 import { prisma, FollowStatus } from "@/prisma/client";
 import { Response } from "express";
 
-// Check if user is authenticated and return error response if not
-// TODO: Again this is to be discussed with auth middleware implementation
-export const authenticated = (userId: string, res: Response) => {
-  if (!userId) return res.status(400).json({ error: "userId is required" });
-  return true;
-};
-
 // Check if a user exists by username
 export const findUserByUsername = async (username: string) => {
   return prisma.user.findUnique({
@@ -258,6 +251,12 @@ export const createBlockRelation = async (
           ],
         },
       });
+      await tx.mute.deleteMany({
+        where: {
+          muterId: blockerId,
+          mutedId: blockedId,
+        },
+      });
       return await tx.block.create({
         data: {
           blockerId,
@@ -317,9 +316,48 @@ export const getBlockedList = async (blockerId: string) => {
   };
 };
 
+// check if user is muted by muterId
+export const checkMuteStatus = async (muterId: string, mutedId: string) => {
+  const muteCount = await prisma.mute.count({
+    where: {
+      muterId,
+      mutedId,
+    },
+  });
+  return muteCount > 0;
+};
+
 // mute a user
+export const muteUserById = async (muterId: string, mutedId: string) => {
+  try {
+    return await prisma.mute.create({
+      data: {
+        muterId,
+        mutedId,
+      },
+    });
+  } catch (error) {
+    console.error("Mute user error:", error);
+    throw new Error("Failed to create mute relation");
+  }
+};
 
 // unmute a user
+export const removeMuteRelation = async (muterId: string, mutedId: string) => {
+  try {
+    await prisma.mute.delete({
+      where: {
+        muterId_mutedId: {
+          muterId,
+          mutedId,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Remove mute relation error:", error);
+    throw new Error("Failed to remove mute relation");
+  }
+};
 
 // Get list of users muted
 export const getMutedList = async (muterId: string) => {
