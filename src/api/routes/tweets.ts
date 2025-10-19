@@ -21,6 +21,7 @@ router
 
 router
   .route("/:id/retweets")
+  .get(tweetController.getRetweets)
   .post(tweetController.createReTweet)
   .delete(tweetController.deleteRetweet);
 
@@ -32,5 +33,11 @@ router
   .route("/:id/replies")
   .get(tweetController.getTweetReplies)
   .post(validateBody(CreateTweetDTOSchema), tweetController.createReply);
+
+router
+  .route("/:id/likes")
+  .get(tweetController.getLikers)
+  .post(tweetController.likeTweet)
+  .delete(tweetController.deleteLike);
 
 export default router;
