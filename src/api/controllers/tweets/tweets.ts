@@ -83,6 +83,16 @@ export class TweetController {
     }
   }
 
+  async getRetweets(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const retweets = await tweetService.getRetweets(id);
+      res.status(200).json(retweets);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async deleteRetweet(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as any).user.id;
@@ -104,21 +114,53 @@ export class TweetController {
     }
   }
 
-  async getLikedTweets(req: Request, res: Response, next: NextFunction) {
-    try {
-      const userId = (req as any).user.id;
-      const tweets = await tweetService.getLikedTweets(userId);
-      res.status(200).json(tweets);
-    } catch (error) {
-      next(error);
-    }
-  }
-
   async getTweetReplies(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
       const replies = await tweetService.getTweetReplies(id);
       res.status(200).json(replies);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async likeTweet(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as any).user.id;
+      const { id } = req.params;
+      await tweetService.likeTweet(userId, id);
+      res.status(200).json("Tweet liked successfully");
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteLike(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as any).user.id;
+      const { id } = req.params;
+      await tweetService.deleteLike(userId, id);
+      res.status(200).json("Tweet unliked successfully");
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getLikers(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const likers = await tweetService.getLikers(id);
+      res.status(200).json(likers);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getLikedTweets(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as any).user.id;
+      const tweets = await tweetService.getLikedTweets(userId);
+      res.status(200).json(tweets);
     } catch (error) {
       next(error);
     }

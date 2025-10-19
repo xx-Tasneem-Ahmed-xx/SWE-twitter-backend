@@ -76,6 +76,7 @@ app.use("/api/tweets", tweetRoutes);
 app.use("/api/users", userRouter);
 app.use("/api", userInteractionsRoutes);
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
+app.use(errorHandler);
 
 export default httpServer;
 export { app };

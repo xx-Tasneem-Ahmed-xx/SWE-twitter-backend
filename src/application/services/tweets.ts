@@ -9,8 +9,14 @@ import {
   CreateTweetServiceDto,
   TimelineServiceDTO,
 } from "../dtos/tweets/service/tweets.dto";
+import { AppError } from "@/errors/AppError";
 
 export class TweetService {
+  private validateId(id: string) {
+    if (!id || typeof id !== "string") {
+      throw new AppError("Invalid ID", 400);
+    }
+  }
   async createTweet(dto: CreateTweetServiceDto) {
     return prisma.tweet.create({
       data: { ...dto, tweetType: TweetType.TWEET },
@@ -29,7 +35,7 @@ export class TweetService {
           data: { quotesCount: { increment: 1 } },
         }),
       ]);
-    else throw new Error("You cannot quote a protected tweet");
+    else throw new AppError("You cannot quote a protected tweet", 403);
   }
 
   async createReply(dto: CreateReplyOrQuoteServiceDTO) {
@@ -44,10 +50,11 @@ export class TweetService {
           data: { repliesCount: { increment: 1 } },
         }),
       ]);
-    else throw new Error("You cannot reply to this tweet");
+    else throw new AppError("You cannot reply to this tweet", 403);
   }
 
   async createRetweet(dto: CreateReTweetServiceDto) {
+    this.validateId(dto.parentId);
     const valid = await validToRetweetOrQuote(dto.parentId);
     if (valid)
       return prisma.$transaction([
@@ -59,10 +66,28 @@ export class TweetService {
           data: { retweetCount: { increment: 1 } },
         }),
       ]);
-    else throw new Error("You cannot retweet a protected tweet");
+    else throw new AppError("You cannot retweet a protected tweet", 403);
+  }
+
+  async getRetweets(tweetId: string) {
+    this.validateId(tweetId);
+    return prisma.retweet.findMany({
+      where: { tweetId },
+      select: {
+        user: {
+          select: {
+            name: true,
+            username: true,
+            profilePhoto: true,
+            verified: true,
+          },
+        },
+      },
+    });
   }
 
   async getTweet(id: string) {
+    this.validateId(id);
     return prisma.tweet.findUnique({
       where: { id },
       include: {
@@ -80,16 +105,18 @@ export class TweetService {
   }
 
   async updateTweet(id: string, content: string) {
+    this.validateId(id);
     return prisma.tweet.update({ where: { id }, data: { content } });
   }
 
   async deleteTweet(id: string) {
+    this.validateId(id);
     const tweet = await prisma.tweet.findUnique({
       where: { id },
       select: { parentId: true, tweetType: true },
     });
 
-    if (!tweet) throw new Error("Tweet not found");
+    if (!tweet) throw new AppError("Tweet not found", 404);
 
     if (!tweet.parentId)
       return prisma.$transaction([
@@ -105,6 +132,7 @@ export class TweetService {
   }
 
   private async deleteReply(id: string, parentId: string) {
+    this.validateId(id);
     return prisma.$transaction([
       prisma.tweet.delete({ where: { id } }),
       prisma.retweet.deleteMany({ where: { tweetId: id } }),
@@ -116,6 +144,7 @@ export class TweetService {
   }
 
   private async deleteQuote(id: string, parentId: string) {
+    this.validateId(id);
     return prisma.$transaction([
       prisma.tweet.delete({ where: { id } }),
       prisma.retweet.deleteMany({ where: { tweetId: id } }),
@@ -127,6 +156,7 @@ export class TweetService {
   }
 
   async deleteRetweet(userId: string, tweetId: string) {
+    this.validateId(tweetId);
     return prisma.$transaction([
       prisma.retweet.delete({
         where: { userId_tweetId: { userId, tweetId } },
@@ -170,6 +200,68 @@ export class TweetService {
             profilePhoto: true,
             verified: true,
             protectedAccount: true,
+          },
+        },
+      },
+    });
+  }
+
+  async likeTweet(userId: string, tweetId: string) {
+    this.validateId(tweetId);
+    const tweet = await prisma.tweet.findUnique({ where: { id: tweetId } });
+    if (!tweet) throw new AppError("Tweet not found", 404);
+
+    const existingLike = await prisma.tweetLike.findUnique({
+      where: { userId_tweetId: { userId, tweetId } },
+    });
+
+    if (existingLike) throw new AppError("Tweet already liked", 409);
+    return prisma.$transaction([
+      prisma.tweet.update({
+        where: { id: tweetId },
+        data: { likesCount: { increment: 1 } },
+      }),
+      prisma.tweetLike.create({ data: { userId, tweetId } }),
+    ]);
+  }
+
+  async deleteLike(userId: string, tweetId: string) {
+    this.validateId(tweetId);
+    const existingLike = await prisma.tweetLike.findUnique({
+      where: {
+        userId_tweetId: {
+          userId,
+          tweetId,
+        },
+      },
+    });
+
+    if (!existingLike) {
+      throw new AppError("You haven't liked this tweet yet", 409);
+    }
+
+    return prisma.$transaction([
+      prisma.tweetLike.delete({
+        where: { userId_tweetId: { userId, tweetId } },
+      }),
+      prisma.tweet.update({
+        where: { id: tweetId },
+        data: { likesCount: { decrement: 1 } },
+      }),
+    ]);
+  }
+
+  async getLikers(tweetId: string) {
+    this.validateId(tweetId);
+    return prisma.tweetLike.findMany({
+      where: { tweetId },
+      select: {
+        user: {
+          select: {
+            name: true,
+            username: true,
+            profilePhoto: true,
+            verified: true,
           },
         },
       },
