@@ -12,6 +12,7 @@ import ChatRouter from "@/api/routes/chatRoutes";
 import notificationRoutes from "@/api/routes/notificationRoutes";
 import mediaRouter from "@/api/routes/media";
 import tweetRoutes from "@/api/routes/tweets";
+import timelineRoutes from "@/api/routes/timeline";
 import userInteractionsRoutes from "@/api/routes/userInteractions";
 import userRouter from "@/api/routes/user.routes";
 import { errorHandler } from "@/api/middlewares/errorHandler";
@@ -39,7 +40,7 @@ app.use(morgan("dev"));
 app.use(compression());
 app.use(express.json());
 app.use(cookieParser());
-// Create HTTP server and Socket.IO server
+
 const httpServer = createServer(app);
 export const io: SocketIOServer = new SocketIOServer(httpServer, {
   cors: {
@@ -48,7 +49,6 @@ export const io: SocketIOServer = new SocketIOServer(httpServer, {
   },
 });
 
-// Initialize Socket Service
 const socketService = new SocketService(io);
 export { socketService };
 
@@ -68,13 +68,16 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use("/api/auth", authRoutes);
 app.use("/oauth2", oauthRoutes);
 app.use(Auth());
+
 app.use("/api/dm", ChatRouter);
 app.use("/api/media", mediaRouter);
 app.use("/api/notifications", notificationRoutes);
 
 app.use("/api/tweets", tweetRoutes);
+app.use("/api/home", timelineRoutes);
 app.use("/api/users", userRouter);
 app.use("/api", userInteractionsRoutes);
+
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
 app.use(errorHandler);
 

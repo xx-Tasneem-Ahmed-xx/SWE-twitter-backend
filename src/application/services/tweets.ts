@@ -7,7 +7,6 @@ import {
   CreateReplyOrQuoteServiceDTO,
   CreateReTweetServiceDto,
   CreateTweetServiceDto,
-  TimelineServiceDTO,
 } from "@/application/dtos/tweets/service/tweets.dto";
 import { AppError } from "@/errors/AppError";
 import { generateTweetSumamry } from "./aiSummary";
@@ -292,52 +291,6 @@ export class TweetService {
     return {
       tweetId: tweetId,
       summary: summary,
-    };
-  }
-
-  // till now return mine and my followers tweets and retweets
-  async getTimeline(dto: TimelineServiceDTO) {
-    const followersRecords = await prisma.follow.findMany({
-      where: { followerId: dto.userId },
-      select: { followingId: true },
-    });
-
-    const followersId = followersRecords.map(
-      (follower) => follower.followingId
-    );
-
-    const timline = await prisma.tweet.findMany({
-      where: {
-        userId: { in: [...followersId, dto.userId] },
-      },
-      include: {
-        retweets: {
-          where: { userId: { in: [...followersId, dto.userId] } },
-          select: {
-            user: {
-              select: {
-                username: true,
-                name: true,
-                profilePhoto: true,
-                verified: true,
-                protectedAccount: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: dto.limit + 1,
-      ...(dto.cursor && { cursor: { id: dto.cursor }, skip: 1 }),
-    });
-
-    const hasNextPage = timline.length > dto.limit;
-    const paginatedTweets = hasNextPage ? timline.slice(0, -1) : timline;
-    return {
-      data: paginatedTweets,
-      nextCursor: hasNextPage
-        ? paginatedTweets[paginatedTweets.length - 1].id
-        : null,
     };
   }
 }

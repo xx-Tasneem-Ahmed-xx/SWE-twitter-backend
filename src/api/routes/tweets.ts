@@ -11,8 +11,6 @@ router
 
 router.route("/likedtweets").get(tweetController.getLikedTweets);
 
-router.route("/timeline").get(tweetController.getTimeline);
-
 router
   .route("/:id")
   .get(tweetController.getTweet)
