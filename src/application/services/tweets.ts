@@ -8,8 +8,9 @@ import {
   CreateReTweetServiceDto,
   CreateTweetServiceDto,
   TimelineServiceDTO,
-} from "../dtos/tweets/service/tweets.dto";
+} from "@/application/dtos/tweets/service/tweets.dto";
 import { AppError } from "@/errors/AppError";
+import { generateTweetSumamry } from "./aiSummary";
 
 export class TweetService {
   private validateId(id: string) {
@@ -266,6 +267,32 @@ export class TweetService {
         },
       },
     });
+  }
+
+  async getTweetSummary(tweetId: string) {
+    this.validateId(tweetId);
+
+    const tweet = await prisma.tweet.findUnique({
+      where: { id: tweetId },
+      select: { content: true },
+    });
+
+    if (!tweet) throw new AppError("Tweet not found", 404);
+
+    const existingSummary = await prisma.tweetSummary.findUnique({
+      where: { tweetId },
+      select: { tweetId: true, summary: true },
+    });
+
+    if (existingSummary) return existingSummary;
+
+    const summary = await generateTweetSumamry(tweet.content);
+    await prisma.tweetSummary.create({ data: { tweetId, summary } });
+
+    return {
+      tweetId: tweetId,
+      summary: summary,
+    };
   }
 
   // till now return mine and my followers tweets and retweets

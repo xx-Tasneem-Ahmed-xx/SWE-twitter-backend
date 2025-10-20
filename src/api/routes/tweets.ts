@@ -40,4 +40,6 @@ router
   .post(tweetController.likeTweet)
   .delete(tweetController.deleteLike);
 
+router.route("/:id/summary").get(tweetController.getTweetSummary);
+
 export default router;
