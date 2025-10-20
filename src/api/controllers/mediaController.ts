@@ -7,6 +7,23 @@ import { UUID } from "crypto";
 import { mediaSchema } from "../../application/dtos/media/media.schema.dto";
 
 
+export const requestToUploadMedia = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = req.user?.id;
+        const user = await prisma.user.findUnique({
+            where: { id: userId }
+        })
+        if(user){
+            //get a signed url from cloud storage service
+        }else{
+            return res.status(404).json({ error: "User not authorized" });
+        }
+    } catch (error) {
+        return res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+
 export const addMediaTotweet = async (req: Request, res: Response) => {
     try {
         

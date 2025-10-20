@@ -108,4 +108,43 @@ export const registerMediaDocs = (registry: OpenAPIRegistry) => {
             }
         }
     });
+
+    registry.registerPath({
+        method: "post",
+        path: "api/media/requestToUploadMedia",
+        summary: "Request to upload media",
+        tags: ["Media"],
+        responses: {
+            200: {
+                description: "Upload request successful",
+                content: {
+                    "application/json": {
+                        schema: z.object({
+                            url: z.string().url()
+                        })
+                    }
+                }
+            },
+            401: {
+                description: "Unauthorized",
+                content: {
+                    "application/json": {
+                        schema: z.object({
+                            error: z.string()
+                        })
+                    }
+                }
+            },
+            500: {
+                description: "Internal server error",  
+                content: {
+                    "application/json": {
+                        schema: z.object({
+                            error: z.string()
+                        })
+                    }
+                }
+            }
+        }
+    })
 };
