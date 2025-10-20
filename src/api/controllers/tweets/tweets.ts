@@ -166,6 +166,16 @@ export class TweetController {
     }
   }
 
+  async getTweetSummary(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const tweetSummary = await tweetService.getTweetSummary(id);
+      res.status(200).json(tweetSummary);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getTimeline(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as any).user.id;
