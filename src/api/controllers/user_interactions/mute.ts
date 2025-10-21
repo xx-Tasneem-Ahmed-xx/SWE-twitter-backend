@@ -4,7 +4,7 @@ import {
   findUserByUsername,
   checkBlockStatus,
   checkMuteStatus,
-  muteUserById,
+  createMuteRelation,
   removeMuteRelation,
   getMutedList,
 } from "@/application/services/userInteractions";
@@ -44,7 +44,7 @@ export const muteUser = async (
         error: "Can't mute blocked users /users who blocked you",
       });
 
-    await muteUserById(currentUserId, userToMute.id);
+    await createMuteRelation(currentUserId, userToMute.id);
     return res.status(201).json({
       message: "User muted successfully",
       currentUserId,
