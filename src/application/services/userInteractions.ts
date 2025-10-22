@@ -328,7 +328,7 @@ export const checkMuteStatus = async (muterId: string, mutedId: string) => {
 };
 
 // mute a user
-export const muteUserById = async (muterId: string, mutedId: string) => {
+export const createMuteRelation = async (muterId: string, mutedId: string) => {
   try {
     return await prisma.mute.create({
       data: {
