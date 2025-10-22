@@ -58,6 +58,7 @@ model User {
   notificationWithActor Notification[]  @relation("Actor")
   oldPassword           OldPassword[]
   deviceRecord          DeviceRecord[]
+  OAuthAccount          OAuthAccount[]
 
   @@map("users")
 }
@@ -99,6 +100,14 @@ model DeviceRecord {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("device_record")
+}
+
+model OAuthAccount {
+  id         String @id @default(uuid())
+  provider   String
+  providerId String
+  userId     String
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Tweet {
