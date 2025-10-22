@@ -134,4 +134,46 @@ registry.registerPath({
       400: { description: "Missing or invalid search query." },
     },
   });
+
+  registry.registerPath({
+    method: "patch",
+    path: "/api/users/{id}/profile-picture",
+    summary: "Update user profile picture",
+    description:
+      "Allows the authenticated user to update their profile picture by providing the new photo URL.",
+    tags: ["Users"],
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: UserIdParams,
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: z.object({
+              photoUrl: z
+                .string()
+                .url()
+                .describe("Direct URL of the new profile picture"),
+            }),
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: "Profile picture updated successfully.",
+        content: {
+          "application/json": {
+            schema: UserResponse,
+          },
+        },
+      },
+      400: { description: "Invalid or missing photo URL." },
+      401: { description: "Unauthorized — missing or invalid JWT token." },
+      403: { description: "You cannot update another user's photo." },
+      404: { description: "User not found." },
+    },
+  });
+
+
 };

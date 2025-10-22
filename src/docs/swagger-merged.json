@@ -3281,7 +3281,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-20T17:41:36.333Z"
+                        "default": "2025-10-22T21:30:52.213Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3441,7 +3441,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-20T17:41:36.333Z"
+                      "default": "2025-10-22T21:30:52.213Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3664,7 +3664,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-20T17:41:36.333Z"
+                            "default": "2025-10-22T21:30:52.213Z"
                           },
                           "userId": {
                             "type": "string",
@@ -3800,7 +3800,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-20T17:41:36.333Z"
+                      "default": "2025-10-22T21:30:52.213Z"
                     },
                     "userId": {
                       "type": "string",
@@ -4164,6 +4164,122 @@
           },
           "400": {
             "description": "Missing or invalid search query."
+          }
+        }
+      }
+    },
+    "/api/users/{id}/profile-picture": {
+      "patch": {
+        "summary": "Update user profile picture",
+        "description": "Allows the authenticated user to update their profile picture by providing the new photo URL.",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Unique ID of the user"
+            },
+            "required": true,
+            "description": "Unique ID of the user",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "photoUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Direct URL of the new profile picture"
+                  }
+                },
+                "required": [
+                  "photoUrl"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile picture updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "username": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "bio": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "website": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "profilePhoto": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "protectedAccount": {
+                      "type": "boolean"
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "joinDate": {
+                      "type": "string",
+                      "description": "Date the user joined the platform"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "username",
+                    "email",
+                    "bio",
+                    "website",
+                    "profilePhoto",
+                    "protectedAccount",
+                    "verified",
+                    "joinDate"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or missing photo URL."
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid JWT token."
+          },
+          "403": {
+            "description": "You cannot update another user's photo."
+          },
+          "404": {
+            "description": "User not found."
           }
         }
       }

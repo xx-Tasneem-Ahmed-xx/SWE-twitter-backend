@@ -53,3 +53,12 @@ export const SearchUserResponseDTOSchema = z
     verified: z.boolean(),
   })
   .openapi("SearchUserResponseDTO");
+
+  export const UpdateUserProfilePhotoDTOSchema = z
+    .object({
+      photoUrl: z
+        .string()
+        .url({ message: "Invalid photo URL" })
+        .describe("Direct URL of the new profile picture"),
+    })
+    .openapi("UpdateUserProfilePhotoDTO");
