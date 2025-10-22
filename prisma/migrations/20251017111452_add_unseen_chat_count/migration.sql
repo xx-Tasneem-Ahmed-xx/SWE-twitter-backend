@@ -6,6 +6,6 @@
 
 */
 -- AlterTable
-ALTER TABLE "public"."users" DROP COLUMN "provider",
-DROP COLUMN "token",
-ADD COLUMN     "unseenChatCount" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "public"."users" DROP COLUMN IF EXISTS "provider",
+DROP COLUMN IF EXISTS "token",
+ADD COLUMN IF NOT EXISTS   "unseenChatCount" INTEGER NOT NULL DEFAULT 0;
