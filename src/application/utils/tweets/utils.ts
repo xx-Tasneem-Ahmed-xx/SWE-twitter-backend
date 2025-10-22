@@ -283,6 +283,7 @@ export async function CheckPass(
   hashed: string
 ): Promise<boolean> {
   try {
+    
     return await bcrypt.compare(password + PEPPER, hashed);
   } catch {
     return false;
