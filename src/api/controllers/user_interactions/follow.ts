@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from "express";
 import {
-  authenticated,
   findUserByUsername,
   createFollowRelation,
   removeFollowRelation,
@@ -28,7 +27,6 @@ export const followUser = async (
     }
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
 
     const userToFollow = await findUserByUsername(username);
     if (!userToFollow) return res.status(404).json({ error: "User not found" });
@@ -79,7 +77,6 @@ export const unfollowUser = async (
     }
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
     const userToUnfollow = await findUserByUsername(username);
     if (!userToUnfollow)
       return res.status(404).json({ error: "User not found" });
@@ -115,7 +112,6 @@ export const acceptFollow = async (
     }
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
 
     const follower = await findUserByUsername(username);
     if (!follower) return res.status(404).json({ error: "User not found" });
@@ -155,7 +151,6 @@ export const declineFollow = async (
 
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
 
     const follower = await findUserByUsername(username);
     if (!follower) return res.status(404).json({ error: "User not found" });
@@ -194,7 +189,6 @@ export const getFollowers = async (
     }
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
 
     const user = await findUserByUsername(username);
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -228,7 +222,6 @@ export const getFollowings = async (
     }
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
 
     const user = await findUserByUsername(username);
     if (!user) return res.status(404).json({ error: "User not found" });

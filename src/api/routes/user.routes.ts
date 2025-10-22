@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   getUserProfile,
   updateUserProfile,
+  searchUsers,
 } from "../controllers/user.controller";
 import { requireAuth } from "../middlewares/auth.middleware";
 import { ensureOwner } from "../middlewares/ensureOwner.middleware";
@@ -10,7 +11,9 @@ import { validateRequest } from "../middlewares/validateRequest.middleware";
 
 const router = Router();
 
-router.get("/:username", getUserProfile);
+// All profile and search endpoints require auth
+router.get("/search", requireAuth, searchUsers);
+router.get("/:username", requireAuth, getUserProfile);
 
 router.patch(
   "/:id",
