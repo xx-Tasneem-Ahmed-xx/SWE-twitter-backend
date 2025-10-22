@@ -6,17 +6,9 @@ import {
   MessageData,
   newMessageInput,
 } from "../../application/dtos/chat/messages.dto";
-import { ChatInfo } from '../../application/dtos/chat/chatInfo.dto';
 import { MediaType } from "@/prisma/client";
-import { UUID } from "crypto";
+import { socketService } from "@/app";
 
-let socketService: any = null;
-const getSocketService = () => {
-  if (!socketService) {
-    socketService = require("../../app").socketService;
-  }
-  return socketService;
-};
 
 export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -436,7 +428,7 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
             }
         }
         for(const recipient of recipientId){
-            getSocketService().sendMessageToChat(recipient, newMessage);
+            socketService.sendMessageToChat(recipient, newMessage);
         }
         res.status(201).json({ newMessage });
         
@@ -493,3 +485,6 @@ export const getUnseenChatsCount = async (req: Request, res: Response, next: Nex
         return res.status(500).json({ error: 'Internal server error' });
     }
 }
+
+
+///commented code for reference

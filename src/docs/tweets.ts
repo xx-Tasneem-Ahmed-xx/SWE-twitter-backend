@@ -1,7 +1,6 @@
 import {
   CreateTweetDTOSchema,
-  HashTagResponseSchema,
-  timelineResponeSchema,
+  StringSchema,
   TweetResponsesSchema,
   TweetSummaryResponse,
   UsersResponseSchema,
@@ -9,39 +8,12 @@ import {
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 import { listErrors } from "@/docs/errors";
-
+import {
+  TweetIdParams,
+  UsernameParams,
+  SearchQuery,
+} from "@/docs/utils/utils";
 const errors = listErrors();
-
-const TweetIdParams = z.object({
-  id: z.uuid().describe("Tweet ID"),
-});
-
-const UsernameParams = z.object({
-  username: z
-    .string()
-    .min(3)
-    .max(30)
-    .regex(/^[a-zA-Z0-9_]+$/)
-    .describe("Username"),
-});
-
-const TrendingTweetsParams = z.object({
-  name: z.string().describe("Trend Name"),
-});
-
-const SearchQuery = z.object({
-  q: z.string().describe("Search keyword"),
-  limit: z.number().min(1).max(100).default(20).describe("Result limit"),
-  offset: z.number().default(0),
-});
-
-const CursorPaginationQuery = z.object({
-  limit: z.number().min(1).max(50).default(20),
-  cursor: z
-    .string()
-    .optional()
-    .describe("The cursor for pagination (createdAt of last tweet)"),
-});
 
 function registerSubList(
   registry: OpenAPIRegistry,
@@ -194,7 +166,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
   });
 
   registry.registerPath({
-    method: "put",
+    method: "patch",
     path: "/api/tweets/{id}",
     summary: "Update a tweet",
     description: "Updates a tweet if the user is its author.",
@@ -205,7 +177,9 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
         required: true,
         content: {
           "application/json": {
-            schema: TweetResponsesSchema,
+            schema: z.object({
+              content: StringSchema,
+            }),
           },
         },
       },
@@ -246,77 +220,9 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: "get",
-    path: "/api/tweets/timeline",
-    summary: "Get timeline tweets",
-    description: "Fetches tweets from users the current user follows.",
-    tags: ["Timeline and Feed"],
-    request: { query: CursorPaginationQuery },
-    responses: {
-      200: {
-        description: "Timeline tweets fetched successfully",
-        content: {
-          "application/json": {
-            schema: z.object({
-              data: z.array(TweetResponsesSchema),
-              nextCursor: z
-                .string()
-                .nullable()
-                .describe("Cursor for next page"),
-            }),
-          },
-        },
-      },
-      ...errors,
-    },
-  });
-
-  registry.registerPath({
-    method: "get",
-    path: "/api/tweets/search",
-    summary: "Search for tweets",
-    description: "Search tweets by content, hashtag, or users.",
-    tags: ["Timeline and Feed"],
-    request: {
-      query: SearchQuery,
-    },
-    responses: {
-      200: {
-        description: "List of matching tweets",
-        content: {
-          "application/json": {
-            schema: TweetResponsesSchema,
-          },
-        },
-        ...errors,
-      },
-    },
-  });
-
-  registry.registerPath({
-    method: "get",
-    path: "/api/tweets/user/{username}",
-    summary: "Get user's tweets",
-    description: "Returns all tweets authored by the specified user.",
-    tags: ["Timeline and Feed"],
-    request: { params: UsernameParams },
-    responses: {
-      200: {
-        description: "Tweets retrieved successfully",
-        content: {
-          "application/json": {
-            schema: z.array(TweetResponsesSchema),
-          },
-        },
-      },
-      ...errors,
-    },
-  });
-
-  registry.registerPath({
-    method: "get",
     path: "/api/tweets/user/{username}/mentioned",
     summary: "Get tweets that the user is mentioned in",
-    tags: ["Timeline and Feed"],
+    tags: ["Tweets Interactions"],
     request: { params: UsernameParams },
     responses: {
       200: {
@@ -428,56 +334,36 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: "get",
-    path: "/api/hashtags/search",
-    summary: "Search hashtags",
-    tags: ["Hashtags"],
+    path: "/api/tweets/search",
+    summary: "Search for tweets",
+    description: "Search tweets by content, hashtag, or users.",
+    tags: ["Tweets"],
     request: {
       query: SearchQuery,
     },
     responses: {
       200: {
-        description: "Matching hashtags found.",
+        description: "List of matching tweets",
         content: {
           "application/json": {
-            schema: HashTagResponseSchema,
+            schema: TweetResponsesSchema,
           },
         },
+        ...errors,
       },
-      ...errors,
     },
   });
 
   registry.registerPath({
     method: "get",
-    path: "/trends",
-    summary: "Get a list of available trends",
-    description:
-      "Returns the currently trending hashtags or topics in the last 24 hours.",
-    tags: ["Trends"],
+    path: "/api/tweets/users/{username}",
+    summary: "Get user's tweets",
+    description: "Returns all tweets authored by the specified user.",
+    tags: ["Tweets"],
+    request: { params: UsernameParams },
     responses: {
       200: {
-        description: "List of trending topics returned successfully.",
-        content: {
-          "application/json": {
-            schema: HashTagResponseSchema,
-          },
-        },
-      },
-      ...errors,
-    },
-  });
-
-  registry.registerPath({
-    method: "get",
-    path: "/trends/{name}/tweets",
-    summary: "Get tweets for a specific trend",
-    description:
-      "Fetches all tweets related to the specified trending hashtag or keyword.",
-    tags: ["Trends"],
-    request: { params: TrendingTweetsParams },
-    responses: {
-      200: {
-        description: "List of tweets associated with the trend.",
+        description: "Tweets retrieved successfully",
         content: {
           "application/json": {
             schema: z.array(TweetResponsesSchema),

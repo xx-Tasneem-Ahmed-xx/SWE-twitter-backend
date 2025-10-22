@@ -1,3 +1,4 @@
+import { AppError } from "@/errors/AppError";
 import { Prisma } from "@prisma/client";
 import { Request, Response, NextFunction } from "express";
 import { ZodError } from "zod";
@@ -22,6 +23,12 @@ export function errorHandler(
         path: e.path.join("."),
         message: e.message,
       })),
+    });
+  }
+
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json({
+      error: err.message,
     });
   }
 

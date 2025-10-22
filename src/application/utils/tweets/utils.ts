@@ -1,4 +1,4 @@
-import { prisma, ReplyControl } from "@/prisma/client"
+import { prisma, ReplyControl } from "@/prisma/client";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
@@ -17,7 +17,7 @@ import { performance } from "perf_hooks";
 // Use appropriate types for Express Request and Response
 import { Request, Response } from "express";
 const uuidv4 = async () => {
-  const { v4 } = await import('uuid');
+  const { v4 } = await import("uuid");
   return v4();
 };
 export const validToRetweetOrQuote = async (parentTweetId: string) => {
@@ -250,7 +250,7 @@ export async function GenerateJwt({
 /**
  * validate token and return {ok, payload, error}
  */
-export function ValidateToken(tokenString: string,): {
+export function ValidateToken(tokenString: string): {
   ok: boolean;
   payload?: JwtUserPayload;
   err?: Error;
@@ -291,10 +291,10 @@ export async function CheckPass(
 
 /* ------------------------------ Username generator ------------------------------ */
 
-export async function GenterUserName(name: string | undefined | null): Promise<string> {
-  const clean: string = (name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const suffix: string = (await uuidv4()).slice(0, 8);
-  return `${clean || "user"}_${suffix}`;
+export function generateUsername(name: string): string {
+  const base = name.toLowerCase().replace(/\s+/g, "");
+  const rand = Math.floor(Math.random() * 10000);
+  return `${base}${rand}`;
 }
 
 /* ------------------------------ Email checks (gmail-only logic preserved) ------------------------------ */
@@ -645,7 +645,13 @@ export async function Sendlocation(
       if (maybe) ip = maybe;
     }
     // For local testing or if IP is 127.0.0.1, fallback to external ip
+    if (!ip || ip === ":" || ip === "::1" || ip === "127.0.0.1") {
+      ip = "8.8.8.8"; // fallback for localhost
+    }
     // call ip-api.com (keep same as Go)
+    if (!ip || ip === ":" || ip === "::1" || ip === "127.0.0.1") {
+      ip = "8.8.8.8"; // fallback for localhost
+    }
     const target: string =
       ip.includes("127.0.0.1") || ip.includes("::1") ? "8.8.8.8" : ip;
     console.log("🌍 Sending location request for:", target);
@@ -958,7 +964,7 @@ export async function SetSession(
       (req as any).devid || (req.body as any)?.devid || null;
 
     const session: UserSession = {
-      Jti: jti || await uuidv4(),
+      Jti: jti || (await uuidv4()),
       UserID: userId,
       IsActive: true,
       IssuedAT: new Date().toISOString(),
@@ -966,8 +972,8 @@ export async function SetSession(
       ExpireAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     };
 
-    const key: string = `User:sessions:${userId}`;
-
+    const key: string = `User:sessions:${userId}:${jti}`;
+    console.log("Storing session in Redis key:", key, "session:", session);
     // Push new session into Redis list (acts like array)
     await redisClient.rPush(key, JSON.stringify(session));
 
