@@ -19,6 +19,8 @@ import { errorHandler } from "@/api/middlewares/errorHandler";
 import authRoutes from "@/api/routes/authRoutes";
 import Auth from "@/api/middlewares/Auth";
 import oauthRoutes from "./api/routes/oauthRoutes";
+import { S3Client } from "@aws-sdk/client-s3";
+import { StorageSystem } from "@/application/services/storeageSystem";
 import fs from "fs";
 import {
   Request,
@@ -48,6 +50,10 @@ export const io: SocketIOServer = new SocketIOServer(httpServer, {
     methods: ["GET", "POST"],
   },
 });
+
+const s3 = new S3Client({ region: process.env.AWS_REGION });
+const storageService = new StorageSystem(s3);
+export { storageService };
 
 const socketService = new SocketService(io);
 export { socketService };

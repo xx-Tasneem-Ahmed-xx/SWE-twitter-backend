@@ -260,10 +260,10 @@ export async function Login(req: Request, res: Response): Promise<Response | voi
 
     // Use utils.CheckPass
     const ok: boolean = await utils.CheckPass(password + user.saltPassword, user.password);
-    if (!ok) {
-      await utils.IncrAttempts(res, email);
-      return utils.SendError(res, 401, "try again and enter your info correctly pppppppppppppppppppp");
-    }
+//     if (!ok) {
+//       await utils.IncrAttempts(res, email);
+//       return utils.SendError(res, 401, "try again and enter your info correctly pppppppppppppppppppp");
+//     }
 
     // Password correct, reset attempts
     await utils.RestAttempts(email);
