@@ -47,7 +47,6 @@ export const muteUser = async (
     await createMuteRelation(currentUserId, userToMute.id);
     return res.status(201).json({
       message: "User muted successfully",
-      currentUserId,
     });
   } catch (error) {
     next(error);
@@ -83,7 +82,6 @@ export const unmuteUser = async (
     await removeMuteRelation(currentUserId, userToUnmute.id);
     return res.status(200).json({
       message: "User unmuted successfully",
-      currentUserId,
     });
   } catch (error) {
     next(error);

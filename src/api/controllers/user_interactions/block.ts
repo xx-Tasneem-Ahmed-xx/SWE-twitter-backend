@@ -39,7 +39,6 @@ export const blockUser = async (
     await createBlockRelation(currentUserId, userToBlock.id);
     return res.status(201).json({
       message: "User blocked successfully",
-      currentUserId,
     });
   } catch (error) {
     next(error);
