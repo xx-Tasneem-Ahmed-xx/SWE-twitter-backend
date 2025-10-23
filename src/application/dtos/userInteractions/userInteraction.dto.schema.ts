@@ -30,6 +30,6 @@ export const FollowsListResponseSchema = z
             .describe("Is this user following the current user"),
         })
       )
-      .describe("List of followers or followings"),
+      .describe("List of followers, followings, blocked or muted users"),
   })
-  .openapi("FollowsListResponse");
+  .openapi("UserInteractionsListResponse");
