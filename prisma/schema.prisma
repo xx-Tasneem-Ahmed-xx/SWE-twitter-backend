@@ -31,14 +31,15 @@ model User {
   address                 String?
   website                 String?
   protectedAccount        Boolean   @default(false)
-  profilePhoto            String?
-  cover                   String?
   isEmailVerified         Boolean   @default(false)
   tfaVerifed              Boolean   @default(false)
   loginCodes              String?
   loginCodesSet           Boolean   @default(false)
   unseenChatCount         Int       @default(0)
   unseenNotificationCount Int       @default(0)
+  // TODO: add default ids when their medias is uploaded to s3
+  profileMediaId          String?
+  coverMediaId            String?
 
   messages              Message[]
   tweet                 Tweet[]
@@ -56,9 +57,13 @@ model User {
   blocked               Block[]         @relation("Blocked")
   notification          Notification[]  @relation("User")
   notificationWithActor Notification[]  @relation("Actor")
-  oldPassword           OldPassword[]
-  deviceRecord          DeviceRecord[]
-  OAuthAccount          OAuthAccount[]
+  profileMedia          Media?          @relation("profileMedia", fields: [profileMediaId], references: [id])
+  coverMedia            Media?          @relation("coverMedia", fields: [coverMediaId], references: [id])
+
+  oldPassword  OldPassword[]
+  deviceRecord DeviceRecord[]
+  oAuthAccount OAuthAccount[]
+  userMedia    UserMedia[]
 
   @@map("users")
 }
@@ -218,16 +223,31 @@ model Notification {
 }
 
 model Media {
-  id   String    @id @default(uuid())
-  name String
-  url  String
-  type MediaType
-  size Int?
+  id      String    @id @default(uuid())
+  name    String
+  keyName String
+  type    MediaType
+  size    Int?
 
-  tweetMedia   TweetMedia[]
-  messageMedia MessageMedia[]
+  tweetMedia        TweetMedia[]
+  messageMedia      MessageMedia[]
+  userMedia         UserMedia[]
+  profileMediaUsers User[]         @relation("profileMedia")
+  coverMediaUsers   User[]         @relation("coverMedia")
 
   @@map("medias")
+}
+
+model UserMedia {
+  userId  String
+  mediaId String
+  type    UserMediaType
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, mediaId])
+  @@map("usermedias")
 }
 
 model TweetMedia {
@@ -383,4 +403,9 @@ enum MediaType {
 enum FollowStatus {
   PENDING
   ACCEPTED
+}
+
+enum UserMediaType {
+  PROFILE
+  COVER
 }
