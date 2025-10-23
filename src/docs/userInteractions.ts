@@ -12,7 +12,8 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
     tags: ["User Interactions"],
     request: { params: UserInteractionParamsSchema },
     responses: {
-      201: { description: "Follow request sent or user followed successfully" },
+      201: { description: "User followed successfully" },
+      202: { description: "Follow request sent" },
       400: { description: "Can't follow yourself or already following user" },
       403: { description: "Can't follow blocked users /users who blocked you" },
       404: { description: "User not found" },
@@ -27,7 +28,8 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
     tags: ["User Interactions"],
     request: { params: UserInteractionParamsSchema },
     responses: {
-      200: { description: "Unfollowed user or cancelled follow request" },
+      200: { description: "Unfollowed user" },
+      202: { description: "Follow request cancelled" },
       400: { description: "You are not following this user" },
       404: { description: "User not found" },
       500: { description: "Internal server error" },
@@ -55,7 +57,8 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
     tags: ["User Interactions"],
     request: { params: UserInteractionParamsSchema },
     responses: {
-      200: { description: "Follow request declined or follower removed" },
+      200: { description: "Follower removed" },
+      202: { description: "Follow request declined" },
       404: { description: "No follow request found" },
       500: { description: "Internal server error" },
     },
