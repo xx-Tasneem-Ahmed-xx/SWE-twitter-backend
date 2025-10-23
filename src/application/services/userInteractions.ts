@@ -105,7 +105,7 @@ type UserData = {
   id: string;
   username: string;
   name: string | null;
-  profilePhoto: string | null;
+  profileMedia: { keyName: string } | null;
   bio: string | null;
   verified: boolean;
 };
@@ -156,7 +156,7 @@ const formatUserForResponse = (
   return {
     username: user.username,
     name: user.name,
-    photo: user.profilePhoto || null,
+    photo: user.profileMedia ? user.profileMedia.keyName : null,
     bio: user.bio || null,
     verified: user.verified,
     isFollowing,
@@ -177,9 +177,13 @@ export const getFollowersList = async (
           id: true,
           username: true,
           name: true,
-          profilePhoto: true,
           bio: true,
           verified: true,
+          profileMedia: {
+            select: {
+              keyName: true,
+            },
+          },
         },
       },
     },
@@ -213,9 +217,13 @@ export const getFollowingsList = async (
           id: true,
           username: true,
           name: true,
-          profilePhoto: true,
           bio: true,
           verified: true,
+          profileMedia: {
+            select: {
+              keyName: true,
+            },
+          },
         },
       },
     },
@@ -300,9 +308,13 @@ export const getBlockedList = async (blockerId: string) => {
           id: true,
           username: true,
           name: true,
-          profilePhoto: true,
           bio: true,
           verified: true,
+          profileMedia: {
+            select: {
+              keyName: true,
+            },
+          },
         },
       },
     },
@@ -369,9 +381,13 @@ export const getMutedList = async (muterId: string) => {
           id: true,
           username: true,
           name: true,
-          profilePhoto: true,
           bio: true,
           verified: true,
+          profileMedia: {
+            select: {
+              keyName: true,
+            },
+          },
         },
       },
     },

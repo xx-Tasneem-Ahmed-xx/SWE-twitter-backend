@@ -8,6 +8,34 @@ describe("User Interactions Service", () => {
     await connectToDatabase();
     console.log("Running tests with real database connection");
 
+    // Create media records first
+    const media1 = await prisma.media.create({
+      data: {
+        id: "media1",
+        name: "profile1.jpg",
+        keyName: "https://example.com/photo1.jpg",
+        type: "IMAGE",
+      },
+    });
+
+    const media2 = await prisma.media.create({
+      data: {
+        id: "media2",
+        name: "profile2.jpg",
+        keyName: "https://example.com/photo2.jpg",
+        type: "IMAGE",
+      },
+    });
+
+    const media3 = await prisma.media.create({
+      data: {
+        id: "media3",
+        name: "profile3.jpg",
+        keyName: "https://example.com/photo3.jpg",
+        type: "IMAGE",
+      },
+    });
+
     await prisma.user.upsert({
       where: { username: "test_user1" },
       update: {},
@@ -19,7 +47,7 @@ describe("User Interactions Service", () => {
         saltPassword: "salt123",
         dateOfBirth: new Date("2025-11-21"),
         name: "Test User One",
-        profilePhoto: "https://example.com/photo1.jpg",
+        profileMediaId: "media1",
         bio: "I am test user one",
         verified: true,
         protectedAccount: false,
@@ -36,7 +64,7 @@ describe("User Interactions Service", () => {
         saltPassword: "salt456",
         dateOfBirth: new Date("2025-10-21"),
         name: "Test User Two",
-        profilePhoto: "https://example.com/photo2.jpg",
+        profileMediaId: "media2",
         bio: "I am test user two",
         verified: true,
         protectedAccount: false,
@@ -53,7 +81,7 @@ describe("User Interactions Service", () => {
         saltPassword: "salt789",
         dateOfBirth: new Date("2025-09-21"),
         name: "Test User Three",
-        profilePhoto: "https://example.com/photo3.jpg",
+        profileMediaId: "media3",
         bio: "I am test user three",
         verified: true,
         protectedAccount: false,
@@ -68,6 +96,9 @@ describe("User Interactions Service", () => {
     await prisma.follow.deleteMany();
     await prisma.user.deleteMany({
       where: { id: { in: ["123", "456", "789"] } },
+    });
+    await prisma.media.deleteMany({
+      where: { id: { in: ["media1", "media2", "media3"] } },
     });
     await prisma.$disconnect();
   });
