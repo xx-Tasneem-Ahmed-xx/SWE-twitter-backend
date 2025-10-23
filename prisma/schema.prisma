@@ -225,7 +225,7 @@ model Notification {
 model Media {
   id      String    @id @default(uuid())
   name    String
-  keyName String
+  keyName String    @unique
   type    MediaType
   size    Int?
 
