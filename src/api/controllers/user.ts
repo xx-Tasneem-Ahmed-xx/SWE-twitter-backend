@@ -427,7 +427,7 @@ export async function Logout(req: Request, res: Response): Promise<Response | vo
     if (tokenString === refreshToken) return utils.SendError(res, 401, "token and refreshToken cannot be the same");
 
     const accessPayload: LocalJwtPayload = accessVal.payload as LocalJwtPayload;
-    const userId: string | undefined = accessPayload.id || (req.user as any)?.id;
+    const userId: string | undefined = accessPayload.id ||(req as any).user?.id;
     const jti: string | null = accessPayload.jti || req.body?.jti || null;
     if (userId && jti) {
       await redisClient.del(`session:${userId}:${jti}`);
@@ -463,8 +463,8 @@ if (Array.isArray(emailQuery)) {
 
 export async function Create_2fA(req: Request, res: Response): Promise<Response | void> {
   try {
-    const email = (req.user as any)?.email || req.body?.email;
-    console.log("req.user::",req.user);
+    const email = (req as any).user?.email || req.body?.email;
+    console.log("req.user::",(req as any).user);
     if (!email) return utils.SendError(res, 400, "email required");
     const secret = speakeasy.generateSecret({ issuer: "SOAH", name: email });
     await redisClient.set(`Login:2fa:${email}`, secret.base32);
@@ -480,7 +480,7 @@ export async function Create_2fA(req: Request, res: Response): Promise<Response 
 
 export async function Verify_2fA(req: Request, res: Response): Promise<Response | void> {
   try {
-    const email = (req.user as any)?.email || req.body?.email;  
+    const email = (req as any).user?.email || req.body?.email;  
     const code=req.body?.code;
 
   console.log("code:",code);
@@ -631,7 +631,8 @@ export async function ResetPassword(req: Request, res: Response): Promise<Respon
 
 export async function GetDeviceInfo(req: Request, res: Response): Promise<Response | void> {
   try {
-    const email: string | undefined = (req.user as any)?.email || (req.query.email as string);
+    const email: string | undefined =
+      (req as any).user?.email || (req.query.email as string);
     if (!email) return utils.SendError(res, 400, "email required");
     const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser | null;
     if (!user) return utils.SendError(res, 500, "something went wrong");
@@ -710,7 +711,8 @@ export async function ReauthCode(req: Request, res: Response): Promise<Response 
 export async function ChangePassword(req: Request, res: Response): Promise<Response | void> {
   try {
     const { password, confirm } = req.body;
-    const email: string | undefined = (req.user as any)?.email || req.body?.email;
+    const email: string | undefined =
+      (req as any).user?.email || req.body?.email;
     if (!email) return utils.SendError(res, 401, "you are unauthorized to enter this route");
     
     // Use utils.ValidatePassword
@@ -738,8 +740,9 @@ export async function ChangePassword(req: Request, res: Response): Promise<Respo
     // Add new hash to history
     await utils.AddPasswordHistory(hashed, user.id);
 
-    const ip: string = req.ip || req.connection?.remoteAddress || "unknown";
-    const username: string = (req.user as any)?.username || user.username || "user";
+    const ip: string = req.ip || (req as any).connection?.remoteAddress || "unknown";
+    const username: string =
+      (req as any).user?.username || user.username || "user";
     // Use utils.Sendlocation
     const geo: utils.GeoData | null = await utils.Sendlocation(ip).catch(() => null);
     const message: string = `Hi ,${username}
@@ -766,8 +769,9 @@ await prisma.user.updateMany({ where: { email }, data: { tokenVersion: (user.tok
 
 export async function ChangeEmail(req: Request, res: Response): Promise<Response | void> {
   try {
-    const { email: newEmail } = req.body;
-    const currentEmail: string | undefined = (req.user as any)?.email || req.body?.currentEmail;
+    const { email: newEmail } = (req as any).body;
+    const currentEmail: string | undefined =
+      (req as any).user?.email || req.body?.currentEmail;
     if (!newEmail) return utils.SendError(res, 400, "email required");
     if (!currentEmail) return utils.SendError(res, 401, "must provide your current email");
 if (newEmail==currentEmail)return utils.SendError(res,401,"new email must be different than the old one");
@@ -786,8 +790,9 @@ if (newEmail==currentEmail)return utils.SendError(res,401,"new email must be dif
 
 export async function VerifyNewEmail(req: Request, res: Response): Promise<Response | void> {
   try {
-    const { email: desiredEmail, code } = req.body;
-    const currentEmail: string | undefined = (req.user as any)?.email || req.body?.currentEmail;
+    const { email: desiredEmail, code } = (req as any).body;
+    const currentEmail: string | undefined =
+      (req as any).user?.email || req.body?.currentEmail;
     if (!currentEmail) return utils.SendError(res, 401, "you cannot use this codes method it must be enables first");
     if (!code) return utils.SendError(res, 400, "code required");
     const stored: string | null = await redisClient.get(`ChangeEmail:code:${currentEmail}`);
@@ -806,7 +811,10 @@ export async function VerifyNewEmail(req: Request, res: Response): Promise<Respo
 
 export async function GetUser(req: Request, res: Response): Promise<Response | void> {
   try {
-    const email: string | undefined = (req.user as any)?.email || (req.query?.email as string)||(req.body?.email as string);
+    const email: string | undefined =
+      (req as any).user?.email ||
+      (req.query?.email as string) ||
+      (req.body?.email as string);
     if (!email) return utils.SendError(res, 401, "user isnot authorized this route ");
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return utils.SendError(res, 500, "something went wrong");
@@ -819,7 +827,8 @@ export async function GetUser(req: Request, res: Response): Promise<Response | v
 
 export async function LogoutALL(req: Request, res: Response): Promise<Response | void> {
   try {
-    const id: number | undefined = (req.user as any)?.id || req.body?.id || (req.query?.id as string);
+    const id: number | undefined =
+      (req as any).user?.id || req.body?.id || (req.query?.id as string);
     if (!id) return utils.SendError(res, 401, "unauthorized");
     let cursor: string = "0";
     const pattern: string = `session:${id}:*`;
@@ -848,7 +857,8 @@ export async function LogoutALL(req: Request, res: Response): Promise<Response |
 
 export async function GetSession(req: Request, res: Response): Promise<Response | void> {
   try {
-    const id: string | undefined = (req.user as any)?.id || (req.query?.id as string) || req.body?.id;
+    const id: string | undefined =
+      (req as any).user?.id || (req.query?.id as string) || req.body?.id;
     console.log("GetSession called with id:", id);
     
     if (!id) return utils.SendError(res, 401, "unauthorized");
@@ -951,7 +961,8 @@ export async function GetSession(req: Request, res: Response): Promise<Response 
 export async function LogoutSession(req: Request, res: Response): Promise<Response | void> {
   try {
     const sessionid: string = req.params.sessionid;
-    const userId: string| undefined = (req.user as any)?.id || req.body?.id || (req.query?.id as string);
+    const userId: string | undefined =
+      (req as any).user?.id || req.body?.id || (req.query?.id as string);
     if (!sessionid || !userId) return utils.SendError(res, 400, "missing");
     await redisClient.del(`session:${userId}:${sessionid}`);
     await redisClient.set(`Blocklist:${sessionid}`, "1", { EX: 15 * 60 });
