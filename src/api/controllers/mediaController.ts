@@ -40,7 +40,7 @@ export const requestToDownloadMedia = async (req: Request, res: Response, next: 
         if(!media){
             return res.status(404).json({ error: "Media not found" });
         }
-        const downloadUrl = await storageService.getPresignedUrl(media.url, media.type);
+        const downloadUrl = await storageService.getDownloadUrl(media.keyName);
         return res.status(200).json({ url: downloadUrl });
     } catch (error) {
         console.error("Error downloading media:", error);
@@ -64,7 +64,7 @@ export const confirmMediaUpload = async (req: Request, res: Response, next: Next
                         name: name,
                         type: metadata.ContentType as MediaType,
                         size: metadata.ContentLength,
-                        url: keyName
+                        keyName: keyName
                     }
                 })
                 return res.status(200).json({ newMedia });

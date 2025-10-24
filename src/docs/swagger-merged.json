@@ -3281,7 +3281,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-23T01:19:04.257Z"
+                        "default": "2025-10-23T17:05:25.084Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3441,7 +3441,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-23T01:19:04.257Z"
+                      "default": "2025-10-23T17:05:25.084Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3664,7 +3664,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-23T01:19:04.257Z"
+                            "default": "2025-10-23T17:05:25.084Z"
                           },
                           "userId": {
                             "type": "string",
@@ -3800,7 +3800,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-23T01:19:04.257Z"
+                      "default": "2025-10-23T17:05:25.084Z"
                     },
                     "userId": {
                       "type": "string",
@@ -5479,7 +5479,7 @@
                             "minLength": 1,
                             "maxLength": 255
                           },
-                          "url": {
+                          "keyName": {
                             "type": "string",
                             "format": "uri"
                           },
@@ -5498,7 +5498,7 @@
                         },
                         "required": [
                           "name",
-                          "url",
+                          "keyName",
                           "type",
                           "size"
                         ]
@@ -5604,7 +5604,7 @@
                             "minLength": 1,
                             "maxLength": 255
                           },
-                          "url": {
+                          "keyName": {
                             "type": "string",
                             "format": "uri"
                           },
@@ -5623,7 +5623,7 @@
                         },
                         "required": [
                           "name",
-                          "url",
+                          "keyName",
                           "type",
                           "size"
                         ]
@@ -5920,7 +5920,7 @@
                           "minLength": 1,
                           "maxLength": 255
                         },
-                        "url": {
+                        "keyName": {
                           "type": "string",
                           "format": "uri"
                         },
@@ -5939,7 +5939,7 @@
                       },
                       "required": [
                         "name",
-                        "url",
+                        "keyName",
                         "type",
                         "size"
                       ]

@@ -6,7 +6,7 @@ extendZodWithOpenApi(z);
 
 export const mediaSchema = z.object({
     name: z.string().min(1).max(255),
-    url: z.string().url(),
+    keyName: z.string().url(),
     type: z.enum(MediaType),
     size: z.number().nullable()
 })

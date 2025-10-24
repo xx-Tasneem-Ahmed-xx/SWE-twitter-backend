@@ -96,7 +96,8 @@ export const getChatInfo = async (req: Request, res: Response, next: NextFunctio
                                 id: true,
                                 username: true,
                                 name: true,
-                                profilePhoto: true
+                                profileMediaId: true,
+                                coverMediaId: true
                             }
                         },
                         messageMedia: {
@@ -113,7 +114,8 @@ export const getChatInfo = async (req: Request, res: Response, next: NextFunctio
                                 id: true,
                                 username: true,
                                 name: true,
-                                profilePhoto: true
+                                profileMediaId: true,
+                                coverMediaId: true
                             }
                         }
                     }
@@ -166,7 +168,8 @@ export const getUserChats = async (req: Request, res: Response, next: NextFuncti
                                 id: true,
                                 username: true,
                                 name: true,
-                                profilePhoto: true
+                                profileMediaId: true,
+                                coverMediaId: true
                             }
                         }
                     }
@@ -389,7 +392,7 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
                 
                 const createdMedia = await prisma.media.create({
                     data: {
-                        url: mediaObj.url || '',
+                        keyName: mediaObj.keyName || '',
                         type: mediaObj.type as MediaType || 'IMAGE' as MediaType,
                         name: mediaObj.name || '',
                         size: mediaObj.size || 0

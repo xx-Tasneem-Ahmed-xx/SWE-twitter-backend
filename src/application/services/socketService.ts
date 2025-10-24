@@ -153,6 +153,11 @@ export class SocketService {
 
     }
 
+    public checkSocketStatus(userId: string): boolean {
+        const room = this.io.sockets.adapter.rooms.get(userId);
+        return room !== undefined && room.size > 0;
+    }
+
     public sendNotificationToUser(recipientId: string, notification: any): void {
         this.io.to(recipientId).emit('notification', notification);
     }

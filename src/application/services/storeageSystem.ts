@@ -3,13 +3,13 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 
 interface FileDetail {
-    keyName: string; // The original name provided by the client
-    fileType: string; // MIME type, e.g., 'image/png'
+    keyName: string; 
+    fileType: string; 
 }
 
 interface SignedUploadDetail {
-    objectKey: string; // The final S3 key/path
-    uploadURL: string; // The unique signed URL for this file
+    objectKey: string; 
+    uploadURL: string; 
 }
 
 class StorageSystem {
