@@ -101,8 +101,8 @@ export const addNotification = async (recipientId: UUID, notificationData: z.inf
             const newNotification = await prisma.notification.create({
                 data: {
                     userId: recipientId,
-                    type: data.type as any,
-                    content: data.content,
+                    title: data.title as any,
+                    body: data.body,
                     tweetId: data.tweetId,
                     actorId: data.actorId,
                     isRead: false
@@ -113,18 +113,25 @@ export const addNotification = async (recipientId: UUID, notificationData: z.inf
                 socketService?.sendNotificationToUser(recipientId, newNotification);
             }
             else{
-                //send push notification using FCM
-                const user = await prisma.user.findUnique({
-                    where: { id: recipientId },
-                    select: { fcmTokens: true }
+                const userFCMTokens = await prisma.fcmToken.findMany({
+                    where: { userId: recipientId },
                 });
-                if (user && user.fcmTokens && user.fcmTokens.length > 0) {
+                const fcmTokens = userFCMTokens.length > 0 ? userFCMTokens.map(t => t.token).flat() : [];
+
+                if (fcmTokens && fcmTokens.length > 0) {
                     const notificationPayload = {
-                        title: newNotification.type,
-                        body: newNotification.content,
+                        title: newNotification.title,
+                        body: newNotification.body,
                     };
                     const dataPayload = data;
-                    await sendPushNotification(user.fcmTokens, notificationPayload, dataPayload);
+                    const tokensToDelete = await sendPushNotification(fcmTokens, notificationPayload, dataPayload);
+                    if (tokensToDelete.length > 0) {
+                        await prisma.fcmToken.deleteMany({
+                            where: {
+                                token: { in: tokensToDelete },
+                            },
+                        });
+                    }
                 }
             }
     } catch (error) {
