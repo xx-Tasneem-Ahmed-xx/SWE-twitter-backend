@@ -1,40 +1,32 @@
 import { Router } from "express";
-import {
-  followUser,
-  unfollowUser,
-  acceptFollow,
-  declineFollow,
-  getFollowers,
-  getFollowings,
-} from "@/api/controllers/user_interactions/follow";
-import {
-  blockUser,
-  unblockUser,
-  getBlockedUsers,
-} from "@/api/controllers/user_interactions/block";
-import {
-  muteUser,
-  unmuteUser,
-  getMutedUsers,
-} from "@/api/controllers/user_interactions/mute";
+import * as followController from "@/api/controllers/user_interactions/follow";
+import * as blockController from "@/api/controllers/user_interactions/block";
+import * as muteController from "@/api/controllers/user_interactions/mute";
 
 const router = Router();
 
 router
   .route("/followers/:username")
-  .post(followUser)
-  .delete(unfollowUser)
-  .get(getFollowers);
+  .post(followController.followUser)
+  .delete(followController.unfollowUser)
+  .get(followController.getFollowers);
 router
   .route("/followings/:username")
-  .patch(acceptFollow)
-  .delete(declineFollow)
-  .get(getFollowings);
+  .patch(followController.acceptFollow)
+  .delete(followController.declineFollow)
+  .get(followController.getFollowings);
+router.route("/followers/requests").get(followController.getFollowRequests);
 
-router.route("/blocks/:username").post(blockUser).delete(unblockUser);
-router.route("/blocks").get(getBlockedUsers);
+router
+  .route("/blocks/:username")
+  .post(blockController.blockUser)
+  .delete(blockController.unblockUser);
+router.route("/blocks").get(blockController.getBlockedUsers);
 
-router.route("/mutes/:username").post(muteUser).delete(unmuteUser);
-router.route("/mutes").get(getMutedUsers);
+router
+  .route("/mutes/:username")
+  .post(muteController.muteUser)
+  .delete(muteController.unmuteUser);
+router.route("/mutes").get(muteController.getMutedUsers);
 
 export default router;
