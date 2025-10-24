@@ -1,3 +1,4 @@
+import { SearchDTOSchema } from "@/application/dtos/tweets/tweet.dto.schema";
 import { TweetService } from "@/application/services/tweets";
 import { Request, Response, NextFunction } from "express";
 
@@ -170,6 +171,18 @@ export class TweetController {
       const { id } = req.params;
       const tweetSummary = await tweetService.getTweetSummary(id);
       res.status(200).json(tweetSummary);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async searchTweets(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as any).user.id;
+      const payload = { ...req.query };
+      const parsedPayload = SearchDTOSchema.parse(payload);
+      const tweets = tweetService.searchTweets({ ...parsedPayload, userId });
+      res.status(200).json(tweets);
     } catch (error) {
       next(error);
     }

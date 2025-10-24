@@ -7,9 +7,15 @@ import {
   CreateReplyOrQuoteServiceDTO,
   CreateReTweetServiceDto,
   CreateTweetServiceDto,
+  SearchServiceDTO,
+  TweetResponses,
 } from "@/application/dtos/tweets/service/tweets.dto";
 import { AppError } from "@/errors/AppError";
 import { generateTweetSumamry } from "./aiSummary";
+import { SearchServiceSchema } from "../dtos/tweets/service/tweets.dto.schema";
+import { PeopleFilter, SearchTab } from "../dtos/tweets/tweet.dto.schema";
+import { record } from "zod";
+import { SearchParams } from "@/types/types";
 
 export class TweetService {
   private validateId(id: string) {
@@ -78,7 +84,7 @@ export class TweetService {
           select: {
             name: true,
             username: true,
-            profilePhoto: true,
+
             verified: true,
           },
         },
@@ -96,7 +102,7 @@ export class TweetService {
             id: true,
             name: true,
             username: true,
-            profilePhoto: true,
+            profileMedia: { select: { id: true, keyName: true } },
             verified: true,
           },
         },
@@ -178,7 +184,7 @@ export class TweetService {
               select: {
                 username: true,
                 name: true,
-                profilePhoto: true,
+                profileMedia: { select: { id: true, keyName: true } },
                 verified: true,
                 protectedAccount: true,
               },
@@ -197,7 +203,7 @@ export class TweetService {
           select: {
             username: true,
             name: true,
-            profilePhoto: true,
+            profileMedia: { select: { id: true, keyName: true } },
             verified: true,
             protectedAccount: true,
           },
@@ -260,7 +266,7 @@ export class TweetService {
           select: {
             name: true,
             username: true,
-            profilePhoto: true,
+            profileMedia: { select: { id: true, keyName: true } },
             verified: true,
           },
         },
@@ -291,6 +297,115 @@ export class TweetService {
     return {
       tweetId: tweetId,
       summary: summary,
+    };
+  }
+
+  async searchTweets(dto: SearchServiceDTO) {
+    const parsedDTO = SearchServiceSchema.parse(dto);
+
+    const wherePrismaFilter = this.generateFilter(
+      parsedDTO.query,
+      parsedDTO.userId,
+      parsedDTO.peopleFilter
+    );
+
+    const selectFields = this.tweetSelectFields();
+
+    const searchParams = {
+      where: wherePrismaFilter,
+      select: selectFields,
+      limit: parsedDTO.limit,
+      cursor: parsedDTO.cursor,
+    };
+
+    switch (parsedDTO.searchTab) {
+      case SearchTab.LATEST:
+        return this.searchLatestTweets(searchParams);
+
+      case SearchTab.TOP:
+        return this.searchTopTweets(searchParams);
+
+      default:
+        throw new Error("Unsupported search tab");
+    }
+  }
+
+  private async searchLatestTweets({
+    where,
+    select,
+    limit,
+    cursor,
+  }: SearchParams) {
+    return prisma.tweet.findMany({
+      where,
+      select,
+      orderBy: { createdAt: "desc" },
+      take: limit + 1,
+      ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+    });
+  }
+
+  private async searchTopTweets({
+    where,
+    select,
+    limit,
+    cursor,
+  }: SearchParams) {
+    //if top calculate score for each tweet then sort accrodingly
+  }
+
+  private async generateFilter(
+    query: string,
+    userId: string,
+    peopleFilter: PeopleFilter
+  ) {
+    const where: any = {
+      OR: [
+        { content: { contains: query, mode: "insensitive" } },
+        {
+          hashtags: {
+            some: {
+              hash: { tag_text: { contains: query, mode: "insensitive" } },
+            },
+          },
+        },
+      ],
+    };
+
+    if (peopleFilter === PeopleFilter.FOLLOWINGS) {
+      const followingRecords = await prisma.follow.findMany({
+        where: { followerId: userId },
+        select: { followingId: true },
+      });
+      const followingIds = followingRecords.map((record) => record.followingId);
+
+      where.userId = { in: followingIds };
+    }
+    return where;
+  }
+
+  private tweetSelectFields() {
+    return {
+      id: true,
+      content: true,
+      createdAt: true,
+      likesCount: true,
+      repliesCount: true,
+      quotesCount: true,
+      retweetCount: true,
+      replyControl: true,
+      tweetType: true,
+      parentId: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          profileMedia: { select: { id: true, keyName: true } },
+          verified: true,
+          protectedAccount: true,
+        },
+      },
     };
   }
 }

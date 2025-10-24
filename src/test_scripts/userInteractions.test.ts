@@ -8,6 +8,34 @@ describe("User Interactions Service", () => {
     await connectToDatabase();
     console.log("Running tests with real database connection");
 
+    // Create media records first
+    const media1 = await prisma.media.create({
+      data: {
+        id: "media1",
+        name: "profile1.jpg",
+        keyName: "https://example.com/photo1.jpg",
+        type: "IMAGE",
+      },
+    });
+
+    const media2 = await prisma.media.create({
+      data: {
+        id: "media2",
+        name: "profile2.jpg",
+        keyName: "https://example.com/photo2.jpg",
+        type: "IMAGE",
+      },
+    });
+
+    const media3 = await prisma.media.create({
+      data: {
+        id: "media3",
+        name: "profile3.jpg",
+        keyName: "https://example.com/photo3.jpg",
+        type: "IMAGE",
+      },
+    });
+
     await prisma.user.upsert({
       where: { username: "test_user1" },
       update: {},
@@ -19,7 +47,7 @@ describe("User Interactions Service", () => {
         saltPassword: "salt123",
         dateOfBirth: new Date("2025-11-21"),
         name: "Test User One",
-        profilePhoto: "https://example.com/photo1.jpg",
+        profileMediaId: "media1",
         bio: "I am test user one",
         verified: true,
         protectedAccount: false,
@@ -36,7 +64,7 @@ describe("User Interactions Service", () => {
         saltPassword: "salt456",
         dateOfBirth: new Date("2025-10-21"),
         name: "Test User Two",
-        profilePhoto: "https://example.com/photo2.jpg",
+        profileMediaId: "media2",
         bio: "I am test user two",
         verified: true,
         protectedAccount: false,
@@ -53,7 +81,7 @@ describe("User Interactions Service", () => {
         saltPassword: "salt789",
         dateOfBirth: new Date("2025-09-21"),
         name: "Test User Three",
-        profilePhoto: "https://example.com/photo3.jpg",
+        profileMediaId: "media3",
         bio: "I am test user three",
         verified: true,
         protectedAccount: false,
@@ -68,6 +96,9 @@ describe("User Interactions Service", () => {
     await prisma.follow.deleteMany();
     await prisma.user.deleteMany({
       where: { id: { in: ["123", "456", "789"] } },
+    });
+    await prisma.media.deleteMany({
+      where: { id: { in: ["media1", "media2", "media3"] } },
     });
     await prisma.$disconnect();
   });
@@ -405,7 +436,8 @@ describe("User Interactions Service", () => {
     it("should return empty list when user has no followers", async () => {
       const result = await userInteractionsService.getFollowersList(
         "123",
-        "456"
+        "456",
+        "ACCEPTED"
       );
       expect(() => FollowsListResponseSchema.parse(result)).not.toThrow();
       expect(result.users).toHaveLength(0);
@@ -430,7 +462,8 @@ describe("User Interactions Service", () => {
       // Get followers list for user 1 from perspective of user 2
       const result = await userInteractionsService.getFollowersList(
         "123",
-        "456"
+        "456",
+        "ACCEPTED"
       );
       expect(() => FollowsListResponseSchema.parse(result)).not.toThrow();
       expect(result).not.toBeNull();
@@ -455,6 +488,53 @@ describe("User Interactions Service", () => {
       expect(followerTwo.verified).toBe(true);
       expect(followerTwo.isFollowing).toBe(false);
       expect(followerTwo.isFollower).toBe(true);
+    });
+  });
+
+  // Tests for getFollowRequestsList
+  describe("getFollowRequestsList", () => {
+    it("should return empty list when there are no follow requests", async () => {
+      const result = await userInteractionsService.getFollowersList(
+        "123",
+        "456",
+        "PENDING"
+      );
+      expect(() => FollowsListResponseSchema.parse(result)).not.toThrow();
+      expect(result.users).toHaveLength(0);
+    });
+
+    it("should return list of follow requests", async () => {
+      await userInteractionsService.createFollowRelation(
+        "456",
+        "123",
+        "PENDING"
+      );
+      await userInteractionsService.createFollowRelation(
+        "789",
+        "123",
+        "ACCEPTED"
+      );
+
+      // Get follow requests list for user 1
+      const result = await userInteractionsService.getFollowersList(
+        "123",
+        "123",
+        "PENDING"
+      );
+      expect(() => FollowsListResponseSchema.parse(result)).not.toThrow();
+      expect(result).not.toBeNull();
+      expect(result.users).toBeDefined();
+      expect(Array.isArray(result.users)).toBe(true);
+      expect(result.users.length).toBe(1);
+
+      const requestUser = result.users[0];
+      expect(requestUser.username).toBe("test_user2");
+      expect(requestUser.name).toBe("Test User Two");
+      expect(requestUser.bio).toBe("I am test user two");
+      expect(requestUser.photo).toBe("https://example.com/photo2.jpg");
+      expect(requestUser.verified).toBe(true);
+      expect(requestUser.isFollowing).toBe(false);
+      expect(requestUser.isFollower).toBe(false);
     });
   });
 
