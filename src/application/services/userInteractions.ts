@@ -164,13 +164,14 @@ const formatUserForResponse = (
   };
 };
 
-// Get list of followers with mutual follow information
+// Get followers list by status (followers or requests)
 export const getFollowersList = async (
   userId: string,
-  currentUserId: string
+  currentUserId: string,
+  followStatus: FollowStatus
 ) => {
   const followers = await prisma.follow.findMany({
-    where: { followingId: userId, status: FollowStatus.ACCEPTED },
+    where: { followingId: userId, status: followStatus },
     include: {
       follower: {
         select: {

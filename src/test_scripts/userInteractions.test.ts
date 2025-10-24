@@ -436,7 +436,8 @@ describe("User Interactions Service", () => {
     it("should return empty list when user has no followers", async () => {
       const result = await userInteractionsService.getFollowersList(
         "123",
-        "456"
+        "456",
+        "ACCEPTED"
       );
       expect(() => FollowsListResponseSchema.parse(result)).not.toThrow();
       expect(result.users).toHaveLength(0);
@@ -461,7 +462,8 @@ describe("User Interactions Service", () => {
       // Get followers list for user 1 from perspective of user 2
       const result = await userInteractionsService.getFollowersList(
         "123",
-        "456"
+        "456",
+        "ACCEPTED"
       );
       expect(() => FollowsListResponseSchema.parse(result)).not.toThrow();
       expect(result).not.toBeNull();
@@ -486,6 +488,53 @@ describe("User Interactions Service", () => {
       expect(followerTwo.verified).toBe(true);
       expect(followerTwo.isFollowing).toBe(false);
       expect(followerTwo.isFollower).toBe(true);
+    });
+  });
+
+  // Tests for getFollowRequestsList
+  describe("getFollowRequestsList", () => {
+    it("should return empty list when there are no follow requests", async () => {
+      const result = await userInteractionsService.getFollowersList(
+        "123",
+        "456",
+        "PENDING"
+      );
+      expect(() => FollowsListResponseSchema.parse(result)).not.toThrow();
+      expect(result.users).toHaveLength(0);
+    });
+
+    it("should return list of follow requests", async () => {
+      await userInteractionsService.createFollowRelation(
+        "456",
+        "123",
+        "PENDING"
+      );
+      await userInteractionsService.createFollowRelation(
+        "789",
+        "123",
+        "ACCEPTED"
+      );
+
+      // Get follow requests list for user 1
+      const result = await userInteractionsService.getFollowersList(
+        "123",
+        "123",
+        "PENDING"
+      );
+      expect(() => FollowsListResponseSchema.parse(result)).not.toThrow();
+      expect(result).not.toBeNull();
+      expect(result.users).toBeDefined();
+      expect(Array.isArray(result.users)).toBe(true);
+      expect(result.users.length).toBe(1);
+
+      const requestUser = result.users[0];
+      expect(requestUser.username).toBe("test_user2");
+      expect(requestUser.name).toBe("Test User Two");
+      expect(requestUser.bio).toBe("I am test user two");
+      expect(requestUser.photo).toBe("https://example.com/photo2.jpg");
+      expect(requestUser.verified).toBe(true);
+      expect(requestUser.isFollowing).toBe(false);
+      expect(requestUser.isFollower).toBe(false);
     });
   });
 
