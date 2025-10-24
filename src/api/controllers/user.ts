@@ -233,6 +233,7 @@ if (isNaN(parsedDate.getTime())) {
         dateOfBirth: parsedDate,
       },
     }) as unknown as PrismaUser;
+    await utils.AddPasswordHistory(hashed, created.id);
 
     utils.SendEmailSmtp(res, created.email, `Subject: Welcome to artimsia\n\nWelcome ${created.name}`).catch(console.error);
 
@@ -1067,89 +1068,192 @@ return res.status(400).json({ error: 'unsupported provider' });
 }
 
 ////////////////////////////////////////////////////////////////////////////
-export async function CallbackGithub(req: Request, res: Response){
-try{
-const code = req.query.code as string;
-const tokenResp = await exchangeGithubCode(code);
-const accessToken = tokenResp.access_token as string;
-const emails = await fetchGithubEmails(accessToken);
-const primary = emails.find((e: any) => e.primary && e.verified);
-if(!primary) return res.status(400).json({ error: 'No verified email found' });
-const email = primary.email as string;
-const userProfile = await fetchGithubUser(accessToken);
-const name = userProfile.name || userProfile.login;
-let user = await prisma.user.findUnique({ where: { email } });
-if(!user){
-user = await prisma.user.create({ data: {
-email,
-username: utils.generateUsername(name),
-name,
-password: '',
-saltPassword: '',
+export async function CallbackGithub(req: Request, res: Response) {
+  try {
+    const code = req.query.code as string;
+    const tokenResp = await exchangeGithubCode(code);
+    const accessToken = tokenResp.access_token as string;
 
-dateOfBirth: "2001-11-03T00:00:00.000Z",
-}});
-// optionally send email
+    const emails = await fetchGithubEmails(accessToken);
+    const primary = emails.find((e: any) => e.primary && e.verified);
+    if (!primary) return res.status(400).json({ error: 'No verified email found' });
+
+    const email = primary.email as string;
+    const userProfile = await fetchGithubUser(accessToken);
+    const name = userProfile.name || userProfile.login;
+    const providerId = userProfile.id.toString();
+
+    // check if OAuth account exists
+    let oauth = await prisma.oAuthAccount.findFirst({
+      where: { provider: 'github', providerId },
+      include: { user: true },
+    });
+
+    let user;
+    if (oauth) {
+      user = oauth.user;
+    } else {
+      user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            email,
+            username: utils.generateUsername(name),
+            name,
+            password: '',
+            saltPassword: '',
+            dateOfBirth: '2001-11-03T00:00:00.000Z',
+            OAuthAccount: {
+              create: {
+                provider: 'github',
+                providerId,
+              },
+            },
+          },
+        });
+      } else {
+        await prisma.oAuthAccount.create({
+          data: {
+            provider: 'github',
+            providerId,
+            userId: user.id,
+          },
+        });
+      }
+    }
+
+    const deviceId = Math.floor(Math.random() * 100000);
+    const payload = { username: user.username, email: user.email, id: user.id, role: 'user' };
+    const token = await utils.GenerateJwt(payload);
+    const refreshToken = await utils.GenerateJwt(payload);
+
+    await redisClient.set(`refresh-token:${user.email}:${deviceId}`, refreshToken.token, { EX: 60 * 60 * 24 * 30 });
+    res.cookie('refresh-token', refreshToken, {
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+      httpOnly: true,
+      secure: true,
+      domain: process.env.FRONTEND_HOST,
+    });
+
+    await prisma.user.update({ where: { email }, data: { tokenVersion: (user.tokenVersion || 0) + 1 } });
+    const userRefreshed = await prisma.user.findUnique({ where: { email } });
+    return res.json({ token, user: userRefreshed, device: { id: deviceId } });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
 }
-const deviceId = Math.floor(Math.random()*100000);
-const payload = { username: user.username, email: user.email, id: user.id, role: 'user' };
-const token = await utils.GenerateJwt(payload);
-const refreshToken =await  utils.GenerateJwt(payload);
-await redisClient.set(`refresh-token:${user.email}:${deviceId}`, refreshToken.token, { EX: 60*60*24*30 });
-res.cookie('refresh-token', refreshToken, { maxAge: 1000*60*60*24*30, httpOnly: true, secure: true, domain: process.env.FRONTEND_HOST });
-await prisma.user.update({ where: { email }, data: { tokenVersion: (user.tokenVersion || 0) + 1 } });
-const userRefreshed = await prisma.user.findUnique({ where: { email } });
-return res.json({ token, user: userRefreshed, device: { id: deviceId } });
-}catch(err:any){
-return res.status(500).json({ error: err.message });
+
+export async function CallbackGoogle(req: Request, res: Response) {
+  try {
+    const code = req.query.code as string;
+    const tokenObj = await exchangeGoogleCode(code);
+    const idToken = tokenObj.id_token as string;
+
+    const parts = idToken.split('.');
+    if (parts.length < 2) return res.status(401).json({ error: 'invalid id_token' });
+
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+    const email = payload.email as string;
+    const name = payload.given_name || payload.name || 'unknown';
+    const providerId = payload.sub.toString();
+
+    let oauth = await prisma.oAuthAccount.findFirst({
+      where: { provider: 'google', providerId },
+      include: { user: true },
+    });
+
+    let user;
+    if (oauth) {
+      user = oauth.user;
+    } else {
+      user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            email,
+            username: utils.generateUsername(name),
+            name,
+            password: '',
+            saltPassword: '',
+            dateOfBirth: '2001-11-03T00:00:00.000Z',
+            OAuthAccount: {
+              create: {
+                provider: 'google',
+                providerId,
+              },
+            },
+          },
+        });
+      } else {
+        await prisma.oAuthAccount.create({
+          data: {
+            provider: 'google',
+            providerId,
+            userId: user.id,
+          },
+        });
+      }
+    }
+
+    const deviceId = Math.floor(Math.random() * 100000);
+    const payloadJwt = { username: user.username, email: user.email, id: user.id, role: 'user' };
+    const token = await utils.GenerateJwt(payloadJwt);
+    const refreshToken = await utils.GenerateJwt(payloadJwt);
+
+    await redisClient.set(`refresh-token:${user.email}:${deviceId}`, refreshToken.token, { EX: 60 * 60 * 24 * 30 });
+    res.cookie('refresh-token', refreshToken, {
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+      httpOnly: true,
+      secure: true,
+      domain: process.env.FRONTEND_HOST,
+    });
+
+    await prisma.user.update({
+      where: { email },
+      data: { tokenVersion: (user.tokenVersion || 0) + 1 },
+    });
+
+    const userRefreshed = await prisma.user.findUnique({ where: { email } });
+    return res.json({ token, user: userRefreshed, device: { id: deviceId } });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
 }
-}
 
+export const UpdateUsername = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id; // assuming you have user info in req.user (from auth middleware)
+    const { username } = req.body;
 
-export async function CallbackGoogle(req: Request, res: Response){
-try{
-const code = req.query.code as string;
-const tokenObj = await exchangeGoogleCode(code);
-const idToken = tokenObj.id_token as string;
-// decode payload
-const parts = idToken.split('.');
-if(parts.length < 2) return res.status(401).json({ error: 'invalid id_token' });
-const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-const email = payload.email as string;
-const name = payload.given_name || payload.name || 'unknown';
-let user = await prisma.user.findUnique({ where: { email } });
-if(!user){
-user = await prisma.user.create({ data: {
-email,
-username: utils.generateUsername(name),
-name,
-password: '',
-saltPassword: '',
+    if (!userId) {
+      return utils.SendError(res,401,"Unauthorized: Missing user ID" );
+    }
 
-dateOfBirth:  "2001-11-03T00:00:00.000Z",
-}});
-}
-const deviceId = Math.floor(Math.random()*100000);
-const token = await utils.GenerateJwt({ username: user.username, email: user.email, id: user.id, role: 'user' });
-const refreshToken = await utils.GenerateJwt({ username: user.username, email: user.email, id: user.id, role: 'user' });
-await redisClient.set(`refresh-token:${user.email}:${deviceId}`,  refreshToken.token, { EX: 60*60*24*30 });
-res.cookie('refresh-token', refreshToken, { maxAge: 1000*60*60*24*24*30, httpOnly: true, secure: true, domain: process.env.FRONTEND_HOST });
+    if (!username || typeof username !== 'string' || username.trim() === '') {
+      return utils.SendError(res,400,"Invalid username");
+    }
 
-await prisma.user.update({
-  where: { email },
-  data: { tokenVersion: (user.tokenVersion || 0) + 1 }
-});
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { username },
+    });
 
-const userRefreshed = await prisma.user.findUnique({ where: { email } });
-return res.json({ token, user: userRefreshed, device: { id: deviceId } });
-
-}catch(err:any){
-  return res.status(500).json({ error: err.message });
-}
-}
+   utils.SendRes(res,{
+      message: 'Username updated successfully ✅',
+      user: {
+        id: updatedUser.id,
+        username: updatedUser.username,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error updating username:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
 const authController = {
   Create,
   Verify_signup_email,
+  UpdateUsername,
   Login,
   Verify_email,
   Create_2fA,

@@ -659,6 +659,56 @@ router.get("/sessions", Auth(),  typedAuthController.GetSession); //tested
 router.delete("/session/:sessionid", Auth(),  typedAuthController.LogoutSession);
 // router.post("/debug-redis",Auth(),typedAuthController.DebugRedis); //tested
 // --- Post-Request Cleanup Middleware ---
+/**
+ * @swagger
+ * /update_username:
+ *   put:
+ *     summary: Update current user's username
+ *     description: Updates the username of the authenticated user using their ID from req.user.id.
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: new_username123
+ *     responses:
+ *       200:
+ *         description: Username updated successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Username updated successfully ✅
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: clu6wq2k90001x3sdo8v9l0k4
+ *                     username:
+ *                       type: string
+ *                       example: new_username123
+ *       400:
+ *         description: Invalid username.
+ *       401:
+ *         description: Unauthorized or missing user ID.
+ *       500:
+ *         description: Internal server error.
+ */
+router.put("/update_username",Auth(),typedAuthController.UpdateUsername);
 router.use(AfterChange());
 router.use(GeoGurd());
 export default router;
