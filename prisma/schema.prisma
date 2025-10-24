@@ -64,6 +64,7 @@ model User {
   deviceRecord DeviceRecord[]
   oAuthAccount OAuthAccount[]
   userMedia    UserMedia[]
+  FcmToken     FcmToken[]
 
   @@map("users")
 }
@@ -140,6 +141,7 @@ model Tweet {
   tweetMedia    TweetMedia[]
   Notification  Notification[]
 
+  @@unique([createdAt, id])
   @@index([userId, createdAt])
   @@map("tweets")
 }
@@ -206,8 +208,8 @@ model ChatGroup {
 
 model Notification {
   id        String           @id @default(uuid())
-  type      NotificationType
-  content   String
+  title     NotificationTitle
+  body      String
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
   userId    String
@@ -364,6 +366,14 @@ model ChatUser {
   @@map("chatusers")
 }
 
+model FcmToken {
+  token     String   @id
+  osType    OSType
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}
+
 enum ReplyControl {
   EVERYONE
   FOLLOWINGS
@@ -383,7 +393,7 @@ enum MessageStatus {
   READ
 }
 
-enum NotificationType {
+enum NotificationTitle {
   LIKE
   RETWEET
   REPLY
@@ -408,4 +418,10 @@ enum FollowStatus {
 enum UserMediaType {
   PROFILE
   COVER
+}
+
+enum OSType {
+  ANDROID
+  IOS
+  WEB
 }
