@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { TweetController } from "@/api/controllers/tweets/tweets";
+import { TweetController } from "@/api/controllers/tweets";
 import { validateBody } from "@/api/validators/tweets/tweets.validators";
 import { CreateTweetDTOSchema } from "@/application/dtos/tweets/tweet.dto.schema";
 const router = Router();
@@ -39,5 +39,7 @@ router
   .delete(tweetController.deleteLike);
 
 router.route("/:id/summary").get(tweetController.getTweetSummary);
+
+router.route("/search").get(tweetController.searchTweets);
 
 export default router;
