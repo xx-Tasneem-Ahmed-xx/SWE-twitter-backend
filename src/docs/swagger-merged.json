@@ -47,7 +47,7 @@
           "content"
         ]
       },
-      "FollowsListResponse": {
+      "UserInteractionsListResponse": {
         "type": "object",
         "properties": {
           "users": {
@@ -97,7 +97,7 @@
                 "isFollower"
               ]
             },
-            "description": "List of followers or followings"
+            "description": "List of followers, followings, blocked or muted users"
           }
         },
         "required": [
@@ -2845,7 +2845,10 @@
         ],
         "responses": {
           "201": {
-            "description": "Follow request sent or user followed successfully"
+            "description": "User followed successfully"
+          },
+          "202": {
+            "description": "Follow request sent"
           },
           "400": {
             "description": "Can't follow yourself or already following user"
@@ -2881,7 +2884,10 @@
         ],
         "responses": {
           "200": {
-            "description": "Unfollowed user or cancelled follow request"
+            "description": "Unfollowed user"
+          },
+          "202": {
+            "description": "Follow request cancelled"
           },
           "400": {
             "description": "You are not following this user"
@@ -2918,7 +2924,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FollowsListResponse"
+                  "$ref": "#/components/schemas/UserInteractionsListResponse"
                 }
               }
             }
@@ -2989,7 +2995,10 @@
         ],
         "responses": {
           "200": {
-            "description": "Follow request declined or follower removed"
+            "description": "Follower removed"
+          },
+          "202": {
+            "description": "Follow request declined"
           },
           "404": {
             "description": "No follow request found"
@@ -3023,7 +3032,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FollowsListResponse"
+                  "$ref": "#/components/schemas/UserInteractionsListResponse"
                 }
               }
             }
@@ -3033,6 +3042,29 @@
           },
           "404": {
             "description": "User not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/followers/requests": {
+      "get": {
+        "summary": "Get a list of follow requests",
+        "tags": [
+          "User Interactions"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of follow requests retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInteractionsListResponse"
+                }
+              }
+            }
           },
           "500": {
             "description": "Internal server error"
@@ -3120,7 +3152,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FollowsListResponse"
+                  "$ref": "#/components/schemas/UserInteractionsListResponse"
                 }
               }
             }
@@ -3214,7 +3246,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FollowsListResponse"
+                  "$ref": "#/components/schemas/UserInteractionsListResponse"
                 }
               }
             }
@@ -3281,7 +3313,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-23T16:03:55.363Z"
+                        "default": "2025-10-24T06:33:34.703Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3441,7 +3473,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-23T16:03:55.363Z"
+                      "default": "2025-10-24T06:33:34.703Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3664,7 +3696,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-23T16:03:55.363Z"
+                            "default": "2025-10-24T06:33:34.703Z"
                           },
                           "userId": {
                             "type": "string",
@@ -3800,7 +3832,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-23T16:03:55.363Z"
+                      "default": "2025-10-24T06:33:34.703Z"
                     },
                     "userId": {
                       "type": "string",

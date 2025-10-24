@@ -209,8 +209,32 @@ export const getFollowers = async (
         error: "Cannot view followers of blocked users or who have blocked you",
       });
 
-    const followersData = await getFollowersList(user.id, currentUserId);
+    const followersData = await getFollowersList(
+      user.id,
+      currentUserId,
+      "ACCEPTED"
+    );
     return res.status(200).json(followersData);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get a list of follow requests for the current user
+export const getFollowRequests = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const currentUserId = (req as any).user.id;
+
+    const followRequestsData = await getFollowersList(
+      currentUserId,
+      currentUserId,
+      "PENDING"
+    );
+    return res.status(200).json(followRequestsData);
   } catch (error) {
     next(error);
   }
