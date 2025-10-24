@@ -4,7 +4,7 @@ import { NotificationInputSchema } from '@/application/dtos/notification/notific
 import { socketService } from '../../app';
 export const getNotificationList = async (req: Request, res: Response) => {
     try {
-        const userId = req.user?.id;
+        const userId = (req as any).user?.id;
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
@@ -22,7 +22,7 @@ export const getNotificationList = async (req: Request, res: Response) => {
 
 export const getUnseenNotificationsCount = async (req: Request, res: Response) => {
     try {
-        const userId = req.user?.id;
+        const userId = (req as any).user?.id;
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
@@ -40,7 +40,7 @@ export const getUnseenNotificationsCount = async (req: Request, res: Response) =
 
 export const getUnseenNotifications = async (req: Request, res: Response) => {
     try {
-        const userId = req.user?.id;
+        const userId = (req as any).user?.id;
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
@@ -58,7 +58,7 @@ export const getUnseenNotifications = async (req: Request, res: Response) => {
 
 export const markNotificationsAsRead = async (req: Request, res: Response) => {
     try {
-        const userId = req.user?.id;
+        const userId = (req as any).user?.id;
         const notificationId = req.params.NotificationId;
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' });
@@ -79,7 +79,7 @@ export const markNotificationsAsRead = async (req: Request, res: Response) => {
 
 export const addNotification = async (req: Request, res: Response) => {
     try {
-        const userId = req.user?.id;
+        const userId = (req as any).user?.id;
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }

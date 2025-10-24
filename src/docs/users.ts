@@ -2,6 +2,7 @@ import {
   OpenAPIRegistry,
   extendZodWithOpenApi,
 } from "@asteasolutions/zod-to-openapi";
+import path from "path";
 import z from "zod";
 
 extendZodWithOpenApi(z); 
@@ -13,6 +14,20 @@ const UsernameParams = z.object({
 
 const UserIdParams = z.object({
   id: z.string().uuid().describe("Unique ID of the user"),
+});
+
+const MediaIdParams = z.object({
+  mediaId: z
+    .string()
+    .uuid()
+    .describe("Unique ID of the media to set as profile photo"),
+});
+
+const CoverIdParams = z.object({
+  coverId: z
+    .string()
+    .uuid()
+    .describe("Unique ID of the media to set as the banner (cover image)"),
 });
 
 const UpdateUserBody = z.object({
@@ -137,27 +152,14 @@ registry.registerPath({
 
   registry.registerPath({
     method: "patch",
-    path: "/api/users/{id}/profile-picture",
-    summary: "Update user profile picture",
+    path: "/api/users/profile-picture/{mediaId}",
+    summary: "Update user profile picture by media ID",
     description:
-      "Allows the authenticated user to update their profile picture by providing the new photo URL.",
+      "Allows the authenticated user to update their profile picture by providing the media ID of the uploaded photo.",
     tags: ["Users"],
     security: [{ bearerAuth: [] }],
     request: {
-      params: UserIdParams,
-      body: {
-        required: true,
-        content: {
-          "application/json": {
-            schema: z.object({
-              photoUrl: z
-                .string()
-                .url()
-                .describe("Direct URL of the new profile picture"),
-            }),
-          },
-        },
-      },
+      params: MediaIdParams,
     },
     responses: {
       200: {
@@ -168,12 +170,68 @@ registry.registerPath({
           },
         },
       },
-      400: { description: "Invalid or missing photo URL." },
+      400: { description: "Invalid or missing media ID." },
       401: { description: "Unauthorized — missing or invalid JWT token." },
       403: { description: "You cannot update another user's photo." },
+      404: { description: "User or media not found." },
+    },
+  });
+
+  registry.registerPath({
+    method: "delete",
+    path: "/api/users/profile-picture",
+    summary: "Delete user profile picture (restore default)",
+    description:
+      "Removes the authenticated user’s current profile picture and restores the default one.",
+    tags: ["Users"],
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: "Profile picture restored to default.",
+        content: { "application/json": { schema: UserResponse } },
+      },
+      401: { description: "Unauthorized — missing or invalid JWT token." },
       404: { description: "User not found." },
     },
   });
 
+registry.registerPath({
+  method: "patch",
+  path: "/api/users/banner/{coverId}",
+  summary: "Update user banner by media ID",
+  description:
+    "Allows the authenticated user to update their banner (cover image) by providing the media ID of the uploaded image.",
+  tags: ["Users"],
+  security: [{ bearerAuth: [] }],
+  request: { params: CoverIdParams },
+  responses: {
+    200: {
+      description: "Profile banner updated successfully.",
+      content: { "application/json": { schema: UserResponse } },
+    },
+    400: { description: "Invalid or missing cover ID." },
+    401: { description: "Unauthorized — missing or invalid JWT token." },
+    403: { description: "You cannot update another user's banner." },
+    404: { description: "User or media not found." },
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/api/users/banner",
+  summary: "Delete user banner (restore default)",
+  description:
+    "Removes the authenticated user’s current banner (cover image) and restores the default one.",
+  tags: ["Users"],
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "Profile banner restored to default.",
+      content: { "application/json": { schema: UserResponse } },
+    },
+    401: { description: "Unauthorized — missing or invalid JWT token." },
+    404: { description: "User not found." },
+  },
+});
 
 };

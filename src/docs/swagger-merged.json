@@ -3281,7 +3281,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-22T21:30:52.213Z"
+                        "default": "2025-10-24T16:42:15.848Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3441,7 +3441,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-22T21:30:52.213Z"
+                      "default": "2025-10-24T16:42:15.848Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3664,7 +3664,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-22T21:30:52.213Z"
+                            "default": "2025-10-24T16:42:15.848Z"
                           },
                           "userId": {
                             "type": "string",
@@ -3800,7 +3800,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-22T21:30:52.213Z"
+                      "default": "2025-10-24T16:42:15.848Z"
                     },
                     "userId": {
                       "type": "string",
@@ -4168,10 +4168,10 @@
         }
       }
     },
-    "/api/users/{id}/profile-picture": {
+    "/api/users/profile-picture/{mediaId}": {
       "patch": {
-        "summary": "Update user profile picture",
-        "description": "Allows the authenticated user to update their profile picture by providing the new photo URL.",
+        "summary": "Update user profile picture by media ID",
+        "description": "Allows the authenticated user to update their profile picture by providing the media ID of the uploaded photo.",
         "tags": [
           "Users"
         ],
@@ -4185,34 +4185,14 @@
             "schema": {
               "type": "string",
               "format": "uuid",
-              "description": "Unique ID of the user"
+              "description": "Unique ID of the media to set as profile photo"
             },
             "required": true,
-            "description": "Unique ID of the user",
-            "name": "id",
+            "description": "Unique ID of the media to set as profile photo",
+            "name": "mediaId",
             "in": "path"
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "photoUrl": {
-                    "type": "string",
-                    "format": "uri",
-                    "description": "Direct URL of the new profile picture"
-                  }
-                },
-                "required": [
-                  "photoUrl"
-                ]
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Profile picture updated successfully.",
@@ -4270,13 +4250,186 @@
             }
           },
           "400": {
-            "description": "Invalid or missing photo URL."
+            "description": "Invalid or missing media ID."
           },
           "401": {
             "description": "Unauthorized — missing or invalid JWT token."
           },
           "403": {
             "description": "You cannot update another user's photo."
+          },
+          "404": {
+            "description": "User or media not found."
+          }
+        }
+      }
+    },
+    "/api/users/banner/{coverId}": {
+      "patch": {
+        "summary": "Update user banner by media ID",
+        "description": "Allows the authenticated user to update their banner (cover image) by providing the media ID of the uploaded image.",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Unique ID of the media to set as the banner (cover image)"
+            },
+            "required": true,
+            "description": "Unique ID of the media to set as the banner (cover image)",
+            "name": "coverId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile banner updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "username": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "bio": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "website": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "profilePhoto": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "protectedAccount": {
+                      "type": "boolean"
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "joinDate": {
+                      "type": "string",
+                      "description": "Date the user joined the platform"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "username",
+                    "email",
+                    "bio",
+                    "website",
+                    "profilePhoto",
+                    "protectedAccount",
+                    "verified",
+                    "joinDate"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or missing cover ID."
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid JWT token."
+          },
+          "403": {
+            "description": "You cannot update another user's banner."
+          },
+          "404": {
+            "description": "User or media not found."
+          }
+        }
+      }
+    },
+    "/api/users/banner": {
+      "delete": {
+        "summary": "Delete user banner (restore default)",
+        "description": "Removes the authenticated user’s current banner (cover image) and restores the default one.",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile banner restored to default.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "username": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "bio": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "website": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "profilePhoto": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "protectedAccount": {
+                      "type": "boolean"
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "joinDate": {
+                      "type": "string",
+                      "description": "Date the user joined the platform"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "username",
+                    "email",
+                    "bio",
+                    "website",
+                    "profilePhoto",
+                    "protectedAccount",
+                    "verified",
+                    "joinDate"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid JWT token."
           },
           "404": {
             "description": "User not found."

@@ -54,11 +54,20 @@ export const SearchUserResponseDTOSchema = z
   })
   .openapi("SearchUserResponseDTO");
 
-  export const UpdateUserProfilePhotoDTOSchema = z
-    .object({
-      photoUrl: z
-        .string()
-        .url({ message: "Invalid photo URL" })
-        .describe("Direct URL of the new profile picture"),
-    })
-    .openapi("UpdateUserProfilePhotoDTO");
+export const UpdateUserProfilePhotoParamsSchema = z
+  .object({
+    mediaId: z
+      .string()
+      .uuid({ message: "Invalid media ID format" })
+      .describe("Unique ID of the uploaded media to set as profile picture"),
+  })
+  .openapi("UpdateUserProfilePhotoParamsDTO");
+
+export const UpdateUserBannerParamsSchema = z
+  .object({
+    coverId: z
+      .string()
+      .uuid({ message: "Invalid cover ID format" })
+      .describe("Unique ID of the uploaded media to set as cover/banner"),
+  })
+  .openapi("UpdateUserBannerParamsDTO");
