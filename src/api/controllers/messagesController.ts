@@ -89,7 +89,7 @@ export const getChatInfo = async (req: Request, res: Response, next: NextFunctio
             where: { id: chatId },
             include: {
                 messages: {
-                    orderBy: { createdAt: 'asc' },
+                    take: 50,
                     include: {
                         user: {
                             select: {
@@ -105,7 +105,8 @@ export const getChatInfo = async (req: Request, res: Response, next: NextFunctio
                                 media: true
                             }
                         }
-                    }
+                    },
+                    
                 },
                 chatUsers: {
                     include: {
@@ -136,9 +137,53 @@ export const getChatInfo = async (req: Request, res: Response, next: NextFunctio
         res.status(200).json(chatInfo);
     } catch (error ) {
         console.error(' Error fetching messages:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        next(error);
     }
 };
+
+
+export const getChatMessages = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const {chatId, lastMessagetimestamp} = req.body;
+        if (!chatId || !lastMessagetimestamp) {
+            return res.status(400).json({ error: 'Chat ID and lastMessage timestamp are required' });
+        }
+        const chatExists = await prisma.chat.findUnique({
+            where: { id: chatId }
+        });
+        if (!chatExists) {
+            return res.status(404).json({ error: 'Chat not found' });
+        }
+        const messages = await prisma.message.findMany({
+            where: {
+                chatId: chatId,
+                createdAt: {
+                    gt: lastMessagetimestamp
+                }
+            },
+            include: {
+                user: {
+                        select: {
+                            id: true,
+                            username: true,
+                            name: true,
+                            profileMediaId: true,
+                            coverMediaId: true
+                        }
+                },
+                messageMedia: {
+                    include: {
+                        media: true
+                    }
+                }
+            },
+            take: 50
+        });
+        res.status(200).json(messages);
+    } catch (error) {
+        next(error);
+    }
+}
 
 
 export const getUserChats = async (req: Request, res: Response, next: NextFunction) => {
