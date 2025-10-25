@@ -5,12 +5,14 @@
     "rootDirs": ["./src", "./prisma"],
     "outDir": "dist",
     "strict": true,
-"esModuleInterop": true,
+    "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "baseUrl": "./src",
     "paths": {
       "@/*": ["*"]
-    }
-  }
+      }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

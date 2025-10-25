@@ -1,6 +1,6 @@
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
-import { ChatInfoSchema, CreateChatInput, newMessageInput } from "../application/dtos/chat/chatInfo.dto.schema";
+import { ChatInfoSchema, CreateChatInput, messageData, newMessageInput } from "../application/dtos/chat/chatInfo.dto.schema";
 import { register } from "module";
 import { create } from "domain";
 import { createChat } from "../api/controllers/messagesController";
@@ -34,6 +34,67 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
           "application/json": {
             schema: z.object({
               error: z.string().openapi({ description: "Chat ID is required" })
+            }).openapi("ChatErrorResponse")
+          }
+        }
+      },
+      404: {
+        description: "Chat not found",
+        content: {
+          "application/json": {
+            schema: z.object({
+              error: z.string().openapi({ description: "Chat not found" })
+            }).openapi("ChatErrorResponse")
+          }
+        }
+      },
+      500: {
+        description: "Internal server error",
+        content: {
+          "application/json": {
+            schema: z.object({
+              error: z.string().openapi({ description: "Internal server error" })
+            }).openapi("ChatErrorResponse")
+          }
+        }
+      }
+    }
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/api/dm/chat/{chatId}/messages",
+    summary: "Get chat messages",
+    description: "Retrieve messages from a specific chat",
+    tags: ["Chats"],
+    request: {
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: z.object({
+              chatId: z.string().uuid().openapi({ description: "Chat ID" }),
+              lastMessageTimestamp: z.string().datetime().optional().openapi({ description: "Timestamp of the last message received (for pagination)" })
+            })
+          }
+        }
+      }
+    },
+    responses: { 
+      200: {
+        description: "Chat information retrieved successfully",
+        content: {
+          "application/json": {
+            schema: z.array(MessageSchema)
+          }
+        }
+      },
+      400: {
+        description: "Bad request - Chat ID is required",
+        content: {
+          "application/json": {
+            schema: z.object({
+              error: z.string().openapi({ description: "Chat ID and lastMessage timestamp are required" })
             }).openapi("ChatErrorResponse")
           }
         }

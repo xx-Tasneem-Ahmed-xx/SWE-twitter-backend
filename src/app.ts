@@ -19,6 +19,9 @@ import { errorHandler } from "@/api/middlewares/errorHandler";
 import authRoutes from "@/api/routes/authRoutes";
 import Auth from "@/api/middlewares/Auth";
 import oauthRoutes from "./api/routes/oauthRoutes";
+import { S3Client } from "@aws-sdk/client-s3";
+import { StorageSystem } from "@/application/services/storeageSystem";
+import {admin, initializeFirebase} from './application/services/firebaseInitializer'
 import fs from "fs";
 import {
   Request,
@@ -41,6 +44,8 @@ app.use(compression());
 app.use(express.json());
 app.use(cookieParser());
 
+initializeFirebase();
+
 const httpServer = createServer(app);
 export const io: SocketIOServer = new SocketIOServer(httpServer, {
   cors: {
@@ -49,22 +54,14 @@ export const io: SocketIOServer = new SocketIOServer(httpServer, {
   },
 });
 
+const s3 = new S3Client({ region: process.env.AWS_REGION });
+const storageService = new StorageSystem(s3);
+export { storageService };
+
 const socketService = new SocketService(io);
 export { socketService };
 
-// app.use("/api-docs/auth", swaggerUi.serve, (req: Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>, res: Response<any, Record<string, any>, number>, next: NextFunction) => {
-//   const authDoc = JSON.parse(fs.readFileSync("./src/doc/authRoutes.json", "utf-8"));
-//   swaggerUi.setup(authDoc)(req, res, next);
-// });
-
-// // OAuth routes
-// app.use("/api-docs/oauth", swaggerUi.serve, (req: Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>, res: Response<any, Record<string, any>, number>, next: NextFunction) => {
-//   const oauthDoc = JSON.parse(fs.readFileSync("./src/doc/oauthRoutes.json", "utf-8"));
-//   swaggerUi.setup(oauthDoc)(req, res, next);
-// });
-
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
-
 app.use("/api/auth", authRoutes);
 app.use("/oauth2", oauthRoutes);
 app.use(Auth());
