@@ -557,12 +557,28 @@
                           "name": {
                             "type": "string",
                             "nullable": true,
+                            "nullable": true,
                             "minLength": 1
                           },
                           "username": {
                             "type": "string",
                             "minLength": 1
                           },
+                          "profileMedia": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "keyName": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "keyName"
+                            ]
                           "profileMedia": {
                             "type": "object",
                             "properties": {
@@ -590,6 +606,7 @@
                           "id",
                           "name",
                           "username",
+                          "profileMedia",
                           "profileMedia",
                           "verified",
                           "protectedAccount"
@@ -3534,7 +3551,7 @@
                         "type": "string",
                         "format": "uuid"
                       },
-                      "type": {
+                      "title": {
                         "type": "string",
                         "enum": [
                           "LIKE",
@@ -3547,7 +3564,7 @@
                           "MENTION"
                         ]
                       },
-                      "content": {
+                      "body": {
                         "type": "string",
                         "maxLength": 280
                       },
@@ -3558,7 +3575,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-25T06:46:10.676Z"
+                        "default": "2025-10-24T13:59:07.651Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3575,8 +3592,8 @@
                     },
                     "required": [
                       "id",
-                      "type",
-                      "content",
+                      "title",
+                      "body",
                       "userId"
                     ]
                   }
@@ -3648,7 +3665,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "type": {
+                  "title": {
                     "type": "string",
                     "enum": [
                       "LIKE",
@@ -3661,7 +3678,7 @@
                       "MENTION"
                     ]
                   },
-                  "content": {
+                  "body": {
                     "type": "string",
                     "maxLength": 280
                   },
@@ -3675,8 +3692,8 @@
                   }
                 },
                 "required": [
-                  "type",
-                  "content"
+                  "title",
+                  "body"
                 ]
               }
             }
@@ -3694,7 +3711,7 @@
                       "type": "string",
                       "format": "uuid"
                     },
-                    "type": {
+                    "title": {
                       "type": "string",
                       "enum": [
                         "LIKE",
@@ -3707,7 +3724,7 @@
                         "MENTION"
                       ]
                     },
-                    "content": {
+                    "body": {
                       "type": "string",
                       "maxLength": 280
                     },
@@ -3718,7 +3735,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-25T06:46:10.676Z"
+                      "default": "2025-10-24T13:59:07.651Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3735,8 +3752,8 @@
                   },
                   "required": [
                     "id",
-                    "type",
-                    "content",
+                    "title",
+                    "body",
                     "userId"
                   ]
                 }
@@ -3917,7 +3934,7 @@
                             "type": "string",
                             "format": "uuid"
                           },
-                          "type": {
+                          "title": {
                             "type": "string",
                             "enum": [
                               "LIKE",
@@ -3930,7 +3947,7 @@
                               "MENTION"
                             ]
                           },
-                          "content": {
+                          "body": {
                             "type": "string",
                             "maxLength": 280
                           },
@@ -3941,7 +3958,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-25T06:46:10.676Z"
+                            "default": "2025-10-24T13:59:07.651Z"
                           },
                           "userId": {
                             "type": "string",
@@ -3958,8 +3975,8 @@
                         },
                         "required": [
                           "id",
-                          "type",
-                          "content",
+                          "title",
+                          "body",
                           "userId"
                         ]
                       }
@@ -4053,7 +4070,7 @@
                       "type": "string",
                       "format": "uuid"
                     },
-                    "type": {
+                    "title": {
                       "type": "string",
                       "enum": [
                         "LIKE",
@@ -4066,7 +4083,7 @@
                         "MENTION"
                       ]
                     },
-                    "content": {
+                    "body": {
                       "type": "string",
                       "maxLength": 280
                     },
@@ -4077,7 +4094,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-25T06:46:10.676Z"
+                      "default": "2025-10-24T13:59:07.651Z"
                     },
                     "userId": {
                       "type": "string",
@@ -4094,8 +4111,8 @@
                   },
                   "required": [
                     "id",
-                    "type",
-                    "content",
+                    "title",
+                    "body",
                     "userId"
                   ]
                 }
@@ -5906,22 +5923,11 @@
         }
       }
     },
-    "api/media/{tweetId}/addMediaToTweet": {
+    "api/media/add-media-to-tweet": {
       "post": {
         "summary": "Add media to a tweet",
         "tags": [
           "Media"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": true,
-            "name": "tweetId",
-            "in": "path"
-          }
         ],
         "requestBody": {
           "required": true,
@@ -5930,44 +5936,21 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "media": {
+                  "mediaId": {
                     "type": "array",
                     "items": {
-                      "type": "object",
-                      "properties": {
-                        "name": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 255
-                        },
-                        "url": {
-                          "type": "string",
-                          "format": "uri"
-                        },
-                        "type": {
-                          "type": "string",
-                          "enum": [
-                            "IMAGE",
-                            "VIDEO",
-                            "GIF"
-                          ]
-                        },
-                        "size": {
-                          "type": "number",
-                          "nullable": true
-                        }
-                      },
-                      "required": [
-                        "name",
-                        "url",
-                        "type",
-                        "size"
-                      ]
+                      "type": "string",
+                      "format": "uuid"
                     }
+                  },
+                  "tweetId": {
+                    "type": "string",
+                    "format": "uuid"
                   }
                 },
                 "required": [
-                  "media"
+                  "mediaId",
+                  "tweetId"
                 ]
               }
             }
@@ -6031,7 +6014,95 @@
         }
       }
     },
-    "api/media/{tweetId}/getTweetMedia": {
+    "api/media/add-media-to-message": {
+      "post": {
+        "summary": "Add media to a message",
+        "tags": [
+          "Media"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "messageId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "mediaId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "messageId",
+                  "mediaId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Media added to message successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/media/tweet-media/{tweetId}": {
       "get": {
         "summary": "Get media for a tweet",
         "tags": [
@@ -6066,7 +6137,7 @@
                             "minLength": 1,
                             "maxLength": 255
                           },
-                          "url": {
+                          "keyName": {
                             "type": "string",
                             "format": "uri"
                           },
@@ -6085,7 +6156,7 @@
                         },
                         "required": [
                           "name",
-                          "url",
+                          "keyName",
                           "type",
                           "size"
                         ]
@@ -6119,6 +6190,428 @@
           },
           "404": {
             "description": "Tweet not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/media/message-media/{messageId}": {
+      "get": {
+        "summary": "Get media for a message",
+        "tags": [
+          "Media"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "messageId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Media retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255
+                          },
+                          "keyName": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "IMAGE",
+                              "VIDEO",
+                              "GIF"
+                            ]
+                          },
+                          "size": {
+                            "type": "number",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "keyName",
+                          "type",
+                          "size"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "media"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tweet not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/media/upload-request": {
+      "post": {
+        "summary": "Request to upload media",
+        "tags": [
+          "Media"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fileName": {
+                    "type": "string"
+                  },
+                  "fileType": {
+                    "type": "string",
+                    "enum": [
+                      "IMAGE",
+                      "VIDEO",
+                      "GIF"
+                    ]
+                  }
+                },
+                "required": [
+                  "fileName",
+                  "fileType"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upload request successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "keyName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "url",
+                    "keyName"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/media/download-request/{mediaId}": {
+      "get": {
+        "summary": "Request to download media",
+        "tags": [
+          "Media"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "mediaId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Download request successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "keyName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "url",
+                    "keyName"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Media not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/media/confirm-upload/{keyName}": {
+      "post": {
+        "summary": "Confirm media upload",
+        "tags": [
+          "Media"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "keyName",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Media upload confirmed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "newMedia": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "keyName": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "IMAGE",
+                            "VIDEO",
+                            "GIF"
+                          ]
+                        },
+                        "size": {
+                          "type": "number",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "keyName",
+                        "type",
+                        "size"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "newMedia"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Media not found",
             "content": {
               "application/json": {
                 "schema": {

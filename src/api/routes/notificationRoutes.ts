@@ -4,19 +4,16 @@ import {
     getUnseenNotificationsCount,
     getUnseenNotifications,
     markNotificationsAsRead,
-    addNotification
 } from "@/api/controllers/notificationController";
-import Auth from "../middlewares/Auth";
 
 
 const notificationRoutes = router();
 
 
-notificationRoutes.get("/", Auth, getNotificationList);
-notificationRoutes.get("/unseen/count", Auth, getUnseenNotificationsCount);
-notificationRoutes.get("/unseen", Auth, getUnseenNotifications);
-notificationRoutes.patch("/mark-as-read/:NotificationId", Auth, markNotificationsAsRead);
-notificationRoutes.post("/", Auth, addNotification);
+notificationRoutes.get("/", getNotificationList);
+notificationRoutes.get("/unseen/count", getUnseenNotificationsCount);
+notificationRoutes.get("/unseen", getUnseenNotifications);
+notificationRoutes.patch("/mark-as-read/:NotificationId", markNotificationsAsRead);
 
 
 
