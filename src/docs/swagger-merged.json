@@ -557,28 +557,12 @@
                           "name": {
                             "type": "string",
                             "nullable": true,
-                            "nullable": true,
                             "minLength": 1
                           },
                           "username": {
                             "type": "string",
                             "minLength": 1
                           },
-                          "profileMedia": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "keyName": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "keyName"
-                            ]
                           "profileMedia": {
                             "type": "object",
                             "properties": {
@@ -606,7 +590,6 @@
                           "id",
                           "name",
                           "username",
-                          "profileMedia",
                           "profileMedia",
                           "verified",
                           "protectedAccount"
@@ -3575,7 +3558,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-24T13:59:07.651Z"
+                        "default": "2025-10-25T11:05:03.066Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3735,7 +3718,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-24T13:59:07.651Z"
+                      "default": "2025-10-25T11:05:03.066Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3958,7 +3941,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-24T13:59:07.651Z"
+                            "default": "2025-10-25T11:05:03.066Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4094,7 +4077,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-24T13:59:07.651Z"
+                      "default": "2025-10-25T11:05:03.066Z"
                     },
                     "userId": {
                       "type": "string",
@@ -5168,6 +5151,121 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ChatErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chat not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ChatErrorResponse"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "description": "Chat not found"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ChatErrorResponse"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "description": "Internal server error"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dm/chat/{chatId}/messages": {
+      "get": {
+        "summary": "Get chat messages",
+        "description": "Retrieve messages from a specific chat",
+        "tags": [
+          "Chats"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chatId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Chat ID"
+                  },
+                  "lastMessageTimestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Timestamp of the last message received (for pagination)"
+                  }
+                },
+                "required": [
+                  "chatId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chat information retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Message"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - Chat ID is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ChatErrorResponse"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "description": "Chat ID and lastMessage timestamp are required"
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
