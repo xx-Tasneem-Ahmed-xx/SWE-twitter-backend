@@ -90,8 +90,8 @@ export const addNotification = async (req: Request, res: Response) => {
         const newNotification = await prisma.notification.create({
             data: {
                 userId,
-                type: notificationData.type as any,
-                content: notificationData.content,
+                title: notificationData.type as any,
+                body: notificationData.content,
                 tweetId: notificationData.tweetId,
                 actorId: notificationData.actorId,
                 isRead: false,

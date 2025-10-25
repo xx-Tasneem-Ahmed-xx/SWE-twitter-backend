@@ -33,7 +33,7 @@ export class TimelineService {
               select: {
                 username: true,
                 name: true,
-                profilePhoto: true,
+                profileMedia: { select: { id: true, keyName: true } },
                 verified: true,
                 protectedAccount: true,
               },
