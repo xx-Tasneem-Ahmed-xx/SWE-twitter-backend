@@ -37,8 +37,7 @@ model User {
   tfaVerifed              Boolean   @default(false)
   loginCodes              String?
   loginCodesSet           Boolean   @default(false)
-  unseenChatCount         Int       @default(0)
-  unseenNotificationCount Int       @default(0)
+
 
   messages              Message[]
   tweet                 Tweet[]
