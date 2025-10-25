@@ -81,8 +81,9 @@ const router: Router = express.Router();
  *         description: Email already exists
  */
 router.post("/signup", typedAuthController.Create); //tested
-//router.post("/continue_signup",typedAuthController.ContinuS)
-/*
+
+/**
+ * @swagger
  * /finalize_signup:
  *   post:
  *     summary: Finalize user signup by setting password
