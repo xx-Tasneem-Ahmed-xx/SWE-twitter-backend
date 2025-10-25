@@ -24,7 +24,7 @@ export const addMediaTotweet = async (req: Request, res: Response) => {
     
             const createdMedia = await prisma.media.create({
                 data: {
-                    url: mediaObj.url || '',
+                    keyName: mediaObj.url || '',
                     type: mediaObj.type as MediaType || 'IMAGE' as MediaType,
                     name: mediaObj.name || '',
                     size: mediaObj.size || 0,
