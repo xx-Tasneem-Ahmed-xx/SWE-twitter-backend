@@ -603,9 +603,7 @@ export async function SendEmailSmtp(
 
     await transporter.sendMail(mailOptions);
 
-    return res
-      .status(200)
-      .json({ success: true, message: "Email sent successfully" });
+    return;
   } catch (err) {
     // The error is typed as 'any' in the catch block for simplicity, but you can narrow it down (e.g., to Error)
     return SendError(

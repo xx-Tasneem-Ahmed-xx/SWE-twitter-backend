@@ -118,9 +118,18 @@ export async function Create(req: Request, res: Response): Promise<Response | vo
   try {
     const input: any = req.body;
     console.log("Signup body:", input);
-    if (!input || !input.email || !input.name) {
+    if (!input || !input.email || !input.name||!input.dateOfBirth) {
       return utils.SendError(res, 400, "missing required fields");
     }
+// ✅ Check if email already exists in DB
+const existingUser = await prisma.user.findUnique({
+  where: { email: input.email },
+});
+
+if (existingUser) {
+  return utils.SendError(res, 409, "Email already in use");
+}
+
 
 const isWebClient = req.headers["x-client-type"] === "web";
 
@@ -221,6 +230,67 @@ export async function Verify_signup_email(req: Request, res: Response): Promise<
     return utils.SendError(res, 500, "something went wrong");
   }
 }
+// export async function FinalizeSignup(req: Request, res: Response): Promise<Response | void> {
+//   try {
+//     const { email, password } = req.body;
+//     if (!email || !password) return utils.SendError(res, 400, "email and password required");
+
+//     const userJson: string | null = await redisClient.get(`Signup:verified:${email}`);
+//     if (!userJson) return utils.SendError(res, 400, "you must verify your email first");
+
+//     const input: any = JSON.parse(userJson);
+
+//     let username: string = input.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+//     if (!username) username = `user${Math.floor(Math.random() * 10000)}`;
+//     const existing = await prisma.user.findUnique({ where: { username } });
+//     if (existing) username = `${username}${Math.floor(Math.random() * 10000)}`;
+
+//     const salt: string = crypto.randomBytes(16).toString("hex");
+//     const hashed: string = await utils.HashPassword(password, salt);
+
+//     let parsedDate: Date = new Date(input.dateOfBirth);
+//     if (isNaN(parsedDate.getTime())) {
+//       parsedDate = new Date("2001-11-03T00:00:00.000Z");
+//     }
+
+//     const created: PrismaUser = await prisma.user.create({
+//       data: {
+//         username,
+//         name: input.name,
+//         email: input.email,
+      
+//         password: hashed,
+//         saltPassword: salt,
+//         isEmailVerified: true,
+//         dateOfBirth: parsedDate,
+//       },
+//     }) as unknown as PrismaUser;
+
+//     await utils.AddPasswordHistory(hashed, created.id);
+//     await redisClient.del(`Signup:verified:${email}`);
+
+//     // ✅ Send signup completion email
+//     const completeMsg = `Subject: Welcome to Artimesa 🎉
+
+// Hello ${created.name},
+
+// Your registration is now complete! ✅  
+// You can log in anytime using your email: ${created.email}
+
+// We’re thrilled to have you on board at Artimesa — enjoy exploring our community! 🌟
+
+// If you didn’t create this account, please contact our support team immediately.
+
+// — The Artimesa Team 🛡️
+// `;
+//     await utils.SendEmailSmtp(res, created.email, completeMsg).catch(console.error);
+
+//     return utils.SendRes(res, { message: "Signup complete. Welcome!", user: created });
+//   } catch (err) {
+//     console.error("FinalizeSignup err:", err);
+//     return utils.SendError(res, 500, "something went wrong");
+//   }
+// }
 export async function FinalizeSignup(req: Request, res: Response): Promise<Response | void> {
   try {
     const { email, password } = req.body;
@@ -240,16 +310,13 @@ export async function FinalizeSignup(req: Request, res: Response): Promise<Respo
     const hashed: string = await utils.HashPassword(password, salt);
 
     let parsedDate: Date = new Date(input.dateOfBirth);
-    if (isNaN(parsedDate.getTime())) {
-      parsedDate = new Date("2001-11-03T00:00:00.000Z");
-    }
+    if (isNaN(parsedDate.getTime())) parsedDate = new Date("2001-11-03T00:00:00.000Z");
 
     const created: PrismaUser = await prisma.user.create({
       data: {
         username,
         name: input.name,
         email: input.email,
-      
         password: hashed,
         saltPassword: salt,
         isEmailVerified: true,
@@ -260,7 +327,38 @@ export async function FinalizeSignup(req: Request, res: Response): Promise<Respo
     await utils.AddPasswordHistory(hashed, created.id);
     await redisClient.del(`Signup:verified:${email}`);
 
-    // ✅ Send signup completion email
+    // 🛰️ Step 1: Set device info (geo, browser, etc.)
+    const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
+
+    // 🛡️ Step 2: Generate JWT access token (15 min expiry)
+    const { token: accessToken, jti, payload } = await utils.GenerateJwt({
+      username: created.username,
+      email: created.email,
+      id: created.id,
+      role: "user",
+      expiresInSeconds: 15 * 60,
+      version: 0,
+      devid,
+    });
+
+    // 🔁 Step 3: Generate refresh token (30 days)
+    const { token: refreshToken } = await utils.GenerateJwt({
+      username: created.username,
+      email: created.email,
+      id: created.id,
+      role: "user",
+      expiresInSeconds: 60 * 60 * 24 * 30,
+      version: 0,
+      devid,
+    });
+
+    // 💾 Step 4: Store refresh token in Redis (30 days)
+    await redisClient.set(`refreshToken:${created.id}`, refreshToken, { EX: 60 * 60 * 24 * 30 });
+
+    // 🔐 Step 5: Save active session (with device id)
+    await utils.SetSession(req, created.id, jti);
+
+    // 📧 Step 6: Send welcome email
     const completeMsg = `Subject: Welcome to Artimesa 🎉
 
 Hello ${created.name},
@@ -276,7 +374,23 @@ If you didn’t create this account, please contact our support team immediately
 `;
     await utils.SendEmailSmtp(res, created.email, completeMsg).catch(console.error);
 
-    return utils.SendRes(res, { message: "Signup complete. Welcome!", user: created });
+    // 🎯 Step 7: Return everything in the response
+    return utils.SendRes(res, {
+      message: "Signup complete. Welcome!",
+      user: {
+        id: created.id,
+        username: created.username,
+        name: created.name,
+        email: created.email,
+        dateOfBirth: created.dateOfBirth,
+        isEmailVerified: created.isEmailVerified,
+      },
+      device: deviceRecord,
+      tokens: {
+        accessToken,
+        refreshToken,
+      },
+    });
   } catch (err) {
     console.error("FinalizeSignup err:", err);
     return utils.SendError(res, 500, "something went wrong");
