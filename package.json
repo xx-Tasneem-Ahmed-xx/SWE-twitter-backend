@@ -10,6 +10,7 @@
     "dev": "nodemon -r tsconfig-paths/register --watch 'src/**/*.ts' --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "ts-node --project tsconfig.json -r tsconfig-paths/register src/index.ts",
+    "seed": "ts-node prisma/seed.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

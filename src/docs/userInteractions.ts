@@ -146,7 +146,7 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
     request: { params: UserInteractionParamsSchema },
     responses: {
       200: { description: "User unblocked successfully" },
-      400: { description: "Can't unblock yourself or already unblocked users" },
+      400: { description: "You have not blocked this user" },
       404: { description: "User not found" },
       500: { description: "Internal server error" },
     },
