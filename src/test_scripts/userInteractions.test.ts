@@ -1,4 +1,5 @@
 import * as userInteractionsService from "@/application/services/userInteractions";
+import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { prisma, FollowStatus } from "@/prisma/client";
 import { connectToDatabase } from "@/database";
 import { FollowsListResponseSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
@@ -113,19 +114,16 @@ describe("User Interactions Service", () => {
   // Tests for findUserByUsername
   describe("findUserByUsername", () => {
     it("should find a user by username", async () => {
-      const result = await userInteractionsService.findUserByUsername(
-        "test_user1"
-      );
+      const result = await resolveUsernameToId("test_user1");
       expect(result).not.toBeNull();
       expect(result?.id).toBe("123");
       expect(result?.protectedAccount).toBe(false);
     });
 
-    it("should return null if user not found", async () => {
-      const result = await userInteractionsService.findUserByUsername(
-        "notfound_user"
+    it("should throw if user not found", async () => {
+      await expect(resolveUsernameToId("notfound_user")).rejects.toThrow(
+        "User not found"
       );
-      expect(result).toBeNull();
     });
   });
 

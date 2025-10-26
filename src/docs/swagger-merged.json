@@ -3374,7 +3374,7 @@
             "description": "User unblocked successfully"
           },
           "400": {
-            "description": "Can't unblock yourself or already unblocked users"
+            "description": "You have not blocked this user"
           },
           "404": {
             "description": "User not found"
@@ -3558,7 +3558,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-25T11:05:03.066Z"
+                        "default": "2025-10-26T19:43:51.595Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3718,7 +3718,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-25T11:05:03.066Z"
+                      "default": "2025-10-26T19:43:51.595Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3941,7 +3941,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-25T11:05:03.066Z"
+                            "default": "2025-10-26T19:43:51.595Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4077,7 +4077,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-25T11:05:03.066Z"
+                      "default": "2025-10-26T19:43:51.595Z"
                     },
                     "userId": {
                       "type": "string",

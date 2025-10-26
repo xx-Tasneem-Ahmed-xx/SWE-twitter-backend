@@ -42,11 +42,12 @@ export const isFollower = async (followerId: string, followingId: string) => {
 export const resolveUsernameToId = async (username: string) => {
   const user = await prisma.user.findUnique({
     where: { username },
-    select: { id: true },
+    select: { id: true, protectedAccount: true },
   });
   if (!user?.id) throw new Error("User not found");
-  return user.id;
+  return user;
 };
+
 export const isVerified = async (id: string) => {
   const user = await prisma.user.findUnique({
     where: { id },
@@ -283,7 +284,6 @@ export async function CheckPass(
   hashed: string
 ): Promise<boolean> {
   try {
-    
     return await bcrypt.compare(password + PEPPER, hashed);
   } catch {
     return false;
