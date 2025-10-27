@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { TweetController } from "@/api/controllers/tweets/tweets";
+import { TweetController } from "@/api/controllers/tweets";
 import { validateBody } from "@/api/validators/tweets/tweets.validators";
 import { CreateTweetDTOSchema } from "@/application/dtos/tweets/tweet.dto.schema";
 const router = Router();
@@ -11,8 +11,6 @@ router
 
 router.route("/likedtweets").get(tweetController.getLikedTweets);
 
-router.route("/timeline").get(tweetController.getTimeline);
-
 router
   .route("/:id")
   .get(tweetController.getTweet)
@@ -21,6 +19,7 @@ router
 
 router
   .route("/:id/retweets")
+  .get(tweetController.getRetweets)
   .post(tweetController.createReTweet)
   .delete(tweetController.deleteRetweet);
 
@@ -32,5 +31,15 @@ router
   .route("/:id/replies")
   .get(tweetController.getTweetReplies)
   .post(validateBody(CreateTweetDTOSchema), tweetController.createReply);
+
+router
+  .route("/:id/likes")
+  .get(tweetController.getLikers)
+  .post(tweetController.likeTweet)
+  .delete(tweetController.deleteLike);
+
+router.route("/:id/summary").get(tweetController.getTweetSummary);
+
+router.route("/search").get(tweetController.searchTweets);
 
 export default router;

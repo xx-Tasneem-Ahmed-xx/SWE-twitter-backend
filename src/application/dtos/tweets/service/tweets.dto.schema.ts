@@ -1,6 +1,7 @@
 import z from "zod";
 import {
   CreateTweetDTOSchema,
+  SearchDTOSchema,
   TimelineSchema,
 } from "@/application/dtos/tweets/tweet.dto.schema";
 
@@ -21,3 +22,5 @@ export const CreateReplyOrQuoteServiceSchema = CreateTweetDTOSchema.extend({
 export const TimelineServiceSchema = TimelineSchema.extend({
   userId: z.uuid(),
 });
+
+export const SearchServiceSchema = SearchDTOSchema.extend({ userId: z.uuid() });

@@ -47,7 +47,7 @@
           "content"
         ]
       },
-      "FollowsListResponse": {
+      "UserInteractionsListResponse": {
         "type": "object",
         "properties": {
           "users": {
@@ -97,7 +97,7 @@
                 "isFollower"
               ]
             },
-            "description": "List of followers or followings"
+            "description": "List of followers, followings, blocked or muted users"
           }
         },
         "required": [
@@ -1126,7 +1126,7 @@
           }
         }
       },
-      "put": {
+      "patch": {
         "summary": "Update a tweet",
         "description": "Updates a tweet if the user is its author.",
         "tags": [
@@ -1152,94 +1152,13 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
                   "content": {
                     "type": "string",
                     "minLength": 1
-                  },
-                  "createdAt": {
-                    "type": "string",
-                    "format": "date"
-                  },
-                  "likesCount": {
-                    "type": "integer"
-                  },
-                  "retweetCount": {
-                    "type": "integer"
-                  },
-                  "repliesCount": {
-                    "type": "integer"
-                  },
-                  "replyControl": {
-                    "type": "string",
-                    "enum": [
-                      "EVERYONE",
-                      "FOLLOWINGS",
-                      "VERIFIED",
-                      "MENTIONED"
-                    ]
-                  },
-                  "parentId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "tweetType": {
-                    "type": "string",
-                    "enum": [
-                      "TWEET",
-                      "REPLY",
-                      "QUOTE"
-                    ]
-                  },
-                  "user": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "name": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "username": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "profilePhoto": {
-                        "type": "string",
-                        "format": "uri"
-                      },
-                      "verified": {
-                        "type": "boolean"
-                      },
-                      "protectedAccount": {
-                        "type": "boolean"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name",
-                      "username",
-                      "profilePhoto",
-                      "verified",
-                      "protectedAccount"
-                    ]
                   }
                 },
                 "required": [
-                  "id",
-                  "content",
-                  "createdAt",
-                  "likesCount",
-                  "retweetCount",
-                  "repliesCount",
-                  "replyControl",
-                  "tweetType",
-                  "user"
+                  "content"
                 ]
               }
             }
@@ -1313,490 +1232,11 @@
         }
       }
     },
-    "/api/tweets/timeline": {
-      "get": {
-        "summary": "Get timeline tweets",
-        "description": "Fetches tweets from users the current user follows.",
-        "tags": [
-          "Timeline and Feed"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "number",
-              "minimum": 1,
-              "maximum": 50,
-              "default": 20
-            },
-            "required": false,
-            "name": "limit",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "description": "The cursor for pagination (createdAt of last tweet)"
-            },
-            "required": false,
-            "description": "The cursor for pagination (createdAt of last tweet)",
-            "name": "cursor",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Timeline tweets fetched successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "content": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "createdAt": {
-                            "type": "string",
-                            "format": "date"
-                          },
-                          "likesCount": {
-                            "type": "integer"
-                          },
-                          "retweetCount": {
-                            "type": "integer"
-                          },
-                          "repliesCount": {
-                            "type": "integer"
-                          },
-                          "replyControl": {
-                            "type": "string",
-                            "enum": [
-                              "EVERYONE",
-                              "FOLLOWINGS",
-                              "VERIFIED",
-                              "MENTIONED"
-                            ]
-                          },
-                          "parentId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "tweetType": {
-                            "type": "string",
-                            "enum": [
-                              "TWEET",
-                              "REPLY",
-                              "QUOTE"
-                            ]
-                          },
-                          "user": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "name": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "username": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "profilePhoto": {
-                                "type": "string",
-                                "format": "uri"
-                              },
-                              "verified": {
-                                "type": "boolean"
-                              },
-                              "protectedAccount": {
-                                "type": "boolean"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "name",
-                              "username",
-                              "profilePhoto",
-                              "verified",
-                              "protectedAccount"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "content",
-                          "createdAt",
-                          "likesCount",
-                          "retweetCount",
-                          "repliesCount",
-                          "replyControl",
-                          "tweetType",
-                          "user"
-                        ]
-                      }
-                    },
-                    "nextCursor": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Cursor for next page"
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "nextCursor"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request : The request data is invalid or missing fields"
-          },
-          "401": {
-            "description": "Unauthorized : Authentication is required or token is invalid"
-          },
-          "403": {
-            "description": "Forbidden : You don’t have permission to access this resource"
-          },
-          "404": {
-            "description": "Not Found : The requested resource could not be found"
-          },
-          "409": {
-            "description": "Conflict : Resource already exists or constraint violation"
-          },
-          "500": {
-            "description": "Internal Server Error : Something went wrong on the server"
-          }
-        }
-      }
-    },
-    "/api/tweets/search": {
-      "get": {
-        "summary": "Search for tweets",
-        "description": "Search tweets by content, hashtag, or users.",
-        "tags": [
-          "Timeline and Feed"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "Search keyword"
-            },
-            "required": true,
-            "description": "Search keyword",
-            "name": "q",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "number",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 20,
-              "description": "Result limit"
-            },
-            "required": false,
-            "description": "Result limit",
-            "name": "limit",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "number",
-              "default": 0
-            },
-            "required": false,
-            "name": "offset",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "400": {
-              "description": "Bad Request : The request data is invalid or missing fields"
-            },
-            "401": {
-              "description": "Unauthorized : Authentication is required or token is invalid"
-            },
-            "403": {
-              "description": "Forbidden : You don’t have permission to access this resource"
-            },
-            "404": {
-              "description": "Not Found : The requested resource could not be found"
-            },
-            "409": {
-              "description": "Conflict : Resource already exists or constraint violation"
-            },
-            "500": {
-              "description": "Internal Server Error : Something went wrong on the server"
-            },
-            "description": "List of matching tweets",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "content": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date"
-                    },
-                    "likesCount": {
-                      "type": "integer"
-                    },
-                    "retweetCount": {
-                      "type": "integer"
-                    },
-                    "repliesCount": {
-                      "type": "integer"
-                    },
-                    "replyControl": {
-                      "type": "string",
-                      "enum": [
-                        "EVERYONE",
-                        "FOLLOWINGS",
-                        "VERIFIED",
-                        "MENTIONED"
-                      ]
-                    },
-                    "parentId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "tweetType": {
-                      "type": "string",
-                      "enum": [
-                        "TWEET",
-                        "REPLY",
-                        "QUOTE"
-                      ]
-                    },
-                    "user": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "name": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "username": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "profilePhoto": {
-                          "type": "string",
-                          "format": "uri"
-                        },
-                        "verified": {
-                          "type": "boolean"
-                        },
-                        "protectedAccount": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "name",
-                        "username",
-                        "profilePhoto",
-                        "verified",
-                        "protectedAccount"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "content",
-                    "createdAt",
-                    "likesCount",
-                    "retweetCount",
-                    "repliesCount",
-                    "replyControl",
-                    "tweetType",
-                    "user"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/tweets/user/{username}": {
-      "get": {
-        "summary": "Get user's tweets",
-        "description": "Returns all tweets authored by the specified user.",
-        "tags": [
-          "Timeline and Feed"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 30,
-              "pattern": "^[a-zA-Z0-9_]+$",
-              "description": "Username"
-            },
-            "required": true,
-            "description": "Username",
-            "name": "username",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Tweets retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "content": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date"
-                      },
-                      "likesCount": {
-                        "type": "integer"
-                      },
-                      "retweetCount": {
-                        "type": "integer"
-                      },
-                      "repliesCount": {
-                        "type": "integer"
-                      },
-                      "replyControl": {
-                        "type": "string",
-                        "enum": [
-                          "EVERYONE",
-                          "FOLLOWINGS",
-                          "VERIFIED",
-                          "MENTIONED"
-                        ]
-                      },
-                      "parentId": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "tweetType": {
-                        "type": "string",
-                        "enum": [
-                          "TWEET",
-                          "REPLY",
-                          "QUOTE"
-                        ]
-                      },
-                      "user": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "name": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "username": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "profilePhoto": {
-                            "type": "string",
-                            "format": "uri"
-                          },
-                          "verified": {
-                            "type": "boolean"
-                          },
-                          "protectedAccount": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "username",
-                          "profilePhoto",
-                          "verified",
-                          "protectedAccount"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "content",
-                      "createdAt",
-                      "likesCount",
-                      "retweetCount",
-                      "repliesCount",
-                      "replyControl",
-                      "tweetType",
-                      "user"
-                    ]
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request : The request data is invalid or missing fields"
-          },
-          "401": {
-            "description": "Unauthorized : Authentication is required or token is invalid"
-          },
-          "403": {
-            "description": "Forbidden : You don’t have permission to access this resource"
-          },
-          "404": {
-            "description": "Not Found : The requested resource could not be found"
-          },
-          "409": {
-            "description": "Conflict : Resource already exists or constraint violation"
-          },
-          "500": {
-            "description": "Internal Server Error : Something went wrong on the server"
-          }
-        }
-      }
-    },
     "/api/tweets/user/{username}/mentioned": {
       "get": {
         "summary": "Get tweets that the user is mentioned in",
         "tags": [
-          "Timeline and Feed"
+          "Tweets Interactions"
         ],
         "parameters": [
           {
@@ -2408,6 +1848,2358 @@
         }
       }
     },
+    "/api/tweets/search": {
+      "get": {
+        "summary": "Search for tweets",
+        "description": "Search tweets by content, hashtag, or users.",
+        "tags": [
+          "Tweets"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Search keyword"
+            },
+            "required": true,
+            "description": "Search keyword",
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Result limit"
+            },
+            "required": false,
+            "description": "Result limit",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "400": {
+              "description": "Bad Request : The request data is invalid or missing fields"
+            },
+            "401": {
+              "description": "Unauthorized : Authentication is required or token is invalid"
+            },
+            "403": {
+              "description": "Forbidden : You don’t have permission to access this resource"
+            },
+            "404": {
+              "description": "Not Found : The requested resource could not be found"
+            },
+            "409": {
+              "description": "Conflict : Resource already exists or constraint violation"
+            },
+            "500": {
+              "description": "Internal Server Error : Something went wrong on the server"
+            },
+            "description": "List of matching tweets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "content": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "likesCount": {
+                      "type": "integer"
+                    },
+                    "retweetCount": {
+                      "type": "integer"
+                    },
+                    "repliesCount": {
+                      "type": "integer"
+                    },
+                    "replyControl": {
+                      "type": "string",
+                      "enum": [
+                        "EVERYONE",
+                        "FOLLOWINGS",
+                        "VERIFIED",
+                        "MENTIONED"
+                      ]
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "tweetType": {
+                      "type": "string",
+                      "enum": [
+                        "TWEET",
+                        "REPLY",
+                        "QUOTE"
+                      ]
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "username": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "profilePhoto": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "verified": {
+                          "type": "boolean"
+                        },
+                        "protectedAccount": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "username",
+                        "profilePhoto",
+                        "verified",
+                        "protectedAccount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "content",
+                    "createdAt",
+                    "likesCount",
+                    "retweetCount",
+                    "repliesCount",
+                    "replyControl",
+                    "tweetType",
+                    "user"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tweets/users/{username}": {
+      "get": {
+        "summary": "Get user's tweets",
+        "description": "Returns all tweets authored by the specified user.",
+        "tags": [
+          "Tweets"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 30,
+              "pattern": "^[a-zA-Z0-9_]+$",
+              "description": "Username"
+            },
+            "required": true,
+            "description": "Username",
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tweets retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "content": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      "likesCount": {
+                        "type": "integer"
+                      },
+                      "retweetCount": {
+                        "type": "integer"
+                      },
+                      "repliesCount": {
+                        "type": "integer"
+                      },
+                      "replyControl": {
+                        "type": "string",
+                        "enum": [
+                          "EVERYONE",
+                          "FOLLOWINGS",
+                          "VERIFIED",
+                          "MENTIONED"
+                        ]
+                      },
+                      "parentId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "tweetType": {
+                        "type": "string",
+                        "enum": [
+                          "TWEET",
+                          "REPLY",
+                          "QUOTE"
+                        ]
+                      },
+                      "user": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "username": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "profilePhoto": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "verified": {
+                            "type": "boolean"
+                          },
+                          "protectedAccount": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "username",
+                          "profilePhoto",
+                          "verified",
+                          "protectedAccount"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "content",
+                      "createdAt",
+                      "likesCount",
+                      "retweetCount",
+                      "repliesCount",
+                      "replyControl",
+                      "tweetType",
+                      "user"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
+      }
+    },
+    "/api/explore/${category}": {
+      "get": {
+        "summary": "Get tweets or trends by category",
+        "description": "Fetch public tweets or trending content filtered by category (sports, news, or entertainment).",
+        "tags": [
+          "Timeline and Explore"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sports",
+                "news",
+                "entertainment"
+              ],
+              "description": "Tweet or Trend category"
+            },
+            "required": true,
+            "description": "Tweet or Trend category",
+            "name": "category",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved tweets for the category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "category": {
+                      "type": "string"
+                    },
+                    "tweets": {
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "content": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "likesCount": {
+                              "type": "integer"
+                            },
+                            "retweetCount": {
+                              "type": "integer"
+                            },
+                            "repliesCount": {
+                              "type": "integer"
+                            },
+                            "replyControl": {
+                              "type": "string",
+                              "enum": [
+                                "EVERYONE",
+                                "FOLLOWINGS",
+                                "VERIFIED",
+                                "MENTIONED"
+                              ]
+                            },
+                            "parentId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "tweetType": {
+                              "type": "string",
+                              "enum": [
+                                "TWEET",
+                                "REPLY",
+                                "QUOTE"
+                              ]
+                            },
+                            "user": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "username": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "profilePhoto": {
+                                  "type": "string",
+                                  "format": "uri"
+                                },
+                                "verified": {
+                                  "type": "boolean"
+                                },
+                                "protectedAccount": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "username",
+                                "profilePhoto",
+                                "verified",
+                                "protectedAccount"
+                              ]
+                            },
+                            "retweets": {
+                              "type": "object",
+                              "properties": {
+                                "users": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                      },
+                                      "name": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "username": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "profilePhoto": {
+                                        "type": "string",
+                                        "format": "uri"
+                                      },
+                                      "verified": {
+                                        "type": "boolean"
+                                      },
+                                      "protectedAccount": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "name",
+                                      "username",
+                                      "profilePhoto",
+                                      "verified",
+                                      "protectedAccount"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "users"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "content",
+                            "createdAt",
+                            "likesCount",
+                            "retweetCount",
+                            "repliesCount",
+                            "replyControl",
+                            "tweetType",
+                            "user",
+                            "retweets"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "category",
+                    "tweets"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
+      }
+    },
+    "/api/home/for-you": {
+      "get": {
+        "summary": "Get personalized recommended tweets",
+        "description": "Fetch tweets recommended to the user based on interests, engagement history, and trending content. Requires authentication.",
+        "tags": [
+          "Timeline and Explore"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Personalized recommended tweets retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "string",
+                      "description": "Authenticated user's username"
+                    },
+                    "recommendations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "content": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "likesCount": {
+                            "type": "integer"
+                          },
+                          "retweetCount": {
+                            "type": "integer"
+                          },
+                          "repliesCount": {
+                            "type": "integer"
+                          },
+                          "replyControl": {
+                            "type": "string",
+                            "enum": [
+                              "EVERYONE",
+                              "FOLLOWINGS",
+                              "VERIFIED",
+                              "MENTIONED"
+                            ]
+                          },
+                          "parentId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "tweetType": {
+                            "type": "string",
+                            "enum": [
+                              "TWEET",
+                              "REPLY",
+                              "QUOTE"
+                            ]
+                          },
+                          "user": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "username": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "profilePhoto": {
+                                "type": "string",
+                                "format": "uri"
+                              },
+                              "verified": {
+                                "type": "boolean"
+                              },
+                              "protectedAccount": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "username",
+                              "profilePhoto",
+                              "verified",
+                              "protectedAccount"
+                            ]
+                          },
+                          "retweets": {
+                            "type": "object",
+                            "properties": {
+                              "users": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "format": "uuid"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "username": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "profilePhoto": {
+                                      "type": "string",
+                                      "format": "uri"
+                                    },
+                                    "verified": {
+                                      "type": "boolean"
+                                    },
+                                    "protectedAccount": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "username",
+                                    "profilePhoto",
+                                    "verified",
+                                    "protectedAccount"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "users"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "content",
+                          "createdAt",
+                          "likesCount",
+                          "retweetCount",
+                          "repliesCount",
+                          "replyControl",
+                          "tweetType",
+                          "user",
+                          "retweets"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "user",
+                    "recommendations"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
+      }
+    },
+    "/api/home/timeline": {
+      "get": {
+        "summary": "Get timeline tweets",
+        "description": "Fetches tweets from users the current user follows.",
+        "tags": [
+          "Timeline and Explore"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The cursor for pagination (createdAt of last tweet)"
+            },
+            "required": false,
+            "description": "The cursor for pagination (createdAt of last tweet)",
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Timeline tweets fetched successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "content": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "likesCount": {
+                            "type": "integer"
+                          },
+                          "retweetCount": {
+                            "type": "integer"
+                          },
+                          "repliesCount": {
+                            "type": "integer"
+                          },
+                          "replyControl": {
+                            "type": "string",
+                            "enum": [
+                              "EVERYONE",
+                              "FOLLOWINGS",
+                              "VERIFIED",
+                              "MENTIONED"
+                            ]
+                          },
+                          "parentId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "tweetType": {
+                            "type": "string",
+                            "enum": [
+                              "TWEET",
+                              "REPLY",
+                              "QUOTE"
+                            ]
+                          },
+                          "user": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "username": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "profilePhoto": {
+                                "type": "string",
+                                "format": "uri"
+                              },
+                              "verified": {
+                                "type": "boolean"
+                              },
+                              "protectedAccount": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "username",
+                              "profilePhoto",
+                              "verified",
+                              "protectedAccount"
+                            ]
+                          },
+                          "retweets": {
+                            "type": "object",
+                            "properties": {
+                              "users": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "format": "uuid"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "username": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "profilePhoto": {
+                                      "type": "string",
+                                      "format": "uri"
+                                    },
+                                    "verified": {
+                                      "type": "boolean"
+                                    },
+                                    "protectedAccount": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "username",
+                                    "profilePhoto",
+                                    "verified",
+                                    "protectedAccount"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "users"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "content",
+                          "createdAt",
+                          "likesCount",
+                          "retweetCount",
+                          "repliesCount",
+                          "replyControl",
+                          "tweetType",
+                          "user",
+                          "retweets"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Cursor for next page"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "nextCursor"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
+      }
+    },
+    "/api/followers/{username}": {
+      "post": {
+        "summary": "/Follow a user or send a follow request",
+        "tags": [
+          "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Username of the user to interact with"
+            },
+            "required": true,
+            "description": "Username of the user to interact with",
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "User followed successfully"
+          },
+          "202": {
+            "description": "Follow request sent"
+          },
+          "400": {
+            "description": "Can't follow yourself or already following user"
+          },
+          "403": {
+            "description": "Can't follow blocked users /users who blocked you"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Unfollow a user or cancel a pending follow request",
+        "tags": [
+          "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Username of the user to interact with"
+            },
+            "required": true,
+            "description": "Username of the user to interact with",
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unfollowed user"
+          },
+          "202": {
+            "description": "Follow request cancelled"
+          },
+          "400": {
+            "description": "You are not following this user"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get a list of followers for a user by their username",
+        "tags": [
+          "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Username of the user to interact with"
+            },
+            "required": true,
+            "description": "Username of the user to interact with",
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of followers retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInteractionsListResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Can't view followers of blocked / blocking users"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/followings/{username}": {
+      "patch": {
+        "summary": "Accept a follow request",
+        "tags": [
+          "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Username of the user to interact with"
+            },
+            "required": true,
+            "description": "Username of the user to interact with",
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Follow request accepted"
+          },
+          "404": {
+            "description": "No follow request found"
+          },
+          "409": {
+            "description": "Follow request already accepted"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Decline a follow request or remove a follower",
+        "tags": [
+          "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Username of the user to interact with"
+            },
+            "required": true,
+            "description": "Username of the user to interact with",
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Follower removed"
+          },
+          "202": {
+            "description": "Follow request declined"
+          },
+          "404": {
+            "description": "No follow request found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get a list of followings for a user by their username",
+        "tags": [
+          "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Username of the user to interact with"
+            },
+            "required": true,
+            "description": "Username of the user to interact with",
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of followings retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInteractionsListResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Can't view followings of blocked / blocking users"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/followers/requests": {
+      "get": {
+        "summary": "Get a list of follow requests",
+        "tags": [
+          "User Interactions"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of follow requests retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInteractionsListResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/blocks/{username}": {
+      "post": {
+        "summary": "Block a user",
+        "tags": [
+          "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Username of the user to interact with"
+            },
+            "required": true,
+            "description": "Username of the user to interact with",
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "User blocked successfully"
+          },
+          "400": {
+            "description": "Can't block yourself or already blocked users"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Unblock a user",
+        "tags": [
+          "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Username of the user to interact with"
+            },
+            "required": true,
+            "description": "Username of the user to interact with",
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User unblocked successfully"
+          },
+          "400": {
+            "description": "Can't unblock yourself or already unblocked users"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/blocks": {
+      "get": {
+        "summary": "Get a list of blocked users",
+        "tags": [
+          "User Interactions"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of blocked users retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInteractionsListResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/mutes/{username}": {
+      "post": {
+        "summary": "Mute a user",
+        "tags": [
+          "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Username of the user to interact with"
+            },
+            "required": true,
+            "description": "Username of the user to interact with",
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "User muted successfully"
+          },
+          "400": {
+            "description": "Can't mute yourself or already muted user"
+          },
+          "403": {
+            "description": "Can't mute blocked users /users who blocked you"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Unmute a user",
+        "tags": [
+          "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Username of the user to interact with"
+            },
+            "required": true,
+            "description": "Username of the user to interact with",
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User unmuted successfully"
+          },
+          "400": {
+            "description": "You have not muted this user"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/mutes": {
+      "get": {
+        "summary": "Get a list of muted users",
+        "tags": [
+          "User Interactions"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of muted users retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInteractionsListResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "summary": "Get list of notifications for the authenticated user",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Bearer token for authentication"
+            },
+            "required": true,
+            "description": "Bearer token for authentication",
+            "name": "Authorization",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of notifications retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "LIKE",
+                          "RETWEET",
+                          "REPLY",
+                          "QUOTE",
+                          "FOLLOW",
+                          "RequestToFollow",
+                          "AcceptedFollow",
+                          "MENTION"
+                        ]
+                      },
+                      "content": {
+                        "type": "string",
+                        "maxLength": 280
+                      },
+                      "isRead": {
+                        "type": "boolean",
+                        "default": false
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date",
+                        "default": "2025-10-24T06:33:34.703Z"
+                      },
+                      "userId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "tweetId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "actorId": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type",
+                      "content",
+                      "userId"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Unauthorized"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal Server Error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new notification for a user",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Bearer token for authentication"
+            },
+            "required": true,
+            "description": "Bearer token for authentication",
+            "name": "Authorization",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "LIKE",
+                      "RETWEET",
+                      "REPLY",
+                      "QUOTE",
+                      "FOLLOW",
+                      "RequestToFollow",
+                      "AcceptedFollow",
+                      "MENTION"
+                    ]
+                  },
+                  "content": {
+                    "type": "string",
+                    "maxLength": 280
+                  },
+                  "tweetId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "actorId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "type",
+                  "content"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Notification created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "LIKE",
+                        "RETWEET",
+                        "REPLY",
+                        "QUOTE",
+                        "FOLLOW",
+                        "RequestToFollow",
+                        "AcceptedFollow",
+                        "MENTION"
+                      ]
+                    },
+                    "content": {
+                      "type": "string",
+                      "maxLength": 280
+                    },
+                    "isRead": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date",
+                      "default": "2025-10-24T06:33:34.703Z"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "tweetId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "actorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "content",
+                    "userId"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid notification data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Invalid notification data"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Unauthorized"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal Server Error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/unseen/count": {
+      "get": {
+        "summary": "Get count of unseen notifications for the authenticated user",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Bearer token for authentication"
+            },
+            "required": true,
+            "description": "Bearer token for authentication",
+            "name": "Authorization",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unseen notifications count retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "unseenCount": {
+                      "type": "number",
+                      "description": "Count of unseen notifications"
+                    }
+                  },
+                  "required": [
+                    "unseenCount"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Unauthorized"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal Server Error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/unseen": {
+      "get": {
+        "summary": "Get unseen notifications for the authenticated user",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Bearer token for authentication"
+            },
+            "required": true,
+            "description": "Bearer token for authentication",
+            "name": "Authorization",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unseen notifications retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "notifications": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "LIKE",
+                              "RETWEET",
+                              "REPLY",
+                              "QUOTE",
+                              "FOLLOW",
+                              "RequestToFollow",
+                              "AcceptedFollow",
+                              "MENTION"
+                            ]
+                          },
+                          "content": {
+                            "type": "string",
+                            "maxLength": 280
+                          },
+                          "isRead": {
+                            "type": "boolean",
+                            "default": false
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date",
+                            "default": "2025-10-24T06:33:34.703Z"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "tweetId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "actorId": {
+                            "type": "string",
+                            "format": "uuid"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "content",
+                          "userId"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "notifications"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Unauthorized"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal Server Error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mark-as-read/{NotificationId}": {
+      "patch": {
+        "summary": "Update a notification status to read",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "ID of the notification to update"
+            },
+            "required": true,
+            "description": "ID of the notification to update",
+            "name": "NotificationId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Bearer token for authentication"
+            },
+            "required": true,
+            "description": "Bearer token for authentication",
+            "name": "Authorization",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "LIKE",
+                        "RETWEET",
+                        "REPLY",
+                        "QUOTE",
+                        "FOLLOW",
+                        "RequestToFollow",
+                        "AcceptedFollow",
+                        "MENTION"
+                      ]
+                    },
+                    "content": {
+                      "type": "string",
+                      "maxLength": 280
+                    },
+                    "isRead": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date",
+                      "default": "2025-10-24T06:33:34.703Z"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "tweetId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "actorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "content",
+                    "userId"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Unauthorized"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Notification not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Notification not found"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal Server Error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{username}": {
+      "get": {
+        "summary": "Get user profile by username",
+        "description": "Fetch the public profile of a specific user by their username.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Unique username of the user"
+            },
+            "required": true,
+            "description": "Unique username of the user",
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User profile fetched successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "username": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "bio": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "website": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "profilePhoto": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "protectedAccount": {
+                      "type": "boolean"
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "joinDate": {
+                      "type": "string",
+                      "description": "Date the user joined the platform"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "username",
+                    "email",
+                    "bio",
+                    "website",
+                    "profilePhoto",
+                    "protectedAccount",
+                    "verified",
+                    "joinDate"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found."
+          }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "patch": {
+        "summary": "Update user profile by ID",
+        "description": "Update the profile fields of the authenticated user.",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Unique ID of the user"
+            },
+            "required": true,
+            "description": "Unique ID of the user",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bio": {
+                    "type": "string",
+                    "description": "User biography text"
+                  },
+                  "website": {
+                    "type": "string",
+                    "description": "Personal website URL"
+                  },
+                  "profilePhoto": {
+                    "type": "string",
+                    "description": "Profile photo URL"
+                  },
+                  "protectedAccount": {
+                    "type": "boolean",
+                    "description": "Whether the account is protected"
+                  },
+                  "address": {
+                    "type": "string",
+                    "description": "User address"
+                  },
+                  "cover": {
+                    "type": "string",
+                    "description": "Cover image URL"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "User's full name"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "username": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "bio": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "website": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "profilePhoto": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "protectedAccount": {
+                      "type": "boolean"
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "joinDate": {
+                      "type": "string",
+                      "description": "Date the user joined the platform"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "username",
+                    "email",
+                    "bio",
+                    "website",
+                    "profilePhoto",
+                    "protectedAccount",
+                    "verified",
+                    "joinDate"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data."
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid JWT token."
+          },
+          "403": {
+            "description": "You cannot update another user's profile."
+          },
+          "404": {
+            "description": "User not found."
+          }
+        }
+      }
+    },
+    "/api/users/search": {
+      "get": {
+        "summary": "Search for users by username or screen name",
+        "description": "Searches for users whose username or display name matches the provided query (case-insensitive).",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Part of username or screen name to search for"
+            },
+            "required": true,
+            "description": "Part of username or screen name to search for",
+            "name": "query",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching users retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "username": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "profilePhoto": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "verified": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "username",
+                      "name",
+                      "verified"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid search query."
+          }
+        }
+      }
+    },
     "/api/hashtags/search": {
       "get": {
         "summary": "Search hashtags",
@@ -2709,690 +4501,6 @@
           },
           "500": {
             "description": "Internal Server Error : Something went wrong on the server"
-          }
-        }
-      }
-    },
-    "/api/followers/{username}": {
-      "post": {
-        "summary": "/Follow a user or send a follow request",
-        "tags": [
-          "User Interactions"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Username of the user to interact with"
-            },
-            "required": true,
-            "description": "Username of the user to interact with",
-            "name": "username",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Follow request sent or user followed successfully"
-          },
-          "400": {
-            "description": "Can't follow yourself or already following user"
-          },
-          "403": {
-            "description": "Can't follow blocked users /users who blocked you"
-          },
-          "404": {
-            "description": "User not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      },
-      "delete": {
-        "summary": "Unfollow a user or cancel a pending follow request",
-        "tags": [
-          "User Interactions"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Username of the user to interact with"
-            },
-            "required": true,
-            "description": "Username of the user to interact with",
-            "name": "username",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Unfollowed user or cancelled follow request"
-          },
-          "400": {
-            "description": "You are not following this user"
-          },
-          "404": {
-            "description": "User not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      },
-      "get": {
-        "summary": "Get a list of followers for a user by their username",
-        "tags": [
-          "User Interactions"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Username of the user to interact with"
-            },
-            "required": true,
-            "description": "Username of the user to interact with",
-            "name": "username",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of followers retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FollowsListResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Can't view followers of blocked / blocking users"
-          },
-          "404": {
-            "description": "User not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/followings/{username}": {
-      "patch": {
-        "summary": "Accept a follow request",
-        "tags": [
-          "User Interactions"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Username of the user to interact with"
-            },
-            "required": true,
-            "description": "Username of the user to interact with",
-            "name": "username",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Follow request accepted"
-          },
-          "404": {
-            "description": "No follow request found"
-          },
-          "409": {
-            "description": "Follow request already accepted"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      },
-      "delete": {
-        "summary": "Decline a follow request or remove a follower",
-        "tags": [
-          "User Interactions"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Username of the user to interact with"
-            },
-            "required": true,
-            "description": "Username of the user to interact with",
-            "name": "username",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Follow request declined or follower removed"
-          },
-          "404": {
-            "description": "No follow request found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      },
-      "get": {
-        "summary": "Get a list of followings for a user by their username",
-        "tags": [
-          "User Interactions"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Username of the user to interact with"
-            },
-            "required": true,
-            "description": "Username of the user to interact with",
-            "name": "username",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of followings retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FollowsListResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Can't view followings of blocked / blocking users"
-          },
-          "404": {
-            "description": "User not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/blocks/{username}": {
-      "post": {
-        "summary": "Block a user",
-        "tags": [
-          "User Interactions"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Username of the user to interact with"
-            },
-            "required": true,
-            "description": "Username of the user to interact with",
-            "name": "username",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "User blocked successfully"
-          },
-          "400": {
-            "description": "Can't block yourself or already blocked users"
-          },
-          "404": {
-            "description": "User not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      },
-      "delete": {
-        "summary": "Unblock a user",
-        "tags": [
-          "User Interactions"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Username of the user to interact with"
-            },
-            "required": true,
-            "description": "Username of the user to interact with",
-            "name": "username",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "User unblocked successfully"
-          },
-          "400": {
-            "description": "Can't unblock yourself or already unblocked users"
-          },
-          "404": {
-            "description": "User not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/blocks": {
-      "get": {
-        "summary": "Get a list of blocked users",
-        "tags": [
-          "User Interactions"
-        ],
-        "responses": {
-          "200": {
-            "description": "List of blocked users retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FollowsListResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/mutes/{username}": {
-      "post": {
-        "summary": "Mute a user",
-        "tags": [
-          "User Interactions"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Username of the user to interact with"
-            },
-            "required": true,
-            "description": "Username of the user to interact with",
-            "name": "username",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "User muted successfully"
-          },
-          "400": {
-            "description": "Can't mute yourself or already muted user"
-          },
-          "403": {
-            "description": "Can't mute blocked users /users who blocked you"
-          },
-          "404": {
-            "description": "User not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      },
-      "delete": {
-        "summary": "Unmute a user",
-        "tags": [
-          "User Interactions"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Username of the user to interact with"
-            },
-            "required": true,
-            "description": "Username of the user to interact with",
-            "name": "username",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "User unmuted successfully"
-          },
-          "400": {
-            "description": "You have not muted this user"
-          },
-          "404": {
-            "description": "User not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/mutes": {
-      "get": {
-        "summary": "Get a list of muted users",
-        "tags": [
-          "User Interactions"
-        ],
-        "responses": {
-          "200": {
-            "description": "List of muted users retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FollowsListResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/users/{username}": {
-      "get": {
-        "summary": "Get user profile by username",
-        "description": "Fetch the public profile of a specific user by their username.",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "Unique username of the user"
-            },
-            "required": true,
-            "description": "Unique username of the user",
-            "name": "username",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "User profile fetched successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "username": {
-                      "type": "string"
-                    },
-                    "email": {
-                      "type": "string"
-                    },
-                    "bio": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "website": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "profilePhoto": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "protectedAccount": {
-                      "type": "boolean"
-                    },
-                    "verified": {
-                      "type": "boolean"
-                    },
-                    "joinDate": {
-                      "type": "string",
-                      "description": "Date the user joined the platform"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "username",
-                    "email",
-                    "bio",
-                    "website",
-                    "profilePhoto",
-                    "protectedAccount",
-                    "verified",
-                    "joinDate"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "User not found."
-          }
-        }
-      }
-    },
-    "/api/users/{id}": {
-      "patch": {
-        "summary": "Update user profile by ID",
-        "description": "Update the profile fields of the authenticated user.",
-        "tags": [
-          "Users"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Unique ID of the user"
-            },
-            "required": true,
-            "description": "Unique ID of the user",
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "bio": {
-                    "type": "string",
-                    "description": "User biography text"
-                  },
-                  "website": {
-                    "type": "string",
-                    "description": "Personal website URL"
-                  },
-                  "profilePhoto": {
-                    "type": "string",
-                    "description": "Profile photo URL"
-                  },
-                  "protectedAccount": {
-                    "type": "boolean",
-                    "description": "Whether the account is protected"
-                  },
-                  "address": {
-                    "type": "string",
-                    "description": "User address"
-                  },
-                  "cover": {
-                    "type": "string",
-                    "description": "Cover image URL"
-                  },
-                  "name": {
-                    "type": "string",
-                    "description": "User's full name"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Profile updated successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "username": {
-                      "type": "string"
-                    },
-                    "email": {
-                      "type": "string"
-                    },
-                    "bio": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "website": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "profilePhoto": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "protectedAccount": {
-                      "type": "boolean"
-                    },
-                    "verified": {
-                      "type": "boolean"
-                    },
-                    "joinDate": {
-                      "type": "string",
-                      "description": "Date the user joined the platform"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "username",
-                    "email",
-                    "bio",
-                    "website",
-                    "profilePhoto",
-                    "protectedAccount",
-                    "verified",
-                    "joinDate"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid input data."
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid JWT token."
-          },
-          "403": {
-            "description": "You cannot update another user's profile."
-          },
-          "404": {
-            "description": "User not found."
-          }
-        }
-      }
-    },
-    "/api/users/search": {
-      "get": {
-        "summary": "Search for users by username or screen name",
-        "description": "Searches for users whose username or display name matches the provided query (case-insensitive).",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Part of username or screen name to search for"
-            },
-            "required": true,
-            "description": "Part of username or screen name to search for",
-            "name": "query",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Matching users retrieved successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "username": {
-                        "type": "string"
-                      },
-                      "name": {
-                        "type": "string",
-                        "nullable": true
-                      },
-                      "profilePhoto": {
-                        "type": "string",
-                        "nullable": true
-                      },
-                      "verified": {
-                        "type": "boolean"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "username",
-                      "name",
-                      "verified"
-                    ]
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing or invalid search query."
           }
         }
       }

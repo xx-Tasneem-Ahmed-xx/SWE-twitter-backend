@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from "express";
 import {
-  authenticated,
   findUserByUsername,
   checkBlockStatus,
   getBlockedList,
@@ -25,7 +24,6 @@ export const blockUser = async (
     }
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
 
     const userToBlock = await findUserByUsername(username);
     if (!userToBlock) return res.status(404).json({ error: "User not found" });
@@ -41,7 +39,6 @@ export const blockUser = async (
     await createBlockRelation(currentUserId, userToBlock.id);
     return res.status(201).json({
       message: "User blocked successfully",
-      currentUserId,
     });
   } catch (error) {
     next(error);
@@ -64,7 +61,6 @@ export const unblockUser = async (
     }
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
 
     const userToUnBlock = await findUserByUsername(username);
     if (!userToUnBlock)
@@ -96,7 +92,6 @@ export const getBlockedUsers = async (
 ) => {
   try {
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
 
     const blockedUsersData = await getBlockedList(currentUserId);
     return res.status(200).json(blockedUsersData);

@@ -1,13 +1,6 @@
 import { prisma, FollowStatus } from "@/prisma/client";
 import { Response } from "express";
 
-// Check if user is authenticated and return error response if not
-// TODO: Again this is to be discussed with auth middleware implementation
-export const authenticated = (userId: string, res: Response) => {
-  if (!userId) return res.status(400).json({ error: "userId is required" });
-  return true;
-};
-
 // Check if a user exists by username
 export const findUserByUsername = async (username: string) => {
   return prisma.user.findUnique({
@@ -112,7 +105,7 @@ type UserData = {
   id: string;
   username: string;
   name: string | null;
-  profilePhoto: string | null;
+  profileMedia: { keyName: string } | null;
   bio: string | null;
   verified: boolean;
 };
@@ -163,7 +156,7 @@ const formatUserForResponse = (
   return {
     username: user.username,
     name: user.name,
-    photo: user.profilePhoto || null,
+    photo: user.profileMedia ? user.profileMedia.keyName : null,
     bio: user.bio || null,
     verified: user.verified,
     isFollowing,
@@ -171,22 +164,27 @@ const formatUserForResponse = (
   };
 };
 
-// Get list of followers with mutual follow information
+// Get followers list by status (followers or requests)
 export const getFollowersList = async (
   userId: string,
-  currentUserId: string
+  currentUserId: string,
+  followStatus: FollowStatus
 ) => {
   const followers = await prisma.follow.findMany({
-    where: { followingId: userId, status: FollowStatus.ACCEPTED },
+    where: { followingId: userId, status: followStatus },
     include: {
       follower: {
         select: {
           id: true,
           username: true,
           name: true,
-          profilePhoto: true,
           bio: true,
           verified: true,
+          profileMedia: {
+            select: {
+              keyName: true,
+            },
+          },
         },
       },
     },
@@ -220,9 +218,13 @@ export const getFollowingsList = async (
           id: true,
           username: true,
           name: true,
-          profilePhoto: true,
           bio: true,
           verified: true,
+          profileMedia: {
+            select: {
+              keyName: true,
+            },
+          },
         },
       },
     },
@@ -256,6 +258,12 @@ export const createBlockRelation = async (
             { followerId: blockerId, followingId: blockedId },
             { followerId: blockedId, followingId: blockerId },
           ],
+        },
+      });
+      await tx.mute.deleteMany({
+        where: {
+          muterId: blockerId,
+          mutedId: blockedId,
         },
       });
       return await tx.block.create({
@@ -301,9 +309,13 @@ export const getBlockedList = async (blockerId: string) => {
           id: true,
           username: true,
           name: true,
-          profilePhoto: true,
           bio: true,
           verified: true,
+          profileMedia: {
+            select: {
+              keyName: true,
+            },
+          },
         },
       },
     },
@@ -317,9 +329,48 @@ export const getBlockedList = async (blockerId: string) => {
   };
 };
 
+// check if user is muted by muterId
+export const checkMuteStatus = async (muterId: string, mutedId: string) => {
+  const muteCount = await prisma.mute.count({
+    where: {
+      muterId,
+      mutedId,
+    },
+  });
+  return muteCount > 0;
+};
+
 // mute a user
+export const createMuteRelation = async (muterId: string, mutedId: string) => {
+  try {
+    return await prisma.mute.create({
+      data: {
+        muterId,
+        mutedId,
+      },
+    });
+  } catch (error) {
+    console.error("Mute user error:", error);
+    throw new Error("Failed to create mute relation");
+  }
+};
 
 // unmute a user
+export const removeMuteRelation = async (muterId: string, mutedId: string) => {
+  try {
+    await prisma.mute.delete({
+      where: {
+        muterId_mutedId: {
+          muterId,
+          mutedId,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Remove mute relation error:", error);
+    throw new Error("Failed to remove mute relation");
+  }
+};
 
 // Get list of users muted
 export const getMutedList = async (muterId: string) => {
@@ -331,9 +382,13 @@ export const getMutedList = async (muterId: string) => {
           id: true,
           username: true,
           name: true,
-          profilePhoto: true,
           bio: true,
           verified: true,
+          profileMedia: {
+            select: {
+              keyName: true,
+            },
+          },
         },
       },
     },

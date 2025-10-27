@@ -4,15 +4,25 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
 extendZodWithOpenApi(z);
 
-const StringSchema = z
+export enum PeopleFilter {
+  ANYONE,
+  FOLLOWINGS,
+}
+
+export enum SearchTab {
+  TOP,
+  LATEST,
+}
+
+export const StringSchema = z
   .string()
   .min(1, { message: "Content must not be empty" });
 
 const UserSchema = z.object({
   id: z.uuid(),
-  name: StringSchema,
+  name: z.string().min(1, { message: "Content must not be empty" }).nullable(),
   username: StringSchema,
-  profilePhoto: z.url(),
+  profileMedia: z.object({ id: z.uuid(), keyName: z.string() }),
   verified: z.boolean(),
   protectedAccount: z.boolean(),
 });
@@ -35,8 +45,9 @@ export const TweetResponsesSchema = z.object({
   likesCount: z.int(),
   retweetCount: z.int(),
   repliesCount: z.int(),
+  quotesCount: z.int(),
   replyControl: z.enum(ReplyControl),
-  parentId: z.uuid().optional(),
+  parentId: z.uuid().nullable().optional(),
   tweetType: z.enum(TweetType),
   user: UserSchema,
 });
@@ -60,4 +71,10 @@ export const HashTagResponseSchema = z.array(
 export const TimelineSchema = z.object({
   limit: z.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
+});
+
+export const SearchDTOSchema = TimelineSchema.extend({
+  query: StringSchema,
+  peopleFilter: z.enum(PeopleFilter).default(PeopleFilter.ANYONE),
+  searchTab: z.enum(SearchTab).default(SearchTab.TOP),
 });

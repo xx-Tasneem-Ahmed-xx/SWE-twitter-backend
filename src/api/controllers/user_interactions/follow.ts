@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from "express";
 import {
-  authenticated,
   findUserByUsername,
   createFollowRelation,
   removeFollowRelation,
@@ -28,7 +27,6 @@ export const followUser = async (
     }
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
 
     const userToFollow = await findUserByUsername(username);
     if (!userToFollow) return res.status(404).json({ error: "User not found" });
@@ -50,14 +48,17 @@ export const followUser = async (
         .json({ error: "You are already following this user" });
 
     const followStatus = userToFollow.protectedAccount ? "PENDING" : "ACCEPTED";
-    await createFollowRelation(currentUserId, userToFollow.id, followStatus);
-
-    return res.status(201).json({
-      message: userToFollow.protectedAccount
-        ? "Follow request sent"
-        : "Successfully followed user",
+    const follow = await createFollowRelation(
       currentUserId,
-    });
+      userToFollow.id,
+      followStatus
+    );
+
+    const statusCode = userToFollow.protectedAccount ? 202 : 201;
+    const message = userToFollow.protectedAccount
+      ? "Follow request sent"
+      : "Successfully followed user";
+    return res.status(statusCode).json({ message });
   } catch (error) {
     next(error);
   }
@@ -79,7 +80,6 @@ export const unfollowUser = async (
     }
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
     const userToUnfollow = await findUserByUsername(username);
     if (!userToUnfollow)
       return res.status(404).json({ error: "User not found" });
@@ -93,7 +93,13 @@ export const unfollowUser = async (
 
     await removeFollowRelation(currentUserId, userToUnfollow.id);
 
-    return res.status(200).json({ message: "Successfully unfollowed user" });
+    const statusCode = existingFollow.status === "PENDING" ? 202 : 200;
+    const message =
+      existingFollow.status === "PENDING"
+        ? "Follow request cancelled"
+        : "Successfully unfollowed user";
+
+    return res.status(statusCode).json({ message });
   } catch (error) {
     next(error);
   }
@@ -115,7 +121,6 @@ export const acceptFollow = async (
     }
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
 
     const follower = await findUserByUsername(username);
     if (!follower) return res.status(404).json({ error: "User not found" });
@@ -130,7 +135,6 @@ export const acceptFollow = async (
 
     return res.status(200).json({
       message: "Follow request accepted",
-      currentUserId,
     });
   } catch (error) {
     next(error);
@@ -155,7 +159,6 @@ export const declineFollow = async (
 
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
 
     const follower = await findUserByUsername(username);
     if (!follower) return res.status(404).json({ error: "User not found" });
@@ -166,12 +169,14 @@ export const declineFollow = async (
 
     await removeFollowRelation(follower.id, currentUserId);
 
-    return res.status(200).json({
-      message:
-        existingFollow.status === "PENDING"
-          ? "Follow request declined"
-          : "Follower removed",
-      currentUserId,
+    const statusCode = existingFollow.status === "PENDING" ? 202 : 200;
+    const message =
+      existingFollow.status === "PENDING"
+        ? "Follow request declined"
+        : "Follower removed";
+
+    return res.status(statusCode).json({
+      message,
     });
   } catch (error) {
     next(error);
@@ -194,7 +199,6 @@ export const getFollowers = async (
     }
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
 
     const user = await findUserByUsername(username);
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -205,8 +209,32 @@ export const getFollowers = async (
         error: "Cannot view followers of blocked users or who have blocked you",
       });
 
-    const followersData = await getFollowersList(user.id, currentUserId);
+    const followersData = await getFollowersList(
+      user.id,
+      currentUserId,
+      "ACCEPTED"
+    );
     return res.status(200).json(followersData);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get a list of follow requests for the current user
+export const getFollowRequests = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const currentUserId = (req as any).user.id;
+
+    const followRequestsData = await getFollowersList(
+      currentUserId,
+      currentUserId,
+      "PENDING"
+    );
+    return res.status(200).json(followRequestsData);
   } catch (error) {
     next(error);
   }
@@ -228,7 +256,6 @@ export const getFollowings = async (
     }
     const { username } = paramsResult.data;
     const currentUserId = (req as any).user.id;
-    if (!authenticated(currentUserId, res)) return;
 
     const user = await findUserByUsername(username);
     if (!user) return res.status(404).json({ error: "User not found" });
