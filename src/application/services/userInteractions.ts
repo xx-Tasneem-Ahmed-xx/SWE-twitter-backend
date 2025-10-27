@@ -1,13 +1,5 @@
 import { prisma, FollowStatus } from "@/prisma/client";
-import { Response } from "express";
-
-// Check if a user exists by username
-export const findUserByUsername = async (username: string) => {
-  return prisma.user.findUnique({
-    where: { username },
-    select: { id: true, protectedAccount: true },
-  });
-};
+import { AppError } from "@/errors/AppError";
 
 // Create a follow relationship
 export const createFollowRelation = async (
@@ -27,8 +19,8 @@ export const createFollowRelation = async (
       },
     });
   } catch (error: any) {
-    if (error.code === "P2002") {
-      throw new Error("Already following this user");
+    if (error?.code === "P2002") {
+      throw new AppError("Already following this user", 400);
     }
     throw error;
   }
@@ -105,7 +97,7 @@ type UserData = {
   id: string;
   username: string;
   name: string | null;
-  profileMedia: { keyName: string } | null;
+  profileMedia?: { keyName: string } | null;
   bio: string | null;
   verified: boolean;
 };
@@ -156,7 +148,7 @@ const formatUserForResponse = (
   return {
     username: user.username,
     name: user.name,
-    photo: user.profileMedia ? user.profileMedia.keyName : null,
+    photo: user.profileMedia?.keyName || null,
     bio: user.bio || null,
     verified: user.verified,
     isFollowing,
@@ -180,11 +172,7 @@ export const getFollowersList = async (
           name: true,
           bio: true,
           verified: true,
-          profileMedia: {
-            select: {
-              keyName: true,
-            },
-          },
+          profileMedia: { select: { keyName: true } },
         },
       },
     },
@@ -220,11 +208,7 @@ export const getFollowingsList = async (
           name: true,
           bio: true,
           verified: true,
-          profileMedia: {
-            select: {
-              keyName: true,
-            },
-          },
+          profileMedia: { select: { keyName: true } },
         },
       },
     },
@@ -275,7 +259,7 @@ export const createBlockRelation = async (
     });
   } catch (error) {
     console.error("Create block relation error:", error);
-    throw new Error("Failed to create block relation");
+    throw new AppError("Failed to create block relation", 500);
   }
 };
 
@@ -295,7 +279,7 @@ export const removeBlockRelation = async (
     });
   } catch (error) {
     console.error("Remove block relation error:", error);
-    throw new Error("Failed to remove block relation");
+    throw new AppError("Failed to remove block relation", 500);
   }
 };
 
@@ -311,11 +295,7 @@ export const getBlockedList = async (blockerId: string) => {
           name: true,
           bio: true,
           verified: true,
-          profileMedia: {
-            select: {
-              keyName: true,
-            },
-          },
+          profileMedia: { select: { keyName: true } },
         },
       },
     },
@@ -351,7 +331,7 @@ export const createMuteRelation = async (muterId: string, mutedId: string) => {
     });
   } catch (error) {
     console.error("Mute user error:", error);
-    throw new Error("Failed to create mute relation");
+    throw new AppError("Failed to create mute relation", 500);
   }
 };
 
@@ -368,7 +348,7 @@ export const removeMuteRelation = async (muterId: string, mutedId: string) => {
     });
   } catch (error) {
     console.error("Remove mute relation error:", error);
-    throw new Error("Failed to remove mute relation");
+    throw new AppError("Failed to remove mute relation", 500);
   }
 };
 
@@ -384,11 +364,7 @@ export const getMutedList = async (muterId: string) => {
           name: true,
           bio: true,
           verified: true,
-          profileMedia: {
-            select: {
-              keyName: true,
-            },
-          },
+          profileMedia: { select: { keyName: true } },
         },
       },
     },

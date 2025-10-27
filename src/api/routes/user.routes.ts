@@ -3,25 +3,47 @@ import {
   getUserProfile,
   updateUserProfile,
   searchUsers,
+  updateUserProfilePicture,
+  deleteUserProfilePicture,
+  updateUserBanner,
+  deleteUserBanner,
 } from "../controllers/user.controller";
-import { requireAuth } from "../middlewares/auth.middleware";
 import { ensureOwner } from "../middlewares/ensureOwner.middleware";
 import { updateUserValidator } from "../validators/user.validator";
 import { validateRequest } from "../middlewares/validateRequest.middleware";
 
 const router = Router();
 
-// All profile and search endpoints require auth
-router.get("/search", requireAuth, searchUsers);
-router.get("/:username", requireAuth, getUserProfile);
+router.get("/search", searchUsers);
+router.get("/:username", getUserProfile);
 
 router.patch(
   "/:id",
-  requireAuth,
   updateUserValidator,
   validateRequest,
-  ensureOwner("id"),
+  // ensureOwner("id"),       // TODO WHEN AUTH WORKS
   updateUserProfile
+);
+
+router.patch(
+  "/profile-picture/:mediaId",
+  // ensureOwner("id"),       // TODO WHEN AUTH WORKS
+  updateUserProfilePicture
+);
+router.delete(
+  "/profile-picture",
+  // ensureOwner("id"), // TODO WHEN AUTH WORKS
+  deleteUserProfilePicture
+);
+router.patch(
+  "/banner/:mediaId",
+  // ensureOwner("id"), // TODO WHEN AUTH WORKS
+  updateUserBanner
+);
+router.delete(
+  "/banner",
+  // ensureOwner("id"), // TODO WHEN AUTH WORKS
+  deleteUserBanner
 );
 
 export default router;

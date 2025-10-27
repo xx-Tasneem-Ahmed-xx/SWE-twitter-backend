@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 
 export const ensureOwner = (paramName = "id") => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const authUserId = req.user?.id;
+    const authUserId = (req as any).user?.id;
     const targetId = req.params[paramName];
 
     if (!authUserId) return res.status(401).json({ message: "Unauthorized" });

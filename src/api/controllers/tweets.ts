@@ -9,7 +9,7 @@ export class TweetController {
     try {
       const data = req.body;
       const userId = (req as any).user.id;
-      console.log(req.user);
+      console.log((req as any).user);
       const tweet = await tweetService.createTweet({ ...data, userId: userId });
       res.status(201).json(tweet);
     } catch (error) {
