@@ -81,8 +81,99 @@ const router: Router = express.Router();
  *         description: Email already exists
  */
 router.post("/signup", typedAuthController.Create); //tested
-//router.post("/continue_signup",typedAuthController.ContinuS)
 
+/**
+ * @swagger
+ * /finalize_signup:
+ *   post:
+ *     summary: Finalize user signup by setting password
+ *     description: Completes signup after email verification. Accepts email + password, creates the user in DB, sends a signup-complete email, and deletes temporary verification keys.
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "john@example.com"
+ *               password:
+ *                 type: string
+ *                 example: "StrongPassword123!"
+ *     responses:
+ *       201:
+ *         description: Signup finalized successfully and confirmation email sent.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Signup complete. Welcome!"
+ *                 user:
+ *                   type: object
+ *                   description: Created user object (sensitive fields like password/salt should be omitted in actual response if you prefer)
+ *       400:
+ *         description: Missing email or password, or user not verified / temp data missing.
+ *       401:
+ *         description: Password validation failed (if you validate here).
+ *       409:
+ *         description: Signup already completed or user already exists.
+ *       500:
+ *         description: Server error while creating user.
+ */
+router.post("/finalize_signup", typedAuthController.FinalizeSignup); // tested
+/**
+ * @swagger
+ * /verify-signup:
+ *   post:
+ *     summary: Verify email during signup
+ *     description: Verifies the email verification code sent to the user's email address. After successful verification, the user must set a password via /finalize_signup to complete registration.
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - code
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "john@example.com"
+ *               code:
+ *                 type: string
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: Email verified successfully. Proceed to set password using /finalize_signup.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Email verified successfully, please set your password."
+ *       400:
+ *         description: Missing email or code.
+ *       401:
+ *         description: Verification code incorrect.
+ *       500:
+ *         description: Server error or verification expired; user must signup again.
+ */
 router.post("/verify-signup", typedAuthController.Verify_signup_email); //tested
 /**
  * @swagger
@@ -659,6 +750,56 @@ router.get("/sessions", Auth(),  typedAuthController.GetSession); //tested
 router.delete("/session/:sessionid", Auth(),  typedAuthController.LogoutSession);
 // router.post("/debug-redis",Auth(),typedAuthController.DebugRedis); //tested
 // --- Post-Request Cleanup Middleware ---
+/**
+ * @swagger
+ * /update_username:
+ *   put:
+ *     summary: Update current user's username
+ *     description: Updates the username of the authenticated user using their ID from req.user.id.
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: new_username123
+ *     responses:
+ *       200:
+ *         description: Username updated successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Username updated successfully ✅
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: clu6wq2k90001x3sdo8v9l0k4
+ *                     username:
+ *                       type: string
+ *                       example: new_username123
+ *       400:
+ *         description: Invalid username.
+ *       401:
+ *         description: Unauthorized or missing user ID.
+ *       500:
+ *         description: Internal server error.
+ */
+router.put("/update_username",Auth(),typedAuthController.UpdateUsername);
 router.use(AfterChange());
 router.use(GeoGurd());
 export default router;

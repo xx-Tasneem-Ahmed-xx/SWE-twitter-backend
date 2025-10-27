@@ -118,17 +118,30 @@ export async function Create(req: Request, res: Response): Promise<Response | vo
   try {
     const input: any = req.body;
     console.log("Signup body:", input);
-    if (!input || !input.email || !input.password || !input.name) {
+    if (!input || !input.email || !input.name||!input.dateOfBirth) {
       return utils.SendError(res, 400, "missing required fields");
     }
+// ✅ Check if email already exists in DB
+const existingUser = await prisma.user.findUnique({
+  where: { email: input.email },
+});
+
+if (existingUser) {
+  return utils.SendError(res, 409, "Email already in use");
+}
+
+
+const isWebClient = req.headers["x-client-type"] === "web";
+
   const exist: number = await redisClient.exists(`signup_captcha:passed:${input.email}`);
-   if (!exist){
+   if (!exist&&isWebClient){
     return utils.SendError(res,401,"u must solve Captcha first");
     }
-
+else{
      await redisClient.del(`signup_captcha:passed:${input.email}`);
-  const passRes: string = await utils.ValidatePassword(input.password);
-    if (passRes !== "0") return utils.SendError(res, 400, passRes);
+}
+  // const passRes: string = await utils.ValidatePassword(input.password);
+//     if (passRes !== "0") return utils.SendError(res, 400, passRes);
 
 
     // email basic validation
@@ -159,9 +172,9 @@ Welcome aboard,  
 
     const exists: number = await prisma.user.count({ where: { email: input.email, isEmailVerified: true } });
     if (exists === 0) {
-      return utils.SendRes(res, "Verify your email to continue");
+      return utils.SendRes(res,{ message: "User registered successfully. Please verify your email to continue." });
     }
-    return utils.SendRes(res, "Email already verified");
+    return utils.SendRes(res, {message:"Email already verified"});
   } catch (err) {
   console.error("Create err:", err);
   return res.status(500).json({ error: (err as Error).message });
@@ -188,58 +201,256 @@ console.log("Redis connected?", redisClient.isOpen);
     return utils.SendError(res, 500, "something went wrong");
   }
 }
-
 export async function Verify_signup_email(req: Request, res: Response): Promise<Response | void> {
-  try {
-    const { email, code } = req.body;
-    if (!email || !code) return utils.SendError(res, 400, "email and token required");
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) return utils.SendError(res, 400, "email and token required");
 
-    const stored: string | null = await redisClient.get(`Signup:code:${email}`);
-console.log("signupcod rerived",stored);
-    if (!stored) return utils.SendError(res, 500, "something went wrong:u must signup again");
+    const stored: string | null = await redisClient.get(`Signup:code:${email}`);
+    console.log("signupcod rerived", stored);
+    if (!stored) return utils.SendError(res, 500, "something went wrong:u must signup again");
 
-    if (stored !== code) return utils.SendError(res, 401, "verifying email code is incorrect");
+    if (stored !== code) return utils.SendError(res, 401, "verifying email code is incorrect");
 
-    // mark IsEmailVerified true in DB if exists (optional)
-    await prisma.user.updateMany({ where: { email }, data: { isEmailVerified: true } });
+    // ✅ Mark verified but DO NOT create user yet
+    const userJson: string | null = await redisClient.get(`Signup:user:${email}`);
+    if (!userJson) return utils.SendError(res, 500, "something went wrong");
 
-    const userJson: string | null = await redisClient.get(`Signup:user:${email}`);
-    if (!userJson) return utils.SendError(res, 500, "something went wrong");
+    const input: any = JSON.parse(userJson);
 
-    const input: any = JSON.parse(userJson);
-    let username: string = input.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (!username) username = `user${Math.floor(Math.random() * 10000)}`;
-    const existing = await prisma.user.findUnique({ where: { username } });
-    if (existing) username = `${username}${Math.floor(Math.random() * 10000)}`;
-    const salt: string = crypto.randomBytes(16).toString("hex");
-    // Use utils.HashPassword
-    const hashed: string = await utils.HashPassword(input.password, salt);
-console.log("here is dataofbirth",input.dateOfBirth);
-let parsedDate: Date = new Date(input.dateOfBirth);
-if (isNaN(parsedDate.getTime())) {
-  parsedDate = new Date("2001-11-03T00:00:00.000Z");
+    // Save verified user temporarily for password setup
+    await redisClient.set(`Signup:verified:${email}`, JSON.stringify(input), { EX: 15 * 60 });
+
+    // Delete the verification code key to avoid reuse
+    await redisClient.del(`Signup:code:${email}`);
+
+    return utils.SendRes(res, { message: "Email verified successfully, please set your password." });
+  } catch (err) {
+    console.error("Verify_signup_email err:", err);
+    return utils.SendError(res, 500, "something went wrong");
+  }
 }
+// export async function FinalizeSignup(req: Request, res: Response): Promise<Response | void> {
+//   try {
+//     const { email, password } = req.body;
+//     if (!email || !password) return utils.SendError(res, 400, "email and password required");
 
-    const created: PrismaUser = await prisma.user.create({
+//     const userJson: string | null = await redisClient.get(`Signup:verified:${email}`);
+//     if (!userJson) return utils.SendError(res, 400, "you must verify your email first");
+
+//     const input: any = JSON.parse(userJson);
+
+//     let username: string = input.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+//     if (!username) username = `user${Math.floor(Math.random() * 10000)}`;
+//     const existing = await prisma.user.findUnique({ where: { username } });
+//     if (existing) username = `${username}${Math.floor(Math.random() * 10000)}`;
+
+//     const salt: string = crypto.randomBytes(16).toString("hex");
+//     const hashed: string = await utils.HashPassword(password, salt);
+
+//     let parsedDate: Date = new Date(input.dateOfBirth);
+//     if (isNaN(parsedDate.getTime())) {
+//       parsedDate = new Date("2001-11-03T00:00:00.000Z");
+//     }
+
+//     const created: PrismaUser = await prisma.user.create({
+//       data: {
+//         username,
+//         name: input.name,
+//         email: input.email,
+      
+//         password: hashed,
+//         saltPassword: salt,
+//         isEmailVerified: true,
+//         dateOfBirth: parsedDate,
+//       },
+//     }) as unknown as PrismaUser;
+
+//     await utils.AddPasswordHistory(hashed, created.id);
+//     await redisClient.del(`Signup:verified:${email}`);
+
+//     // ✅ Send signup completion email
+//     const completeMsg = `Subject: Welcome to Artimesa 🎉
+
+// Hello ${created.name},
+
+// Your registration is now complete! ✅  
+// You can log in anytime using your email: ${created.email}
+
+// We’re thrilled to have you on board at Artimesa — enjoy exploring our community! 🌟
+
+// If you didn’t create this account, please contact our support team immediately.
+
+// — The Artimesa Team 🛡️
+// `;
+//     await utils.SendEmailSmtp(res, created.email, completeMsg).catch(console.error);
+
+//     return utils.SendRes(res, { message: "Signup complete. Welcome!", user: created });
+//   } catch (err) {
+//     console.error("FinalizeSignup err:", err);
+//     return utils.SendError(res, 500, "something went wrong");
+//   }
+// }
+export async function FinalizeSignup(req: Request, res: Response): Promise<Response | void> {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return utils.SendError(res, 400, "email and password required");
+
+    const userJson: string | null = await redisClient.get(`Signup:verified:${email}`);
+    if (!userJson) return utils.SendError(res, 400, "you must verify your email first");
+
+    const input: any = JSON.parse(userJson);
+
+    let username: string = input.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!username) username = `user${Math.floor(Math.random() * 10000)}`;
+    const existing = await prisma.user.findUnique({ where: { username } });
+    if (existing) username = `${username}${Math.floor(Math.random() * 10000)}`;
+
+    const salt: string = crypto.randomBytes(16).toString("hex");
+    const hashed: string = await utils.HashPassword(password, salt);
+
+    let parsedDate: Date = new Date(input.dateOfBirth);
+    if (isNaN(parsedDate.getTime())) parsedDate = new Date("2001-11-03T00:00:00.000Z");
+
+    const created: PrismaUser = await prisma.user.create({
       data: {
         username,
-       
         name: input.name,
         email: input.email,
         password: hashed,
         saltPassword: salt,
+        isEmailVerified: true,
         dateOfBirth: parsedDate,
       },
     }) as unknown as PrismaUser;
 
-    utils.SendEmailSmtp(res, created.email, `Subject: Welcome to artimsia\n\nWelcome ${created.name}`).catch(console.error);
+    await utils.AddPasswordHistory(hashed, created.id);
+    await redisClient.del(`Signup:verified:${email}`);
 
-    return utils.SendRes(res, { user: created });
-  } catch (err) {
-    console.error("Verify_signup_email err:", err);
-    return utils.SendError(res, 500, "something went wrong");
-  }
+    // 🛰️ Step 1: Set device info (geo, browser, etc.)
+    const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
+
+    // 🛡️ Step 2: Generate JWT access token (15 min expiry)
+    const { token: accessToken, jti, payload } = await utils.GenerateJwt({
+      username: created.username,
+      email: created.email,
+      id: created.id,
+      role: "user",
+      expiresInSeconds: 15 * 60,
+      version: 0,
+      devid,
+    });
+
+    // 🔁 Step 3: Generate refresh token (30 days)
+    const { token: refreshToken } = await utils.GenerateJwt({
+      username: created.username,
+      email: created.email,
+      id: created.id,
+      role: "user",
+      expiresInSeconds: 60 * 60 * 24 * 30,
+      version: 0,
+      devid,
+    });
+
+    // 💾 Step 4: Store refresh token in Redis (30 days)
+    await redisClient.set(`refreshToken:${created.id}`, refreshToken, { EX: 60 * 60 * 24 * 30 });
+
+    // 🔐 Step 5: Save active session (with device id)
+    await utils.SetSession(req, created.id, jti);
+
+    // 📧 Step 6: Send welcome email
+    const completeMsg = `Subject: Welcome to Artimesa 🎉
+
+Hello ${created.name},
+
+Your registration is now complete! ✅  
+You can log in anytime using your email: ${created.email}
+
+We’re thrilled to have you on board at Artimesa — enjoy exploring our community! 🌟
+
+If you didn’t create this account, please contact our support team immediately.
+
+— The Artimesa Team 🛡️
+`;
+    await utils.SendEmailSmtp(res, created.email, completeMsg).catch(console.error);
+
+    // 🎯 Step 7: Return everything in the response
+    return utils.SendRes(res, {
+      message: "Signup complete. Welcome!",
+      user: {
+        id: created.id,
+        username: created.username,
+        name: created.name,
+        email: created.email,
+        dateOfBirth: created.dateOfBirth,
+        isEmailVerified: created.isEmailVerified,
+      },
+      device: deviceRecord,
+      tokens: {
+        accessToken,
+        refreshToken,
+      },
+    });
+  } catch (err) {
+    console.error("FinalizeSignup err:", err);
+    return utils.SendError(res, 500, "something went wrong");
+  }
 }
+
+// export async function Verify_signup_email(req: Request, res: Response): Promise<Response | void> {
+//   try {
+//     const { email, code } = req.body;
+//     if (!email || !code) return utils.SendError(res, 400, "email and token required");
+
+//     const stored: string | null = await redisClient.get(`Signup:code:${email}`);
+// console.log("signupcod rerived",stored);
+//     if (!stored) return utils.SendError(res, 500, "something went wrong:u must signup again");
+
+//     if (stored !== code) return utils.SendError(res, 401, "verifying email code is incorrect");
+
+//     // mark IsEmailVerified true in DB if exists (optional)
+//     await prisma.user.updateMany({ where: { email }, data: { isEmailVerified: true } });
+
+//     const userJson: string | null = await redisClient.get(`Signup:user:${email}`);
+//     if (!userJson) return utils.SendError(res, 500, "something went wrong");
+
+//     const input: any = JSON.parse(userJson);
+//     let username: string = input.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+//     if (!username) username = `user${Math.floor(Math.random() * 10000)}`;
+//     const existing = await prisma.user.findUnique({ where: { username } });
+//     if (existing) username = `${username}${Math.floor(Math.random() * 10000)}`;
+//     //const salt: string = crypto.randomBytes(16).toString("hex");
+//     // Use utils.HashPassword
+// //     const hashed: string = await utils.HashPassword(input.password, salt);
+// console.log("here is dataofbirth",input.dateOfBirth);
+// let parsedDate: Date = new Date(input.dateOfBirth);
+// if (isNaN(parsedDate.getTime())) {
+//   parsedDate = new Date("2001-11-03T00:00:00.000Z");
+// }
+
+//     const created: PrismaUser = await prisma.user.create({
+//       data: {
+//         username,
+       
+//         name: input.name,
+//         email: input.email,
+//         // role: "user",
+      
+//        // password: hashed,
+//         //saltPassword: salt,
+//         dateOfBirth: parsedDate,
+//       },
+//     }) as unknown as PrismaUser;
+//     await utils.AddPasswordHistory(hashed, created.id);
+
+//     utils.SendEmailSmtp(res, created.email, `Subject: Welcome to artimsia\n\nWelcome ${created.name}`).catch(console.error);
+
+//     return utils.SendRes(res, { user: created });
+//   } catch (err) {
+//     console.error("Verify_signup_email err:", err);
+//     return utils.SendError(res, 500, "something went wrong");
+//   }
+// }
 
 export async function Login(req: Request, res: Response): Promise<Response | void> {
   try {
@@ -248,7 +459,11 @@ export async function Login(req: Request, res: Response): Promise<Response | voi
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return utils.SendError(res, 403, "enter valid email");
 
     // Use utils.Attempts to check for blocks/captcha
-    if (await utils.Attempts(res, email)) return;
+
+    const clientType = req.headers["x-client-type"] || "web";
+    const stop = await utils.Attempts(res, email, clientType);
+    if (stop) return;
+
 
     const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser | null;
     if (!user) {
@@ -286,7 +501,7 @@ console.log("code",code)
     if (!exists) {
       return utils.SendRes(res, { message: "you must enter verification code to continue" });
     } else {
-      return utils.SendRes(res, "email is verified u good to go");
+      return utils.SendRes(res, {message:"email is verified u good to go"});
     }
   } catch (err) {
     console.error("Login err:", err);
@@ -312,7 +527,7 @@ const { email} = req.body;
     }) as PrismaUser | null;
 
     if (userRow) {
-      return utils.SendRes(res, "Enter your 2FA code to login OR login codes to enter");
+      return utils.SendRes(res, {message:"Enter your 2FA code to login OR login codes to enter"});
     }
 
     const userJson: string | null = await redisClient.get(`Login:user:${email}`);
@@ -434,7 +649,7 @@ export async function Logout(req: Request, res: Response): Promise<Response | vo
     }
 
     res.clearCookie("refresh_token", { domain: DOMAIN, path: "/" });
-    return utils.SendRes(res, "logged out");
+    return utils.SendRes(res, {message:"logged out"});
   } catch (err) {
     console.error("Logout err:", err);
     return utils.SendError(res, 500, "something went wrong");
@@ -595,7 +810,7 @@ If you didn’t request this change, please ignore this email or contact Artemis
 
     await redisClient.set(`Reset:token:${email}`, token, { EX: 15 * 60 });
     utils.SendEmailSmtp(res, email, message).catch(console.error);
-    return utils.SendRes(res, "Token sent by email check your email");
+    return utils.SendRes(res, {message:"Token sent by email check your email"});
   } catch (err) {
     console.error("ForgetPassword err:", err);
     return utils.SendError(res, 500, "something went wrong");
@@ -622,7 +837,7 @@ export async function ResetPassword(req: Request, res: Response): Promise<Respon
     // Reset reset attempts
     await utils.RsetResetAttempts(email);
 
-    return utils.SendRes(res, "password Reseted correctly");
+    return utils.SendRes(res,{message: "password Reseted correctly"});
   } catch (err) {
     console.error("ResetPassword err:", err);
     return utils.SendError(res, 500, "something went wrong");
@@ -656,7 +871,7 @@ export async function ReauthPassword(req: Request, res: Response): Promise<Respo
     const ok: boolean = await utils.CheckPass(password + user.saltPassword, user.password);
     if (!ok) return utils.SendError(res, 401, "Enter Email or password correctly");
     await redisClient.set(`Reauth:${email}`, "1", { EX: 5 * 60 });
-    return utils.SendRes(res, "you can change your cerditional now");
+    return utils.SendRes(res, {message:"you can change your cerditional now"});
   } catch (err) {
     console.error("ReauthPassword err:", err);
     return utils.SendError(res, 500, "something went wrong");
@@ -673,7 +888,7 @@ export async function ReauthTFA(req: Request, res: Response): Promise<Response |
     const ok: boolean = speakeasy.totp.verify({ secret: user.otp, encoding: "base32", token: code, window: 1 });
     if (!ok) return utils.SendError(res, 401, "code isnot correct try again");
     await redisClient.set(`Reauth:${email}`, "1", { EX: 5 * 60 });
-    return utils.SendRes(res, "you can change your cerditional now");
+    return utils.SendRes(res,{message: "you can change your cerditional now"});
   } catch (err) {
     console.error("ReauthTFA err:", err);
     return utils.SendError(res, 500, "something went wrong");
@@ -700,7 +915,7 @@ export async function ReauthCode(req: Request, res: Response): Promise<Response 
     if (!found) return utils.SendError(res, 401, "Enter code correctly try again");
     await prisma.user.updateMany({ where: { email }, data: { loginCodes: copy.join(",") } });
     await redisClient.set(`Reauth:${email}`, "1", { EX: 5 * 60 });
-    return utils.SendRes(res, "you can change your cerditional now");
+    return utils.SendRes(res, {message:"you can change your cerditional now"});
   } catch (err) {
     console.error("ReauthCode err:", err);
     return utils.SendError(res, 500, "something went wrong");
@@ -777,7 +992,7 @@ if (newEmail==currentEmail)return utils.SendError(res,401,"new email must be dif
     const ok: boolean = await utils.VerifEmailHelper(res, currentEmail, newEmail);
     if (!ok) return utils.SendError(res, 500, "failed to send verification email");
 
-    return utils.SendRes(res, "now you can verify your email to change it");
+    return utils.SendRes(res, {message:"now you can verify your email to change it"});
   } catch (err) {
     console.error("ChangeEmail err:", err);
     return utils.SendError(res, 500, "something went wrong");
@@ -797,7 +1012,7 @@ export async function VerifyNewEmail(req: Request, res: Response): Promise<Respo
     const updated = await prisma.user.findUnique({ where: { email: desiredEmail } });
     if (!updated) return utils.SendError(res, 500, "something went wrong updating user with the new email");
     await prisma.user.updateMany({ where: { email: desiredEmail }, data: { tokenVersion: (updated.tokenVersion || 0) + 1 } });
-    return utils.SendRes(res, "email changed correctly");
+    return utils.SendRes(res, {message:"email changed correctly"});
   } catch (err) {
     console.error("VerifyNewEmail err:", err);
     return utils.SendError(res, 500, "something went wrong");
@@ -818,33 +1033,33 @@ export async function GetUser(req: Request, res: Response): Promise<Response | v
 }
 
 export async function LogoutALL(req: Request, res: Response): Promise<Response | void> {
-  try {
-    const id: number | undefined = (req.user as any)?.id || req.body?.id || (req.query?.id as string);
-    if (!id) return utils.SendError(res, 401, "unauthorized");
-    let cursor: string = "0";
-    const pattern: string = `session:${id}:*`;
-    do {
-      // scanRes type can be simplified for Redis client
-      const scanRes: { cursor: string, keys: string[] } = await redisClient.scan(cursor, { MATCH: pattern, COUNT: 100 }) as { cursor: string, keys: string[] };
-      cursor = scanRes.cursor;
-      const keys: string[] = scanRes.keys || [];
-      if (keys.length) {
-        for (const key of keys) {
-          const parts: string[] = key.split(":");
-          if (parts.length === 3) {
-            const jti: string = parts[2];
-            await redisClient.set(`Blocklist:${jti}`, "1", { EX: 15 * 60 });
-          }
-        }
-        await redisClient.del(keys);
-      }
-    } while (cursor !== "0");
-    return utils.SendRes(res, "you logout all session successfully");
-  } catch (err) {
-    console.error("LogoutALL err:", err);
-    return utils.SendError(res, 500, "something went wrong");
-  }
+try {
+const id: number | undefined = (req.user as any)?.id || req.body?.id || (req.query?.id as string);
+if (!id) return utils.SendError(res, 401, "unauthorized");
+let cursor: string = "0";
+const pattern: string = `session:${id}:*`;
+do {
+const scanRes: { cursor: string, keys: string[] } = await redisClient.scan(cursor, { MATCH: pattern, COUNT: 100 }) as { cursor: string, keys: string[] };
+cursor = scanRes.cursor;
+const keys: string[] = scanRes.keys || [];
+if (keys.length) {
+for (const key of keys) {
+const parts: string[] = key.split(":");
+if (parts.length === 3) {
+const jti: string = parts[2];
+await redisClient.set(`Blocklist:${jti}`, "1", { EX: 15 * 60 });
 }
+}
+await redisClient.del(keys);
+}
+} while (cursor !== "0");
+return utils.SendRes(res, {message:"you logout all session successfully"});
+} catch (err) {
+console.error("LogoutALL err:", err);
+return utils.SendError(res, 500, "something went wrong");
+}
+}
+
 
 export async function GetSession(req: Request, res: Response): Promise<Response | void> {
   try {
@@ -955,7 +1170,7 @@ export async function LogoutSession(req: Request, res: Response): Promise<Respon
     if (!sessionid || !userId) return utils.SendError(res, 400, "missing");
     await redisClient.del(`session:${userId}:${sessionid}`);
     await redisClient.set(`Blocklist:${sessionid}`, "1", { EX: 15 * 60 });
-    return utils.SendRes(res, "session logged out successfully");
+    return utils.SendRes(res, { message: "session logged out successfully" });
   } catch (err) {
     console.error("LogoutSession err:", err);
     return utils.SendError(res, 500, "something went wrong");
@@ -1065,89 +1280,192 @@ return res.status(400).json({ error: 'unsupported provider' });
 }
 
 ////////////////////////////////////////////////////////////////////////////
-export async function CallbackGithub(req: Request, res: Response){
-try{
-const code = req.query.code as string;
-const tokenResp = await exchangeGithubCode(code);
-const accessToken = tokenResp.access_token as string;
-const emails = await fetchGithubEmails(accessToken);
-const primary = emails.find((e: any) => e.primary && e.verified);
-if(!primary) return res.status(400).json({ error: 'No verified email found' });
-const email = primary.email as string;
-const userProfile = await fetchGithubUser(accessToken);
-const name = userProfile.name || userProfile.login;
-let user = await prisma.user.findUnique({ where: { email } });
-if(!user){
-user = await prisma.user.create({ data: {
-email,
-username: utils.generateUsername(name),
-name,
-password: '',
-saltPassword: '',
+export async function CallbackGithub(req: Request, res: Response) {
+  try {
+    const code = req.query.code as string;
+    const tokenResp = await exchangeGithubCode(code);
+    const accessToken = tokenResp.access_token as string;
 
-dateOfBirth: "2001-11-03T00:00:00.000Z",
-}});
-// optionally send email
+    const emails = await fetchGithubEmails(accessToken);
+    const primary = emails.find((e: any) => e.primary && e.verified);
+    if (!primary) return res.status(400).json({ error: 'No verified email found' });
+
+    const email = primary.email as string;
+    const userProfile = await fetchGithubUser(accessToken);
+    const name = userProfile.name || userProfile.login;
+    const providerId = userProfile.id.toString();
+
+    // check if OAuth account exists
+    let oauth = await prisma.oAuthAccount.findFirst({
+      where: { provider: 'github', providerId },
+      include: { user: true },
+    });
+
+    let user;
+    if (oauth) {
+      user = oauth.user;
+    } else {
+      user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            email,
+            username: utils.generateUsername(name),
+            name,
+            password: '',
+            saltPassword: '',
+            dateOfBirth: '2001-11-03T00:00:00.000Z',
+            OAuthAccount: {
+              create: {
+                provider: 'github',
+                providerId,
+              },
+            },
+          },
+        });
+      } else {
+        await prisma.oAuthAccount.create({
+          data: {
+            provider: 'github',
+            providerId,
+            userId: user.id,
+          },
+        });
+      }
+    }
+
+    const deviceId = Math.floor(Math.random() * 100000);
+    const payload = { username: user.username, email: user.email, id: user.id, role: 'user' };
+    const token = await utils.GenerateJwt(payload);
+    const refreshToken = await utils.GenerateJwt(payload);
+
+    await redisClient.set(`refresh-token:${user.email}:${deviceId}`, refreshToken.token, { EX: 60 * 60 * 24 * 30 });
+    res.cookie('refresh-token', refreshToken, {
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+      httpOnly: true,
+      secure: true,
+      domain: process.env.FRONTEND_HOST,
+    });
+
+    await prisma.user.update({ where: { email }, data: { tokenVersion: (user.tokenVersion || 0) + 1 } });
+    const userRefreshed = await prisma.user.findUnique({ where: { email } });
+    return res.json({ token, user: userRefreshed, device: { id: deviceId } });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
 }
-const deviceId = Math.floor(Math.random()*100000);
-const payload = { username: user.username, email: user.email, id: user.id, role: 'user' };
-const token = await utils.GenerateJwt(payload);
-const refreshToken =await  utils.GenerateJwt(payload);
-await redisClient.set(`refresh-token:${user.email}:${deviceId}`, refreshToken.token, { EX: 60*60*24*30 });
-res.cookie('refresh-token', refreshToken, { maxAge: 1000*60*60*24*30, httpOnly: true, secure: true, domain: process.env.FRONTEND_HOST });
-await prisma.user.update({ where: { email }, data: { tokenVersion: (user.tokenVersion || 0) + 1 } });
-const userRefreshed = await prisma.user.findUnique({ where: { email } });
-return res.json({ token, user: userRefreshed, device: { id: deviceId } });
-}catch(err:any){
-return res.status(500).json({ error: err.message });
+
+export async function CallbackGoogle(req: Request, res: Response) {
+  try {
+    const code = req.query.code as string;
+    const tokenObj = await exchangeGoogleCode(code);
+    const idToken = tokenObj.id_token as string;
+
+    const parts = idToken.split('.');
+    if (parts.length < 2) return res.status(401).json({ error: 'invalid id_token' });
+
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+    const email = payload.email as string;
+    const name = payload.given_name || payload.name || 'unknown';
+    const providerId = payload.sub.toString();
+
+    let oauth = await prisma.oAuthAccount.findFirst({
+      where: { provider: 'google', providerId },
+      include: { user: true },
+    });
+
+    let user;
+    if (oauth) {
+      user = oauth.user;
+    } else {
+      user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            email,
+            username: utils.generateUsername(name),
+            name,
+            password: '',
+            saltPassword: '',
+            dateOfBirth: '2001-11-03T00:00:00.000Z',
+            OAuthAccount: {
+              create: {
+                provider: 'google',
+                providerId,
+              },
+            },
+          },
+        });
+      } else {
+        await prisma.oAuthAccount.create({
+          data: {
+            provider: 'google',
+            providerId,
+            userId: user.id,
+          },
+        });
+      }
+    }
+
+    const deviceId = Math.floor(Math.random() * 100000);
+    const payloadJwt = { username: user.username, email: user.email, id: user.id, role: 'user' };
+    const token = await utils.GenerateJwt(payloadJwt);
+    const refreshToken = await utils.GenerateJwt(payloadJwt);
+
+    await redisClient.set(`refresh-token:${user.email}:${deviceId}`, refreshToken.token, { EX: 60 * 60 * 24 * 30 });
+    res.cookie('refresh-token', refreshToken, {
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+      httpOnly: true,
+      secure: true,
+      domain: process.env.FRONTEND_HOST,
+    });
+
+    await prisma.user.update({
+      where: { email },
+      data: { tokenVersion: (user.tokenVersion || 0) + 1 },
+    });
+
+    const userRefreshed = await prisma.user.findUnique({ where: { email } });
+    return res.json({ token, user: userRefreshed, device: { id: deviceId } });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
 }
-}
 
+export const UpdateUsername = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id; // assuming you have user info in req.user (from auth middleware)
+    const { username } = req.body;
 
-export async function CallbackGoogle(req: Request, res: Response){
-try{
-const code = req.query.code as string;
-const tokenObj = await exchangeGoogleCode(code);
-const idToken = tokenObj.id_token as string;
-// decode payload
-const parts = idToken.split('.');
-if(parts.length < 2) return res.status(401).json({ error: 'invalid id_token' });
-const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-const email = payload.email as string;
-const name = payload.given_name || payload.name || 'unknown';
-let user = await prisma.user.findUnique({ where: { email } });
-if(!user){
-user = await prisma.user.create({ data: {
-email,
-username: utils.generateUsername(name),
-name,
-password: '',
-saltPassword: '',
+    if (!userId) {
+      return utils.SendError(res,401,"Unauthorized: Missing user ID" );
+    }
 
-dateOfBirth:  "2001-11-03T00:00:00.000Z",
-}});
-}
-const deviceId = Math.floor(Math.random()*100000);
-const token = await utils.GenerateJwt({ username: user.username, email: user.email, id: user.id, role: 'user' });
-const refreshToken = await utils.GenerateJwt({ username: user.username, email: user.email, id: user.id, role: 'user' });
-await redisClient.set(`refresh-token:${user.email}:${deviceId}`,  refreshToken.token, { EX: 60*60*24*30 });
-res.cookie('refresh-token', refreshToken, { maxAge: 1000*60*60*24*24*30, httpOnly: true, secure: true, domain: process.env.FRONTEND_HOST });
+    if (!username || typeof username !== 'string' || username.trim() === '') {
+      return utils.SendError(res,400,"Invalid username");
+    }
 
-await prisma.user.update({
-  where: { email },
-  data: { tokenVersion: (user.tokenVersion || 0) + 1 }
-});
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { username },
+    });
 
-const userRefreshed = await prisma.user.findUnique({ where: { email } });
-return res.json({ token, user: userRefreshed, device: { id: deviceId } });
-
-}catch(err:any){
-  return res.status(500).json({ error: err.message });
-}
-}
+   utils.SendRes(res,{
+      message: 'Username updated successfully ✅',
+      user: {
+        id: updatedUser.id,
+        username: updatedUser.username,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error updating username:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
 const authController = {
   Create,
   Verify_signup_email,
+  UpdateUsername,
   Login,
   Verify_email,
   Create_2fA,
@@ -1156,6 +1474,7 @@ const authController = {
   VerifyLoginCode,
   ForgetPassword,
   ResetPassword,
+FinalizeSignup,
   Refresh,
   Logout,
   Captcha,
