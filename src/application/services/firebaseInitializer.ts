@@ -1,10 +1,10 @@
 import admin from 'firebase-admin';
-// import serviceAccount from '../../../twitter-clone-project-ca1b1-firebase-adminsdk-fbsvc-a74d00fca4.json';
+import serviceAccount from '../../../twitter-clone-project-ca1b1-firebase-adminsdk-fbsvc-a74d00fca4.json';
 
 const initializeFirebase = () => {
     try {
         admin.initializeApp({
-            // credential: admin.credential.cert(serviceAccount as any), 
+            credential: admin.credential.cert(serviceAccount as any), 
         });
         console.log('✅ Firebase Admin SDK initialized successfully.');
     } catch (error) {
