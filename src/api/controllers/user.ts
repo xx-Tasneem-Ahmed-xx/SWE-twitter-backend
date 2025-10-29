@@ -1044,7 +1044,7 @@ export async function GetUser(req: Request, res: Response): Promise<Response | v
 
 export async function LogoutALL(req: Request, res: Response): Promise<Response | void> {
 try {
-const id: number | undefined = (req.user as any)?.id || req.body?.id || (req.query?.id as string);
+const id: number | undefined = (req as any).user.id || req.body?.id || (req.query?.id as string);
 if (!id) return utils.SendError(res, 401, "unauthorized");
 let cursor: string = "0";
 const pattern: string = `session:${id}:*`;
@@ -1327,7 +1327,7 @@ export async function CallbackGithub(req: Request, res: Response) {
             password: '',
             saltPassword: '',
             dateOfBirth: '2001-11-03T00:00:00.000Z',
-            OAuthAccount: {
+            oAuthAccount: {
               create: {
                 provider: 'github',
                 providerId,
@@ -1400,7 +1400,7 @@ export async function CallbackGoogle(req: Request, res: Response) {
             password: '',
             saltPassword: '',
             dateOfBirth: '2001-11-03T00:00:00.000Z',
-            OAuthAccount: {
+            oAuthAccount: {
               create: {
                 provider: 'google',
                 providerId,
@@ -1446,7 +1446,7 @@ export async function CallbackGoogle(req: Request, res: Response) {
 
 export const UpdateUsername = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id; // assuming you have user info in req.user (from auth middleware)
+    const userId = (req as any).user.id;
     const { username } = req.body;
 
     if (!userId) {
