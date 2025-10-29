@@ -206,132 +206,132 @@ router.post("/verify-signup", typedAuthController.Verify_signup_email); //tested
  *         description: Invalid credentials
  */
 router.post("/login", typedAuthController.Login); //tested
-/**
- * @swagger
- * /verify-login:
- *   post:
- *     summary: Verify login with code
- *     description: Verifies the login code sent to the user's email or device.
- *     tags:
- *       - Auth
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - code
- *             properties:
- *               email:
- *                 type: string
- *                 example: "john@example.com"
- *               code:
- *                 type: string
- *                 example: "458973"
- *     responses:
- *       200:
- *         description: Login verified successfully
- *       400:
- *         description: Invalid verification code or expired session
- */
-router.post("/verify-login", typedAuthController.Verify_email); //tested
+// /**
+//  * @swagger
+//  * /verify-login:
+//  *   post:
+//  *     summary: Verify login with code
+//  *     description: Verifies the login code sent to the user's email or device.
+//  *     tags:
+//  *       - Auth
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - email
+//  *               - code
+//  *             properties:
+//  *               email:
+//  *                 type: string
+//  *                 example: "john@example.com"
+//  *               code:
+//  *                 type: string
+//  *                 example: "458973"
+//  *     responses:
+//  *       200:
+//  *         description: Login verified successfully
+//  *       400:
+//  *         description: Invalid verification code or expired session
+//  */
+// router.post("/verify-login", typedAuthController.Verify_email); //tested
 
 // --- 2FA / Login Code Setup & Verification Routes (Require Auth & AdminAuth) ---
-/**
- * @openapi
- * /2fa/setup:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Initialize 2FA setup for the authenticated user
- *     description: Generates a secret key and QR code for enabling two-factor authentication (TOTP) for the logged-in user.
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Returns the generated 2FA secret and QR code URL.
- *       401:
- *         description: Unauthorized, missing or invalid token.
- *       500:
- *         description: Server error during 2FA setup.
- */
-router.post("/2fa/setup", Auth(),  typedAuthController.Create_2fA); //tested
-/**
- * @openapi
- * /2fa/verify:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Verify a 2FA token during setup or login
- *     description: Verifies the TOTP token entered by the user during setup or when logging in with 2FA enabled.
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               token:
- *                 type: string
- *                 example: "123456"
- *     responses:
- *       200:
- *         description: 2FA verified successfully.
- *       400:
- *         description: Invalid 2FA code or expired token.
- *       500:
- *         description: Internal server error during verification.
- */
-router.post("/2fa/verify", typedAuthController.Verify_2fA); //tested
-/**
- * @openapi
- * /generate-login-codes:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Generate backup login codes for the authenticated user
- *     description: Generates a set of backup login codes that can be used if the user loses access to their 2FA device.
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Returns a list of backup login codes.
- *       401:
- *         description: Unauthorized, missing or invalid token.
- *       500:
- *         description: Server error generating login codes.
- */
+// /**
+//  * @openapi
+//  * /2fa/setup:
+//  *   post:
+//  *     tags:
+//  *       - Auth
+//  *     summary: Initialize 2FA setup for the authenticated user
+//  *     description: Generates a secret key and QR code for enabling two-factor authentication (TOTP) for the logged-in user.
+//  *     security:
+//  *       - bearerAuth: []
+//  *     responses:
+//  *       200:
+//  *         description: Returns the generated 2FA secret and QR code URL.
+//  *       401:
+//  *         description: Unauthorized, missing or invalid token.
+//  *       500:
+//  *         description: Server error during 2FA setup.
+//  */
+// router.post("/2fa/setup", Auth(),  typedAuthController.Create_2fA); //tested
+// /**
+//  * @openapi
+//  * /2fa/verify:
+//  *   post:
+//  *     tags:
+//  *       - Auth
+//  *     summary: Verify a 2FA token during setup or login
+//  *     description: Verifies the TOTP token entered by the user during setup or when logging in with 2FA enabled.
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               token:
+//  *                 type: string
+//  *                 example: "123456"
+//  *     responses:
+//  *       200:
+//  *         description: 2FA verified successfully.
+//  *       400:
+//  *         description: Invalid 2FA code or expired token.
+//  *       500:
+//  *         description: Internal server error during verification.
+//  */
+// router.post("/2fa/verify", typedAuthController.Verify_2fA); //tested
+// /**
+//  * @openapi
+//  * /generate-login-codes:
+//  *   post:
+//  *     tags:
+//  *       - Auth
+//  *     summary: Generate backup login codes for the authenticated user
+//  *     description: Generates a set of backup login codes that can be used if the user loses access to their 2FA device.
+//  *     security:
+//  *       - bearerAuth: []
+//  *     responses:
+//  *       200:
+//  *         description: Returns a list of backup login codes.
+//  *       401:
+//  *         description: Unauthorized, missing or invalid token.
+//  *       500:
+//  *         description: Server error generating login codes.
+//  */
 
-router.post("/generate-login-codes", Auth(),  typedAuthController.GenerteLoginCodes); //tested
-/**
- * @openapi
- * /verify-login-code:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Verify a backup login code
- *     description: Verifies one of the backup login codes generated by the user for account recovery or emergency access.
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               code:
- *                 type: string
- *                 example: "ABCD-1234"
- *     responses:
- *       200:
- *         description: Login code verified successfully.
- *       400:
- *         description: Invalid or already used code.
- *       500:
- *         description: Server error during login code verification.
- */
-router.post("/verify-login-code", typedAuthController.VerifyLoginCode); //tested
+// router.post("/generate-login-codes", Auth(),  typedAuthController.GenerteLoginCodes); //tested
+// /**
+//  * @openapi
+//  * /verify-login-code:
+//  *   post:
+//  *     tags:
+//  *       - Auth
+//  *     summary: Verify a backup login code
+//  *     description: Verifies one of the backup login codes generated by the user for account recovery or emergency access.
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               code:
+//  *                 type: string
+//  *                 example: "ABCD-1234"
+//  *     responses:
+//  *       200:
+//  *         description: Login code verified successfully.
+//  *       400:
+//  *         description: Invalid or already used code.
+//  *       500:
+//  *         description: Server error during login code verification.
+//  */
+// router.post("/verify-login-code", typedAuthController.VerifyLoginCode); //tested
 
 // --- Password Management Routes ---
 
