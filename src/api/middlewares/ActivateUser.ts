@@ -33,7 +33,7 @@ export default function ActivateUser() {
       // We prioritize req.user.id (string) or convert req.body.id to string.
       // NOTE: Removed the 'Number()' conversion for req.body.id.
       const id: string | undefined = req.user?.id ?? (req.body && req.body.id?.toString());
-      if (!id) return sendError(res, 401, "unauthorized");
+      if (!id) return next(new Error("unauthorized"));
 
       // Assuming db.User.update returns Promise<[affectedCount: number]> (like Sequelize)
       // The `id` passed to the `where` clause is now correctly a string.
@@ -41,14 +41,14 @@ export default function ActivateUser() {
       
       // Sequelize returns [affectedCount] for update; check 0 -> error
       if (!affected || affected === 0) {
-        return sendError(res, 500, "something went wrong");
+        return next(new Error("user not found"));
       }
       
       // Continue to next handler (Go version didn't call Next explicitly but it's middleware)
       next();
     } catch (err) {
       console.error("ActivateUser error:", err);
-      return sendError(res, 500, "something went wrong");
+      return next(err);
     }
   };
 }

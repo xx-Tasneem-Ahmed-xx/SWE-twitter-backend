@@ -65,7 +65,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use("/api/auth", authRoutes);
 app.use("/oauth2", oauthRoutes);
 app.use(Auth());
-
+ 
 app.use("/api/dm", ChatRouter);
 app.use("/api/media", mediaRouter);
 app.use("/api/notifications", notificationRoutes);
