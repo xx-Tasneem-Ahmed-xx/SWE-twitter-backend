@@ -977,7 +977,7 @@ export async function LogoutALL(req: Request, res: Response, next: NextFunction)
   try {
     console.log("req",req);
     
-    const id: number | undefined = (req.user as any)?.id || req.body?.id || (req.query?.id as string);
+   const id: number | undefined = (req as any).user.id || req.body?.id || (req.query?.id as string);
     
     if (!id) {
       throw new AppError("Unauthorized", 401);
@@ -1433,7 +1433,7 @@ export async function CallbackGoogle(req: Request, res: Response, next: NextFunc
 
 export const UpdateUsername = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = (req.user as any)?.id;
+   const userId = (req as any).user.id;
     const { username } = req.body;
 
     if (!userId) {
