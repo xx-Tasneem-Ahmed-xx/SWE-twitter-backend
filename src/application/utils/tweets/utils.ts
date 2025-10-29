@@ -164,8 +164,6 @@ export interface UserSession {
 }
 
 // --- Environment Variables (type assertions) ---
-console.log("JWT_SECRET used here:", process.env.JWT_SECRET);
-
 const JWT_SECRET: string = process.env.JWT_SECRET as string;
 const PEPPER: string = process.env.PEPPER || "";
 const COOKIE_DOMAIN: string = process.env.DOMAIN || "localhost";
