@@ -7,8 +7,6 @@ const StringSchema = z
   .string()
   .min(1, { message: "This field cannot be empty" });
 
-
-// ✅ Update DTO for user profile
 export const UpdateUserProfileDTOSchema = z
   .object({
     name: StringSchema.optional(),
@@ -17,13 +15,11 @@ export const UpdateUserProfileDTOSchema = z
     address: StringSchema.optional(),
     website: StringSchema.optional(),
     protectedAccount: z.boolean().optional(),
-    // These are now media IDs (UUIDs), not URLs
-    profileMediaId: z.string().uuid().optional().describe("UUID of profile media"),
-    coverMediaId: z.string().uuid().optional().describe("UUID of cover media"),
+    profilePhoto: z.string().url().optional(),
+    cover: z.string().url().optional(),
   })
   .openapi("UpdateUserProfileDTO");
 
-// ✅ Full user response DTO
 export const UserResponseDTOSchema = z
   .object({
     id: z.string().uuid(),
@@ -37,63 +33,29 @@ export const UserResponseDTOSchema = z
     address: StringSchema.optional().nullable(),
     website: StringSchema.optional().nullable(),
     protectedAccount: z.boolean(),
-    // Reflects relations to Media model
-    profileMediaId: z.string().uuid().nullable().optional(),
-    coverMediaId: z.string().uuid().nullable().optional(),
-    profileMedia: z
-      .object({
-        id: z.string().uuid(),
-        name: z.string(),
-        keyName: z.string(),
-        type: z.enum(["IMAGE", "VIDEO", "GIF"]),
-      })
-      .nullable()
-      .optional()
-      .describe("Profile media object"),
-    coverMedia: z
-      .object({
-        id: z.string().uuid(),
-        name: z.string(),
-        keyName: z.string(),
-        type: z.enum(["IMAGE", "VIDEO", "GIF"]),
-      })
-      .nullable()
-      .optional()
-      .describe("Cover media object"),
+    profilePhoto: z.string().url().optional().nullable(),
+    cover: z.string().url().optional().nullable(),
   })
   .openapi("UserProfileResponseDTO");
 
-// ✅ Search query DTO
 export const SearchUserQuerySchema = z
   .object({
     query: z.string().min(1, "Query cannot be empty"),
   })
   .openapi("SearchUserQueryDTO");
 
-// ✅ Search response DTO
 export const SearchUserResponseDTOSchema = z
   .object({
     id: z.string().uuid(),
     username: z.string(),
     name: z.string().nullable(),
-    // Now references the media relation, not direct URL
-    profileMedia: z
-      .object({
-        id: z.string().uuid(),
-        keyName: z.string(),
-        type: z.enum(["IMAGE", "VIDEO", "GIF"]),
-      })
-      .nullable()
-      .optional(),
+    profilePhoto: z.string().url().nullable().optional(),
     verified: z.boolean(),
   })
   .openapi("SearchUserResponseDTO");
+
 export const UpdateUserProfilePhotoParamsSchema = z
   .object({
-    userId: z
-      .string()
-      .uuid({ message: "Invalid user ID format" })
-      .describe("Unique ID of the user whose profile picture is being updated"),
     mediaId: z
       .string()
       .uuid({ message: "Invalid media ID format" })
@@ -101,14 +63,9 @@ export const UpdateUserProfilePhotoParamsSchema = z
   })
   .openapi("UpdateUserProfilePhotoParamsDTO");
 
-
 export const UpdateUserBannerParamsSchema = z
   .object({
-    userId: z
-      .string()
-      .uuid({ message: "Invalid user ID format" })
-      .describe("Unique ID of the user whose profile picture is being updated"),
-    mediaId: z
+    coverId: z
       .string()
       .uuid({ message: "Invalid cover ID format" })
       .describe("Unique ID of the uploaded media to set as cover/banner"),

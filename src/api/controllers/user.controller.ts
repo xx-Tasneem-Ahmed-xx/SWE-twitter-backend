@@ -124,11 +124,11 @@ export class UserController {
   async getUserProfile(req: Request, res: Response, next: NextFunction) {
     try {
       const { username } = req.params;
-      // const userId = (req as any).user?.id;
+      const userId = (req as any).user?.id;
 
-      // if (!userId) {
-      //   return res.status(401).json({ message: "Unauthorized access" });
-      // }
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized access" });
+      }
 
       const user = await userService.getUserProfile(username);
       if (!user) {
@@ -145,13 +145,15 @@ export class UserController {
   async updateUserProfile(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      // const userId = (req as any).user?.id;
+      const userId = (req as any).user?.id;
 
-      // if (!userId || userId !== id) {
-      //   return res.status(403).json({
-      //     message: "Forbidden: you can only update your own profile",
-      //   });
-      // }
+      if (!userId || userId !== id) {
+        return res.status(403).json({
+          id: id,
+          userid: userId,
+          message: "Forbidden: you can only update your own profile",
+        });
+      }
 
       const parsedBody = UpdateUserProfileDTOSchema.safeParse(req.body);
       if (!parsedBody.success) {
@@ -178,10 +180,10 @@ export class UserController {
 
   async searchUsers(req: Request, res: Response, next: NextFunction) {
     try {
-      // const userId = (req as any).user?.id;
-      // if (!userId) {
-      //   return res.status(401).json({ message: "Unauthorized access" });
-      // }
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized access" });
+      }
 
       const queryResult = SearchUserQuerySchema.safeParse(req.query);
       if (!queryResult.success) {
@@ -249,6 +251,8 @@ export class UserController {
           .status(401)
           .json({ message: "Unauthorized: user not authenticated" });
       }
+      // TODO ensure the profile photo is not the default one
+
       const updatedUser = await userService.deleteProfilePhoto(userId);
 
       return res.status(200).json({
@@ -278,10 +282,10 @@ export class UserController {
         });
       }
 
-      const { coverId } = parsedParams.data;
+      const { mediaId } = parsedParams.data;
       const updatedUser = await userService.updateProfileBanner(
         userId,
-        coverId
+        mediaId
       );
 
       return res.status(200).json({
@@ -303,6 +307,7 @@ export class UserController {
           .status(401)
           .json({ message: "Unauthorized: user not authenticated" });
       }
+      // TODO ensure the profile photo is not the default one
 
       const updatedUser = await userService.deleteProfileBanner(userId);
 

@@ -39,6 +39,6 @@ coverage/
 
 /src/generated/prisma
 scripts/
-
+prisma/migrations/
 # Firebase service account keys
 twitter-clone-project-ca1b1-firebase-adminsdk-fbsvc-a74d00fca4.json
