@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { AppError } from "@/errors/AppError";
+import { addNotification } from "../notificationController";
+import { NotificationTitle } from "@prisma/client";
 import {
   UserInteractionParamsSchema,
   UserInteractionQuerySchema,
@@ -49,6 +51,28 @@ export const followUser = async (
       userToFollow.id,
       followStatus
     );
+
+    try {
+      await addNotification(
+        userToFollow.id as any,
+        {
+          title:
+            followStatus === "PENDING"
+              ? NotificationTitle.REQUEST_TO_FOLLOW
+              : NotificationTitle.FOLLOW,
+          body:
+            followStatus === "PENDING"
+              ? `${(req as any).user.username} requested to follow you`
+              : `${(req as any).user.username} started following you`,
+          actorId: currentUserId as any,
+          tweetId: undefined,
+        },
+        next
+      );
+    } catch (err) {
+      console.error("Failed to send follow notification:", err);
+    }
+
     const statusCode = userToFollow.protectedAccount ? 202 : 201;
     const message = userToFollow.protectedAccount
       ? "Follow request sent"
@@ -110,6 +134,22 @@ export const acceptFollow = async (
       throw new AppError("Follow request already accepted", 409);
 
     await updateFollowStatus(follower.id, currentUserId);
+
+    try {
+      await addNotification(
+        follower.id as any,
+        {
+          title: NotificationTitle.ACCEPTED_FOLLOW,
+          body: `${(req as any).user.username} accepted your follow request`,
+          actorId: currentUserId as any,
+          tweetId: undefined,
+        },
+        next
+      );
+    } catch (err) {
+      console.error("Failed to send accepted-follow notification:", err);
+    }
+
     return res.status(200).json({
       message: "Follow request accepted",
     });
