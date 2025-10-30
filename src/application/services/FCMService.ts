@@ -47,12 +47,11 @@ export async function sendPushNotification(
     }
 
     const message = {
-        notification: notificationPayload, // What the user sees
+        notification: notificationPayload,
         data: Object.fromEntries(
             Object.entries(dataPayload).map(([k, v]) => [k, v?.toString() ?? ""])
-        ),                                 // Ensure all values are strings
+        ),                   
         tokens: registrationTokens,
-        // Optional priority for iOS (10=urgent)
         apns: { headers: { 'apns-priority': '10' } } 
     };
 
