@@ -1,3 +1,8 @@
+import z from "zod";
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+
+extendZodWithOpenApi(z);
+
 export const UserInteractionQuerySchema = z
   .object({
     cursor: z.string().nullable().describe("Opaque cursor for pagination."),
@@ -10,10 +15,6 @@ export const UserInteractionQuerySchema = z
       .describe("Number of results per page (default: 30)"),
   })
   .openapi("UserInteractionQuery");
-import z from "zod";
-import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-
-extendZodWithOpenApi(z);
 
 export const UserInteractionParamsSchema = z
   .object({
