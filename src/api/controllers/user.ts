@@ -1430,10 +1430,10 @@ export async function exchangeGoogleCode(code: string) {
     //       { headers: { Authorization: `Bearer ${accessToken}` } }
     //     );
     //     return resp.data;
-  } catch (err) {
-    throw new AppError("Failed to fetch LinkedIn email", 500);
-  }
-}
+//   } catch (err) {
+//     throw new AppError("Failed to fetch LinkedIn email", 500);
+//   }
+// }
 /* --------------------- OAuth Controllers --------------------- */
 
 export async function Authorize(
@@ -1732,7 +1732,6 @@ export const UpdateUsername = async (
 const authController = {
   Create,
   Verify_signup_email,
-  VerifyResetCode,
   UpdateUsername,
   Login,
   ForgetPassword,
