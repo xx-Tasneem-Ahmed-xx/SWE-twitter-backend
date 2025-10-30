@@ -6,7 +6,7 @@ const Ctx: {} = {}; // Placeholder context object if you want consistency with G
 
 // Create Redis client. Explicitly set the type to RedisClientType
 const redisClient: RedisClientType = createClient({
-  url: "redis://localhost:6379", // matches Addr:"localhost:6379"
+  url:process.env.RED_URL, // matches Addr:"localhost:6379"
   // NOTE: The 'password' option is typically for connection security, 
   // but if it's intentionally empty, we keep it as is.
   password: "",                  // same as Password:""
