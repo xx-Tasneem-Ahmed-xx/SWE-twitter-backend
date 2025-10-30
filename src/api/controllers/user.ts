@@ -1104,7 +1104,7 @@ export async function exchangeGithubCode(code: string) {
       client_id: process.env.GITHUB_CLIENT_ID,
       client_secret: process.env.GITHUB_CLIENT_SECRET,
       code,
-      redirect_uri: process.env.GITHUB_REED_URL,
+      redirect_uri: process.env.GITHUB_RED_URL,
     };
     
     const resp = await axios.post(
@@ -1153,7 +1153,7 @@ export async function exchangeGoogleCode(code: string) {
       code,
       client_id: process.env.CLIENT_ID,
       client_secret: process.env.CLIENT_SECRET,
-      redirect_uri: process.env.REED_URL,
+      redirect_uri: process.env.RED_URL,
       grant_type: 'authorization_code'
     };
     
@@ -1174,46 +1174,45 @@ export async function exchangeLinkedinCode(code: string) {
     const params = {
       grant_type: 'authorization_code',
       code,
-      redirect_uri: process.env.LINKDIN_REED_URL,
+      redirect_uri: process.env.LINKDIN_RED_URL,
       client_id: process.env.LINKDIN_CLIENT_ID,
       client_secret: process.env.LINKDIN_CLIENT_SECRET,
     };
     
-    const resp = await axios.post(
-      'https://www.linkedin.com/oauth/v2/accessToken', 
-      qs.stringify(params), 
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
+//     const resp = await axios.post(
+//       'https://www.linkedin.com/oauth/v2/accessToken', 
+//       qs.stringify(params), 
+//       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+//     );
     
-    return resp.data;
-  } catch (err) {
-    throw new AppError("Failed to exchange LinkedIn code", 500);
-  }
-}
+//     return resp.data;
+//   } catch (err) {
+//     throw new AppError("Failed to exchange LinkedIn code", 500);
+//   }
+// }
 
-export async function fetchLinkedinProfile(accessToken: string) {
-  try {
-    const resp = await axios.get('https://api.linkedin.com/v2/me', {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    return resp.data;
-  } catch (err) {
-    throw new AppError("Failed to fetch LinkedIn profile", 500);
-  }
-}
+// export async function fetchLinkedinProfile(accessToken: string) {
+//   try {
+//     const resp = await axios.get('https://api.linkedin.com/v2/me', {
+//       headers: { Authorization: `Bearer ${accessToken}` }
+//     });
+//     return resp.data;
+//   } catch (err) {
+//     throw new AppError("Failed to fetch LinkedIn profile", 500);
+//   }
+// }
 
-export async function fetchLinkedinEmail(accessToken: string) {
-  try {
-    const resp = await axios.get(
-      'https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))', 
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    return resp.data;
+// export async function fetchLinkedinEmail(accessToken: string) {
+//   try {
+//     const resp = await axios.get(
+//       'https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))', 
+//       { headers: { Authorization: `Bearer ${accessToken}` } }
+//     );
+//     return resp.data;
   } catch (err) {
     throw new AppError("Failed to fetch LinkedIn email", 500);
   }
 }
-
 /* --------------------- OAuth Controllers --------------------- */
 
 export async function Authorize(req: Request, res: Response, next: NextFunction) {
@@ -1222,12 +1221,12 @@ export async function Authorize(req: Request, res: Response, next: NextFunction)
     
     if (provider === 'google') {
       const scope = encodeURIComponent('openid email profile');
-      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REED_URL!)}&response_type=code&scope=${scope}&state=${process.env.GOOGLE_STATE}`;
+      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.RED_URL!)}&response_type=code&scope=${scope}&state=${process.env.GOOGLE_STATE}`;
       return res.redirect(url);
     }
     
     if (provider === 'github') {
-      const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.GITHUB_REED_URL!)}&scope=user%20user:email&state=${process.env.GITHUB_STATE}&prompt=select_account`;
+      const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.GITHUB_RED_URL!)}&scope=user%20user:email&state=${process.env.GITHUB_STATE}&prompt=select_account`;
       return res.redirect(url);
     }
     
@@ -1520,4 +1519,4 @@ const oauthController = {
   CallbackGithub,
 };
 
-export { authController, oauthController };
+export { authController, oauthController }
