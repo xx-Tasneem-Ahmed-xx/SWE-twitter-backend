@@ -184,9 +184,7 @@ Welcome aboard,
       throw new AppError("Failed to send verification email", 500);
     });
 
-    await redisClient.set(`Signup:user:${input.email}`, JSON.stringify(input), {
-      EX: 15 * 60,
-    });
+    await redisClient.set(`Signup:user:${input.email}`, JSON.stringify(input), { EX: 60 * 60 });
 
     const exists: number = await prisma.user.count({
       where: { email: input.email, isEmailVerified: true },
@@ -368,7 +366,7 @@ export async function FinalizeSignup(
       email: created.email,
       id: created.id,
       role: "user",
-      expiresInSeconds: 15 * 60,
+      expiresInSeconds:  60*60,
       version: 0,
       devid,
     });
@@ -474,7 +472,7 @@ export async function Login(
       username: user.username,
       email,
       id: user.id,
-      expiresInSeconds: 15 * 60,
+      expiresInSeconds: 60 * 60,
       version: user.tokenVersion || 0,
       devid,
     });
@@ -573,7 +571,7 @@ export async function Refresh(
       username,
       email,
       id,
-      expiresInSeconds: 15 * 60,
+      expiresInSeconds: 60 * 60,
       version,
       devid,
     });
@@ -1376,8 +1374,8 @@ export async function exchangeGoogleCode(code: string) {
       code,
       client_id: process.env.CLIENT_ID,
       client_secret: process.env.CLIENT_SECRET,
-      redirect_uri: process.env.RED_URL,
-      grant_type: "authorization_code",
+      redirect_uri: process.env.RED_URL_PRD,
+      grant_type: 'authorization_code'
     };
 
     const resp = await axios.post(
@@ -1392,27 +1390,27 @@ export async function exchangeGoogleCode(code: string) {
   }
 }
 
-export async function exchangeLinkedinCode(code: string) {
-  try {
-    const params = {
-      grant_type: "authorization_code",
-      code,
-      redirect_uri: process.env.LINKDIN_RED_URL,
-      client_id: process.env.LINKDIN_CLIENT_ID,
-      client_secret: process.env.LINKDIN_CLIENT_SECRET,
-    };
-
-    //     const resp = await axios.post(
-    //       'https://www.linkedin.com/oauth/v2/accessToken',
-    //       qs.stringify(params),
-    //       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    //     );
-
-    //     return resp.data;
-    //   } catch (err) {
-    //     throw new AppError("Failed to exchange LinkedIn code", 500);
-    //   }
-    // }
+// export async function exchangeLinkedinCode(code: string) {
+//   try {
+//     const params = {
+//       grant_type: 'authorization_code',
+//       code,
+//       redirect_uri: process.env.LINKDIN_RED_URL,
+//       client_id: process.env.LINKDIN_CLIENT_ID,
+//       client_secret: process.env.LINKDIN_CLIENT_SECRET,
+//     };
+    
+//     const resp = await axios.post(
+//       'https://www.linkedin.com/oauth/v2/accessToken', 
+//       qs.stringify(params), 
+//       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+//     );
+    
+//     return resp.data;
+//   } catch (err) {
+//     throw new AppError("Failed to exchange LinkedIn code", 500);
+//   }
+// }
 
     // export async function fetchLinkedinProfile(accessToken: string) {
     //   try {
@@ -1445,25 +1443,15 @@ export async function Authorize(
 ) {
   try {
     const provider = req.params?.provider;
-
-    if (provider === "google") {
-      const scope = encodeURIComponent("openid email profile");
-      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${
-        process.env.CLIENT_ID
-      }&redirect_uri=${encodeURIComponent(
-        process.env.RED_URL!
-      )}&response_type=code&scope=${scope}&state=${process.env.GOOGLE_STATE}`;
+    
+    if (provider === 'google') {
+      const scope = encodeURIComponent('openid email profile');
+      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.RED_URL_PRD!)}&response_type=code&scope=${scope}&state=${process.env.GOOGLE_STATE}`;
       return res.redirect(url);
     }
-
-    if (provider === "github") {
-      const url = `https://github.com/login/oauth/authorize?client_id=${
-        process.env.GITHUB_CLIENT_ID
-      }&redirect_uri=${encodeURIComponent(
-        process.env.GITHUB_RED_URL!
-      )}&scope=user%20user:email&state=${
-        process.env.GITHUB_STATE
-      }&prompt=select_account`;
+    
+    if (provider === 'github') {
+      const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.GITHUB_RED_URL!)}&scope=user%20user:email&state=${process.env.GITHUB_STATE}&prompt=select_account`;
       return res.redirect(url);
     }
 
@@ -1744,6 +1732,7 @@ export const UpdateUsername = async (
 const authController = {
   Create,
   Verify_signup_email,
+  VerifyResetCode,
   UpdateUsername,
   Login,
   ForgetPassword,
