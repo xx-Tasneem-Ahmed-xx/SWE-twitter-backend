@@ -4,15 +4,14 @@ const router = Router();
 
 
 router.get("/chat/user", getUserChats)
-router.post("/chat/createchat", createChat)
-router.get("/chat/unseenChats", getUnseenChatsCount)
+router.post("/chat/create-chat", createChat)
+router.get("/chat/unseen-chats", getUnseenChatsCount)
 router.get("/chat/:chatId", getChatInfo)
 router.get("/chat/:chatId/messages", getChatMessages)
 router.patch("/chat/:chatId/group", updateChatGroup)
 router.delete("/chat/:chatId", deleteChat)
-router.post("/chat/message", addMessageToChat)
-router.get("/chat/:chatId/unseenMessagesCount", getUnseenMessagesCount)
-router.patch("/chat/:chatId/messageStatus", updateMessageStatus)
+router.post("/chat/new-message", addMessageToChat)
+router.get("/chat/:chatId/unseen-messages-count", getUnseenMessagesCount)
 
 
 

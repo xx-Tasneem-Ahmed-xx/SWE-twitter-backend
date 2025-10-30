@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import prisma from "../../database";
 import { MediaType } from "@prisma/client";
 import {storageService} from '../../app';
+import { AppError } from "@/errors/AppError";
 
 
 
@@ -17,10 +18,10 @@ export const requestToUploadMedia = async (req: Request, res: Response, next: Ne
             const uploadUrl = await storageService.getPresignedUrl(keyName, contentType);
             return res.status(200).json({ url: uploadUrl, keyName });
         }else{
-            return res.status(404).json({ error: "User not authorized" });
+            throw new AppError("User not authorized", 404);
         }
     } catch (error) {
-        return res.status(500).json({ error: "Internal server error" });
+        next(error);
     }
 }
 
@@ -32,19 +33,19 @@ export const requestToDownloadMedia = async (req: Request, res: Response, next: 
             where: { id: userId }
         }); 
         if(!user){
-            return res.status(404).json({ error: "Unauthorized Access" });
+           throw new AppError("Unauthorized Access", 404);
         }
         const media =  await prisma.media.findUnique({
             where: { id: mediaId }
         });
         if(!media){
-            return res.status(404).json({ error: "Media not found" });
+           throw new AppError("Media not found", 404);
         }
         const downloadUrl = await storageService.getDownloadUrl(media.keyName);
         return res.status(200).json({ url: downloadUrl });
     } catch (error) {
         console.error("Error downloading media:", error);
-        return res.status(500).json({ error: "Internal server error" });
+        next(error);
     }
 }
 
@@ -69,18 +70,18 @@ export const confirmMediaUpload = async (req: Request, res: Response, next: Next
                 })
                 return res.status(200).json({ newMedia });
             } else {
-                return res.status(404).json({ error: "Media not found" });
+                throw new AppError("Media not found", 404);
             }
         } else {
-            return res.status(404).json({ error: "User not authorized" });
+            throw new AppError("User not authorized", 404);
         }
     } catch (error: any) {
         console.error("Error confirming media upload:", error);
-        return res.status(500).json({ error: "Internal server error" });
+        next(error);
     }
 }
 
-export const addMediaTotweet = async (req: Request, res: Response) => {
+export const addMediaTotweet = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { tweetId, mediaIds } = req.body as { tweetId?: string; mediaIds?: string[] };
         const userId = req.user?.id;
@@ -88,16 +89,16 @@ export const addMediaTotweet = async (req: Request, res: Response) => {
             where: { id: userId }
         });
         if (!user) {
-            return res.status(401).json({ error: "Unauthorized Access" });
+            throw new AppError("Unauthorized Access", 401);
         }
 
         if (!tweetId) {
-            return res.status(400).json({ error: "tweetId is required" });
+            throw new AppError("tweetId is required", 400);
         }
 
         const ids: string[] = Array.isArray(mediaIds) ? mediaIds : [];
         if (ids.length === 0) {
-            return res.status(400).json({ error: "mediaIds must be a non-empty array" });
+            throw new AppError("mediaIds must be a non-empty array", 400);
         }
 
         for (const id of ids) {
@@ -111,11 +112,11 @@ export const addMediaTotweet = async (req: Request, res: Response) => {
         return res.status(200).json({ message: "Media added to tweet successfully" });
     } catch (error) {
         console.error("Error adding media to tweet:", error);
-        res.status(500).json({ error: "Internal server error" });
+        next(error);
     }
 }
 
-export const addMediaToMessage = async (req: Request, res: Response) => {
+export const addMediaToMessage = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { messageId, mediaIds } = req.body as { messageId?: string; mediaIds?: string };
         const userId = req.user?.id;
@@ -123,16 +124,16 @@ export const addMediaToMessage = async (req: Request, res: Response) => {
             where: { id: userId }
         });
         if (!user) {
-            return res.status(401).json({ error: "Unauthorized Access" });
+            throw new AppError("Unauthorized Access", 401);
         }
 
         if (!messageId) {
-            return res.status(400).json({ error: "messageId is required" });
+            throw new AppError("messageId is required", 400);
         }
 
         const ids: string[] = Array.isArray(mediaIds) ? mediaIds : [];
         if (ids.length === 0) {
-            return res.status(400).json({ error: "mediaIds must be a non-empty array" });
+            throw new AppError("mediaIds must be a non-empty array", 400);
         }
 
         for (const id of ids) {
@@ -146,52 +147,54 @@ export const addMediaToMessage = async (req: Request, res: Response) => {
         return res.status(200).json({ message: "Media added to message successfully" });
     } catch (error) {
         console.error("Error adding media to message:", error);
-        res.status(500).json({ error: "Internal server error" });
+        next(error);
     }
 }
 
-export const getTweetMedia = async (req: Request, res: Response) => {
+export const getTweetMedia = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { tweetId } = req.params;
         const userId = req.user?.id;
         if(!userId){
-            return res.status(401).json({ error: "Unauthorized Access" });
+            throw new AppError("Unauthorized Access", 401);
+        
         }
         if(!tweetId){
-            return res.status(400).json({ error: "tweetId is required" });
+            throw new AppError("tweetId is required", 400);
         }
         const media  = await prisma.media.findMany({
             where: { tweetMedia: { some: { tweetId } } }
         });
         if(!media){
-            return res.status(404).json({ error: "No media found for this tweet" });
+            throw new AppError("No media found for this tweet", 404);
         }
         res.status(200).json(media); 
     } catch (error) {
         console.error("Error fetching media for tweet:", error);
-        res.status(500).json({ error: "Internal server error" });
+        next(error);
     }
 }
 
-export const getMessageMedia = async (req: Request, res: Response) => {
+export const getMessageMedia = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { messageId } = req.params;
         const userId = req.user?.id;
         if(!userId){
-            return res.status(401).json({ error: "Unauthorized Access" });
+            throw new AppError("Unauthorized Access", 401);
+        
         }
         if(!messageId){
-            return res.status(400).json({ error: "messageId is required" });
+            throw new AppError("messageId is required", 400);
         }
         const media  = await prisma.media.findMany({
             where: { messageMedia: { some: { messageId } } }
         });
         if(!media){
-            return res.status(404).json({ error: "No media found for this message" });
+            throw new AppError("No media found for this message", 404);
         }
         res.status(200).json(media);
     } catch (error) {
         console.error("Error fetching media for message:", error);
-        res.status(500).json({ error: "Internal server error" });
+        next(error);
     }
 }

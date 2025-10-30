@@ -2,6 +2,7 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import prisma from '../../database';
 import * as utils from '../utils/tweets/utils';
 import { redisClient } from '../../config/redis';
+import { updateMessageStatus } from '@/api/controllers/messagesController';
 
 export class SocketService {
     public io: SocketIOServer;
@@ -150,6 +151,10 @@ export class SocketService {
             });
         }
         });
+
+        socket.on('open-chat', async (data: { chatId: string }) => {
+            await updateMessageStatus(data.chatId);
+        })
 
     }
 
