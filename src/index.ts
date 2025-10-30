@@ -1,13 +1,11 @@
 import dotenv from "dotenv";
+dotenv.config();
 import httpServer from "@/app";
 import { connectToDatabase, disconnectFromDatabase } from "@/database";
 import "module-alias/register";
 // Ensure global Express.Request augmentation (req.user) is loaded for ts-node
 //import "./types/express";
 import { connectRedis } from "./config/redis";
-
-
-dotenv.config();
 
 const PORT = process.env.PORT;
 
