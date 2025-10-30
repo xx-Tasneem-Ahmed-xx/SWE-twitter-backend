@@ -1169,50 +1169,50 @@ export async function exchangeGoogleCode(code: string) {
   }
 }
 
-export async function exchangeLinkedinCode(code: string) {
-  try {
-    const params = {
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: process.env.LINKDIN_REED_URL,
-      client_id: process.env.LINKDIN_CLIENT_ID,
-      client_secret: process.env.LINKDIN_CLIENT_SECRET,
-    };
+// export async function exchangeLinkedinCode(code: string) {
+//   try {
+//     const params = {
+//       grant_type: 'authorization_code',
+//       code,
+//       redirect_uri: process.env.LINKDIN_REED_URL,
+//       client_id: process.env.LINKDIN_CLIENT_ID,
+//       client_secret: process.env.LINKDIN_CLIENT_SECRET,
+//     };
     
-    const resp = await axios.post(
-      'https://www.linkedin.com/oauth/v2/accessToken', 
-      qs.stringify(params), 
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
+//     const resp = await axios.post(
+//       'https://www.linkedin.com/oauth/v2/accessToken', 
+//       qs.stringify(params), 
+//       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+//     );
     
-    return resp.data;
-  } catch (err) {
-    throw new AppError("Failed to exchange LinkedIn code", 500);
-  }
-}
+//     return resp.data;
+//   } catch (err) {
+//     throw new AppError("Failed to exchange LinkedIn code", 500);
+//   }
+// }
 
-export async function fetchLinkedinProfile(accessToken: string) {
-  try {
-    const resp = await axios.get('https://api.linkedin.com/v2/me', {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    return resp.data;
-  } catch (err) {
-    throw new AppError("Failed to fetch LinkedIn profile", 500);
-  }
-}
+// export async function fetchLinkedinProfile(accessToken: string) {
+//   try {
+//     const resp = await axios.get('https://api.linkedin.com/v2/me', {
+//       headers: { Authorization: `Bearer ${accessToken}` }
+//     });
+//     return resp.data;
+//   } catch (err) {
+//     throw new AppError("Failed to fetch LinkedIn profile", 500);
+//   }
+// }
 
-export async function fetchLinkedinEmail(accessToken: string) {
-  try {
-    const resp = await axios.get(
-      'https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))', 
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    return resp.data;
-  } catch (err) {
-    throw new AppError("Failed to fetch LinkedIn email", 500);
-  }
-}
+// export async function fetchLinkedinEmail(accessToken: string) {
+//   try {
+//     const resp = await axios.get(
+//       'https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))', 
+//       { headers: { Authorization: `Bearer ${accessToken}` } }
+//     );
+//     return resp.data;
+//   } catch (err) {
+//     throw new AppError("Failed to fetch LinkedIn email", 500);
+//   }
+// }
 
 /* --------------------- OAuth Controllers --------------------- */
 
