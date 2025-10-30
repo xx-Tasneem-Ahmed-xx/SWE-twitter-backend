@@ -626,44 +626,37 @@ If you didn't request this change, please ignore this email or contact Artemisa 
     next(err);
   }
 }
+export async function VerifyResetCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) throw new AppError("Email and reset code are required", 400);
+
+    const storedCode = await redisClient.get(`Reset:code:${email}`);
+    if (!storedCode) throw new AppError("Reset code expired or not found", 400);
+    if (storedCode !== code) throw new AppError("Invalid reset code", 401);
+
+    return utils.SendRes(res, { message: "Reset code verified, you can now enter a new password" });
+  } catch (err) {
+    next(err);
+  }
+}
 
 export async function ResetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { email, code, password } = req.body;
-    
-    if (!email || !code || !password) {
-      throw new AppError("Email, code, and password are required", 400);
-    }
+    const { email, password } = req.body;
+    if (!email || !password) throw new AppError("Email and new password are required", 400);
 
-    const stored: string | null = await redisClient.get(`Reset:code:${email}`);
-    
-    if (!stored) {
-      throw new AppError("Reset code expired or not found", 400);
-    }
-    
-    if (stored !== code) {
-      throw new AppError("Invalid reset code", 401);
-    }
+    const passValidation = await utils.ValidatePassword(password);
+    if (passValidation !== "0") throw new AppError(passValidation, 400);
 
-    const passValidation: string = await utils.ValidatePassword(password);
-    
-    if (passValidation !== "0") {
-      throw new AppError(passValidation, 400);
-    }
+    const salt = crypto.randomBytes(16).toString("hex");
+    const hashed = await utils.HashPassword(password, salt);
 
-    const salt: string = crypto.randomBytes(16).toString("hex");
-    const hashed: string = await utils.HashPassword(password, salt);
-
-    await prisma.user.updateMany({ 
-      where: { email }, 
-      data: { password: hashed, saltPassword: salt } 
-    });
-
+    await prisma.user.updateMany({ where: { email }, data: { password: hashed, saltPassword: salt } });
     await redisClient.del(`Reset:code:${email}`);
     await utils.RsetResetAttempts(email);
 
-    const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser | null;
-    
+    const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser;
     if (user) {
       const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
       const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
@@ -677,10 +670,10 @@ export async function ResetPassword(req: Request, res: Response, next: NextFunct
 💻 Device info: ${deviceRecord || "unknown"}
 🕒 Time: ${new Date().toLocaleString()}
 
-If this was not you, immediately secure your account!
-— The Artemisa Team`;
+If this wasn't you, secure your account immediately!
+— Artemisa Team`;
 
-      utils.SendEmailSmtp(res, email, emailMessage).catch((err) => {
+      utils.SendEmailSmtp(res, email, emailMessage).catch(() => {
         throw new AppError("Failed to send password change notification", 500);
       });
 
@@ -688,9 +681,7 @@ If this was not you, immediately secure your account!
         title: 'Password_Changed',
         body: `Your password was changed from ${deviceRecord || "unknown device"} at ${location}`,
         actorId: user.id as UUID,
-      }, (err) => {
-        if (err) throw new AppError("Failed to create password change notification", 500);
-      });
+      }, (err) => { if (err) throw new AppError("Failed to create notification", 500) });
     }
 
     return utils.SendRes(res, { message: "Password reset successfully, notification sent" });
@@ -698,6 +689,7 @@ If this was not you, immediately secure your account!
     next(err);
   }
 }
+
 
 export async function ReauthPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
