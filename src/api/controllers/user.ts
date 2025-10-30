@@ -673,7 +673,7 @@ If this was not you, immediately secure your account!
       });
 
       await addNotification(user.id as UUID, {
-        title: 'Password_Changed',
+        title: 'PASSWORD_CHANGED',
         body: `Your password was changed from ${deviceRecord || "unknown device"} at ${location}`,
         actorId: user.id as UUID,
       }, (err) => {

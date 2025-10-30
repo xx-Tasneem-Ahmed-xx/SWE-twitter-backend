@@ -207,11 +207,11 @@ model ChatGroup {
 }
 
 model Notification {
-  id        String           @id @default(uuid())
+  id        String            @id @default(uuid())
   title     NotificationTitle
   body      String
-  isRead    Boolean          @default(false)
-  createdAt DateTime         @default(now())
+  isRead    Boolean           @default(false)
+  createdAt DateTime          @default(now())
   userId    String
   tweetId   String?
   actorId   String?
@@ -399,9 +399,11 @@ enum NotificationTitle {
   REPLY
   QUOTE
   FOLLOW
-  RequestToFollow
-  AcceptedFollow
+  REQUEST_TO_FOLLOW
+  ACCEPTED_FOLLOW
   MENTION
+  LOGIN
+  PASSWORD_CHANGED
 }
 
 enum MediaType {
