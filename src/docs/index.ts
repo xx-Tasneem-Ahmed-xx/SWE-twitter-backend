@@ -84,9 +84,9 @@ const mergedDoc: OpenAPIObject = {
   },
 };
 
-fs.writeFileSync(
-  path.join(__dirname, "swagger-merged.json"),
-  JSON.stringify(mergedDoc, null, 2)
-);
+// fs.writeFileSync(
+//   path.join(__dirname, "swagger-merged.json"),
+//   JSON.stringify(mergedDoc, null, 2)
+// );
 
-export default mergedDoc;
+// export default mergedDoc;
