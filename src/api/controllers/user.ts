@@ -198,7 +198,28 @@ export async function SignupCaptcha(req: Request, res: Response, next: NextFunct
     next(err);
   }
 }
+export async function GetUserEmailById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.params.id;
 
+    if (!userId) {
+      throw new AppError("User ID is required", 400);
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    utils.SendRes(res, { email: user.email });
+  } catch (err) {
+    next(err);
+  }
+}
 export async function Verify_signup_email(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { email, code } = req.body;
@@ -446,14 +467,14 @@ If this was not you, immediately change your password!
 
 export async function Refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const refreshToken: string | undefined = req.cookies?.refresh_token;
-    
+    const refreshToken: string | undefined = req.body?.refresh_token;
+
     if (!refreshToken) {
-      throw new AppError("No refresh token cookie found, cannot renew session", 401);
+      throw new AppError("No refresh token provided in body, cannot renew session", 401);
     }
 
     const validated = validateJwt(refreshToken);
-    
+
     if (!validated.ok) {
       throw new AppError("Invalid refresh token, cannot renew session", 401);
     }
@@ -478,17 +499,8 @@ export async function Refresh(req: Request, res: Response, next: NextFunction): 
     const jti: string = uuidv4();
     await utils.SetSession(req, id, jti);
 
-   const cookieOptions = {
-  httpOnly: true, // cannot be accessed by JS on the frontend
-
-  sameSite: "lax" as const,
- 
-  maxAge: 60  * 15 * 1000, // 30 days in milliseconds
-};
-
-res.cookie("access-token", newAccess.token, cookieOptions);
-return utils.SendRes(res, { message: "Access token saved in cookie" });
-
+    // Send access token in response body instead of cookie
+    return utils.SendRes(res, { access_token: newAccess.token});
 
   } catch (err) {
     next(err);
@@ -1512,6 +1524,7 @@ const authController = {
   LogoutSession,
   SignupCaptcha,
   CheckEmail,
+  GetUserEmailById,
 };
 
 const oauthController = {

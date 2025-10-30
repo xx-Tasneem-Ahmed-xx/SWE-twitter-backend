@@ -669,24 +669,37 @@ router.post("/reset-password", Auth(),  typedAuthController.ResetPassword);
 /**
  * @openapi
  * /refresh:
- *   get:
+ *   post:
  *     tags:
  *       - Auth
  *     summary: Refresh access token
- *     description: Generates a new short-lived access token using a valid refresh token stored in HTTP-only cookies.
+ *     description: Generates a new short-lived access token using a valid refresh token provided in the request body.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refresh_token:
+ *                 type: string
+ *                 example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *     responses:
  *       200:
- *         description: New access token generated successfully and stored in cookies.
+ *         description: New access token generated successfully.
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
+ *                 access_token:
+ *                   type: string
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *                 message:
  *                   type: string
- *                   example: Access token refreshed successfully
+ *                   example: New access token generated
  *       401:
- *         description: Missing or invalid refresh token cookie.
+ *         description: Missing or invalid refresh token.
  *       500:
  *         description: Internal server error during token refresh.
  */
@@ -1140,6 +1153,40 @@ router.put("/update_username",Auth(),typedAuthController.UpdateUsername);
  *                   example: Internal Server Error
  */
 router.post("/getUser",typedAuthController.CheckEmail);
+
+/**
+ * @swagger
+ * /user/{id}/email:
+ *   get:
+ *     summary: Get user's email by ID
+ *     tags:
+ *       - User
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the user
+ *     responses:
+ *       200:
+ *         description: User email retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 email:
+ *                   type: string
+ *                   example: user@example.com
+ *       400:
+ *         description: User ID is missing
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
 router.use(AfterChange());
 router.use(GeoGurd());
 export default router;
