@@ -614,15 +614,15 @@ router.post("/login", typedAuthController.Login); //tested
  *       500:
  *         description: Internal server error while sending reset code.
  */
-router.post("/forget-password", Auth(),  typedAuthController.ForgetPassword);
+router.post("/forget-password",  typedAuthController.ForgetPassword);
 /**
  * @openapi
- * /reset-password:
+ * /verify-reset-code:
  *   post:
  *     tags:
- *       - Password Management
- *     summary: Reset user password
- *     description: Resets a user's password using a verification code sent via email.
+ *       - Auth
+ *     summary: Verify password reset code
+ *     description: Verifies the reset code sent to the user's email. Once verified, the user can proceed to reset the password.
  *     requestBody:
  *       required: true
  *       content:
@@ -632,22 +632,17 @@ router.post("/forget-password", Auth(),  typedAuthController.ForgetPassword);
  *             required:
  *               - email
  *               - code
- *               - password
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
- *                 example: "john@example.com"
+ *                 description: The email of the user requesting password reset.
  *               code:
  *                 type: string
- *                 example: "583920"
- *               password:
- *                 type: string
- *                 format: password
- *                 example: "NewStrongPassword@123"
+ *                 description: The 6-digit reset code sent to the user's email.
  *     responses:
  *       200:
- *         description: Password reset successfully and notification sent.
+ *         description: Reset code verified successfully
  *         content:
  *           application/json:
  *             schema:
@@ -655,15 +650,94 @@ router.post("/forget-password", Auth(),  typedAuthController.ForgetPassword);
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Password reset successfully, notification sent
+ *                   example: "Reset code verified, you can now enter a new password"
  *       400:
- *         description: Missing fields, invalid code, or expired reset request.
+ *         description: Validation error or missing fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       401:
- *         description: Unauthorized reset attempt or invalid code.
- *       500:
- *         description: Internal server error during password reset.
+ *         description: Invalid reset code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
-router.post("/reset-password", Auth(),  typedAuthController.ResetPassword);
+
+router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
+
+/**
+ * @openapi
+ * /reset-password:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Reset user password
+ *     description: Allows a user to reset their password after verifying the reset code. Requires email and new password.
+ *     security:
+ *       - bearerAuth: []   # assuming Auth() middleware uses Bearer token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: The email of the user whose password is being reset.
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: The new password to set for the user.
+ *     responses:
+ *       200:
+ *         description: Password reset successfully, notification sent
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Password reset successfully, notification sent"
+ *       400:
+ *         description: Validation error or missing fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Invalid reset code or unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error (email sending / DB update failed)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post("/reset-password",  typedAuthController.ResetPassword);
 
 // --- Session & Logout Routes ---
 /**
