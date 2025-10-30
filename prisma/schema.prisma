@@ -142,7 +142,7 @@ model Tweet {
   tweetMedia    TweetMedia[]
   Notification  Notification[]
 
-  @@unique([createdAt, id])
+  @@unique([lastActivityAt, id])
   @@index([userId, createdAt])
   @@map("tweets")
 }
