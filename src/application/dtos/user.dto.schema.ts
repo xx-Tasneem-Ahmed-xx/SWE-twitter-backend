@@ -53,3 +53,21 @@ export const SearchUserResponseDTOSchema = z
     verified: z.boolean(),
   })
   .openapi("SearchUserResponseDTO");
+
+export const UpdateUserProfilePhotoParamsSchema = z
+  .object({
+    mediaId: z
+      .string()
+      .uuid({ message: "Invalid media ID format" })
+      .describe("Unique ID of the uploaded media to set as profile picture"),
+  })
+  .openapi("UpdateUserProfilePhotoParamsDTO");
+
+export const UpdateUserBannerParamsSchema = z
+  .object({
+    coverId: z
+      .string()
+      .uuid({ message: "Invalid cover ID format" })
+      .describe("Unique ID of the uploaded media to set as cover/banner"),
+  })
+  .openapi("UpdateUserBannerParamsDTO");

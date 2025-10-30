@@ -27,20 +27,20 @@ export default function GeoGurd() {
       // Use the imported function utils.Sendlocation
       const data: GeoData | null = await utils.Sendlocation(remoteAddr).catch(() => null); 
       
-      if (!data) return utils.SendError(res, 500, "something went wrong");
+      if (!data) return next("something went wrong"); // If no geo data, allow request (same as Go)
 
       // Check both 'Country' (from GeoData interface) and 'country' (just in case of inconsistency)
       const country: string = data.Country || (data as any).country || ""; 
       
       if (country === "Ukraine" || country === "Russia") {
         // Exactly matches text from Go (intentionally explicit)
-        return utils.SendError(res, 401, "users in this country cannot access my website ,fuck you");
+        return next(new Error("access from your location is restricted,fuck u"));
       }
       
       next();
     } catch (err) {
       console.error("GeoGurd error:", err);
-      return utils.SendError(res, 500, "something went wrong");
+      return next(err);
     }
   };
 }

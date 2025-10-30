@@ -4,9 +4,15 @@ import {
   UserResponseDTOSchema,
   SearchUserQuerySchema,
   SearchUserResponseDTOSchema,
+  UpdateUserProfilePhotoParamsSchema,
+  UpdateUserBannerParamsSchema,
 } from "./user.dto.schema";
 
 export type UpdateUserProfileDTO = z.infer<typeof UpdateUserProfileDTOSchema>;
 export type UserProfileResponseDTO = z.infer<typeof UserResponseDTOSchema>;
 export type SearchUserQueryDTO = z.infer<typeof SearchUserQuerySchema>;
 export type SearchUserResponseDTO = z.infer<typeof SearchUserResponseDTOSchema>;
+export type UpdateUserProfilePhotoDTO = z.infer<
+  typeof UpdateUserProfilePhotoParamsSchema
+>;
+export type UpdateUserBannerDTO = z.infer<typeof UpdateUserBannerParamsSchema>;

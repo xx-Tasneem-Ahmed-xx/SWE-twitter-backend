@@ -8,7 +8,7 @@ import { AppError } from "@/errors/AppError";
 
 export const requestToUploadMedia = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const userId = req.user?.id;
+        const userId = (req as any).user.id;
         const { fileName, contentType } = req.body;
         const user = await prisma.user.findUnique({
             where: { id: userId }
@@ -28,7 +28,7 @@ export const requestToUploadMedia = async (req: Request, res: Response, next: Ne
 export const requestToDownloadMedia = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { mediaId } = req.params;   
-        const userId = req.user?.id;
+        const userId = (req as any).user.id;
         const user = await prisma.user.findUnique({
             where: { id: userId }
         }); 
@@ -52,7 +52,7 @@ export const requestToDownloadMedia = async (req: Request, res: Response, next: 
 export const confirmMediaUpload = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { keyName } = req.params;
-        const userId = req.user?.id;
+        const userId = (req as any).user.id;
         const user = await prisma.user.findUnique({
             where: { id: userId }
         });
@@ -84,7 +84,7 @@ export const confirmMediaUpload = async (req: Request, res: Response, next: Next
 export const addMediaTotweet = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { tweetId, mediaIds } = req.body as { tweetId?: string; mediaIds?: string[] };
-        const userId = req.user?.id;
+        const userId = (req as any).user.id;
         const user = await prisma.user.findUnique({
             where: { id: userId }
         });
@@ -119,7 +119,7 @@ export const addMediaTotweet = async (req: Request, res: Response, next: NextFun
 export const addMediaToMessage = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { messageId, mediaIds } = req.body as { messageId?: string; mediaIds?: string };
-        const userId = req.user?.id;
+        const userId = (req as any).user.id;
         const user = await prisma.user.findUnique({
             where: { id: userId }
         });
@@ -154,7 +154,7 @@ export const addMediaToMessage = async (req: Request, res: Response, next: NextF
 export const getTweetMedia = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { tweetId } = req.params;
-        const userId = req.user?.id;
+        const userId = (req as any).user.id;
         if(!userId){
             throw new AppError("Unauthorized Access", 401);
         
@@ -178,7 +178,7 @@ export const getTweetMedia = async (req: Request, res: Response, next: NextFunct
 export const getMessageMedia = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { messageId } = req.params;
-        const userId = req.user?.id;
+        const userId = (req as any).user.id;
         if(!userId){
             throw new AppError("Unauthorized Access", 401);
         

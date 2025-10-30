@@ -191,7 +191,7 @@ export const getChatMessages = async (req: Request, res: Response, next: NextFun
 
 export const getUserChats = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const userId = req.user?.id;
+        const userId = (req as any).user.id;
         if (!userId) {
             throw new AppError('User ID is required', 400);
         }
@@ -280,8 +280,8 @@ export const updateMessageStatus = async (chatId: string) => {
 
 export const createChat = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const{ DMChat, participant_ids }: ChatInput = req.body;        
-        const userId = req.user?.id;
+        const{ DMChat, participant_ids }: ChatInput = req.body;
+        const userId = (req as any).user.id;
         if(participant_ids.length < 2 && DMChat === false){
             throw new AppError('At least two participants are required to create a chat group', 400);
         }
@@ -370,7 +370,7 @@ export const updateChatGroup = async (req: Request, res: Response, next: NextFun
 
 export const addMessageToChat = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const userId = req.user?.id as string;
+        const userId = (req as any).user.id;
         const messageInput: newMessageInput = req.body;
         const recipientId = messageInput.recipientId as Array<string> || [];
         const chatId = messageInput.chatId;
@@ -494,7 +494,7 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
 
 export const getUnseenChatsCount = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const userId = req.user?.id; //supposed to be from auth middleware
+        const userId = (req as any).user.id;
         if (!userId) {
             throw new AppError('User ID is required', 400);
         }

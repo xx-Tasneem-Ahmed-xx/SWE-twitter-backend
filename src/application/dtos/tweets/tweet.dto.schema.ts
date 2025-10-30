@@ -5,13 +5,15 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 extendZodWithOpenApi(z);
 
 export enum PeopleFilter {
-  ANYONE,
-  FOLLOWINGS,
+  ANYONE = "ANYONE",
+  FOLLOWINGS = "FOLLOWINGS",
 }
 
 export enum SearchTab {
-  TOP,
-  LATEST,
+  TOP = "TOP",
+  LATEST = "LATEST",
+  PEOPLE = "PEOPLE",
+  MEDIA = "MEDIA",
 }
 
 export const StringSchema = z

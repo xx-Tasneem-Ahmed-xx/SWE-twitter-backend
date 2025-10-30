@@ -11,7 +11,7 @@ import { AppError } from "@/errors/AppError";
 
 export const getNotificationList = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const userId = req.user?.id;
+        const userId = (req as any).user.id;
         const user = await prisma.user.findUnique({
             where: { id: userId },
         });
@@ -37,7 +37,7 @@ export const getNotificationList = async (req: Request, res: Response, next: Nex
 
 export const getUnseenNotificationsCount = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const userId = req.user?.id;
+        const userId = (req as any).user.id;
         const user = await prisma.user.findUnique({
             where: { id: userId },
         });
@@ -55,7 +55,7 @@ export const getUnseenNotificationsCount = async (req: Request, res: Response, n
 
 export const getUnseenNotifications = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const userId = req.user?.id;
+        const userId = (req as any).user.id;
         if (!userId) {
             throw new AppError('Unauthorized', 401);
         }
@@ -77,7 +77,7 @@ export const getUnseenNotifications = async (req: Request, res: Response, next: 
 
 export const markNotificationsAsRead = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const userId = req.user?.id;
+        const userId = (req as any).user.id;
         const notificationId = req.params.NotificationId;
         if (!userId) {
             throw new AppError('Unauthorized', 401);

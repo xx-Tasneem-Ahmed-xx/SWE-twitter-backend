@@ -4,8 +4,6 @@ import { MediaType, MessageStatus } from "@prisma/client";
 import { NotificationTitle } from "@prisma/client";
 extendZodWithOpenApi(z);
 
-
-
 export const NotificationSchema = z.object({
     id: z.string().uuid(),
     title: z.enum(NotificationTitle),
