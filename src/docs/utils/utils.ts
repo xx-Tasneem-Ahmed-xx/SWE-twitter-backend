@@ -40,5 +40,5 @@ export const TrendingTweetsParams = z.object({
 export const SearchQuery = z.object({
   q: z.string().describe("Search keyword"),
   limit: z.number().min(1).max(100).default(20).describe("Result limit"),
-  offset: z.number().default(0),
+  cursor: z.number().default(0).optional(),
 });
