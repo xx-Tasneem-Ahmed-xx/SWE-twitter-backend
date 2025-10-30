@@ -98,10 +98,21 @@
               ]
             },
             "description": "List of followers, followings, blocked or muted users"
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Opaque cursor for pagination; pass as 'cursor' in the next request. Null if no more data."
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "True if more data is available; false if this is the last page."
           }
         },
         "required": [
-          "users"
+          "users",
+          "nextCursor",
+          "hasMore"
         ]
       },
       "ChatUser": {
@@ -3185,6 +3196,31 @@
             "description": "Username of the user to interact with",
             "name": "username",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "default": null,
+              "description": "Opaque cursor for pagination."
+            },
+            "required": false,
+            "description": "Opaque cursor for pagination.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Number of results per page (default: 30)"
+            },
+            "required": false,
+            "description": "Number of results per page (default: 30)",
+            "name": "limit",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3293,6 +3329,31 @@
             "description": "Username of the user to interact with",
             "name": "username",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "default": null,
+              "description": "Opaque cursor for pagination."
+            },
+            "required": false,
+            "description": "Opaque cursor for pagination.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Number of results per page (default: 30)"
+            },
+            "required": false,
+            "description": "Number of results per page (default: 30)",
+            "name": "limit",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3323,6 +3384,33 @@
         "summary": "Get a list of follow requests",
         "tags": [
           "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "default": null,
+              "description": "Opaque cursor for pagination."
+            },
+            "required": false,
+            "description": "Opaque cursor for pagination.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Number of results per page (default: 30)"
+            },
+            "required": false,
+            "description": "Number of results per page (default: 30)",
+            "name": "limit",
+            "in": "query"
+          }
         ],
         "responses": {
           "200": {
@@ -3414,6 +3502,33 @@
         "summary": "Get a list of blocked users",
         "tags": [
           "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "default": null,
+              "description": "Opaque cursor for pagination."
+            },
+            "required": false,
+            "description": "Opaque cursor for pagination.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Number of results per page (default: 30)"
+            },
+            "required": false,
+            "description": "Number of results per page (default: 30)",
+            "name": "limit",
+            "in": "query"
+          }
         ],
         "responses": {
           "200": {
@@ -3509,6 +3624,33 @@
         "tags": [
           "User Interactions"
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "default": null,
+              "description": "Opaque cursor for pagination."
+            },
+            "required": false,
+            "description": "Opaque cursor for pagination.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Number of results per page (default: 30)"
+            },
+            "required": false,
+            "description": "Number of results per page (default: 30)",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "List of muted users retrieved successfully",
@@ -3584,7 +3726,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-30T15:51:05.956Z"
+                        "default": "2025-10-30T17:48:44.223Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3748,7 +3890,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-30T15:51:05.956Z"
+                      "default": "2025-10-30T17:48:44.223Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3973,7 +4115,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-30T15:51:05.956Z"
+                            "default": "2025-10-30T17:48:44.223Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4111,7 +4253,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-30T15:51:05.956Z"
+                      "default": "2025-10-30T17:48:44.223Z"
                     },
                     "userId": {
                       "type": "string",
