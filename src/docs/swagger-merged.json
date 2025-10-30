@@ -3584,7 +3584,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-30T15:09:07.956Z"
+                        "default": "2025-10-30T15:51:05.956Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3748,7 +3748,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-30T15:09:07.956Z"
+                      "default": "2025-10-30T15:51:05.956Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3973,7 +3973,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-30T15:09:07.956Z"
+                            "default": "2025-10-30T15:51:05.956Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4111,7 +4111,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-30T15:09:07.956Z"
+                      "default": "2025-10-30T15:51:05.956Z"
                     },
                     "userId": {
                       "type": "string",
@@ -5190,7 +5190,7 @@
             }
           },
           "404": {
-            "description": "Chat not found",
+            "description": "invalid chatId",
             "content": {
               "application/json": {
                 "schema": {
@@ -5202,7 +5202,7 @@
                       "properties": {
                         "error": {
                           "type": "string",
-                          "description": "Chat not found"
+                          "description": "invalid chatId"
                         }
                       }
                     }
@@ -5243,6 +5243,19 @@
         "tags": [
           "Chats"
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Chat ID"
+            },
+            "required": true,
+            "description": "Chat ID",
+            "name": "chatId",
+            "in": "path"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5250,20 +5263,12 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "chatId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "description": "Chat ID"
-                  },
                   "lastMessageTimestamp": {
                     "type": "string",
                     "format": "date-time",
                     "description": "Timestamp of the last message received (for pagination)"
                   }
-                },
-                "required": [
-                  "chatId"
-                ]
+                }
               }
             }
           }
@@ -5283,7 +5288,7 @@
             }
           },
           "400": {
-            "description": "Bad request - Chat ID is required",
+            "description": "Bad request - ChatID and lastMessageTimestamp are required",
             "content": {
               "application/json": {
                 "schema": {
@@ -5305,7 +5310,7 @@
             }
           },
           "404": {
-            "description": "Chat not found",
+            "description": "invalid chat ID",
             "content": {
               "application/json": {
                 "schema": {
@@ -5317,7 +5322,7 @@
                       "properties": {
                         "error": {
                           "type": "string",
-                          "description": "Chat not found"
+                          "description": "invalid chatId"
                         }
                       }
                     }
@@ -5351,25 +5356,12 @@
         }
       }
     },
-    "/api/dm/chat/{userId}": {
+    "/api/dm/chat": {
       "get": {
         "summary": "Retrieve all chats that a specific user is participating in",
         "description": "Fetch a list of all chats that a user is involved in, including both direct messages and group chats",
         "tags": [
           "Chats"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "User ID"
-            },
-            "required": true,
-            "description": "User ID",
-            "name": "userId",
-            "in": "path"
-          }
         ],
         "responses": {
           "200": {
@@ -5407,28 +5399,6 @@
               }
             }
           },
-          "404": {
-            "description": "No chats found for user",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/ChatErrorResponse"
-                    },
-                    {
-                      "properties": {
-                        "error": {
-                          "type": "string",
-                          "description": "No chats found for user"
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          },
           "500": {
             "description": "Internal server error",
             "content": {
@@ -5454,7 +5424,7 @@
         }
       }
     },
-    "/api/dm/chat/{chatId}/unseenMessagesCount": {
+    "/api/dm/chat/{chatId}/unseen-messages-count": {
       "get": {
         "summary": "get unseen messages count",
         "tags": [
@@ -5512,25 +5482,6 @@
               }
             }
           },
-          "404": {
-            "description": "No unseen messages found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "No unseen messages found"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
           "500": {
             "description": "Internal server error",
             "content": {
@@ -5553,24 +5504,11 @@
         }
       }
     },
-    "api/dm/chat/{userId}/createchat": {
+    "api/dm/chat/create-chat": {
       "post": {
         "summary": "Create a new chat",
         "tags": [
           "Chats"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "User ID to create chat with"
-            },
-            "required": true,
-            "description": "User ID to create chat with",
-            "name": "userId",
-            "in": "path"
-          }
         ],
         "requestBody": {
           "required": true,
@@ -5814,27 +5752,15 @@
         }
       }
     },
-    "api/dm/chat/{userId}/message": {
+    "api/dm/chat/new-message": {
       "post": {
         "summary": "Add a message to a chat",
         "tags": [
           "Chats"
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "The ID of the user to send the message to"
-            },
-            "required": true,
-            "description": "The ID of the user to send the message to",
-            "name": "userId",
-            "in": "path"
-          }
-        ],
         "requestBody": {
           "required": true,
+          "description": "Message data along with chatId(if exists) and recipient IDs",
           "content": {
             "application/json": {
               "schema": {
@@ -5882,7 +5808,7 @@
                   "properties": {
                     "error": {
                       "type": "string",
-                      "description": "Chat not found"
+                      "description": "invalid chatId"
                     }
                   },
                   "required": [
@@ -5914,85 +5840,11 @@
         }
       }
     },
-    "api/dm/chat/{chatId}/messageStatus": {
-      "put": {
-        "summary": "Update message status in a chat",
-        "tags": [
-          "Chats"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "The ID of the chat containing the message"
-            },
-            "required": true,
-            "description": "The ID of the chat containing the message",
-            "name": "chatId",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Message status updated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string",
-                      "description": "Message status updated successfully"
-                    }
-                  },
-                  "required": [
-                    "status"
-                  ]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Internal server error"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "api/dm/chat/{userId}/unseenChats": {
+    "api/dm/chat/unseen-chats": {
       "get": {
         "summary": "Get unseen chats count for a user",
         "tags": [
           "Chats"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "The ID of the user"
-            },
-            "required": true,
-            "description": "The ID of the user",
-            "name": "userId",
-            "in": "path"
-          }
         ],
         "responses": {
           "200": {

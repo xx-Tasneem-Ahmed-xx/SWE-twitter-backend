@@ -5,16 +5,18 @@ import { socketService } from '../../app';
 import {sendPushNotification} from '@/application/services/FCMService';
 import { UUID } from 'crypto';
 import { z } from 'zod';
+import { NotificationTitle } from '@prisma/client';
+import { AppError } from "@/errors/AppError";
 
 
-export const getNotificationList = async (req: Request, res: Response) => {
+export const getNotificationList = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req as any).user.id;
         const user = await prisma.user.findUnique({
             where: { id: userId },
         });
         if (!user) {
-            return res.status(401).json({ error: 'Unauthorized' });
+            throw new AppError('Unauthorized', 401);
         }
         // Reset unseen notification count
         await prisma.user.update({
@@ -28,12 +30,12 @@ export const getNotificationList = async (req: Request, res: Response) => {
         return res.status(200).json({ notifications });
     } catch (error) {
         console.error('Error fetching notifications:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        next(error)
     }
 }
 
 
-export const getUnseenNotificationsCount = async (req: Request, res: Response) => {
+export const getUnseenNotificationsCount = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req as any).user.id;
         const user = await prisma.user.findUnique({
@@ -41,22 +43,21 @@ export const getUnseenNotificationsCount = async (req: Request, res: Response) =
         });
 
         if (!user) {
-            return res.status(401).json({ error: 'Unauthorized' });
+            throw new AppError('Unauthorized', 401);
         }
 
         const unseenCount = user.unseenNotificationCount || 0;
         return res.status(200).json({ unseenCount });
     } catch (error) {
-        console.error('Error fetching unseen notifications count:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        next(error);
     }
 }
 
-export const getUnseenNotifications = async (req: Request, res: Response) => {
+export const getUnseenNotifications = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req as any).user.id;
         if (!userId) {
-            return res.status(401).json({ error: 'Unauthorized' });
+            throw new AppError('Unauthorized', 401);
         }
         await prisma.user.update({
             where: { id: userId },
@@ -69,29 +70,29 @@ export const getUnseenNotifications = async (req: Request, res: Response) => {
         return res.status(200).json({ unseenNotifications });
     } catch (error) {
         console.error('Error fetching unseen notifications:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        next(error);
     }
 }
 
 
-export const markNotificationsAsRead = async (req: Request, res: Response) => {
+export const markNotificationsAsRead = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req as any).user.id;
         const notificationId = req.params.NotificationId;
         if (!userId) {
-            return res.status(401).json({ error: 'Unauthorized' });
+            throw new AppError('Unauthorized', 401);
         }
         const updatedNotification = await prisma.notification.update({
             where: { id: notificationId },
             data: { isRead: true },
         });
         if(!updatedNotification){
-            return res.status(404).json({ error: 'Notification not found' });
+            throw new AppError('Notification not found', 404);
         }
         return res.status(200).json({ message: 'Notification marked as read', notification: updatedNotification });
     } catch (error) {
         console.error('Error marking notifications as read:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        next(error);
     }
 }
 
@@ -101,7 +102,7 @@ export const addNotification = async (recipientId: UUID, notificationData: z.inf
             const newNotification = await prisma.notification.create({
                 data: {
                     userId: recipientId,
-                    title: data.title as any,
+                    title: data.title as NotificationTitle,
                     body: data.body,
                     tweetId: data.tweetId,
                     actorId: data.actorId,
