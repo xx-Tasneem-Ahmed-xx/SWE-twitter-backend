@@ -774,7 +774,7 @@ router.post("/reset-password",  typedAuthController.ResetPassword);
  *       500:
  *         description: Internal server error during token refresh.
  */
-router.get("/refresh",  typedAuthController.Refresh);
+router.post("/refresh",  typedAuthController.Refresh);
 /**
  * @openapi
  * /logout:
