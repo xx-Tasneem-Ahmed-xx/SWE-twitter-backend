@@ -1,4 +1,9 @@
 import dotenv from "dotenv";
+
+// Load environment variables as early as possible so modules that run at import
+// time (e.g. SDK initializers) can read them.
+dotenv.config();
+
 import httpServer from "@/app";
 import { connectToDatabase, disconnectFromDatabase } from "@/database";
 import "module-alias/register";
@@ -6,8 +11,6 @@ import "module-alias/register";
 //import "./types/express";
 import { connectRedis } from "./config/redis";
 
-
-dotenv.config();
 
 const PORT = process.env.PORT;
 

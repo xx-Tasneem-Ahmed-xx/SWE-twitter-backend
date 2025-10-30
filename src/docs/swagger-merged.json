@@ -3201,6 +3201,7 @@
             "schema": {
               "type": "string",
               "nullable": true,
+              "default": null,
               "description": "Opaque cursor for pagination."
             },
             "required": false,
@@ -3333,6 +3334,7 @@
             "schema": {
               "type": "string",
               "nullable": true,
+              "default": null,
               "description": "Opaque cursor for pagination."
             },
             "required": false,
@@ -3388,6 +3390,7 @@
             "schema": {
               "type": "string",
               "nullable": true,
+              "default": null,
               "description": "Opaque cursor for pagination."
             },
             "required": false,
@@ -3505,6 +3508,7 @@
             "schema": {
               "type": "string",
               "nullable": true,
+              "default": null,
               "description": "Opaque cursor for pagination."
             },
             "required": false,
@@ -3625,6 +3629,7 @@
             "schema": {
               "type": "string",
               "nullable": true,
+              "default": null,
               "description": "Opaque cursor for pagination."
             },
             "required": false,
@@ -3721,7 +3726,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-30T15:09:07.956Z"
+                        "default": "2025-10-30T16:17:32.865Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3885,7 +3890,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-30T15:09:07.956Z"
+                      "default": "2025-10-30T16:17:32.865Z"
                     },
                     "userId": {
                       "type": "string",
@@ -4110,7 +4115,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-30T15:09:07.956Z"
+                            "default": "2025-10-30T16:17:32.865Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4248,7 +4253,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-30T15:09:07.956Z"
+                      "default": "2025-10-30T16:17:32.865Z"
                     },
                     "userId": {
                       "type": "string",

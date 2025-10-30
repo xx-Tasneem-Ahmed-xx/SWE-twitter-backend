@@ -5,7 +5,13 @@ extendZodWithOpenApi(z);
 
 export const UserInteractionQuerySchema = z
   .object({
-    cursor: z.string().nullable().describe("Opaque cursor for pagination."),
+    // cursor may be omitted from the query string; make it optional and default to null
+    cursor: z
+      .string()
+      .nullable()
+      .optional()
+      .default(null)
+      .describe("Opaque cursor for pagination."),
     limit: z
       .number()
       .int()
