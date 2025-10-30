@@ -757,40 +757,34 @@ router.get("/captcha", Auth(),  typedAuthController.Captcha);
 /**
  * @swagger
  * /signup_captcha:
- *   post:
- *     summary: Signup using CAPTCHA verification
- *     description: Registers a new user only if CAPTCHA verification passes.
+ *   get:
+ *     summary: Signup CAPTCHA verification
+ *     description: Marks CAPTCHA as passed for the given email.  
+ *                  No body required; email is passed as query parameter.  
+ *                  Returns a message confirming CAPTCHA verification.
  *     tags:
  *       - Captcha
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - username
- *               - email
- *               - password
- *               - captchaResponse
- *             properties:
- *               username:
- *                 type: string
- *                 example: "john_doe"
- *               email:
- *                 type: string
- *                 example: "john@example.com"
- *               password:
- *                 type: string
- *                 example: "StrongPassword123!"
- *               captchaResponse:
- *                 type: string
- *                 example: "03AHJ_Vuv2kjs..."
+ *     parameters:
+ *       - in: query
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: "john@example.com"
+ *         description: Email for which CAPTCHA was completed
  *     responses:
- *       201:
- *         description: Signup successful and CAPTCHA verified.
+ *       200:
+ *         description: CAPTCHA verified successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 Message:
+ *                   type: string
+ *                   example: "You passed the Captcha, you can register now"
  *       400:
- *         description: Invalid CAPTCHA or missing fields.
+ *         description: Invalid or missing email.
  */
 router.post("/signup_captcha",  typedAuthController.SignupCaptcha); //tested
 
