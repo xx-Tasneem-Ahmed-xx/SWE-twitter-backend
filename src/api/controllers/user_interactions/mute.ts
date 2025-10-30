@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from "express";
-import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { AppError } from "@/errors/AppError";
+import {
+  UserInteractionParamsSchema,
+  UserInteractionQuerySchema,
+} from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 import {
   checkBlockStatus,
   checkMuteStatus,
@@ -75,7 +78,18 @@ export const getMutedUsers = async (
 ) => {
   try {
     const currentUserId = (req as any).user.id;
-    const mutedUsersData = await getMutedList(currentUserId);
+    const queryResult = UserInteractionQuerySchema.safeParse(req.query);
+    if (!queryResult.success) throw queryResult.error;
+
+    const { cursor, limit } = queryResult.data;
+    let cursorId: string | undefined;
+    if (cursor) {
+      const decodedUsername = Buffer.from(cursor, "base64").toString("utf-8");
+      const resolved = await resolveUsernameToId(decodedUsername);
+      cursorId = resolved.id;
+    }
+    const mutedUsersData = await getMutedList(currentUserId, cursorId, limit);
+
     return res.status(200).json(mutedUsersData);
   } catch (error) {
     next(error);

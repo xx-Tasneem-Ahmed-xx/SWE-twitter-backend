@@ -97,7 +97,7 @@ type UserData = {
   id: string;
   username: string;
   name: string | null;
-  profileMedia?: { keyName: string } | null;
+  profileMediaId: string | null;
   bio: string | null;
   verified: boolean;
 };
@@ -148,7 +148,7 @@ const formatUserForResponse = (
   return {
     username: user.username,
     name: user.name,
-    photo: user.profileMedia?.keyName || null,
+    photo: user.profileMediaId,
     bio: user.bio || null,
     verified: user.verified,
     isFollowing,
@@ -156,77 +156,116 @@ const formatUserForResponse = (
   };
 };
 
+// Helper to compute the nextCursor (username-base64) from the last row of a page
+const computeNextCursor = async (page: any[], hasMore: boolean) => {
+  if (!hasMore || page.length === 0) return null;
+  const lastId = page[page.length - 1].id;
+  const nextUser = await prisma.user.findUnique({
+    where: { id: lastId },
+    select: { username: true },
+  });
+  return nextUser ? Buffer.from(nextUser.username).toString("base64") : null;
+};
+
 // Get followers list by status (followers or requests)
 export const getFollowersList = async (
   userId: string,
   currentUserId: string,
-  followStatus: FollowStatus
+  followStatus: FollowStatus,
+  cursorId?: string,
+  limit: number = 30
 ) => {
-  const followers = await prisma.follow.findMany({
-    where: { followingId: userId, status: followStatus },
-    include: {
-      follower: {
-        select: {
-          id: true,
-          username: true,
-          name: true,
-          bio: true,
-          verified: true,
-          profileMedia: { select: { keyName: true } },
-        },
-      },
-    },
-  });
-  const followerIds = followers.map((f) => f.follower.id);
-  const { followedByCurrentUserSet, followingCurrentUserSet } =
-    await checkMutualFollowStatus(followerIds, currentUserId);
+  const effectiveLimit = Math.min(Math.max(limit, 1), 100);
+  const take = effectiveLimit + 1; // fetch one extra to detect hasMore
 
-  const formattedFollowers = followers.map((follow) => {
-    const user = follow.follower;
+  const q: any = {
+    where: {
+      followings: { some: { followingId: userId, status: followStatus } },
+    },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      bio: true,
+      verified: true,
+      profileMediaId: true,
+    },
+    orderBy: { id: "asc" },
+    take,
+  };
+
+  if (cursorId) {
+    q.cursor = { id: cursorId };
+    q.skip = 1;
+  }
+
+  const rows = await prisma.user.findMany(q);
+  const hasMore = rows.length === take;
+  const page = hasMore ? rows.slice(0, -1) : rows;
+
+  const userIds = page.map((u: any) => u.id);
+  const { followedByCurrentUserSet, followingCurrentUserSet } =
+    await checkMutualFollowStatus(userIds, currentUserId);
+
+  const users = page.map((user: any) => {
     const isFollowing = followedByCurrentUserSet.has(user.id);
     const isFollower = followingCurrentUserSet.has(user.id);
     return formatUserForResponse(user, isFollowing, isFollower);
   });
 
-  return {
-    users: formattedFollowers,
-  };
+  const nextCursor = await computeNextCursor(page, hasMore);
+  return { users, nextCursor, hasMore };
 };
 
 // Get list of followings with mutual follow information
 export const getFollowingsList = async (
   userId: string,
-  currentUserId: string
+  currentUserId: string,
+  cursorId?: string,
+  limit: number = 30
 ) => {
-  const followings = await prisma.follow.findMany({
-    where: { followerId: userId, status: FollowStatus.ACCEPTED },
-    include: {
-      following: {
-        select: {
-          id: true,
-          username: true,
-          name: true,
-          bio: true,
-          verified: true,
-          profileMedia: { select: { keyName: true } },
-        },
+  const effectiveLimit = Math.min(Math.max(limit, 1), 100);
+  const take = effectiveLimit + 1;
+
+  const q: any = {
+    where: {
+      followers: {
+        some: { followerId: userId, status: FollowStatus.ACCEPTED },
       },
     },
-  });
-  const followingIds = followings.map((f) => f.following.id);
-  const { followedByCurrentUserSet, followingCurrentUserSet } =
-    await checkMutualFollowStatus(followingIds, currentUserId);
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      bio: true,
+      verified: true,
+      profileMediaId: true,
+    },
+    orderBy: { id: "asc" },
+    take,
+  };
 
-  const formattedFollowings = followings.map((follow) => {
-    const user = follow.following;
+  if (cursorId) {
+    q.cursor = { id: cursorId };
+    q.skip = 1;
+  }
+
+  const rows = await prisma.user.findMany(q);
+  const hasMore = rows.length === take;
+  const page = hasMore ? rows.slice(0, -1) : rows;
+
+  const userIds = page.map((u: any) => u.id);
+  const { followedByCurrentUserSet, followingCurrentUserSet } =
+    await checkMutualFollowStatus(userIds, currentUserId);
+
+  const users = page.map((user: any) => {
     const isFollowing = followedByCurrentUserSet.has(user.id);
     const isFollower = followingCurrentUserSet.has(user.id);
     return formatUserForResponse(user, isFollowing, isFollower);
   });
 
-  return {
-    users: formattedFollowings,
-  };
+  const nextCursor = await computeNextCursor(page, hasMore);
+  return { users, nextCursor, hasMore };
 };
 
 // Block a user
@@ -284,29 +323,41 @@ export const removeBlockRelation = async (
 };
 
 // Get list of users blocked
-export const getBlockedList = async (blockerId: string) => {
-  const blockedUsers = await prisma.block.findMany({
-    where: { blockerId },
-    include: {
-      blocked: {
-        select: {
-          id: true,
-          username: true,
-          name: true,
-          bio: true,
-          verified: true,
-          profileMedia: { select: { keyName: true } },
-        },
-      },
+export const getBlockedList = async (
+  blockerId: string,
+  cursorId?: string,
+  limit: number = 30
+) => {
+  const effectiveLimit = Math.min(Math.max(limit, 1), 100);
+  const take = effectiveLimit + 1;
+
+  const q: any = {
+    where: { blocked: { some: { blockerId } } },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      bio: true,
+      verified: true,
+      profileMediaId: true,
     },
-  });
-  const formattedBlockedUsers = blockedUsers.map((block) => {
-    const user = block.blocked;
-    return formatUserForResponse(user, false, false);
-  });
-  return {
-    users: formattedBlockedUsers,
+    orderBy: { id: "asc" },
+    take,
   };
+  if (cursorId) {
+    q.cursor = { id: cursorId };
+    q.skip = 1;
+  }
+
+  const rows = await prisma.user.findMany(q);
+  const hasMore = rows.length === take;
+  const page = hasMore ? rows.slice(0, -1) : rows;
+  const users = page.map((user: any) =>
+    formatUserForResponse(user, false, false)
+  );
+  const nextCursor = await computeNextCursor(page, hasMore);
+
+  return { users, nextCursor, hasMore };
 };
 
 // check if user is muted by muterId
@@ -353,27 +404,38 @@ export const removeMuteRelation = async (muterId: string, mutedId: string) => {
 };
 
 // Get list of users muted
-export const getMutedList = async (muterId: string) => {
-  const mutedUsers = await prisma.mute.findMany({
-    where: { muterId },
-    include: {
-      muted: {
-        select: {
-          id: true,
-          username: true,
-          name: true,
-          bio: true,
-          verified: true,
-          profileMedia: { select: { keyName: true } },
-        },
-      },
+export const getMutedList = async (
+  muterId: string,
+  cursorId?: string,
+  limit: number = 30
+) => {
+  const effectiveLimit = Math.min(Math.max(limit, 1), 100);
+  const take = effectiveLimit + 1;
+
+  const q: any = {
+    where: { muted: { some: { muterId } } },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      bio: true,
+      verified: true,
+      profileMediaId: true,
     },
-  });
-  const formattedMutedUsers = mutedUsers.map((mute) => {
-    const user = mute.muted;
-    return formatUserForResponse(user, false, false);
-  });
-  return {
-    users: formattedMutedUsers,
+    orderBy: { id: "asc" },
+    take,
   };
+  if (cursorId) {
+    q.cursor = { id: cursorId };
+    q.skip = 1;
+  }
+
+  const rows = await prisma.user.findMany(q);
+  const hasMore = rows.length === take;
+  const page = hasMore ? rows.slice(0, -1) : rows;
+  const users = page.map((user: any) =>
+    formatUserForResponse(user, false, false)
+  );
+  const nextCursor = await computeNextCursor(page, hasMore);
+  return { users, nextCursor, hasMore };
 };

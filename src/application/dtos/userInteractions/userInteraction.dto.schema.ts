@@ -1,3 +1,15 @@
+export const UserInteractionQuerySchema = z
+  .object({
+    cursor: z.string().nullable().describe("Opaque cursor for pagination."),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .default(30)
+      .describe("Number of results per page (default: 30)"),
+  })
+  .openapi("UserInteractionQuery");
 import z from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
@@ -31,5 +43,16 @@ export const FollowsListResponseSchema = z
         })
       )
       .describe("List of followers, followings, blocked or muted users"),
+    nextCursor: z
+      .string()
+      .nullable()
+      .describe(
+        "Opaque cursor for pagination; pass as 'cursor' in the next request. Null if no more data."
+      ),
+    hasMore: z
+      .boolean()
+      .describe(
+        "True if more data is available; false if this is the last page."
+      ),
   })
   .openapi("UserInteractionsListResponse");
