@@ -391,13 +391,13 @@ export async function Login(req: Request, res: Response, next: NextFunction): Pr
       username: user.username,
       email,
       id: user.id,
-      expiresInSeconds: 7 * 24 * 60 * 60,
+      expiresInSeconds: 30 * 24 * 60 * 60,
       version: user.tokenVersion || 0,
       devid,
     });
 
     res.cookie("refresh_token", refreshObj.token, {
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
       httpOnly: true,
       secure: process.env.COOKIE_SECURE === "true",
       sameSite: "lax",
@@ -470,7 +470,7 @@ export async function Refresh(req: Request, res: Response, next: NextFunction): 
       username,
       email,
       id,
-      expiresInSeconds: 7 * 60,
+      expiresInSeconds: 15 * 60,
       version,
       devid,
     });
@@ -478,7 +478,18 @@ export async function Refresh(req: Request, res: Response, next: NextFunction): 
     const jti: string = uuidv4();
     await utils.SetSession(req, id, jti);
 
-    return utils.SendRes(res, { NewAcesstoken: newAccess.token });
+   const cookieOptions = {
+  httpOnly: true, // cannot be accessed by JS on the frontend
+
+  sameSite: "lax" as const,
+ 
+  maxAge: 60  * 15 * 1000, // 30 days in milliseconds
+};
+
+res.cookie("access-token", newAccess.token, cookieOptions);
+return utils.SendRes(res, { message: "Access token saved in cookie" });
+
+
   } catch (err) {
     next(err);
   }
@@ -1168,41 +1179,40 @@ export async function exchangeLinkedinCode(code: string) {
       client_secret: process.env.LINKDIN_CLIENT_SECRET,
     };
     
-    const resp = await axios.post(
-      'https://www.linkedin.com/oauth/v2/accessToken', 
-      qs.stringify(params), 
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
+//     const resp = await axios.post(
+//       'https://www.linkedin.com/oauth/v2/accessToken', 
+//       qs.stringify(params), 
+//       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+//     );
     
-    return resp.data;
-  } catch (err) {
-    throw new AppError("Failed to exchange LinkedIn code", 500);
-  }
-}
+//     return resp.data;
+//   } catch (err) {
+//     throw new AppError("Failed to exchange LinkedIn code", 500);
+//   }
+// }
 
-export async function fetchLinkedinProfile(accessToken: string) {
-  try {
-    const resp = await axios.get('https://api.linkedin.com/v2/me', {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    return resp.data;
-  } catch (err) {
-    throw new AppError("Failed to fetch LinkedIn profile", 500);
-  }
-}
+// export async function fetchLinkedinProfile(accessToken: string) {
+//   try {
+//     const resp = await axios.get('https://api.linkedin.com/v2/me', {
+//       headers: { Authorization: `Bearer ${accessToken}` }
+//     });
+//     return resp.data;
+//   } catch (err) {
+//     throw new AppError("Failed to fetch LinkedIn profile", 500);
+//   }
+// }
 
-export async function fetchLinkedinEmail(accessToken: string) {
-  try {
-    const resp = await axios.get(
-      'https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))', 
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    return resp.data;
+// export async function fetchLinkedinEmail(accessToken: string) {
+//   try {
+//     const resp = await axios.get(
+//       'https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))', 
+//       { headers: { Authorization: `Bearer ${accessToken}` } }
+//     );
+//     return resp.data;
   } catch (err) {
     throw new AppError("Failed to fetch LinkedIn email", 500);
   }
 }
-
 /* --------------------- OAuth Controllers --------------------- */
 
 export async function Authorize(req: Request, res: Response, next: NextFunction) {
@@ -1430,7 +1440,22 @@ export async function CallbackGoogle(req: Request, res: Response, next: NextFunc
     next(err);
   }
 }
+export async function CheckEmail(req: Request, res: Response,next:NextFunction): Promise<Response | void> {
+  try {
+    const { email } = req.body;
+    if (!email) return next(new AppError("email is required", 400));
 
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (user) {
+      return utils.SendRes(res, { exists: true });
+    } else {
+      return utils.SendRes(res, { exists: false });
+    }
+  } catch (err) {
+    console.error("CheckEmail err:", err);
+    return next(err);
+  }
+}
 export const UpdateUsername = async (req: Request, res: Response, next: NextFunction) => {
   try {
    const userId = (req as any).user.id;
@@ -1485,6 +1510,7 @@ const authController = {
   GetSession,
   LogoutSession,
   SignupCaptcha,
+  CheckEmail,
 };
 
 const oauthController = {
@@ -1493,4 +1519,4 @@ const oauthController = {
   CallbackGithub,
 };
 
-export { authController, oauthController };
+export { authController, oauthController }
