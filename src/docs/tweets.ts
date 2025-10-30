@@ -1,5 +1,6 @@
 import {
   CreateTweetDTOSchema,
+  SearchDTOSchema,
   StringSchema,
   TweetResponsesSchema,
   TweetSummaryResponse,
@@ -339,7 +340,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     description: "Search tweets by content, hashtag, or users.",
     tags: ["Tweets"],
     request: {
-      query: SearchQuery,
+      query: SearchDTOSchema,
     },
     responses: {
       200: {
