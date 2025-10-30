@@ -391,13 +391,13 @@ export async function Login(req: Request, res: Response, next: NextFunction): Pr
       username: user.username,
       email,
       id: user.id,
-      expiresInSeconds: 7 * 24 * 60 * 60,
+      expiresInSeconds: 30 * 24 * 60 * 60,
       version: user.tokenVersion || 0,
       devid,
     });
 
     res.cookie("refresh_token", refreshObj.token, {
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
       httpOnly: true,
       secure: process.env.COOKIE_SECURE === "true",
       sameSite: "lax",
@@ -470,7 +470,7 @@ export async function Refresh(req: Request, res: Response, next: NextFunction): 
       username,
       email,
       id,
-      expiresInSeconds: 7 * 60,
+      expiresInSeconds: 15 * 60,
       version,
       devid,
     });
@@ -478,7 +478,18 @@ export async function Refresh(req: Request, res: Response, next: NextFunction): 
     const jti: string = uuidv4();
     await utils.SetSession(req, id, jti);
 
-    return utils.SendRes(res, { NewAcesstoken: newAccess.token });
+   const cookieOptions = {
+  httpOnly: true, // cannot be accessed by JS on the frontend
+
+  sameSite: "lax" as const,
+ 
+  maxAge: 60  * 15 * 1000, // 30 days in milliseconds
+};
+
+res.cookie("access-token", newAccess.token, cookieOptions);
+return utils.SendRes(res, { message: "Access token saved in cookie" });
+
+
   } catch (err) {
     next(err);
   }
@@ -1093,7 +1104,7 @@ export async function exchangeGithubCode(code: string) {
       client_id: process.env.GITHUB_CLIENT_ID,
       client_secret: process.env.GITHUB_CLIENT_SECRET,
       code,
-      redirect_uri: process.env.GITHUB_RED_URL,
+      redirect_uri: process.env.GITHUB_REED_URL,
     };
     
     const resp = await axios.post(
@@ -1142,7 +1153,7 @@ export async function exchangeGoogleCode(code: string) {
       code,
       client_id: process.env.CLIENT_ID,
       client_secret: process.env.CLIENT_SECRET,
-      redirect_uri: process.env.RED_URL,
+      redirect_uri: process.env.REED_URL,
       grant_type: 'authorization_code'
     };
     
@@ -1163,7 +1174,7 @@ export async function exchangeLinkedinCode(code: string) {
     const params = {
       grant_type: 'authorization_code',
       code,
-      redirect_uri: process.env.LINKDIN_RED_URL,
+      redirect_uri: process.env.LINKDIN_REED_URL,
       client_id: process.env.LINKDIN_CLIENT_ID,
       client_secret: process.env.LINKDIN_CLIENT_SECRET,
     };
@@ -1211,12 +1222,12 @@ export async function Authorize(req: Request, res: Response, next: NextFunction)
     
     if (provider === 'google') {
       const scope = encodeURIComponent('openid email profile');
-      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.RED_URL!)}&response_type=code&scope=${scope}&state=${process.env.GOOGLE_STATE}`;
+      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REED_URL!)}&response_type=code&scope=${scope}&state=${process.env.GOOGLE_STATE}`;
       return res.redirect(url);
     }
     
     if (provider === 'github') {
-      const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.GITHUB_RED_URL!)}&scope=user%20user:email&state=${process.env.GITHUB_STATE}&prompt=select_account`;
+      const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.GITHUB_REED_URL!)}&scope=user%20user:email&state=${process.env.GITHUB_STATE}&prompt=select_account`;
       return res.redirect(url);
     }
     
@@ -1430,7 +1441,22 @@ export async function CallbackGoogle(req: Request, res: Response, next: NextFunc
     next(err);
   }
 }
+export async function CheckEmail(req: Request, res: Response,next:NextFunction): Promise<Response | void> {
+  try {
+    const { email } = req.body;
+    if (!email) return next(new AppError("email is required", 400));
 
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (user) {
+      return utils.SendRes(res, { exists: true });
+    } else {
+      return utils.SendRes(res, { exists: false });
+    }
+  } catch (err) {
+    console.error("CheckEmail err:", err);
+    return next(err);
+  }
+}
 export const UpdateUsername = async (req: Request, res: Response, next: NextFunction) => {
   try {
    const userId = (req as any).user.id;
@@ -1485,6 +1511,7 @@ const authController = {
   GetSession,
   LogoutSession,
   SignupCaptcha,
+  CheckEmail,
 };
 
 const oauthController = {
