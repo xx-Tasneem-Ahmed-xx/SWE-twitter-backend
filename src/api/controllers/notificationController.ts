@@ -89,6 +89,12 @@ export const markNotificationsAsRead = async (req: Request, res: Response, next:
         if(!updatedNotification){
             throw new AppError('Notification not found', 404);
         }
+        await prisma.user.update({
+            where: { id: userId },
+            data: { unseenNotificationCount: {
+                decrement: 1,
+            } },
+        });
         return res.status(200).json({ message: 'Notification marked as read', notification: updatedNotification });
     } catch (error) {
         console.error('Error marking notifications as read:', error);
@@ -135,6 +141,10 @@ export const addNotification = async (recipientId: UUID, notificationData: z.inf
                     }
                 }
             }
+            await prisma.user.update({
+                where: { id: recipientId },
+                data: { unseenNotificationCount: { increment: 1 } },
+            });
     } catch (error) {
         next(error);
     }
