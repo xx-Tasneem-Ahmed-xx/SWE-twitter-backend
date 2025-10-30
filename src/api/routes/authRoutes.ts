@@ -694,10 +694,7 @@ router.post("/reset-password", Auth(),  typedAuthController.ResetPassword);
  *               properties:
  *                 access_token:
  *                   type: string
- *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
- *                 message:
- *                   type: string
- *                   example: New access token generated
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...                
  *       401:
  *         description: Missing or invalid refresh token.
  *       500:

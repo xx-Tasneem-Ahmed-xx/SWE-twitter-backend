@@ -3558,7 +3558,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-30T12:27:27.339Z"
+                        "default": "2025-10-30T12:32:53.069Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3718,7 +3718,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-30T12:27:27.339Z"
+                      "default": "2025-10-30T12:32:53.069Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3941,7 +3941,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-30T12:27:27.339Z"
+                            "default": "2025-10-30T12:32:53.069Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4077,7 +4077,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-30T12:27:27.339Z"
+                      "default": "2025-10-30T12:32:53.069Z"
                     },
                     "userId": {
                       "type": "string",
@@ -7438,23 +7438,39 @@
       }
     },
     "/refresh": {
-      "get": {
+      "post": {
         "tags": [
           "Auth"
         ],
         "summary": "Refresh access token",
-        "description": "Generates a new short-lived access token using a valid refresh token stored in HTTP-only cookies.",
+        "description": "Generates a new short-lived access token using a valid refresh token provided in the request body.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refresh_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "New access token generated successfully and stored in cookies.",
+            "description": "New access token generated successfully.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "message": {
+                    "access_token": {
                       "type": "string",
-                      "example": "Access token refreshed successfully"
+                      "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                     }
                   }
                 }
@@ -7462,7 +7478,7 @@
             }
           },
           "401": {
-            "description": "Missing or invalid refresh token cookie."
+            "description": "Missing or invalid refresh token."
           },
           "500": {
             "description": "Internal server error during token refresh."
