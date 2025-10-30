@@ -3558,7 +3558,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-30T12:51:17.733Z"
+                        "default": "2025-10-30T14:24:24.373Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3718,7 +3718,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-30T12:51:17.733Z"
+                      "default": "2025-10-30T14:24:24.373Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3941,7 +3941,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-30T12:51:17.733Z"
+                            "default": "2025-10-30T14:24:24.373Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4077,7 +4077,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-30T12:51:17.733Z"
+                      "default": "2025-10-30T14:24:24.373Z"
                     },
                     "userId": {
                       "type": "string",
@@ -7370,13 +7370,13 @@
         }
       }
     },
-    "/reset-password": {
+    "/verify-reset-code": {
       "post": {
         "tags": [
-          "Password Management"
+          "Auth"
         ],
-        "summary": "Reset user password",
-        "description": "Resets a user's password using a verification code sent via email.",
+        "summary": "Verify password reset code",
+        "description": "Verifies the reset code sent to the user's email. Once verified, the user can proceed to reset the password.",
         "requestBody": {
           "required": true,
           "content": {
@@ -7385,23 +7385,17 @@
                 "type": "object",
                 "required": [
                   "email",
-                  "code",
-                  "password"
+                  "code"
                 ],
                 "properties": {
                   "email": {
                     "type": "string",
                     "format": "email",
-                    "example": "john@example.com"
+                    "description": "The email of the user requesting password reset."
                   },
                   "code": {
                     "type": "string",
-                    "example": "583920"
-                  },
-                  "password": {
-                    "type": "string",
-                    "format": "password",
-                    "example": "NewStrongPassword@123"
+                    "description": "The 6-digit reset code sent to the user's email."
                   }
                 }
               }
@@ -7410,7 +7404,95 @@
         },
         "responses": {
           "200": {
-            "description": "Password reset successfully and notification sent.",
+            "description": "Reset code verified successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Reset code verified, you can now enter a new password"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or missing fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid reset code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reset-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Reset user password",
+        "description": "Allows a user to reset their password after verifying the reset code. Requires email and new password.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "The email of the user whose password is being reset."
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "description": "The new password to set for the user."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successfully, notification sent",
             "content": {
               "application/json": {
                 "schema": {
@@ -7426,13 +7508,44 @@
             }
           },
           "400": {
-            "description": "Missing fields, invalid code, or expired reset request."
+            "description": "Validation error or missing fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "401": {
-            "description": "Unauthorized reset attempt or invalid code."
+            "description": "Invalid reset code or unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "500": {
-            "description": "Internal server error during password reset."
+            "description": "Internal server error (email sending / DB update failed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }

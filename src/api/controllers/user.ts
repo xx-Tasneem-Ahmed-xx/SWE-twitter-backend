@@ -159,7 +159,7 @@ Welcome aboard,
       throw new AppError("Failed to send verification email", 500);
     });
 
-    await redisClient.set(`Signup:user:${input.email}`, JSON.stringify(input), { EX: 15 * 60 });
+    await redisClient.set(`Signup:user:${input.email}`, JSON.stringify(input), { EX: 60 * 60 });
 
     const exists: number = await prisma.user.count({ 
       where: { email: input.email, isEmailVerified: true } 
@@ -308,7 +308,7 @@ export async function FinalizeSignup(req: Request, res: Response, next: NextFunc
       email: created.email,
       id: created.id,
       role: "user",
-      expiresInSeconds: 15 * 60,
+      expiresInSeconds:  60*60,
       version: 0,
       devid,
     });
@@ -403,7 +403,7 @@ export async function Login(req: Request, res: Response, next: NextFunction): Pr
       username: user.username,
       email,
       id: user.id,
-      expiresInSeconds: 15 * 60,
+      expiresInSeconds: 60 * 60,
       version: user.tokenVersion || 0,
       devid,
     });
@@ -491,7 +491,7 @@ export async function Refresh(req: Request, res: Response, next: NextFunction): 
       username,
       email,
       id,
-      expiresInSeconds: 15 * 60,
+      expiresInSeconds: 60 * 60,
       version,
       devid,
     });
