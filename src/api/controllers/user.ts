@@ -1209,11 +1209,10 @@ export async function exchangeLinkedinCode(code: string) {
 //       { headers: { Authorization: `Bearer ${accessToken}` } }
 //     );
 //     return resp.data;
-//   } catch (err) {
-//     throw new AppError("Failed to fetch LinkedIn email", 500);
-//   }
-// }
-
+  } catch (err) {
+    throw new AppError("Failed to fetch LinkedIn email", 500);
+  }
+}
 /* --------------------- OAuth Controllers --------------------- */
 
 export async function Authorize(req: Request, res: Response, next: NextFunction) {
@@ -1520,4 +1519,4 @@ const oauthController = {
   CallbackGithub,
 };
 
-export { authController, oauthController };
+export { authController, oauthController }
