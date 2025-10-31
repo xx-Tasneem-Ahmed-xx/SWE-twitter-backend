@@ -34,48 +34,48 @@ export class TweetService {
 
   async createQuote(dto: CreateReplyOrQuoteServiceDTO) {
     const valid = await validToRetweetOrQuote(dto.parentId);
-    if (valid)
-      return prisma.$transaction([
-        prisma.tweet.create({
-          data: { ...dto, tweetType: TweetType.QUOTE },
-        }),
-        prisma.tweet.update({
-          where: { id: dto.parentId },
-          data: { quotesCount: { increment: 1 } },
-        }),
-      ]);
-    else throw new AppError("You cannot quote a protected tweet", 403);
+    if (!valid) throw new AppError("You cannot quote a protected tweet", 403);
+
+    return prisma.$transaction([
+      prisma.tweet.create({
+        data: { ...dto, tweetType: TweetType.QUOTE },
+      }),
+      prisma.tweet.update({
+        where: { id: dto.parentId },
+        data: { quotesCount: { increment: 1 } },
+      }),
+    ]);
   }
 
   async createReply(dto: CreateReplyOrQuoteServiceDTO) {
     const valid = await validToReply(dto.parentId, dto.userId);
-    if (valid)
-      return prisma.$transaction([
-        prisma.tweet.create({
-          data: { ...dto, tweetType: TweetType.REPLY },
-        }),
-        prisma.tweet.update({
-          where: { id: dto.parentId },
-          data: { repliesCount: { increment: 1 } },
-        }),
-      ]);
-    else throw new AppError("You cannot reply to this tweet", 403);
+    if (!valid) throw new AppError("You cannot reply to this tweet", 403);
+
+    return prisma.$transaction([
+      prisma.tweet.create({
+        data: { ...dto, tweetType: TweetType.REPLY },
+      }),
+      prisma.tweet.update({
+        where: { id: dto.parentId },
+        data: { repliesCount: { increment: 1 } },
+      }),
+    ]);
   }
 
   async createRetweet(dto: CreateReTweetServiceDto) {
     this.validateId(dto.parentId);
     const valid = await validToRetweetOrQuote(dto.parentId);
-    if (valid)
-      return prisma.$transaction([
-        prisma.retweet.create({
-          data: { userId: dto.userId, tweetId: dto.parentId },
-        }),
-        prisma.tweet.update({
-          where: { id: dto.parentId },
-          data: { retweetCount: { increment: 1 }, lastActivityAt: new Date() },
-        }),
-      ]);
-    else throw new AppError("You cannot retweet a protected tweet", 403);
+    if (!valid) throw new AppError("You cannot retweet a protected tweet", 403);
+
+    return prisma.$transaction([
+      prisma.retweet.create({
+        data: { userId: dto.userId, tweetId: dto.parentId },
+      }),
+      prisma.tweet.update({
+        where: { id: dto.parentId },
+        data: { retweetCount: { increment: 1 }, lastActivityAt: new Date() },
+      }),
+    ]);
   }
 
   async getRetweets(tweetId: string) {
