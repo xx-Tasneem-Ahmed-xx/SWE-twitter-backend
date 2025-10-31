@@ -67,6 +67,6 @@ prisma/migrations/.DS_Store
 # Scripts / local utilities
 # =========================
 scripts/
-src/api/routes/__tests__
+
 # Firebase service account keys
 psychic-fin-474008-h8-1be573080339.json

@@ -1,7 +1,8 @@
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 import { listErrors } from "@/docs/errors";
-import { CursorDTOSchema, timelineResponeSchema } from "@/application/dtos/tweets/tweet.dto.schema";
+import { timelineResponeSchema } from "@/application/dtos/tweets/tweet.dto.schema";
+import { CursorPaginationQuery, PaginationQuery } from "@/docs/utils/utils";
 
 const errors = listErrors();
 
@@ -19,7 +20,7 @@ export const registerTimelineAndExploreDocs = (registry: OpenAPIRegistry) => {
     description:
       "Fetch public tweets or trending content filtered by category (sports, news, or entertainment).",
     tags: ["Timeline and Explore"],
-    request: { params: CategoryParams, query: CursorDTOSchema },
+    request: { params: CategoryParams, query: PaginationQuery },
     responses: {
       200: {
         description: "Successfully retrieved tweets for the category",
@@ -44,7 +45,7 @@ export const registerTimelineAndExploreDocs = (registry: OpenAPIRegistry) => {
       "Fetch tweets recommended to the user based on interests, engagement history, and trending content. Requires authentication.",
     tags: ["Timeline and Explore"],
     security: [{ bearerAuth: [] }],
-    request: { query: CursorDTOSchema },
+    request: { query: PaginationQuery },
     responses: {
       200: {
         description: "Personalized recommended tweets retrieved successfully",
@@ -67,7 +68,7 @@ export const registerTimelineAndExploreDocs = (registry: OpenAPIRegistry) => {
     summary: "Get timeline tweets",
     description: "Fetches tweets from users the current user follows.",
     tags: ["Timeline and Explore"],
-    request: { query: CursorDTOSchema },
+    request: { query: CursorPaginationQuery },
     responses: {
       200: {
         description: "Timeline tweets fetched successfully",
