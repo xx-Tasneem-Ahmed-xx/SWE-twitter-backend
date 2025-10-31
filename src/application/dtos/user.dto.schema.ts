@@ -1,4 +1,4 @@
-import z from "zod";
+import z, { date } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
 extendZodWithOpenApi(z);
@@ -18,6 +18,7 @@ export const UpdateUserProfileDTOSchema = z
     address: StringSchema.optional(),
     website: StringSchema.optional(),
     protectedAccount: z.boolean().optional(),
+    dateOfBirth: z.string().optional(),
   })
   .openapi("UpdateUserProfileDTO");
 

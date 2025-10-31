@@ -110,6 +110,7 @@ export class UserService {
         bio: data.bio,
         address: data.address,
         website: data.website,
+        dateOfBirth: data.dateOfBirth,
         protectedAccount: data.protectedAccount,
         // note: profileMediaId and coverMediaId are updated via dedicated methods below
       },
