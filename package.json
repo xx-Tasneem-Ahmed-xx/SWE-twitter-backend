@@ -58,6 +58,7 @@
     "swagger-autogen": "^2.23.7",
     "swagger-jsdoc": "^6.2.8",
     "tsoa": "^6.6.0",
+    "twitter-text": "^3.1.0",
     "uuid": "^8.3.2",
     "zxcvbn": "^4.4.2"
   },
