@@ -262,11 +262,24 @@ export const updateMessageStatus = async (chatId: string) => {
       await prisma.message.updateMany({
         where: {
           chatId: chatId,
+          status: { not: "READ" },
         },
         data: {
           status: "READ",
         },
       });
+      const participant_ids = await prisma.chatUser.findMany({
+        where: { chatId: chatId },
+        select: { userId: true },
+      });
+        for (const participant of participant_ids) {
+          await prisma.user.update({
+              where: { id: participant.userId },
+              data: {
+                  unseenChatCount: { decrement: 1 }
+              }
+          });
+      }
       return true;
     }
   } catch (error) {
@@ -452,7 +465,19 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
                                 username: true,
                             }
                         });
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                unseenChatCount: { increment: 1 }
+            }
+        });
         for(const recipient of recipientId){
+            await prisma.user.update({
+                where: { id: recipient },
+                data: {
+                    unseenChatCount: { increment: 1 }
+                }
+            });
             if(socketService.checkSocketStatus(recipient)){
                 socketService.sendMessageToChat(recipient, newMessage);
             }else{
