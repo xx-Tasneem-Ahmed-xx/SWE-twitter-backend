@@ -75,13 +75,12 @@ export const getUnseenNotifications = async (req: Request, res: Response, next: 
 }
 
 
-export const markNotificationsAsRead = async (req: Request, res: Response, next: NextFunction) => {
+export const markNotificationsAsRead = async (notificationId: string) => {
     try {
-        const userId = (req as any).user.id;
-        const notificationId = req.params.NotificationId;
-        if (!userId) {
-            throw new AppError('Unauthorized', 401);
-        }
+        const userId = (await prisma.notification.findUnique({
+            where: { id: notificationId },
+            select: { userId: true },
+        }))?.userId;
         const updatedNotification = await prisma.notification.update({
             where: { id: notificationId },
             data: { isRead: true },
@@ -95,10 +94,10 @@ export const markNotificationsAsRead = async (req: Request, res: Response, next:
                 decrement: 1,
             } },
         });
-        return res.status(200).json({ message: 'Notification marked as read', notification: updatedNotification });
+        //return res.status(200).json({ message: 'Notification marked as read', notification: updatedNotification });
     } catch (error) {
         console.error('Error marking notifications as read:', error);
-        next(error);
+        return error;
     }
 }
 
