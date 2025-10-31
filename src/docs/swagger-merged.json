@@ -98,10 +98,21 @@
               ]
             },
             "description": "List of followers, followings, blocked or muted users"
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Opaque cursor for pagination; pass as 'cursor' in the next request. Null if no more data."
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "True if more data is available; false if this is the last page."
           }
         },
         "required": [
-          "users"
+          "users",
+          "nextCursor",
+          "hasMore"
         ]
       },
       "ChatUser": {
@@ -1299,7 +1310,7 @@
         }
       }
     },
-    "/api/tweets/user/{username}/mentioned": {
+    "/api/tweets/users/{username}/mentioned": {
       "get": {
         "summary": "Get tweets that the user is mentioned in",
         "tags": [
@@ -1974,25 +1985,6 @@
         "parameters": [
           {
             "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 20
-            },
-            "required": false,
-            "name": "limit",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "cursor",
-            "in": "query"
-          },
-          {
-            "schema": {
               "type": "string",
               "minLength": 1
             },
@@ -2026,6 +2018,27 @@
             },
             "required": false,
             "name": "searchTab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The cursor for pagination"
+            },
+            "required": false,
+            "description": "The cursor for pagination",
+            "name": "cursor",
             "in": "query"
           }
         ],
@@ -2189,6 +2202,27 @@
             "description": "Username",
             "name": "username",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The cursor for pagination"
+            },
+            "required": false,
+            "description": "The cursor for pagination",
+            "name": "cursor",
+            "in": "query"
           }
         ],
         "responses": {
@@ -2361,7 +2395,7 @@
             "schema": {
               "type": "number",
               "minimum": 1,
-              "maximum": 50,
+              "maximum": 40,
               "default": 20
             },
             "required": false,
@@ -2370,11 +2404,12 @@
           },
           {
             "schema": {
-              "type": "number",
-              "default": 0
+              "type": "string",
+              "description": "The cursor for pagination"
             },
             "required": false,
-            "name": "offset",
+            "description": "The cursor for pagination",
+            "name": "cursor",
             "in": "query"
           }
         ],
@@ -2613,7 +2648,7 @@
             "schema": {
               "type": "number",
               "minimum": 1,
-              "maximum": 50,
+              "maximum": 40,
               "default": 20
             },
             "required": false,
@@ -2622,11 +2657,12 @@
           },
           {
             "schema": {
-              "type": "number",
-              "default": 0
+              "type": "string",
+              "description": "The cursor for pagination"
             },
             "required": false,
-            "name": "offset",
+            "description": "The cursor for pagination",
+            "name": "cursor",
             "in": "query"
           }
         ],
@@ -2858,7 +2894,7 @@
             "schema": {
               "type": "number",
               "minimum": 1,
-              "maximum": 50,
+              "maximum": 40,
               "default": 20
             },
             "required": false,
@@ -2868,10 +2904,10 @@
           {
             "schema": {
               "type": "string",
-              "description": "The cursor for pagination (createdAt of last tweet)"
+              "description": "The cursor for pagination"
             },
             "required": false,
-            "description": "The cursor for pagination (createdAt of last tweet)",
+            "description": "The cursor for pagination",
             "name": "cursor",
             "in": "query"
           }
@@ -3185,6 +3221,31 @@
             "description": "Username of the user to interact with",
             "name": "username",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "default": null,
+              "description": "Opaque cursor for pagination."
+            },
+            "required": false,
+            "description": "Opaque cursor for pagination.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Number of results per page (default: 30)"
+            },
+            "required": false,
+            "description": "Number of results per page (default: 30)",
+            "name": "limit",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3293,6 +3354,31 @@
             "description": "Username of the user to interact with",
             "name": "username",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "default": null,
+              "description": "Opaque cursor for pagination."
+            },
+            "required": false,
+            "description": "Opaque cursor for pagination.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Number of results per page (default: 30)"
+            },
+            "required": false,
+            "description": "Number of results per page (default: 30)",
+            "name": "limit",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3323,6 +3409,33 @@
         "summary": "Get a list of follow requests",
         "tags": [
           "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "default": null,
+              "description": "Opaque cursor for pagination."
+            },
+            "required": false,
+            "description": "Opaque cursor for pagination.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Number of results per page (default: 30)"
+            },
+            "required": false,
+            "description": "Number of results per page (default: 30)",
+            "name": "limit",
+            "in": "query"
+          }
         ],
         "responses": {
           "200": {
@@ -3414,6 +3527,33 @@
         "summary": "Get a list of blocked users",
         "tags": [
           "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "default": null,
+              "description": "Opaque cursor for pagination."
+            },
+            "required": false,
+            "description": "Opaque cursor for pagination.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Number of results per page (default: 30)"
+            },
+            "required": false,
+            "description": "Number of results per page (default: 30)",
+            "name": "limit",
+            "in": "query"
+          }
         ],
         "responses": {
           "200": {
@@ -3509,6 +3649,33 @@
         "tags": [
           "User Interactions"
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "default": null,
+              "description": "Opaque cursor for pagination."
+            },
+            "required": false,
+            "description": "Opaque cursor for pagination.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Number of results per page (default: 30)"
+            },
+            "required": false,
+            "description": "Number of results per page (default: 30)",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "List of muted users retrieved successfully",
@@ -3584,7 +3751,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-31T12:01:01.873Z"
+                        "default": "2025-10-31T13:07:46.280Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3748,7 +3915,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-31T12:01:01.873Z"
+                      "default": "2025-10-31T13:07:46.280Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3973,7 +4140,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-31T12:01:01.873Z"
+                            "default": "2025-10-31T11:12:46.064Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4014,157 +4181,6 @@
                     "error": {
                       "type": "string",
                       "description": "Unauthorized"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Internal Server Error"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/mark-as-read/{NotificationId}": {
-      "patch": {
-        "summary": "Update a notification status to read",
-        "tags": [
-          "Notifications"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "ID of the notification to update"
-            },
-            "required": true,
-            "description": "ID of the notification to update",
-            "name": "NotificationId",
-            "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "description": "Bearer token for authentication"
-            },
-            "required": true,
-            "description": "Bearer token for authentication",
-            "name": "Authorization",
-            "in": "header"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Notification updated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "title": {
-                      "type": "string",
-                      "enum": [
-                        "LIKE",
-                        "RETWEET",
-                        "REPLY",
-                        "QUOTE",
-                        "FOLLOW",
-                        "REQUEST_TO_FOLLOW",
-                        "ACCEPTED_FOLLOW",
-                        "MENTION",
-                        "LOGIN",
-                        "PASSWORD_CHANGED"
-                      ]
-                    },
-                    "body": {
-                      "type": "string",
-                      "maxLength": 280
-                    },
-                    "isRead": {
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date",
-                      "default": "2025-10-31T12:01:01.873Z"
-                    },
-                    "userId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "tweetId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "actorId": {
-                      "type": "string",
-                      "format": "uuid"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "title",
-                    "body",
-                    "userId"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Unauthorized"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Notification not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Notification not found"
                     }
                   },
                   "required": [
@@ -4846,21 +4862,20 @@
             "schema": {
               "type": "number",
               "minimum": 1,
-              "maximum": 100,
-              "default": 20,
-              "description": "Result limit"
+              "maximum": 40,
+              "default": 20
             },
             "required": false,
-            "description": "Result limit",
             "name": "limit",
             "in": "query"
           },
           {
             "schema": {
-              "type": "number",
-              "default": 0
+              "type": "string",
+              "description": "The cursor for pagination"
             },
             "required": false,
+            "description": "The cursor for pagination",
             "name": "cursor",
             "in": "query"
           }
@@ -5190,7 +5205,7 @@
             }
           },
           "404": {
-            "description": "Chat not found",
+            "description": "invalid chatId",
             "content": {
               "application/json": {
                 "schema": {
@@ -5202,7 +5217,7 @@
                       "properties": {
                         "error": {
                           "type": "string",
-                          "description": "Chat not found"
+                          "description": "invalid chatId"
                         }
                       }
                     }
@@ -5243,6 +5258,19 @@
         "tags": [
           "Chats"
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Chat ID"
+            },
+            "required": true,
+            "description": "Chat ID",
+            "name": "chatId",
+            "in": "path"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5250,20 +5278,12 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "chatId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "description": "Chat ID"
-                  },
                   "lastMessageTimestamp": {
                     "type": "string",
                     "format": "date-time",
                     "description": "Timestamp of the last message received (for pagination)"
                   }
-                },
-                "required": [
-                  "chatId"
-                ]
+                }
               }
             }
           }
@@ -5283,7 +5303,7 @@
             }
           },
           "400": {
-            "description": "Bad request - Chat ID is required",
+            "description": "Bad request - ChatID and lastMessageTimestamp are required",
             "content": {
               "application/json": {
                 "schema": {
@@ -5305,7 +5325,7 @@
             }
           },
           "404": {
-            "description": "Chat not found",
+            "description": "invalid chat ID",
             "content": {
               "application/json": {
                 "schema": {
@@ -5317,7 +5337,7 @@
                       "properties": {
                         "error": {
                           "type": "string",
-                          "description": "Chat not found"
+                          "description": "invalid chatId"
                         }
                       }
                     }
@@ -5351,25 +5371,12 @@
         }
       }
     },
-    "/api/dm/chat/{userId}": {
+    "/api/dm/chat": {
       "get": {
         "summary": "Retrieve all chats that a specific user is participating in",
         "description": "Fetch a list of all chats that a user is involved in, including both direct messages and group chats",
         "tags": [
           "Chats"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "User ID"
-            },
-            "required": true,
-            "description": "User ID",
-            "name": "userId",
-            "in": "path"
-          }
         ],
         "responses": {
           "200": {
@@ -5407,28 +5414,6 @@
               }
             }
           },
-          "404": {
-            "description": "No chats found for user",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/ChatErrorResponse"
-                    },
-                    {
-                      "properties": {
-                        "error": {
-                          "type": "string",
-                          "description": "No chats found for user"
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          },
           "500": {
             "description": "Internal server error",
             "content": {
@@ -5454,7 +5439,7 @@
         }
       }
     },
-    "/api/dm/chat/{chatId}/unseenMessagesCount": {
+    "/api/dm/chat/{chatId}/unseen-messages-count": {
       "get": {
         "summary": "get unseen messages count",
         "tags": [
@@ -5512,25 +5497,6 @@
               }
             }
           },
-          "404": {
-            "description": "No unseen messages found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "No unseen messages found"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
           "500": {
             "description": "Internal server error",
             "content": {
@@ -5553,24 +5519,11 @@
         }
       }
     },
-    "api/dm/chat/{userId}/createchat": {
+    "api/dm/chat/create-chat": {
       "post": {
         "summary": "Create a new chat",
         "tags": [
           "Chats"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "User ID to create chat with"
-            },
-            "required": true,
-            "description": "User ID to create chat with",
-            "name": "userId",
-            "in": "path"
-          }
         ],
         "requestBody": {
           "required": true,
@@ -5814,27 +5767,15 @@
         }
       }
     },
-    "api/dm/chat/{userId}/message": {
+    "api/dm/chat/new-message": {
       "post": {
         "summary": "Add a message to a chat",
         "tags": [
           "Chats"
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "The ID of the user to send the message to"
-            },
-            "required": true,
-            "description": "The ID of the user to send the message to",
-            "name": "userId",
-            "in": "path"
-          }
-        ],
         "requestBody": {
           "required": true,
+          "description": "Message data along with chatId(if exists) and recipient IDs",
           "content": {
             "application/json": {
               "schema": {
@@ -5882,7 +5823,7 @@
                   "properties": {
                     "error": {
                       "type": "string",
-                      "description": "Chat not found"
+                      "description": "invalid chatId"
                     }
                   },
                   "required": [
@@ -5914,85 +5855,11 @@
         }
       }
     },
-    "api/dm/chat/{chatId}/messageStatus": {
-      "put": {
-        "summary": "Update message status in a chat",
-        "tags": [
-          "Chats"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "The ID of the chat containing the message"
-            },
-            "required": true,
-            "description": "The ID of the chat containing the message",
-            "name": "chatId",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Message status updated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string",
-                      "description": "Message status updated successfully"
-                    }
-                  },
-                  "required": [
-                    "status"
-                  ]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Internal server error"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "api/dm/chat/{userId}/unseenChats": {
+    "api/dm/chat/unseen-chats": {
       "get": {
         "summary": "Get unseen chats count for a user",
         "tags": [
           "Chats"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "The ID of the user"
-            },
-            "required": true,
-            "description": "The ID of the user",
-            "name": "userId",
-            "in": "path"
-          }
         ],
         "responses": {
           "200": {
