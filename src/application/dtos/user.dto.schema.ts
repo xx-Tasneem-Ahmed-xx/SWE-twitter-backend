@@ -7,8 +7,9 @@ const StringSchema = z
   .string()
   .min(1, { message: "This field cannot be empty" });
 
-
-// ✅ Update DTO for user profile
+/* ==========================
+   Update User Profile DTO
+========================== */
 export const UpdateUserProfileDTOSchema = z
   .object({
     name: StringSchema.optional(),
@@ -17,29 +18,30 @@ export const UpdateUserProfileDTOSchema = z
     address: StringSchema.optional(),
     website: StringSchema.optional(),
     protectedAccount: z.boolean().optional(),
-    // These are now media IDs (UUIDs), not URLs
-    profileMediaId: z.string().uuid().optional().describe("UUID of profile media"),
-    coverMediaId: z.string().uuid().optional().describe("UUID of cover media"),
   })
   .openapi("UpdateUserProfileDTO");
 
-// ✅ Full user response DTO
+/* ==========================
+   User Response DTO
+========================== */
 export const UserResponseDTOSchema = z
   .object({
     id: z.string().uuid(),
-    name: StringSchema.optional().nullable(),
-    username: StringSchema,
-    email: z.string().email(),
-    bio: StringSchema.optional().nullable(),
-    dateOfBirth: z.date(),
-    joinDate: z.date(),
+    name: z.string().nullable().optional(),
+    username: z.string(),
+    email: z.string().email().optional(),
+    bio: z.string().nullable().optional(),
+    dateOfBirth: z.string().nullable().optional(),
+    joinDate: z.string(),
     verified: z.boolean(),
-    address: StringSchema.optional().nullable(),
-    website: StringSchema.optional().nullable(),
+    address: z.string().nullable().optional(),
+    website: z.string().nullable().optional(),
     protectedAccount: z.boolean(),
-    // Reflects relations to Media model
+
+    // Profile/Cover media
     profileMediaId: z.string().uuid().nullable().optional(),
     coverMediaId: z.string().uuid().nullable().optional(),
+
     profileMedia: z
       .object({
         id: z.string().uuid(),
@@ -50,6 +52,7 @@ export const UserResponseDTOSchema = z
       .nullable()
       .optional()
       .describe("Profile media object"),
+
     coverMedia: z
       .object({
         id: z.string().uuid(),
@@ -60,23 +63,37 @@ export const UserResponseDTOSchema = z
       .nullable()
       .optional()
       .describe("Cover media object"),
+
+    // Relationship info (counts and connection flags)
+    _count: z
+      .object({
+        followers: z.number(),
+        followings: z.number(),
+      })
+      .optional(),
+    isFollower: z.boolean().optional(),
+    isFollowing: z.boolean().optional(),
   })
   .openapi("UserProfileResponseDTO");
 
-// ✅ Search query DTO
+/* ==========================
+   Search Users
+========================== */
 export const SearchUserQuerySchema = z
   .object({
     query: z.string().min(1, "Query cannot be empty"),
+    cursor: z.string().uuid().optional(),
+    limit: z.number().min(1).max(50).default(10),
   })
   .openapi("SearchUserQueryDTO");
 
-// ✅ Search response DTO
 export const SearchUserResponseDTOSchema = z
   .object({
     id: z.string().uuid(),
     username: z.string(),
     name: z.string().nullable(),
-    // Now references the media relation, not direct URL
+    verified: z.boolean(),
+    bio: z.string().nullable().optional(),
     profileMedia: z
       .object({
         id: z.string().uuid(),
@@ -85,9 +102,19 @@ export const SearchUserResponseDTOSchema = z
       })
       .nullable()
       .optional(),
-    verified: z.boolean(),
+    _count: z
+      .object({
+        followers: z.number(),
+      })
+      .optional(),
+    isFollower: z.boolean().optional(),
+    isFollowing: z.boolean().optional(),
   })
   .openapi("SearchUserResponseDTO");
+
+/* ==========================
+   Profile Picture Update Params
+========================== */
 export const UpdateUserProfilePhotoParamsSchema = z
   .object({
     userId: z
@@ -101,16 +128,39 @@ export const UpdateUserProfilePhotoParamsSchema = z
   })
   .openapi("UpdateUserProfilePhotoParamsDTO");
 
-
+/* ==========================
+   Banner Update Params
+========================== */
 export const UpdateUserBannerParamsSchema = z
   .object({
     userId: z
       .string()
       .uuid({ message: "Invalid user ID format" })
-      .describe("Unique ID of the user whose profile picture is being updated"),
+      .describe("Unique ID of the user whose banner is being updated"),
     mediaId: z
       .string()
-      .uuid({ message: "Invalid cover ID format" })
-      .describe("Unique ID of the uploaded media to set as cover/banner"),
+      .uuid({ message: "Invalid media ID format" })
+      .describe("Unique ID of the uploaded media to set as banner image"),
   })
   .openapi("UpdateUserBannerParamsDTO");
+
+export const AddFcmTokenDTOSchema = z
+  .object({
+    token: z
+      .string()
+      .min(1, { message: "FCM token cannot be empty" })
+      .describe("Firebase Cloud Messaging token"),
+    osType: z
+      .enum(["ANDROID", "IOS", "WEB"])
+      .describe("Operating system type of the device"),
+  })
+  .openapi("AddFcmTokenDTO");
+
+export const FcmTokenResponseDTOSchema = z
+  .object({
+    token: z.string(),
+    osType: z.enum(["ANDROID", "IOS", "WEB"]),
+    userId: z.string().uuid(),
+    createdAt: z.string(),
+  })
+  .openapi("FcmTokenResponseDTO");

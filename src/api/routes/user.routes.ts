@@ -7,6 +7,7 @@ import {
   deleteUserProfilePicture,
   updateUserBanner,
   deleteUserBanner,
+  addFcmToken,
 } from "../controllers/user.controller";
 import { ensureOwner } from "../middlewares/ensureOwner.middleware";
 import { updateUserValidator } from "../validators/user.validator";
@@ -45,5 +46,6 @@ router.delete(
   ensureOwner("userId"), // TODO WHEN AUTH WORKS
   deleteUserBanner
 );
+router.post("/fcm-token",addFcmToken);
 
 export default router;

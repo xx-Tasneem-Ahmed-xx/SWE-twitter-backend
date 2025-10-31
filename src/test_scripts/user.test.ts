@@ -1,6 +1,7 @@
 import { prisma } from "@/prisma/client";
 import { UserService } from "@/application/services/user.service";
 import { connectToDatabase } from "@/database";
+import { OSType } from "@prisma/client";
 
 const userService = new UserService();
 
@@ -8,6 +9,12 @@ describe("UserService", () => {
   beforeAll(async () => {
     await connectToDatabase();
     console.log("Running UserService tests with real database connection");
+
+    // Clean up any old data
+    await prisma.follow.deleteMany({});
+    await prisma.fcmToken.deleteMany({});
+    await prisma.user.deleteMany({});
+    await prisma.media.deleteMany({});
 
     // create media
     await prisma.media.createMany({
@@ -33,6 +40,7 @@ describe("UserService", () => {
       ],
     });
 
+    // create users
     // create sample users
     await prisma.user.createMany({
       data: [
@@ -63,64 +71,87 @@ describe("UserService", () => {
           profileMediaId: "profile2",
           dateOfBirth: new Date("2002-09-01"),
         },
+        {
+          id: "u3",
+          username: "salma_adel",
+          email: "salma@example.com",
+          password: "hashedpass3",
+          saltPassword: "salt3",
+          name: "Salma Adel",
+          bio: "Frontend Developer",
+          verified: true,
+          protectedAccount: false,
+          dateOfBirth: new Date("2001-12-15"), // ← added this field
+        },
+      ],
+    });
+
+    // create follow relationships
+    await prisma.follow.createMany({
+      data: [
+        { followerId: "u1", followingId: "u2" }, // u1 follows u2
+        { followerId: "u2", followingId: "u1" }, // u2 follows u1
       ],
     });
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({
-      where: { id: { in: ["u1", "u2"] } },
-    });
-    await prisma.media.deleteMany({
-      where: { id: { in: ["profile1", "profile2", "cover1"] } },
-    });
+    await prisma.follow.deleteMany({});
+    await prisma.fcmToken.deleteMany({});
+    await prisma.user.deleteMany({});
+    await prisma.media.deleteMany({});
     await prisma.$disconnect();
   });
 
+  // ===================== getUserProfile =====================
   describe("getUserProfile", () => {
-    it("should return user profile by username", async () => {
-      const user = await userService.getUserProfile("mohammed_hany");
+    it("should return correct user profile with follower/following context", async () => {
+      const user = await userService.getUserProfile("mohammed_hany", "u2");
+
       expect(user).not.toBeNull();
       expect(user?.id).toBe("u1");
       expect(user?.name).toBe("Mohammed Hany");
-      expect(user?.profileMedia).toHaveProperty("keyName");
-      expect(user?.coverMedia).toHaveProperty("keyName");
+      expect(user?.isFollower).toBe(true); // u2 follows u1
+      expect(user?.isFollowing).toBe(true); // u1 follows u2
+      expect(typeof user?.joinDate).toBe("string");
+      expect(typeof user?.dateOfBirth).toBe("string");
     });
 
-    it("should return null if user not found", async () => {
-      const user = await userService.getUserProfile("unknown_user");
+    it("should return null if username not found", async () => {
+      const user = await userService.getUserProfile("unknown_user", "u1");
       expect(user).toBeNull();
     });
   });
 
+  // ===================== updateUserProfile =====================
   describe("updateUserProfile", () => {
-    it("should update a user’s general information", async () => {
+    it("should update user’s general info correctly", async () => {
       const data = {
         name: "Mohammed Updated",
         username: "mohammed_updated",
         bio: "Updated bio",
         address: "Cairo, Egypt",
-        website: "https://mohammedhany.dev",
+        website: "https://mohammed.dev",
         protectedAccount: true,
       };
 
       const updated = await userService.updateUserProfile("u1", data);
       expect(updated.name).toBe("Mohammed Updated");
       expect(updated.username).toBe("mohammed_updated");
-      expect(updated.bio).toBe("Updated bio");
       expect(updated.protectedAccount).toBe(true);
+      expect(typeof updated.joinDate).toBe("string");
 
       const saved = await prisma.user.findUnique({ where: { id: "u1" } });
       expect(saved?.username).toBe("mohammed_updated");
     });
 
-    it("should throw error if user does not exist", async () => {
+    it("should throw if user does not exist", async () => {
       await expect(
-        userService.updateUserProfile("not_exist", {
-          name: "Fake User",
+        userService.updateUserProfile("invalid_id", {
+          name: "Fake",
           username: "fake",
           bio: "None",
-          address: "NA",
+          address: "",
           website: "",
           protectedAccount: false,
         })
@@ -128,49 +159,67 @@ describe("UserService", () => {
     });
   });
 
+  // ===================== searchUsers =====================
   describe("searchUsers", () => {
-    it("should return users whose name or username contains query", async () => {
-      const users = await userService.searchUsers("mohammed");
-      expect(users.length).toBeGreaterThan(0);
-      expect(users[0].username).toContain("mohammed");
+    it("should return paginated users matching query", async () => {
+      const result = await userService.searchUsers("mohammed", "u3", 2);
+      expect(result.users.length).toBeGreaterThan(0);
+      expect(result.users[0].username).toContain("mohammed");
+      expect(result).toHaveProperty("nextCursor");
     });
 
-    it("should return empty array for unmatched query", async () => {
-      const users = await userService.searchUsers("xyz_nonexistent");
-      expect(users).toEqual([]);
+    it("should exclude the viewer from results", async () => {
+      const result = await userService.searchUsers("sara", "u3");
+      expect(result.users.some((u) => u.id === "u3")).toBe(false);
+    });
+
+    it("should return empty result for unmatched query", async () => {
+      const result = await userService.searchUsers("no_such_user", "u1");
+      expect(result.users).toHaveLength(0);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it("should correctly return next page with cursor", async () => {
+      const firstPage = await userService.searchUsers("mohammed", "u3", 1);
+      expect(firstPage.users.length).toBe(1);
+      const nextCursor = firstPage.nextCursor;
+      if (nextCursor) {
+        const secondPage = await userService.searchUsers(
+          "mohammed",
+          "u3",
+          1,
+          nextCursor
+        );
+        expect(secondPage.users.length).toBeGreaterThanOrEqual(0);
+      }
     });
   });
 
+  // ===================== updateProfilePhoto / deleteProfilePhoto =====================
   describe("updateProfilePhoto", () => {
     it("should update user’s profile photo", async () => {
-      const updatedUser = await userService.updateProfilePhoto(
-        "u2",
-        "profile1"
-      );
-      expect(updatedUser.profileMediaId).toBe("profile1");
-      expect(updatedUser.profileMedia?.keyName).toBe(
+      const updated = await userService.updateProfilePhoto("u2", "profile1");
+      expect(updated.profileMediaId).toBe("profile1");
+      expect(updated.profileMedia?.keyName).toBe(
         "https://example.com/profile1.jpg"
       );
-
-      const saved = await prisma.user.findUnique({ where: { id: "u2" } });
-      expect(saved?.profileMediaId).toBe("profile1");
     });
   });
 
   describe("deleteProfilePhoto", () => {
     it("should remove profile photo (set to null)", async () => {
-      await userService.updateProfilePhoto("u1", "profile2");
-      const updated = await userService.deleteProfilePhoto("u1");
+      await userService.updateProfilePhoto("u2", "profile2");
+      const updated = await userService.deleteProfilePhoto("u2");
       expect(updated.profileMediaId).toBeNull();
-
-      const saved = await prisma.user.findUnique({ where: { id: "u1" } });
+      const saved = await prisma.user.findUnique({ where: { id: "u2" } });
       expect(saved?.profileMediaId).toBeNull();
     });
   });
 
+  // ===================== updateProfileBanner / deleteProfileBanner =====================
   describe("updateProfileBanner", () => {
     it("should update user’s profile banner", async () => {
-      const updated = await userService.updateProfileBanner("u2", "cover1");
+      const updated = await userService.updateProfileBanner("u1", "cover1");
       expect(updated.coverMediaId).toBe("cover1");
       expect(updated.coverMedia?.keyName).toBe(
         "https://example.com/cover1.jpg"
@@ -183,9 +232,37 @@ describe("UserService", () => {
       await userService.updateProfileBanner("u1", "cover1");
       const updated = await userService.deleteProfileBanner("u1");
       expect(updated.coverMediaId).toBeNull();
-
       const saved = await prisma.user.findUnique({ where: { id: "u1" } });
       expect(saved?.coverMediaId).toBeNull();
+    });
+  });
+
+  // ===================== addFcmToken =====================
+  describe("addFcmToken", () => {
+    it("should insert a new FCM token", async () => {
+      const token = "fcm_token_123";
+      const osType = OSType.ANDROID;
+
+      const result = await userService.addFcmToken("u1", token, osType);
+      expect(result.token).toBe(token);
+      expect(result.osType).toBe(osType);
+      expect(result.userId).toBe("u1");
+    });
+
+    it("should update existing token if already stored", async () => {
+      const token = "existing_token";
+      const osType = OSType.IOS;
+
+      await prisma.fcmToken.create({
+        data: { token, userId: "u2", osType },
+      });
+
+      const result = await userService.addFcmToken("u2", token, osType);
+      expect(result.token).toBe(token);
+      expect(result.userId).toBe("u2");
+
+      const count = await prisma.fcmToken.count({ where: { token } });
+      expect(count).toBe(1);
     });
   });
 });

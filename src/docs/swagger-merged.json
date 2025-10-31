@@ -3558,7 +3558,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-29T19:09:24.821Z"
+                        "default": "2025-10-31T13:13:45.856Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3718,7 +3718,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-29T19:09:24.821Z"
+                      "default": "2025-10-31T13:13:45.856Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3941,7 +3941,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-29T19:09:24.821Z"
+                            "default": "2025-10-31T13:13:45.856Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4077,7 +4077,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-10-29T19:09:24.821Z"
+                      "default": "2025-10-31T13:13:45.856Z"
                     },
                     "userId": {
                       "type": "string",
@@ -4165,7 +4165,7 @@
     "/api/users/{username}": {
       "get": {
         "summary": "Get user profile by username",
-        "description": "Fetch the public profile of a specific user by their username.",
+        "description": "Fetch the profile of a user by their username.",
         "tags": [
           "Users"
         ],
@@ -4193,6 +4193,10 @@
                       "type": "string",
                       "format": "uuid"
                     },
+                    "name": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "username": {
                       "type": "string"
                     },
@@ -4207,35 +4211,93 @@
                       "type": "string",
                       "nullable": true
                     },
-                    "profilePhoto": {
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "address": {
                       "type": "string",
                       "nullable": true
                     },
                     "protectedAccount": {
                       "type": "boolean"
                     },
-                    "verified": {
-                      "type": "boolean"
-                    },
                     "joinDate": {
+                      "type": "string"
+                    },
+                    "profileMediaId": {
                       "type": "string",
-                      "description": "Date the user joined the platform"
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "profileMedia": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "keyName": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "keyName",
+                        "type"
+                      ]
+                    },
+                    "coverMediaId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "coverMedia": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "keyName": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "keyName",
+                        "type"
+                      ]
                     }
                   },
                   "required": [
                     "id",
+                    "name",
                     "username",
-                    "email",
-                    "bio",
-                    "website",
-                    "profilePhoto",
-                    "protectedAccount",
                     "verified",
-                    "joinDate"
+                    "protectedAccount"
                   ]
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized access."
           },
           "404": {
             "description": "User not found."
@@ -4245,8 +4307,8 @@
     },
     "/api/users/{id}": {
       "patch": {
-        "summary": "Update user profile by ID",
-        "description": "Update the profile fields of the authenticated user.",
+        "summary": "Update user profile",
+        "description": "Update the authenticated user's profile information.",
         "tags": [
           "Users"
         ],
@@ -4260,10 +4322,10 @@
             "schema": {
               "type": "string",
               "format": "uuid",
-              "description": "Unique ID of the user"
+              "description": "Unique ID of the user to update"
             },
             "required": true,
-            "description": "Unique ID of the user",
+            "description": "Unique ID of the user to update",
             "name": "id",
             "in": "path"
           }
@@ -4283,10 +4345,6 @@
                     "type": "string",
                     "description": "Personal website URL"
                   },
-                  "profilePhoto": {
-                    "type": "string",
-                    "description": "Profile photo URL"
-                  },
                   "protectedAccount": {
                     "type": "boolean",
                     "description": "Whether the account is protected"
@@ -4295,13 +4353,13 @@
                     "type": "string",
                     "description": "User address"
                   },
-                  "cover": {
-                    "type": "string",
-                    "description": "Cover image URL"
-                  },
                   "name": {
                     "type": "string",
                     "description": "User's full name"
+                  },
+                  "username": {
+                    "type": "string",
+                    "description": "User's unique username"
                   }
                 }
               }
@@ -4320,6 +4378,10 @@
                       "type": "string",
                       "format": "uuid"
                     },
+                    "name": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "username": {
                       "type": "string"
                     },
@@ -4334,31 +4396,86 @@
                       "type": "string",
                       "nullable": true
                     },
-                    "profilePhoto": {
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "address": {
                       "type": "string",
                       "nullable": true
                     },
                     "protectedAccount": {
                       "type": "boolean"
                     },
-                    "verified": {
-                      "type": "boolean"
-                    },
                     "joinDate": {
+                      "type": "string"
+                    },
+                    "profileMediaId": {
                       "type": "string",
-                      "description": "Date the user joined the platform"
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "profileMedia": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "keyName": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "keyName",
+                        "type"
+                      ]
+                    },
+                    "coverMediaId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "coverMedia": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "keyName": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "keyName",
+                        "type"
+                      ]
                     }
                   },
                   "required": [
                     "id",
+                    "name",
                     "username",
-                    "email",
-                    "bio",
-                    "website",
-                    "profilePhoto",
-                    "protectedAccount",
                     "verified",
-                    "joinDate"
+                    "protectedAccount"
                   ]
                 }
               }
@@ -4368,21 +4485,18 @@
             "description": "Invalid input data."
           },
           "401": {
-            "description": "Unauthorized — missing or invalid JWT token."
+            "description": "Unauthorized access."
           },
           "403": {
-            "description": "You cannot update another user's profile."
-          },
-          "404": {
-            "description": "User not found."
+            "description": "Forbidden — cannot update another user's profile."
           }
         }
       }
     },
     "/api/users/search": {
       "get": {
-        "summary": "Search for users by username or screen name",
-        "description": "Searches for users whose username or display name matches the provided query (case-insensitive).",
+        "summary": "Search users",
+        "description": "Search users by name or username (case-insensitive).",
         "tags": [
           "Users"
         ],
@@ -4391,10 +4505,10 @@
             "schema": {
               "type": "string",
               "minLength": 1,
-              "description": "Part of username or screen name to search for"
+              "description": "Part of username or name to search for"
             },
             "required": true,
-            "description": "Part of username or screen name to search for",
+            "description": "Part of username or name to search for",
             "name": "query",
             "in": "query"
           }
@@ -4420,11 +4534,45 @@
                         "type": "string",
                         "nullable": true
                       },
-                      "profilePhoto": {
+                      "verified": {
+                        "type": "boolean"
+                      },
+                      "bio": {
                         "type": "string",
                         "nullable": true
                       },
-                      "verified": {
+                      "profileMedia": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "keyName": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "keyName"
+                        ]
+                      },
+                      "_count": {
+                        "type": "object",
+                        "properties": {
+                          "followers": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "followers"
+                        ]
+                      },
+                      "isFollower": {
+                        "type": "boolean"
+                      },
+                      "isFollowing": {
                         "type": "boolean"
                       }
                     },
@@ -4440,15 +4588,15 @@
             }
           },
           "400": {
-            "description": "Missing or invalid search query."
+            "description": "Invalid or missing query."
           }
         }
       }
     },
-    "/api/users/profile-picture/{mediaId}": {
+    "/api/users/profile-picture/{userId}/{mediaId}": {
       "patch": {
-        "summary": "Update user profile picture by media ID",
-        "description": "Allows the authenticated user to update their profile picture by providing the media ID of the uploaded photo.",
+        "summary": "Update user profile picture",
+        "description": "Update the authenticated user's profile picture by specifying a media ID.",
         "tags": [
           "Users"
         ],
@@ -4458,6 +4606,17 @@
           }
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Unique ID of the authenticated user"
+            },
+            "required": true,
+            "description": "Unique ID of the authenticated user",
+            "name": "userId",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -4482,6 +4641,10 @@
                       "type": "string",
                       "format": "uuid"
                     },
+                    "name": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "username": {
                       "type": "string"
                     },
@@ -4496,31 +4659,86 @@
                       "type": "string",
                       "nullable": true
                     },
-                    "profilePhoto": {
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "address": {
                       "type": "string",
                       "nullable": true
                     },
                     "protectedAccount": {
                       "type": "boolean"
                     },
-                    "verified": {
-                      "type": "boolean"
-                    },
                     "joinDate": {
+                      "type": "string"
+                    },
+                    "profileMediaId": {
                       "type": "string",
-                      "description": "Date the user joined the platform"
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "profileMedia": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "keyName": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "keyName",
+                        "type"
+                      ]
+                    },
+                    "coverMediaId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "coverMedia": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "keyName": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "keyName",
+                        "type"
+                      ]
                     }
                   },
                   "required": [
                     "id",
+                    "name",
                     "username",
-                    "email",
-                    "bio",
-                    "website",
-                    "profilePhoto",
-                    "protectedAccount",
                     "verified",
-                    "joinDate"
+                    "protectedAccount"
                   ]
                 }
               }
@@ -4530,98 +4748,15 @@
             "description": "Invalid or missing media ID."
           },
           "401": {
-            "description": "Unauthorized — missing or invalid JWT token."
-          },
-          "403": {
-            "description": "You cannot update another user's photo."
-          },
-          "404": {
-            "description": "User or media not found."
+            "description": "Unauthorized access."
           }
         }
       }
     },
-    "/api/users/profile-picture": {
+    "/api/users/profile-picture/{userId}": {
       "delete": {
-        "summary": "Delete user profile picture (restore default)",
-        "description": "Removes the authenticated user’s current profile picture and restores the default one.",
-        "tags": [
-          "Users"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Profile picture restored to default.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "username": {
-                      "type": "string"
-                    },
-                    "email": {
-                      "type": "string"
-                    },
-                    "bio": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "website": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "profilePhoto": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "protectedAccount": {
-                      "type": "boolean"
-                    },
-                    "verified": {
-                      "type": "boolean"
-                    },
-                    "joinDate": {
-                      "type": "string",
-                      "description": "Date the user joined the platform"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "username",
-                    "email",
-                    "bio",
-                    "website",
-                    "profilePhoto",
-                    "protectedAccount",
-                    "verified",
-                    "joinDate"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid JWT token."
-          },
-          "404": {
-            "description": "User not found."
-          }
-        }
-      }
-    },
-    "/api/users/banner/{coverId}": {
-      "patch": {
-        "summary": "Update user banner by media ID",
-        "description": "Allows the authenticated user to update their banner (cover image) by providing the media ID of the uploaded image.",
+        "summary": "Delete user profile picture",
+        "description": "Remove the authenticated user's profile picture (restores default).",
         "tags": [
           "Users"
         ],
@@ -4635,17 +4770,17 @@
             "schema": {
               "type": "string",
               "format": "uuid",
-              "description": "Unique ID of the media to set as the banner (cover image)"
+              "description": "Unique ID of the authenticated user"
             },
             "required": true,
-            "description": "Unique ID of the media to set as the banner (cover image)",
-            "name": "coverId",
+            "description": "Unique ID of the authenticated user",
+            "name": "userId",
             "in": "path"
           }
         ],
         "responses": {
           "200": {
-            "description": "Profile banner updated successfully.",
+            "description": "Profile picture removed successfully.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4654,6 +4789,10 @@
                     "id": {
                       "type": "string",
                       "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string",
+                      "nullable": true
                     },
                     "username": {
                       "type": "string"
@@ -4669,55 +4808,101 @@
                       "type": "string",
                       "nullable": true
                     },
-                    "profilePhoto": {
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "address": {
                       "type": "string",
                       "nullable": true
                     },
                     "protectedAccount": {
                       "type": "boolean"
                     },
-                    "verified": {
-                      "type": "boolean"
-                    },
                     "joinDate": {
+                      "type": "string"
+                    },
+                    "profileMediaId": {
                       "type": "string",
-                      "description": "Date the user joined the platform"
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "profileMedia": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "keyName": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "keyName",
+                        "type"
+                      ]
+                    },
+                    "coverMediaId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "coverMedia": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "keyName": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "keyName",
+                        "type"
+                      ]
                     }
                   },
                   "required": [
                     "id",
+                    "name",
                     "username",
-                    "email",
-                    "bio",
-                    "website",
-                    "profilePhoto",
-                    "protectedAccount",
                     "verified",
-                    "joinDate"
+                    "protectedAccount"
                   ]
                 }
               }
             }
           },
-          "400": {
-            "description": "Invalid or missing cover ID."
-          },
           "401": {
-            "description": "Unauthorized — missing or invalid JWT token."
-          },
-          "403": {
-            "description": "You cannot update another user's banner."
-          },
-          "404": {
-            "description": "User or media not found."
+            "description": "Unauthorized access."
           }
         }
       }
     },
-    "/api/users/banner": {
-      "delete": {
-        "summary": "Delete user banner (restore default)",
-        "description": "Removes the authenticated user’s current banner (cover image) and restores the default one.",
+    "/api/users/banner/{userId}/{mediaId}": {
+      "patch": {
+        "summary": "Update user banner",
+        "description": "Update the authenticated user's profile banner using a media ID.",
         "tags": [
           "Users"
         ],
@@ -4726,9 +4911,33 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Unique ID of the authenticated user"
+            },
+            "required": true,
+            "description": "Unique ID of the authenticated user",
+            "name": "userId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Unique ID of the media to set as the banner"
+            },
+            "required": true,
+            "description": "Unique ID of the media to set as the banner",
+            "name": "mediaId",
+            "in": "path"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Profile banner restored to default.",
+            "description": "Banner updated successfully.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4737,6 +4946,10 @@
                     "id": {
                       "type": "string",
                       "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string",
+                      "nullable": true
                     },
                     "username": {
                       "type": "string"
@@ -4752,41 +4965,309 @@
                       "type": "string",
                       "nullable": true
                     },
-                    "profilePhoto": {
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "address": {
                       "type": "string",
                       "nullable": true
                     },
                     "protectedAccount": {
                       "type": "boolean"
                     },
-                    "verified": {
-                      "type": "boolean"
-                    },
                     "joinDate": {
+                      "type": "string"
+                    },
+                    "profileMediaId": {
                       "type": "string",
-                      "description": "Date the user joined the platform"
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "profileMedia": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "keyName": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "keyName",
+                        "type"
+                      ]
+                    },
+                    "coverMediaId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "coverMedia": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "keyName": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "keyName",
+                        "type"
+                      ]
                     }
                   },
                   "required": [
                     "id",
+                    "name",
                     "username",
-                    "email",
-                    "bio",
-                    "website",
-                    "profilePhoto",
-                    "protectedAccount",
                     "verified",
-                    "joinDate"
+                    "protectedAccount"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or missing media ID."
+          },
+          "401": {
+            "description": "Unauthorized access."
+          }
+        }
+      }
+    },
+    "/api/users/banner/{userId}": {
+      "delete": {
+        "summary": "Delete user banner",
+        "description": "Remove the authenticated user's profile banner (restores default).",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Unique ID of the authenticated user"
+            },
+            "required": true,
+            "description": "Unique ID of the authenticated user",
+            "name": "userId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile banner removed successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "username": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "bio": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "website": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "address": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "protectedAccount": {
+                      "type": "boolean"
+                    },
+                    "joinDate": {
+                      "type": "string"
+                    },
+                    "profileMediaId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "profileMedia": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "keyName": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "keyName",
+                        "type"
+                      ]
+                    },
+                    "coverMediaId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "coverMedia": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "keyName": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "keyName",
+                        "type"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "username",
+                    "verified",
+                    "protectedAccount"
                   ]
                 }
               }
             }
           },
           "401": {
-            "description": "Unauthorized — missing or invalid JWT token."
+            "description": "Unauthorized access."
+          }
+        }
+      }
+    },
+    "/api/users/fcm-token": {
+      "post": {
+        "summary": "Add FCM Token",
+        "description": "Add a Firebase Cloud Messaging (FCM) token for push notifications.",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "description": "Firebase Cloud Messaging token"
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "FCM token added successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "token": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "token"
+                  ]
+                }
+              }
+            }
           },
-          "404": {
-            "description": "User not found."
+          "400": {
+            "description": "Invalid input data."
+          },
+          "401": {
+            "description": "Unauthorized access."
           }
         }
       }
