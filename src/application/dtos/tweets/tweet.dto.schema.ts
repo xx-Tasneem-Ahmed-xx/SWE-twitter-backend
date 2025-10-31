@@ -70,13 +70,20 @@ export const HashTagResponseSchema = z.array(
   })
 );
 
+export const CursorDTOSchema = z.object({
+  limit: z.coerce.number().min(1).max(40).default(20),
+  cursor: z.string().optional().describe("The cursor for pagination"),
+});
+
 export const TimelineSchema = z.object({
   limit: z.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
 });
 
-export const SearchDTOSchema = TimelineSchema.extend({
-  query: StringSchema,
-  peopleFilter: z.enum(PeopleFilter).default(PeopleFilter.ANYONE),
-  searchTab: z.enum(SearchTab).default(SearchTab.TOP),
-});
+export const SearchDTOSchema = z
+  .object({
+    query: StringSchema,
+    peopleFilter: z.enum(PeopleFilter).default(PeopleFilter.ANYONE),
+    searchTab: z.enum(SearchTab).default(SearchTab.TOP),
+  })
+  .extend(CursorDTOSchema.shape);
