@@ -459,4 +459,33 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
             }
         }
     });
+
+    registry.registerPath({
+        method: "get",
+        path: "api/dm/chat/all-unseen-messages-count",
+        summary: "Get all unseen messages count for a user",
+        tags: ["Chats"],
+        responses: {
+            200: {
+                description: "Unseen messages count retrieved successfully",
+                content: {
+                    "application/json": {
+                        schema: z.object({
+                            totalUnseenMessages: z.number().openapi({ description: "The count of unseen messages for the user" })
+                        })
+                    }
+                }
+            },
+            500: {
+                description: "Internal server error",
+                content: {
+                    "application/json": {
+                        schema: z.object({
+                            error: z.string().openapi({ description: "Internal server error" })
+                        })
+                    }
+                }
+            }
+        }
+    });
 };

@@ -3751,7 +3751,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-31T13:07:46.280Z"
+                        "default": "2025-10-31T17:20:56.499Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3773,188 +3773,6 @@
                       "userId"
                     ]
                   }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Unauthorized"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Internal Server Error"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Create a new notification for a user",
-        "tags": [
-          "Notifications"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "Bearer token for authentication"
-            },
-            "required": true,
-            "description": "Bearer token for authentication",
-            "name": "Authorization",
-            "in": "header"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "title": {
-                    "type": "string",
-                    "enum": [
-                      "LIKE",
-                      "RETWEET",
-                      "REPLY",
-                      "QUOTE",
-                      "FOLLOW",
-                      "REQUEST_TO_FOLLOW",
-                      "ACCEPTED_FOLLOW",
-                      "MENTION",
-                      "LOGIN",
-                      "PASSWORD_CHANGED"
-                    ]
-                  },
-                  "body": {
-                    "type": "string",
-                    "maxLength": 280
-                  },
-                  "tweetId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "actorId": {
-                    "type": "string",
-                    "format": "uuid"
-                  }
-                },
-                "required": [
-                  "title",
-                  "body"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Notification created successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "title": {
-                      "type": "string",
-                      "enum": [
-                        "LIKE",
-                        "RETWEET",
-                        "REPLY",
-                        "QUOTE",
-                        "FOLLOW",
-                        "REQUEST_TO_FOLLOW",
-                        "ACCEPTED_FOLLOW",
-                        "MENTION",
-                        "LOGIN",
-                        "PASSWORD_CHANGED"
-                      ]
-                    },
-                    "body": {
-                      "type": "string",
-                      "maxLength": 280
-                    },
-                    "isRead": {
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date",
-                      "default": "2025-10-31T13:07:46.280Z"
-                    },
-                    "userId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "tweetId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "actorId": {
-                      "type": "string",
-                      "format": "uuid"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "title",
-                    "body",
-                    "userId"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid notification data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Invalid notification data"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
                 }
               }
             }
@@ -4140,7 +3958,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-31T11:12:46.064Z"
+                            "default": "2025-10-31T17:20:56.499Z"
                           },
                           "userId": {
                             "type": "string",
@@ -5895,6 +5713,54 @@
                   },
                   "required": [
                     "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal server error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/dm/chat/all-unseen-messages-count": {
+      "get": {
+        "summary": "Get all unseen messages count for a user",
+        "tags": [
+          "Chats"
+        ],
+        "responses": {
+          "200": {
+            "description": "Unseen messages count retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "totalUnseenMessages": {
+                      "type": "number",
+                      "description": "The count of unseen messages for the user"
+                    }
+                  },
+                  "required": [
+                    "totalUnseenMessages"
                   ]
                 }
               }

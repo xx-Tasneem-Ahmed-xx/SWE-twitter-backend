@@ -545,3 +545,29 @@ export const getUnseenChatsCount = async (req: Request, res: Response, next: Nex
 }
 
 
+export const getUnseenMessagesCountOfUser = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = (req as any).user.id;
+        const chats = await prisma.chatUser.findMany({
+            where: { userId: userId },
+            select: { chatId: true }
+        });
+        let totalUnseenMessages = 0;
+        for (const chat of chats) {
+            const unseenMessages = await prisma.message.count({
+                where: {
+                    chatId: chat.chatId,
+                    userId: userId,
+                    status: { not: 'READ' }
+                }
+            });
+            totalUnseenMessages += unseenMessages;
+        }
+        res.status(200).json({ totalUnseenMessages });
+    } catch (error) {
+        console.error('Error fetching unseen messages count of user:', error);
+        next(error);
+    }
+}
+
+
