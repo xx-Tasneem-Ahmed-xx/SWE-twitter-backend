@@ -18,9 +18,9 @@ import {
   SearchTab,
 } from "@/application/dtos/tweets/tweet.dto.schema";
 import { SearchParams } from "@/types/types";
-import { encode } from "@/docs/utils/encoding";
+import encoderService from "@/application/services/encoder";
 
-export class TweetService {
+class TweetService {
   private validateId(id: string) {
     if (!id || typeof id !== "string") {
       throw new AppError("Invalid ID", 400);
@@ -294,7 +294,7 @@ export class TweetService {
       lastActivityAt:
         paginatedTweets[paginatedTweets.length - 1].lastActivityAt,
     };
-    const hashedCursor = encode(cursor);
+    const hashedCursor = encoderService.encode(cursor);
     return {
       data: paginatedTweets,
       nextCursor: hasNextPage ? hashedCursor : null,
@@ -415,3 +415,6 @@ export class TweetService {
     };
   }
 }
+
+const tweetService = new TweetService();
+export default tweetService;

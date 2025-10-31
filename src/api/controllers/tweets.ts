@@ -1,13 +1,12 @@
 import { CursorServiceSchema } from "@/application/dtos/tweets/service/tweets.dto.schema";
 import { SearchDTOSchema } from "@/application/dtos/tweets/tweet.dto.schema";
-import { TweetService } from "@/application/services/tweets";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
-import { decode } from "@/docs/utils/encoding";
 import { Request, Response, NextFunction } from "express";
-
-const tweetService = new TweetService();
+import tweetService from "@/application/services/tweets";
+import encoderService from "@/application/services/encoder";
 
 export class TweetController {
+  
   async createTweet(req: Request, res: Response, next: NextFunction) {
     try {
       const data = req.body;
@@ -184,9 +183,10 @@ export class TweetController {
       const query = req.query;
 
       const { id: userId } = await resolveUsernameToId(username);
-      const decodedCursor = decode<{ lastActivityAt: string; id: string }>(
-        query.cursor as string
-      );
+      const decodedCursor = encoderService.decode<{
+        lastActivityAt: string;
+        id: string;
+      }>(query.cursor as string);
 
       const parsedDTO = CursorServiceSchema.parse({
         userId,
