@@ -1468,26 +1468,21 @@ export async function CallbackGithub(
 ) {
   try {
     const code = req.query.code as string;
-
-    if (!code) {
-      throw new AppError("Authorization code is missing", 400);
-    }
+    if (!code) throw new AppError("Authorization code is missing", 400);
 
     const tokenResp = await exchangeGithubCode(code);
     const accessToken = tokenResp.access_token as string;
 
     const emails = await fetchGithubEmails(accessToken);
     const primary = emails.find((e: any) => e.primary && e.verified);
-
-    if (!primary) {
-      throw new AppError("No verified email found", 400);
-    }
+    if (!primary) throw new AppError("No verified email found", 400);
 
     const email = primary.email as string;
     const userProfile = await fetchGithubUser(accessToken);
     const name = userProfile.name || userProfile.login;
     const providerId = userProfile.id.toString();
 
+    // 🔹 Find or create user
     let oauth = await prisma.oAuthAccount.findFirst({
       where: { provider: "github", providerId },
       include: { user: true },
@@ -1498,7 +1493,6 @@ export async function CallbackGithub(
       user = oauth.user;
     } else {
       user = await prisma.user.findUnique({ where: { email } });
-
       if (!user) {
         user = await prisma.user.create({
           data: {
@@ -1509,37 +1503,41 @@ export async function CallbackGithub(
             saltPassword: "",
             dateOfBirth: "2001-11-03T00:00:00.000Z",
             oAuthAccount: {
-              create: {
-                provider: "github",
-                providerId,
-              },
+              create: { provider: "github", providerId },
             },
           },
         });
       } else {
         await prisma.oAuthAccount.create({
-          data: {
-            provider: "github",
-            providerId,
-            userId: user.id,
-          },
+          data: { provider: "github", providerId, userId: user.id },
         });
       }
     }
 
-    const deviceId = Math.floor(Math.random() * 100000);
+    // 🌍 Set Device Info
+    const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
+
+    // 🔑 Generate Tokens
     const payload = {
       username: user.username,
       email: user.email,
       id: user.id,
       role: "user",
+      expiresInSeconds: 60 * 60,
+    };
+    const payload2 = {
+      username: user.username,
+      email: user.email,
+      id: user.id,
+      role: "user",
+      expiresInSeconds: 60 * 60 * 24 * 30,
     };
 
     const token = await utils.GenerateJwt(payload);
-    const refreshToken = await utils.GenerateJwt(payload);
+    const refreshToken = await utils.GenerateJwt(payload2);
 
     await redisClient.set(
-      `refresh-token:${user.email}:${deviceId}`,
+      `refresh-token:${user.email}:${devid}`,
       refreshToken.token,
       { EX: 60 * 60 * 24 * 30 }
     );
@@ -1556,44 +1554,61 @@ export async function CallbackGithub(
       data: { tokenVersion: (user.tokenVersion || 0) + 1 },
     });
 
-    const userRefreshed = await prisma.user.findUnique({ where: { email } });
+    // 🌐 Get Location Info
+    const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
+    const geo = await utils.Sendlocation(ip);
 
+    // 📧 Send Professional Login Email
+    const emailMsg = `
+<h2>👋 Hello, ${user.username || name}</h2>
+<p>We noticed a new login to your account via <b>GitHub</b>.</p>
+
+<table style="border-collapse: collapse;">
+  <tr><td>🕒 <b>Time</b></td><td>${new Date().toLocaleString()}</td></tr>
+  <tr><td>📍 <b>Location</b></td><td>${geo.City || "Unknown"}, ${geo.Country || ""}</td></tr>
+  <tr><td>🌐 <b>IP Address</b></td><td>${geo.Query || ip}</td></tr>
+  <tr><td>🖥️ <b>Device</b></td><td>${req.get("User-Agent") || "Unknown"}</td></tr>
+</table>
+
+<p>Your login was successful 🎉</p>
+<p>If this wasn’t you, please reset your password or contact support immediately.</p>
+
+<hr>
+<p>— The Artemisa Security Team 🦊</p>
+`;
+
+    await utils.SendEmailSmtp(res,email,emailMsg);
+
+    // ✅ Final Response
     return res.json({
       token,
-      user: userRefreshed,
-      device: { id: deviceId },
+      refreshToken,
+      message: "User logged in successfully via GitHub ✅",
+      user,
+      deviceRecord,
+      location: geo,
     });
   } catch (err) {
+    console.error("CallbackGithub err:", err);
     next(err);
   }
 }
-
-export async function CallbackGoogle(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+export async function CallbackGoogle(req: Request, res: Response, next: NextFunction) {
   try {
     const code = req.query.code as string;
-
-    if (!code) {
-      throw new AppError("Authorization code is missing", 400);
-    }
+    if (!code) throw new AppError("Authorization code is missing", 400);
 
     const tokenObj = await exchangeGoogleCode(code);
     const idToken = tokenObj.id_token as string;
-
     const parts = idToken.split(".");
-
-    if (parts.length < 2) {
-      throw new AppError("Invalid ID token", 401);
-    }
+    if (parts.length < 2) throw new AppError("Invalid ID token", 401);
 
     const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
     const email = payload.email as string;
     const name = payload.given_name || payload.name || "unknown";
     const providerId = payload.sub.toString();
 
+    // Find or create user
     let oauth = await prisma.oAuthAccount.findFirst({
       where: { provider: "google", providerId },
       include: { user: true },
@@ -1604,7 +1619,6 @@ export async function CallbackGoogle(
       user = oauth.user;
     } else {
       user = await prisma.user.findUnique({ where: { email } });
-
       if (!user) {
         user = await prisma.user.create({
           data: {
@@ -1615,37 +1629,41 @@ export async function CallbackGoogle(
             saltPassword: "",
             dateOfBirth: "2001-11-03T00:00:00.000Z",
             oAuthAccount: {
-              create: {
-                provider: "google",
-                providerId,
-              },
+              create: { provider: "google", providerId },
             },
           },
         });
       } else {
         await prisma.oAuthAccount.create({
-          data: {
-            provider: "google",
-            providerId,
-            userId: user.id,
-          },
+          data: { provider: "google", providerId, userId: user.id },
         });
       }
     }
 
-    const deviceId = Math.floor(Math.random() * 100000);
+    // 🧠 Set Device Info (Geo + Device Record)
+    const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
+
+    // 🕒 Tokens
     const payloadJwt = {
       username: user.username,
       email: user.email,
       id: user.id,
       role: "user",
+      expiresInSeconds: 60 * 60,
+    };
+    const payloadJwt2 = {
+      username: user.username,
+      email: user.email,
+      id: user.id,
+      role: "user",
+      expiresInSeconds: 60 * 60 * 24 * 30,
     };
 
     const token = await utils.GenerateJwt(payloadJwt);
-    const refreshToken = await utils.GenerateJwt(payloadJwt);
+    const refreshToken = await utils.GenerateJwt(payloadJwt2);
 
     await redisClient.set(
-      `refresh-token:${user.email}:${deviceId}`,
+      `refresh-token:${user.email}:${devid}`,
       refreshToken.token,
       { EX: 60 * 60 * 24 * 30 }
     );
@@ -1662,14 +1680,42 @@ export async function CallbackGoogle(
       data: { tokenVersion: (user.tokenVersion || 0) + 1 },
     });
 
-    const userRefreshed = await prisma.user.findUnique({ where: { email } });
+    // 📧 Send Professional Login Email
+    const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
+    const geo = await utils.Sendlocation(ip);
 
+    const emailMsg = `
+<h2>👋 Hi, ${user.username || name}</h2>
+
+<p>We noticed a new login to your account <strong>(${email})</strong>.</p>
+
+<table style="border-collapse: collapse;">
+  <tr><td>🕒 <b>Time</b></td><td>${new Date().toLocaleString()}</td></tr>
+  <tr><td>📍 <b>Location</b></td><td>${geo.City || "Unknown"}, ${geo.Country || ""}</td></tr>
+  <tr><td>🌐 <b>IP Address</b></td><td>${geo.Query || ip}</td></tr>
+  <tr><td>🖥️ <b>Device</b></td><td>${req.get("User-Agent") || "Unknown"}</td></tr>
+</table>
+
+<p>If this was you — awesome! You’re all set 🎉</p>
+<p>If this wasn’t you, please secure your account immediately.</p>
+
+<hr>
+<p>— The Artemisa Security Team 🌙</p>
+`;
+
+    await utils.SendEmailSmtp(res,email,emailMsg );
+
+    // ✅ Final Response
     return res.json({
       token,
-      user: userRefreshed,
-      device: { id: deviceId },
+      refreshToken,
+      user,
+      message: "User registered and logged in successfully ✅",
+      deviceRecord,
+      location: geo,
     });
   } catch (err) {
+    console.error("CallbackGoogle err:", err);
     next(err);
   }
 }
