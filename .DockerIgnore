@@ -1,0 +1,58 @@
+# Dependencies (CRITICAL - don't copy local node_modules!)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build outputs (we'll build fresh in Docker)
+dist/
+build/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+*.test.ts
+*.spec.ts
+__tests__/
+
+# Documentation
+README.md
+docs/
+*.md
+!CHANGELOG.md
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc development files
+.prettierrc*
+.eslintrc*
+.editorconfig
+nodemon.json
