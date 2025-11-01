@@ -454,7 +454,14 @@ If this was not you, immediately change your password!
     });
 
     return utils.SendRes(res, {
-      User: user,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+        isEmailVerified: user.isEmailVerified,
+      },
       DeviceRecord: deviceRecord,
       Token: accessObj.token,
       Refresh_token: refreshObj.token,
@@ -806,56 +813,55 @@ export async function ReauthCode(req: Request, res: Response, next: NextFunction
 
 export async function ChangePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { password, confirm } = req.body;
-    const email: string | undefined = (req as any).user?.email || req.body?.email;
-    
-    if (!email) {
-      throw new AppError("You are unauthorized to access this route", 401);
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+ const email: string | undefined=(req as any ).user?.email
+    if (!email || !oldPassword || !newPassword || !confirmPassword) {
+      throw new AppError("Please provide email, old password, new password, and confirmation", 400);
     }
-    
-    const passValidation: string = await utils.ValidatePassword(password);
-    
-    if (passValidation !== "0") {
-      throw new AppError(passValidation, 400);
-    }
-    
+
     const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser | null;
-    
     if (!user) {
       throw new AppError("User not found", 404);
     }
-    
-    const score: zxcvbn.ZXCVBNResult = utils.AnalisePass(password, user);
-    
+
+    const isOldPassValid = await utils.CheckPass(oldPassword, user.password);
+    if (!isOldPassValid) {
+      throw new AppError("Old password is incorrect", 401);
+    }
+
+    const passValidation: string = await utils.ValidatePassword(newPassword);
+    if (passValidation !== "0") {
+      throw new AppError(passValidation, 400);
+    }
+
+    const score: zxcvbn.ZXCVBNResult = utils.AnalisePass(newPassword, user);
     if (score.score < 3) {
-      throw new AppError("Your password is not strong enough", 401);
+      throw new AppError("Your new password is not strong enough", 401);
     }
-    
-    if (confirm !== password) {
-      throw new AppError("Confirm password does not match the password", 401);
+
+    if (confirmPassword !== newPassword) {
+      throw new AppError("Confirm password does not match the new password", 400);
     }
-    
-    const oldPassCheck: string = await utils.NotOldPassword(password, user.id);
-    
+
+    const oldPassCheck: string = await utils.NotOldPassword(newPassword, user.id);
     if (oldPassCheck !== "0") {
       throw new AppError(oldPassCheck, 401);
     }
 
     const salt: string = crypto.randomBytes(16).toString("hex");
-    const hashed: string = await utils.HashPassword(password, salt);
-    
-    await prisma.user.updateMany({ 
-      where: { email }, 
-      data: { saltPassword: salt, password: hashed } 
+    const hashed: string = await utils.HashPassword(newPassword, salt);
+
+    await prisma.user.updateMany({
+      where: { email },
+      data: { saltPassword: salt, password: hashed, tokenVersion: (user.tokenVersion || 0) + 1 }
     });
-    
+
     await utils.AddPasswordHistory(hashed, user.id);
 
     const ip: string = req.ip || (req as any).connection?.remoteAddress || "unknown";
-    const username: string = (req as any).user?.username || user.username || "user";
     const geo: utils.GeoData | null = await utils.Sendlocation(ip).catch(() => null);
-    
-    const message: string = `Hi, ${username}
+
+    const message: string = `Hi, ${user.username || "user"}
 
 We're letting you know that the password for your account (${email}) was just changed.
 
@@ -867,19 +873,14 @@ We're letting you know that the password for your account (${email}) was just ch
 If you did NOT change your password, please secure your account immediately.
 — The Artemisa Team
 `;
-    
-    await prisma.user.updateMany({ 
-      where: { email }, 
-      data: { tokenVersion: (user.tokenVersion || 0) + 1 } 
-    });
-    
-    utils.SendEmailSmtp(res, email, message).catch((err) => {
+
+    utils.SendEmailSmtp(res, email, message).catch(() => {
       throw new AppError("Failed to send password change email", 500);
     });
-    
-    return utils.SendRes(res, { 
-      Message: "Password updated correctly", 
-      Score: score 
+
+    return utils.SendRes(res, {
+      Message: "Password updated successfully",
+      Score: score
     });
   } catch (err) {
     next(err);
@@ -888,36 +889,29 @@ If you did NOT change your password, please secure your account immediately.
 
 export async function ChangeEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { email: newEmail } = (req as any).body;
+    const { email: newEmail } = req.body;
     const currentEmail: string | undefined = (req as any).user?.email || req.body?.currentEmail;
-    
-    if (!newEmail) {
-      throw new AppError("Email is required", 400);
-    }
-    
-    if (!currentEmail) {
-      throw new AppError("Must provide your current email", 401);
-    }
-    
-    if (newEmail === currentEmail) {
-      throw new AppError("New email must be different than the old one", 401);
-    }
-    
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
-      throw new AppError("Input email is not valid", 401);
-    }
 
-    const ok: boolean = await utils.VerifEmailHelper(res, currentEmail, newEmail);
-    
-    if (!ok) {
-      throw new AppError("Failed to send verification email", 500);
-    }
+    if (!newEmail) throw new AppError("Email is required", 400);
+    if (!currentEmail) throw new AppError("Must provide your current email", 401);
+    if (newEmail === currentEmail) throw new AppError("New email must be different than the old one", 401);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) throw new AppError("Input email is not valid", 401);
 
-    return utils.SendRes(res, { message: "Now you can verify your email to change it" });
+    const user = await prisma.user.findUnique({ where: { email: currentEmail } });
+    if (!user) throw new AppError("User not found", 404);
+
+    const exists = await prisma.user.findUnique({ where: { email: newEmail } });
+    if (exists) throw new AppError("This email is already in use", 409);
+
+    const ok = await utils.VerifEmailHelper(res, currentEmail, newEmail);
+    if (!ok) throw new AppError("Failed to send verification email", 500);
+
+    return utils.SendRes(res, { message: "Verification email sent successfully. Please confirm to complete the change." });
   } catch (err) {
     next(err);
   }
 }
+
 
 export async function VerifyNewEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -981,7 +975,14 @@ export async function GetUser(req: Request, res: Response, next: NextFunction): 
       throw new AppError("User not found", 404);
     }
     
-    return utils.SendRes(res, { User: user });
+    return utils.SendRes(res, {user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+        isEmailVerified: user.isEmailVerified,
+      },});
   } catch (err) {
     next(err);
   }
