@@ -1,6 +1,9 @@
 import prisma from "../../database";
 import { UpdateUserProfileDTO, UserProfileResponseDTO } from "../dtos/user.dto";
 import { OSType } from "@prisma/client";
+import { AppError } from "@/errors/AppError";
+import bcrypt from "bcrypt";
+
 export class UserService {
   /**
    * Get user profile by username
@@ -102,6 +105,24 @@ export class UserService {
     id: string,
     data: UpdateUserProfileDTO
   ): Promise<UserProfileResponseDTO> {
+    if (data.username) {
+      const existingUser = await prisma.user.findUnique({
+        where: { username: data.username },
+      });
+      if (existingUser && existingUser.id !== id) {
+        throw new AppError(
+          "Username already exists. Please choose another.",
+          400
+        );
+      }
+    }
+
+    let hashedPassword: string | undefined;
+    if (data.password) {
+      const saltRounds = 10;
+      hashedPassword = await bcrypt.hash(data.password, saltRounds);
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id },
       data: {
@@ -112,7 +133,8 @@ export class UserService {
         website: data.website,
         dateOfBirth: data.dateOfBirth,
         protectedAccount: data.protectedAccount,
-        // note: profileMediaId and coverMediaId are updated via dedicated methods below
+        email: data.email,
+        ...(hashedPassword && { password: hashedPassword }), // only update password if provided
       },
       select: {
         id: true,
@@ -161,7 +183,6 @@ export class UserService {
           : null,
     };
   }
-
   /**
    * Search for users by name or username
    */

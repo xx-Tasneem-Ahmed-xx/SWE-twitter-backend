@@ -110,24 +110,25 @@ async function main() {
   console.log("Seeding fresh data...");
 
   // ====== USERS (5) ======
-  const users = [];
-  for (let i = 1; i <= 5; i++) {
-    const u = await prisma.user.create({
-      data: {
-        id: `u${i}`,
-        username: `test_user${i}`,
-        email: `test_user${i}@example.com`,
-        password: `hashedPassword${i}`,
-        saltPassword: `salt${i}`,
-        name: faker.person.fullName(),
-        bio: faker.lorem.sentence(),
-        verified: i % 2 === 0,
-        protectedAccount: false,
-        dateOfBirth: faker.date.birthdate({ min: 18, max: 40, mode: "age" }),
-      },
-    });
-    users.push(u);
-  }
+   const users = [];
+   for (let i = 1; i <= 5; i++) {
+     const u = await prisma.user.create({
+       data: {
+         id: faker.string.uuid(),
+         username: `test_user${i}`,
+         email: `test_user${i}@example.com`,
+         password: `hashedPassword${i}`,
+         saltPassword: `salt${i}`,
+         name: faker.person.fullName(),
+         bio: faker.lorem.sentence(),
+         verified: i % 2 === 0,
+         protectedAccount: false,
+         dateOfBirth: faker.date.birthdate({ min: 18, max: 40, mode: "age" }),
+       },
+     });
+     users.push(u);
+   }
+
 
   // ====== MEDIA (5) ======
   const medias = [];

@@ -145,33 +145,21 @@ export class UserController {
     }
   }
 
-  async updateUserProfile(req: Request, res: Response, next: NextFunction) {
+   async updateUserProfile(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
       const userId = (req as any).user?.id;
 
       if (!userId || userId !== id) {
         throw new AppError("Forbidden: you can only update your own profile", 403);
-        // return res.status(403).json({
-        //   id: id,
-        //   userid: userId,
-        //   message: "Forbidden: you can only update your own profile",
-        // });
       }
 
       const parsedBody = UpdateUserProfileDTOSchema.safeParse(req.body);
       if (!parsedBody.success) {
         throw new AppError("Invalid input data", 400);
-        // return res.status(400).json({
-        //   error: "Invalid input data",
-        //   details: parsedBody.error.format(),
-        // });
       }
 
-      const updatedUser = await userService.updateUserProfile(
-        id,
-        parsedBody.data
-      );
+      const updatedUser = await userService.updateUserProfile(id, parsedBody.data);
 
       return res.status(200).json({
         message: "Profile updated successfully",

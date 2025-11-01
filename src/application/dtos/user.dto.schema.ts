@@ -1,4 +1,4 @@
-import z, { date } from "zod";
+import z, { date, email } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
 extendZodWithOpenApi(z);
@@ -14,11 +14,32 @@ export const UpdateUserProfileDTOSchema = z
   .object({
     name: StringSchema.optional(),
     username: StringSchema.optional(),
-    bio: StringSchema.optional(),
-    address: StringSchema.optional(),
-    website: StringSchema.optional(),
+    bio: z.string().optional(),
+    address: z.string().optional(),
+    website: z
+      .string()
+      .optional()
+      .refine(
+        (val) =>
+          !val || // allow undefined
+          val === "" || // allow empty string
+          /^(https?:\/\/)?([\w-]+\.)+[\w-]{2,}(\/\S*)?$/.test(val), // validate URL
+        { message: "Invalid URL format" }
+      ),
     protectedAccount: z.boolean().optional(),
     dateOfBirth: z.string().optional(),
+    email: z.string().email().optional(),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters long")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number")
+      .regex(
+        /[!@#$%^&*(),.?":{}|<>]/,
+        "Password must contain at least one special character"
+      )
+      .optional(),
   })
   .openapi("UpdateUserProfileDTO");
 
