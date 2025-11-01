@@ -16,6 +16,8 @@ import { SearchServiceSchema } from "../dtos/tweets/service/tweets.dto.schema";
 import { PeopleFilter, SearchTab } from "../dtos/tweets/tweet.dto.schema";
 import { record } from "zod";
 import { SearchParams } from "@/types/types";
+import encoderService from "@/application/services/encoder";
+import { attachHashtagsToTweet } from "./hashtags";
 
 export class TweetService {
   private validateId(id: string) {
@@ -24,39 +26,52 @@ export class TweetService {
     }
   }
   async createTweet(dto: CreateTweetServiceDto) {
-    return prisma.tweet.create({
-      data: { ...dto, tweetType: TweetType.TWEET },
+    return prisma.$transaction(async (tx) => {
+      const tweet = await tx.tweet.create({
+        data: { ...dto, tweetType: TweetType.TWEET },
+      });
+      // TODO: Background Job
+      await attachHashtagsToTweet(tweet.id, tweet.content, tx);
+      return tweet;
     });
   }
 
   async createQuote(dto: CreateReplyOrQuoteServiceDTO) {
     const valid = await validToRetweetOrQuote(dto.parentId);
-    if (valid)
-      return prisma.$transaction([
-        prisma.tweet.create({
-          data: { ...dto, tweetType: TweetType.QUOTE },
-        }),
-        prisma.tweet.update({
-          where: { id: dto.parentId },
-          data: { quotesCount: { increment: 1 } },
-        }),
-      ]);
-    else throw new AppError("You cannot quote a protected tweet", 403);
+    if (!valid) throw new AppError("You cannot quote a protected tweet", 403);
+
+    return prisma.$transaction(async (tx) => {
+      const quote = await prisma.tweet.create({
+        data: { ...dto, tweetType: TweetType.QUOTE },
+      });
+
+      await prisma.tweet.update({
+        where: { id: dto.parentId },
+        data: { quotesCount: { increment: 1 } },
+      });
+      // TODO: Background Job
+      await attachHashtagsToTweet(quote.id, quote.content, tx);
+      return quote;
+    });
   }
 
   async createReply(dto: CreateReplyOrQuoteServiceDTO) {
     const valid = await validToReply(dto.parentId, dto.userId);
-    if (valid)
-      return prisma.$transaction([
-        prisma.tweet.create({
-          data: { ...dto, tweetType: TweetType.REPLY },
-        }),
-        prisma.tweet.update({
-          where: { id: dto.parentId },
-          data: { repliesCount: { increment: 1 } },
-        }),
-      ]);
-    else throw new AppError("You cannot reply to this tweet", 403);
+    if (!valid) throw new AppError("You cannot reply to this tweet", 403);
+
+    return prisma.$transaction(async (tx) => {
+      const reply = await prisma.tweet.create({
+        data: { ...dto, tweetType: TweetType.REPLY },
+      });
+
+      await prisma.tweet.update({
+        where: { id: dto.parentId },
+        data: { repliesCount: { increment: 1 } },
+      });
+      // TODO: Background Job
+      await attachHashtagsToTweet(reply.id, reply.content, tx);
+      return reply;
+    });
   }
 
   async createRetweet(dto: CreateReTweetServiceDto) {
