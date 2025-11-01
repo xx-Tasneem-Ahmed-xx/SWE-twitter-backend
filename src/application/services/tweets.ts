@@ -7,21 +7,19 @@ import {
   CreateReplyOrQuoteServiceDTO,
   CreateReTweetServiceDto,
   CreateTweetServiceDto,
-  CursorServiceDTO,
   SearchServiceDTO,
+  TweetResponses,
 } from "@/application/dtos/tweets/service/tweets.dto";
 import { AppError } from "@/errors/AppError";
-import { generateTweetSumamry } from "@/application/services/aiSummary";
-import { SearchServiceSchema } from "@/application/dtos/tweets/service/tweets.dto.schema";
-import {
-  PeopleFilter,
-  SearchTab,
-} from "@/application/dtos/tweets/tweet.dto.schema";
+import { generateTweetSumamry } from "./aiSummary";
+import { SearchServiceSchema } from "../dtos/tweets/service/tweets.dto.schema";
+import { PeopleFilter, SearchTab } from "../dtos/tweets/tweet.dto.schema";
+import { record } from "zod";
 import { SearchParams } from "@/types/types";
 import encoderService from "@/application/services/encoder";
 import { attachHashtagsToTweet } from "./hashtags";
 
-class TweetService {
+export class TweetService {
   private validateId(id: string) {
     if (!id || typeof id !== "string") {
       throw new AppError("Invalid ID", 400);
@@ -79,17 +77,17 @@ class TweetService {
   async createRetweet(dto: CreateReTweetServiceDto) {
     this.validateId(dto.parentId);
     const valid = await validToRetweetOrQuote(dto.parentId);
-    if (!valid) throw new AppError("You cannot retweet a protected tweet", 403);
-
-    return prisma.$transaction([
-      prisma.retweet.create({
-        data: { userId: dto.userId, tweetId: dto.parentId },
-      }),
-      prisma.tweet.update({
-        where: { id: dto.parentId },
-        data: { retweetCount: { increment: 1 }, lastActivityAt: new Date() },
-      }),
-    ]);
+    if (valid)
+      return prisma.$transaction([
+        prisma.retweet.create({
+          data: { userId: dto.userId, tweetId: dto.parentId },
+        }),
+        prisma.tweet.update({
+          where: { id: dto.parentId },
+          data: { retweetCount: { increment: 1 } },
+        }),
+      ]);
+    else throw new AppError("You cannot retweet a protected tweet", 403);
   }
 
   async getRetweets(tweetId: string) {
@@ -98,7 +96,12 @@ class TweetService {
       where: { tweetId },
       select: {
         user: {
-          select: this.userSelectFields(),
+          select: {
+            name: true,
+            username: true,
+
+            verified: true,
+          },
         },
       },
     });
@@ -110,7 +113,13 @@ class TweetService {
       where: { id },
       include: {
         user: {
-          select: this.userSelectFields(),
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            profileMedia: { select: { id: true, keyName: true } },
+            verified: true,
+          },
         },
       },
     });
@@ -187,7 +196,13 @@ class TweetService {
         tweet: {
           include: {
             user: {
-              select: this.userSelectFields(),
+              select: {
+                username: true,
+                name: true,
+                profileMedia: { select: { id: true, keyName: true } },
+                verified: true,
+                protectedAccount: true,
+              },
             },
           },
         },
@@ -200,7 +215,13 @@ class TweetService {
       where: { parentId: tweetId },
       include: {
         user: {
-          select: this.userSelectFields(),
+          select: {
+            username: true,
+            name: true,
+            profileMedia: { select: { id: true, keyName: true } },
+            verified: true,
+            protectedAccount: true,
+          },
         },
       },
     });
@@ -257,7 +278,12 @@ class TweetService {
       where: { tweetId },
       select: {
         user: {
-          select: this.userSelectFields(),
+          select: {
+            name: true,
+            username: true,
+            profileMedia: { select: { id: true, keyName: true } },
+            verified: true,
+          },
         },
       },
     });
@@ -286,32 +312,6 @@ class TweetService {
     return {
       tweetId: tweetId,
       summary: summary,
-    };
-  }
-
-  async getUserTweets(dto: CursorServiceDTO) {
-    const tweets = await prisma.tweet.findMany({
-      where: { userId: dto.userId },
-      select: {
-        ...this.tweetSelectFields(),
-        retweets: { select: { user: { select: this.userSelectFields() } } },
-      },
-      orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
-      take: dto.limit + 1,
-      ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
-    });
-
-    const hasNextPage = tweets.length > dto.limit;
-    const paginatedTweets = hasNextPage ? tweets.slice(0, -1) : tweets;
-    const cursor = {
-      id: paginatedTweets[paginatedTweets.length - 1].id,
-      lastActivityAt:
-        paginatedTweets[paginatedTweets.length - 1].lastActivityAt,
-    };
-    const hashedCursor = encoderService.encode(cursor);
-    return {
-      data: paginatedTweets,
-      nextCursor: hasNextPage ? hashedCursor : null,
     };
   }
 
@@ -399,23 +399,11 @@ class TweetService {
     return where;
   }
 
-  private userSelectFields() {
-    return {
-      id: true,
-      name: true,
-      username: true,
-      profileMedia: { select: { id: true } },
-      protectedAccount: true,
-      verified: true,
-    };
-  }
-
   private tweetSelectFields() {
     return {
       id: true,
       content: true,
       createdAt: true,
-      lastActivityAt: true,
       likesCount: true,
       repliesCount: true,
       quotesCount: true,
@@ -424,11 +412,15 @@ class TweetService {
       tweetType: true,
       parentId: true,
       user: {
-        select: this.userSelectFields(),
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          profileMedia: { select: { id: true, keyName: true } },
+          verified: true,
+          protectedAccount: true,
+        },
       },
     };
   }
 }
-
-const tweetService = new TweetService();
-export default tweetService;

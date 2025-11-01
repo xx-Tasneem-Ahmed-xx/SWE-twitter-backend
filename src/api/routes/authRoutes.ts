@@ -614,15 +614,15 @@ router.post("/login", typedAuthController.Login); //tested
  *       500:
  *         description: Internal server error while sending reset code.
  */
-router.post("/forget-password",  typedAuthController.ForgetPassword);
+router.post("/forget-password", Auth(),  typedAuthController.ForgetPassword);
 /**
  * @openapi
- * /verify-reset-code:
+ * /reset-password:
  *   post:
  *     tags:
- *       - Auth
- *     summary: Verify password reset code
- *     description: Verifies the reset code sent to the user's email. Once verified, the user can proceed to reset the password.
+ *       - Password Management
+ *     summary: Reset user password
+ *     description: Resets a user's password using a verification code sent via email.
  *     requestBody:
  *       required: true
  *       content:
@@ -632,78 +632,22 @@ router.post("/forget-password",  typedAuthController.ForgetPassword);
  *             required:
  *               - email
  *               - code
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 description: The email of the user requesting password reset.
- *               code:
- *                 type: string
- *                 description: The 6-digit reset code sent to the user's email.
- *     responses:
- *       200:
- *         description: Reset code verified successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Reset code verified, you can now enter a new password"
- *       400:
- *         description: Validation error or missing fields
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       401:
- *         description: Invalid reset code
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       404:
- *         description: User not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-
-router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
-
-/**
- * @openapi
- * /reset-password:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Reset user password
- *     description: Allows a user to reset their password after verifying the reset code. Requires email and new password.
- *     security:
- *       - bearerAuth: []   # assuming Auth() middleware uses Bearer token
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
  *               - password
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
- *                 description: The email of the user whose password is being reset.
+ *                 example: "john@example.com"
+ *               code:
+ *                 type: string
+ *                 example: "583920"
  *               password:
  *                 type: string
  *                 format: password
- *                 description: The new password to set for the user.
+ *                 example: "NewStrongPassword@123"
  *     responses:
  *       200:
- *         description: Password reset successfully, notification sent
+ *         description: Password reset successfully and notification sent.
  *         content:
  *           application/json:
  *             schema:
@@ -711,70 +655,42 @@ router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "Password reset successfully, notification sent"
+ *                   example: Password reset successfully, notification sent
  *       400:
- *         description: Validation error or missing fields
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *         description: Missing fields, invalid code, or expired reset request.
  *       401:
- *         description: Invalid reset code or unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       404:
- *         description: User not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *         description: Unauthorized reset attempt or invalid code.
  *       500:
- *         description: Internal server error (email sending / DB update failed)
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *         description: Internal server error during password reset.
  */
-router.post("/reset-password",  typedAuthController.ResetPassword);
+router.post("/reset-password", Auth(),  typedAuthController.ResetPassword);
 
 // --- Session & Logout Routes ---
 /**
  * @openapi
  * /refresh:
- *   post:
+ *   get:
  *     tags:
  *       - Auth
  *     summary: Refresh access token
- *     description: Generates a new short-lived access token using a valid refresh token provided in the request body.
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               refresh_token:
- *                 type: string
- *                 example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *     description: Generates a new short-lived access token using a valid refresh token stored in HTTP-only cookies.
  *     responses:
  *       200:
- *         description: New access token generated successfully.
+ *         description: New access token generated successfully and stored in cookies.
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 access_token:
+ *                 message:
  *                   type: string
- *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...                
+ *                   example: Access token refreshed successfully
  *       401:
- *         description: Missing or invalid refresh token.
+ *         description: Missing or invalid refresh token cookie.
  *       500:
  *         description: Internal server error during token refresh.
  */
-router.post("/refresh",  typedAuthController.Refresh);
+router.get("/refresh",  typedAuthController.Refresh);
 /**
  * @openapi
  * /logout:
@@ -1224,40 +1140,6 @@ router.put("/update_username",Auth(),typedAuthController.UpdateUsername);
  *                   example: Internal Server Error
  */
 router.post("/getUser",typedAuthController.CheckEmail);
-
-/**
- * @swagger
- * /user/{id}/email:
- *   get:
- *     summary: Get user's email by ID
- *     tags:
- *       - User
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: ID of the user
- *     responses:
- *       200:
- *         description: User email retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 email:
- *                   type: string
- *                   example: user@example.com
- *       400:
- *         description: User ID is missing
- *       404:
- *         description: User not found
- *       500:
- *         description: Internal server error
- */
-router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
 router.use(AfterChange());
 router.use(GeoGurd());
 export default router;

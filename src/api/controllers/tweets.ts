@@ -1,16 +1,15 @@
-import { CursorServiceSchema } from "@/application/dtos/tweets/service/tweets.dto.schema";
 import { SearchDTOSchema } from "@/application/dtos/tweets/tweet.dto.schema";
-import { resolveUsernameToId } from "@/application/utils/tweets/utils";
+import { TweetService } from "@/application/services/tweets";
 import { Request, Response, NextFunction } from "express";
-import tweetService from "@/application/services/tweets";
-import encoderService from "@/application/services/encoder";
+
+const tweetService = new TweetService();
 
 export class TweetController {
-  
   async createTweet(req: Request, res: Response, next: NextFunction) {
     try {
       const data = req.body;
       const userId = (req as any).user.id;
+      console.log((req as any).user);
       const tweet = await tweetService.createTweet({ ...data, userId: userId });
       res.status(201).json(tweet);
     } catch (error) {
@@ -172,30 +171,6 @@ export class TweetController {
       const { id } = req.params;
       const tweetSummary = await tweetService.getTweetSummary(id);
       res.status(200).json(tweetSummary);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async getUserTweets(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { username } = req.params;
-      const query = req.query;
-
-      const { id: userId } = await resolveUsernameToId(username);
-      const decodedCursor = encoderService.decode<{
-        lastActivityAt: string;
-        id: string;
-      }>(query.cursor as string);
-
-      const parsedDTO = CursorServiceSchema.parse({
-        userId,
-        limit: query.limit,
-        cursor: decodedCursor ?? undefined,
-      });
-
-      const tweets = await tweetService.getUserTweets(parsedDTO);
-      res.status(200).json(tweets);
     } catch (error) {
       next(error);
     }

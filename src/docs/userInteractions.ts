@@ -1,7 +1,6 @@
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import {
   UserInteractionParamsSchema,
-  UserInteractionQuerySchema,
   FollowsListResponseSchema,
 } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 
@@ -70,10 +69,7 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
     path: "/api/followers/{username}",
     summary: "Get a list of followers for a user by their username",
     tags: ["User Interactions"],
-    request: {
-      params: UserInteractionParamsSchema,
-      query: UserInteractionQuerySchema,
-    },
+    request: { params: UserInteractionParamsSchema },
     responses: {
       200: {
         description: "List of followers retrieved successfully",
@@ -94,9 +90,6 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
     path: "/api/followers/requests",
     summary: "Get a list of follow requests",
     tags: ["User Interactions"],
-    request: {
-      query: UserInteractionQuerySchema,
-    },
     responses: {
       200: {
         description: "List of follow requests retrieved successfully",
@@ -115,10 +108,7 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
     path: "/api/followings/{username}",
     summary: "Get a list of followings for a user by their username",
     tags: ["User Interactions"],
-    request: {
-      params: UserInteractionParamsSchema,
-      query: UserInteractionQuerySchema,
-    },
+    request: { params: UserInteractionParamsSchema },
     responses: {
       200: {
         description: "List of followings retrieved successfully",
@@ -167,9 +157,6 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
     path: "/api/blocks",
     summary: "Get a list of blocked users",
     tags: ["User Interactions"],
-    request: {
-      query: UserInteractionQuerySchema,
-    },
     responses: {
       200: {
         description: "List of blocked users retrieved successfully",
@@ -217,9 +204,6 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
     path: "/api/mutes",
     summary: "Get a list of muted users",
     tags: ["User Interactions"],
-    request: {
-      query: UserInteractionQuerySchema,
-    },
     responses: {
       200: {
         description: "List of muted users retrieved successfully",

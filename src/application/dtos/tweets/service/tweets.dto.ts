@@ -3,7 +3,6 @@ import {
   CreateReplyOrQuoteServiceSchema,
   createReTweetServiceSchema,
   createTweetServiceSchema,
-  CursorServiceSchema,
   SearchServiceSchema,
   TimelineServiceSchema,
 } from "@/application/dtos/tweets/service/tweets.dto.schema";
@@ -24,5 +23,3 @@ export type TimelineServiceDTO = z.infer<typeof TimelineServiceSchema>;
 export type SearchServiceDTO = z.infer<typeof SearchServiceSchema>;
 
 export type TweetResponses = z.infer<typeof TweetResponsesSchema>;
-
-export type CursorServiceDTO = z.infer<typeof CursorServiceSchema>;
