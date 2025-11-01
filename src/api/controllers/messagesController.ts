@@ -45,38 +45,56 @@ const getUnseenMessages = async (chatId: string) => {
   }
 };
 
-const CreateChatFun = async (DMChat: boolean, participant_ids: string[]) => {
-    try{
-        //ceating DM chat
+export const CreateChatFun = async (DMChat: boolean, participant_ids: string[]) => {
+    // validate input and remove duplicates to avoid creating duplicate chatUser rows
+    if (!Array.isArray(participant_ids)) {
+        throw new Error("participant_ids must be an array");
+    }
+
+    // remove duplicates
+    const uniqueParticipantIds = Array.from(new Set(participant_ids));
+
+    if (uniqueParticipantIds.length === 0) {
+        throw new Error("Participant IDs are required");
+    }
+
+    if (!DMChat && uniqueParticipantIds.length < 2) {
+        throw new Error("At least two participants are required to create a group chat");
+    }
+
+    try {
+        // create chat with deduped participants
         const newChat = await prisma.chat.create({
             data: {
                 DMChat: DMChat,
                 chatUsers: {
-                    create: participant_ids.map(id => ({ userId: id }))
+                    create: uniqueParticipantIds.map((id) => ({ userId: id })),
                 },
-            }
-        })
-        if(!DMChat){
+            },
+        });
+
+        if (!DMChat) {
             const users = await prisma.user.findMany({
                 where: {
-                    id: { in: participant_ids }
+                    id: { in: uniqueParticipantIds },
                 },
-                select: { name: true }
+                select: { name: true },
             });
-            const groupName = users.map((user) => user.name).join(', ');
+            const groupName = users.map((user) => user.name).join(", ");
             await prisma.chatGroup.create({
                 data: {
                     chatId: newChat.id,
-                    name: groupName
-                }
-            })
+                    name: groupName,
+                },
+            });
         }
-        return newChat;
-    }catch(error){
-            return error;
-    }
 
-}
+        return newChat;
+    } catch (error) {
+        // rethrow so callers/tests receive a rejected promise
+        throw error;
+    }
+};
 
 export const getChatInfo = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -257,8 +275,6 @@ export const getUnseenMessagesCount = async (req: Request, res: Response, next: 
     }
 }
 
-
-
 export const updateMessageStatus = async (req: Request, res: Response) => {
   try {
     const chatId = req.params.chatId;
@@ -279,13 +295,13 @@ export const updateMessageStatus = async (req: Request, res: Response) => {
   }
 };
 
-
-
-
 export const createChat = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const{ DMChat, participant_ids }: ChatInput = req.body;
         const userId = (req as any).user.id;
+        if (participant_ids.length === 0) {
+            return res.status(400).json({ error: 'Participant IDs are required' });
+        }
         if(participant_ids.length < 2 && DMChat === false){
             return res.status(400).json({ error: 'At least two participants are required to create a chat' });
         }
@@ -300,6 +316,8 @@ export const createChat = async (req: Request, res: Response, next: NextFunction
         participant_ids.push(userId as string);
         const newChat = await CreateChatFun(DMChat, participant_ids);
         if(newChat !== undefined){
+            console.log(newChat);
+            
             return res.status(201).json({ newChat });
         }
     } catch (error) {
