@@ -1407,7 +1407,14 @@ export async function CallbackGithub(req: Request, res: Response, next: NextFunc
       token,
       refreshToken,
       message: "User logged in successfully via GitHub ✅",
-      user,
+     user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+        isEmailVerified: user.isEmailVerified,
+      },
       deviceRecord,
       location: geo,
     });
@@ -1532,7 +1539,14 @@ export async function CallbackGoogle(req: Request, res: Response, next: NextFunc
     return res.json({
       token,
       refreshToken,
-      user,
+     user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+        isEmailVerified: user.isEmailVerified,
+      },
       message: "User registered and logged in successfully ✅",
       deviceRecord,
       location: geo,
