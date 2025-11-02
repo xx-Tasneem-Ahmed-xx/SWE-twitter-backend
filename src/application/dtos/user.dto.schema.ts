@@ -27,7 +27,7 @@ export const UserResponseDTOSchema = z
     username: StringSchema,
     email: z.string().email(),
     bio: StringSchema.optional().nullable(),
-    dateOfBirth: z.date(),
+    dateOfBirth: z.date().nullable(),
     joinDate: z.date(),
     verified: z.boolean(),
     address: StringSchema.optional().nullable(),
