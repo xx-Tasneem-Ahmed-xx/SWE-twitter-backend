@@ -399,22 +399,24 @@ export async function Login(req: Request, res: Response, next: NextFunction): Pr
 
     const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
 
-    const accessObj = generateJwt({
+    const accessObj = await utils.GenerateJwt({
       username: user.username,
       email,
       id: user.id,
       expiresInSeconds: 60 * 60,
       version: user.tokenVersion || 0,
       devid,
+      role:"user", 
     });
 
-    const refreshObj = generateJwt({
+    const refreshObj = await utils.GenerateJwt({
       username: user.username,
       email,
       id: user.id,
       expiresInSeconds: 30 * 24 * 60 * 60,
       version: user.tokenVersion || 0,
       devid,
+       role: "user",
     });
 
     res.cookie("refresh_token", refreshObj.token, {
@@ -445,13 +447,13 @@ If this was not you, immediately change your password!
       throw new AppError("Failed to send login notification email", 500);
     });
 
-    await addNotification(user.id as UUID, {
-      title: 'LOGIN',
-      body: `Login from ${deviceRecord || "unknown device"} at ${location}`,
-      actorId: user.id as UUID,
-    }, (err) => {
-      if (err) throw new AppError("Failed to create login notification", 500);
-    });
+    // await addNotification(user.id as UUID, {
+    //   title: 'LOGIN',
+    //   body: `Login from ${deviceRecord || "unknown device"} at ${location}`,
+    //   actorId: user.id as UUID,
+    // }, (err) => {
+    //   if (err) throw new AppError("Failed to create login notification", 500);
+    // });
 
     return utils.SendRes(res, {
       user: {
@@ -494,13 +496,14 @@ export async function Refresh(req: Request, res: Response, next: NextFunction): 
 
     const { devid } = await utils.SetDeviceInfo(req, res, email);
 
-    const newAccess = generateJwt({
+    const newAccess = await utils.GenerateJwt({
       username,
       email,
       id,
       expiresInSeconds: 60 * 60,
       version,
       devid,
+      role: "user",
     });
 
     const jti: string = uuidv4();
@@ -903,60 +906,103 @@ export async function ChangeEmail(req: Request, res: Response, next: NextFunctio
     const exists = await prisma.user.findUnique({ where: { email: newEmail } });
     if (exists) throw new AppError("This email is already in use", 409);
 
-    const ok = await utils.VerifEmailHelper(res, currentEmail, newEmail);
-    if (!ok) throw new AppError("Failed to send verification email", 500);
+    // Generate random 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(code);
 
-    return utils.SendRes(res, { message: "Verification email sent successfully. Please confirm to complete the change." });
+    // Store in Redis with 10 min expiration
+    await redisClient.setEx(`ChangeEmail:code:${currentEmail}`, 15*60, code);
+    await redisClient.setEx(`ChangeEmail:new:${currentEmail}`, 15*60, newEmail);
+
+    // Send verification email with the code
+    const msg= `Hi ${user.name || "there"},
+        You requested to change your account email. Use the verification code below to confirm:
+        ${code}
+        This code will expire in 15 minutes
+        If you didn’t request this, please ignore this message.
+        -Artemsia team
+      `;
+    await utils.SendEmailSmtp(res, newEmail, msg);
+
+   
+
+    return utils.SendRes(res, { message: "Verification code sent successfully to your new email" });
   } catch (err) {
     next(err);
   }
 }
+
+
 
 
 export async function VerifyNewEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { email: desiredEmail, code } = (req as any).body;
+    const { email: desiredEmail, code } = req.body;
     const currentEmail: string | undefined = (req as any).user?.email || req.body?.currentEmail;
     
-    if (!currentEmail) {
-      throw new AppError("Current email is required", 401);
-    }
-    
-    if (!code) {
-      throw new AppError("Verification code is required", 400);
-    }
-    
-    const stored: string | null = await redisClient.get(`ChangeEmail:code:${currentEmail}`);
-    
-    if (!stored) {
-      throw new AppError("Verification code not found or expired", 400);
-    }
-    
-    if (stored !== code) {
-      throw new AppError("Enter code correctly", 401);
-    }
-    
-    await prisma.user.updateMany({ 
-      where: { email: currentEmail }, 
-      data: { email: desiredEmail } 
+    if (!currentEmail) throw new AppError("Current email is required", 401);
+    if (!code) throw new AppError("Verification code is required", 400);
+
+    const storedCode = await redisClient.get(`ChangeEmail:code:${currentEmail}`);
+    const storedNewEmail = await redisClient.get(`ChangeEmail:new:${currentEmail}`);
+
+    if (!storedCode || !storedNewEmail) throw new AppError("Verification code not found or expired", 400);
+    if (storedCode !== code) throw new AppError("Incorrect verification code", 401);
+    if (storedNewEmail !== desiredEmail) throw new AppError("Email mismatch", 401);
+
+    // ✅ Update email and increment token version (optional)
+    const user = await prisma.user.update({
+      where: { email: currentEmail },
+      data: { email: desiredEmail }
     });
-    
-    const updated = await prisma.user.findUnique({ where: { email: desiredEmail } });
-    
-    if (!updated) {
-      throw new AppError("Failed to update user with the new email", 500);
-    }
-    
-    await prisma.user.updateMany({ 
-      where: { email: desiredEmail }, 
-      data: { tokenVersion: (updated.tokenVersion || 0) + 1 } 
+
+    // ✅ Generate new tokens with updated email
+    const accessObj = await utils.GenerateJwt({
+      username: user.username,
+      email: desiredEmail,
+      id: user.id,
+      expiresInSeconds: 60 * 60, // 1 hour
+      version: user.tokenVersion || 0,
+      devid: null,
+      role: "user"
     });
-    
-    return utils.SendRes(res, { message: "Email changed correctly" });
+
+    const refreshObj = await utils.GenerateJwt({
+      username: user.username,
+      email: desiredEmail,
+      id: user.id,
+      expiresInSeconds: 30 * 24 * 60 * 60, // 30 days
+      version: user.tokenVersion || 0,
+      devid: null,
+      role: "user"
+    });
+
+    // Set new refresh token cookie
+    res.cookie("refresh_token", refreshObj.token, {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.COOKIE_SECURE === "true",
+      sameSite: "lax",
+      domain: CLIENT_DOMAIN,
+    });
+
+    // ✅ Optional: delete old Redis codes
+    await redisClient.del(`ChangeEmail:code:${currentEmail}`);
+    await redisClient.del(`ChangeEmail:new:${currentEmail}`);
+
+    return utils.SendRes(res, {
+      message: "Email changed successfully",
+      newEmail: desiredEmail,
+      Token: accessObj.token,
+      Refresh_token: refreshObj.token
+    });
   } catch (err) {
     next(err);
   }
 }
+
+
+
 
 export async function GetUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -1512,35 +1558,116 @@ export async function CheckEmail(req: Request, res: Response,next:NextFunction):
     return next(err);
   }
 }
-export const UpdateUsername = async (req: Request, res: Response, next: NextFunction) => {
+// export const UpdateUsername = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//    const userId = (req as any).user.id;
+//     const { username } = req.body;
+
+//     if (!userId) {
+//       throw new AppError("Unauthorized: Missing user ID", 401);
+//     }
+
+//     if (!username || typeof username !== 'string' || username.trim() === '') {
+//       throw new AppError("Invalid username", 400);
+//     }
+
+//     const updatedUser = await prisma.user.update({
+//       where: { id: userId },
+//       data: { username },
+//     });
+
+//     return utils.SendRes(res, {
+//       message: 'Username updated successfully ✅',
+//       user: {
+//         id: updatedUser.id,
+//         username: updatedUser.username,
+//       },
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+export const UpdateUsername = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
-   const userId = (req as any).user.id;
+    const userId = (req as any).user?.id;
     const { username } = req.body;
 
-    if (!userId) {
-      throw new AppError("Unauthorized: Missing user ID", 401);
-    }
-
-    if (!username || typeof username !== 'string' || username.trim() === '') {
+    if (!userId) throw new AppError("Unauthorized: Missing user ID", 401);
+    if (!username || typeof username !== "string" || username.trim() === "")
       throw new AppError("Invalid username", 400);
-    }
 
-    const updatedUser = await prisma.user.update({
+    const currentUser = await prisma.user.findUnique({
       where: { id: userId },
-      data: { username },
+      select: { email: true, username: true, tokenVersion: true },
     });
 
+    if (!currentUser) throw new AppError("User not found", 404);
+
+    const newVersion = (currentUser.tokenVersion || 0) + 1;
+
+    // 🧱 Update username and token version
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        username,
+        tokenVersion: newVersion,
+      },
+    });
+
+    // 🪄 Generate new access & refresh tokens
+    const accessObj = await utils.GenerateJwt({
+      username: updatedUser.username,
+      email: currentUser.email,
+      id: updatedUser.id,
+      role: "user",
+      version: newVersion,
+      expiresInSeconds: 60 * 60, // 1 hour
+    });
+
+    const refreshObj = await utils.GenerateJwt({
+      username: updatedUser.username,
+      email: currentUser.email,
+      id: updatedUser.id,
+      role: "user",
+      version: newVersion,
+      expiresInSeconds: 60 * 60 * 24 * 30, // 30 days
+    });
+
+    // 🍪 Set refresh token cookie
+    res.cookie("refresh_token", refreshObj.token, {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.COOKIE_SECURE === "true",
+      sameSite: "lax",
+      domain: CLIENT_DOMAIN,
+    });
+
+    // ✅ Optional: reset session if you’re tracking sessions in Redis
+    await utils.SetSession(req, userId, refreshObj.jti);
+
+    // 🎯 Return result
     return utils.SendRes(res, {
-      message: 'Username updated successfully ✅',
+      message: "Username updated successfully ✅",
       user: {
         id: updatedUser.id,
         username: updatedUser.username,
+        tokenVersion: newVersion,
       },
+      tokens: {
+        access: accessObj.token,
+        refresh: refreshObj.token,
+      },
+      
     });
   } catch (err) {
     next(err);
   }
 };
+
 
 /* --------------------- Exports --------------------- */
 
