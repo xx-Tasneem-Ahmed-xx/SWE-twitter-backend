@@ -10,7 +10,7 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
 
     registry.registerPath({
     method: "get",
-    path: "/api/dm/chat/{chatId}",
+    path: "api/dm/chat/{chatId}",
     summary: "Get chat information",
     description: "Retrieve detailed information about a specific chat including messages, participants, and group details",
     tags: ["Chats"],
@@ -63,7 +63,7 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: "get",
-    path: "/api/dm/chat/{chatId}/messages",
+    path: "api/dm/chat/{chatId}/messages",
     summary: "Get chat messages",
     description: "Retrieve messages from a specific chat",
     tags: ["Chats"],
@@ -126,7 +126,7 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: "get",
-    path: "/api/dm/chat",
+    path: "api/dm/chat/user",
     summary: "Retrieve all chats that a specific user is participating in",
     description: "Fetch a list of all chats that a user is involved in, including both direct messages and group chats",
     tags: ["Chats"],
@@ -164,7 +164,7 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: "get",
-    path: "/api/dm/chat/{chatId}/unseen-messages-count",
+    path: "api/dm/chat/{chatId}/unseen-messages-count",
     summary: "get unseen messages count",
     tags: ["Chats"],
     request: {
@@ -235,7 +235,7 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
             content: {
                 "application/json": {
                     schema: z.object({
-                        error: z.string().openapi({ description: "At least two participants are required to create a chat" })
+                        error: z.string().openapi({ description: "Missing chat type or participants id" })
                     })
                 }
             }
@@ -345,6 +345,16 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
                     "application/json": {
                         schema: z.object({
                             error: z.string().openapi({ description: "Chat ID is required" })
+                        })
+                    }
+                }
+            },
+            404: {
+                description: "Chat not found",
+                content: {
+                    "application/json": {
+                        schema: z.object({
+                            error: z.string().openapi({ description: "invalid chatId" })
                         })
                     }
                 }

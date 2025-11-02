@@ -85,6 +85,19 @@
                 "isFollower": {
                   "type": "boolean",
                   "description": "Is this user following the current user"
+                },
+                "youRequested": {
+                  "type": "boolean",
+                  "description": "Has the current user sent a follow request to this user"
+                },
+                "followStatus": {
+                  "type": "string",
+                  "enum": [
+                    "NONE",
+                    "PENDING",
+                    "ACCEPTED"
+                  ],
+                  "description": "Follow status between result user and target (param) user"
                 }
               },
               "required": [
@@ -94,7 +107,9 @@
                 "bio",
                 "verified",
                 "isFollowing",
-                "isFollower"
+                "isFollower",
+                "youRequested",
+                "followStatus"
               ]
             },
             "description": "List of followers, followings, blocked or muted users"
@@ -3738,11 +3753,6 @@
                           "MENTION",
                           "LOGIN",
                           "PASSWORD_CHANGED"
-                          "REQUEST_TO_FOLLOW",
-                          "ACCEPTED_FOLLOW",
-                          "MENTION",
-                          "LOGIN",
-                          "PASSWORD_CHANGED"
                         ]
                       },
                       "body": {
@@ -3756,7 +3766,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-02T09:15:21.810Z"
+                        "default": "2025-11-02T11:38:34.906Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3778,188 +3788,6 @@
                       "userId"
                     ]
                   }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Unauthorized"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Internal Server Error"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Create a new notification for a user",
-        "tags": [
-          "Notifications"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "Bearer token for authentication"
-            },
-            "required": true,
-            "description": "Bearer token for authentication",
-            "name": "Authorization",
-            "in": "header"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "title": {
-                    "type": "string",
-                    "enum": [
-                      "LIKE",
-                      "RETWEET",
-                      "REPLY",
-                      "QUOTE",
-                      "FOLLOW",
-                      "REQUEST_TO_FOLLOW",
-                      "ACCEPTED_FOLLOW",
-                      "MENTION",
-                      "LOGIN",
-                      "PASSWORD_CHANGED"
-                    ]
-                  },
-                  "body": {
-                    "type": "string",
-                    "maxLength": 280
-                  },
-                  "tweetId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "actorId": {
-                    "type": "string",
-                    "format": "uuid"
-                  }
-                },
-                "required": [
-                  "title",
-                  "body"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Notification created successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "title": {
-                      "type": "string",
-                      "enum": [
-                        "LIKE",
-                        "RETWEET",
-                        "REPLY",
-                        "QUOTE",
-                        "FOLLOW",
-                        "REQUEST_TO_FOLLOW",
-                        "ACCEPTED_FOLLOW",
-                        "MENTION",
-                        "LOGIN",
-                        "PASSWORD_CHANGED"
-                      ]
-                    },
-                    "body": {
-                      "type": "string",
-                      "maxLength": 280
-                    },
-                    "isRead": {
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date",
-                      "default": "2025-11-02T09:15:21.810Z"
-                    },
-                    "userId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "tweetId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "actorId": {
-                      "type": "string",
-                      "format": "uuid"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "title",
-                    "body",
-                    "userId"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid notification data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Invalid notification data"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
                 }
               }
             }
@@ -4132,11 +3960,6 @@
                               "MENTION",
                               "LOGIN",
                               "PASSWORD_CHANGED"
-                              "REQUEST_TO_FOLLOW",
-                              "ACCEPTED_FOLLOW",
-                              "MENTION",
-                              "LOGIN",
-                              "PASSWORD_CHANGED"
                             ]
                           },
                           "body": {
@@ -4150,7 +3973,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-02T09:15:21.810Z"
+                            "default": "2025-11-02T11:38:34.906Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4191,157 +4014,6 @@
                     "error": {
                       "type": "string",
                       "description": "Unauthorized"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Internal Server Error"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/mark-as-read/{NotificationId}": {
-      "patch": {
-        "summary": "Update a notification status to read",
-        "tags": [
-          "Notifications"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "ID of the notification to update"
-            },
-            "required": true,
-            "description": "ID of the notification to update",
-            "name": "NotificationId",
-            "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "description": "Bearer token for authentication"
-            },
-            "required": true,
-            "description": "Bearer token for authentication",
-            "name": "Authorization",
-            "in": "header"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Notification updated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "title": {
-                      "type": "string",
-                      "enum": [
-                        "LIKE",
-                        "RETWEET",
-                        "REPLY",
-                        "QUOTE",
-                        "FOLLOW",
-                        "REQUEST_TO_FOLLOW",
-                        "ACCEPTED_FOLLOW",
-                        "MENTION",
-                        "LOGIN",
-                        "PASSWORD_CHANGED"
-                      ]
-                    },
-                    "body": {
-                      "type": "string",
-                      "maxLength": 280
-                    },
-                    "isRead": {
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date",
-                      "default": "2025-11-02T09:15:21.810Z"
-                    },
-                    "userId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "tweetId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "actorId": {
-                      "type": "string",
-                      "format": "uuid"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "title",
-                    "body",
-                    "userId"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Unauthorized"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Notification not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Notification not found"
                     }
                   },
                   "required": [
@@ -5805,7 +5477,7 @@
         }
       }
     },
-    "/api/dm/chat/{chatId}": {
+    "api/dm/chat/{chatId}": {
       "get": {
         "summary": "Get chat information",
         "description": "Retrieve detailed information about a specific chat including messages, participants, and group details",
@@ -5891,9 +5563,87 @@
             }
           }
         }
+      },
+      "delete": {
+        "summary": "Delete a chat by its ID",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The ID of the chat to delete"
+            },
+            "required": true,
+            "description": "The ID of the chat to delete",
+            "name": "chatId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chat deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "description": "Chat deleted successfully"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Chat ID is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Chat ID is required"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal server error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
       }
     },
-    "/api/dm/chat/{chatId}/messages": {
+    "api/dm/chat/{chatId}/messages": {
       "get": {
         "summary": "Get chat messages",
         "description": "Retrieve messages from a specific chat",
@@ -6013,7 +5763,7 @@
         }
       }
     },
-    "/api/dm/chat": {
+    "api/dm/chat/user": {
       "get": {
         "summary": "Retrieve all chats that a specific user is participating in",
         "description": "Fetch a list of all chats that a user is involved in, including both direct messages and group chats",
@@ -6081,7 +5831,7 @@
         }
       }
     },
-    "/api/dm/chat/{chatId}/unseen-messages-count": {
+    "api/dm/chat/{chatId}/unseen-messages-count": {
       "get": {
         "summary": "get unseen messages count",
         "tags": [
@@ -6217,86 +5967,6 @@
                     "error": {
                       "type": "string",
                       "description": "User not found"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Internal server error"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "api/dm/chat/{chatId}": {
-      "delete": {
-        "summary": "Delete a chat by its ID",
-        "tags": [
-          "Chats"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "The ID of the chat to delete"
-            },
-            "required": true,
-            "description": "The ID of the chat to delete",
-            "name": "chatId",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Chat deleted successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "description": "Chat deleted successfully"
-                    }
-                  },
-                  "required": [
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request - Chat ID is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Chat ID is required"
                     }
                   },
                   "required": [
