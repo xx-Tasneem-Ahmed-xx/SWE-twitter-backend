@@ -119,17 +119,18 @@ model OAuthAccount {
 }
 
 model Tweet {
-  id           String       @id @default(uuid())
-  userId       String
-  content      String       @db.Text
-  createdAt    DateTime     @default(now())
-  likesCount   Int          @default(0)
-  retweetCount Int          @default(0)
-  repliesCount Int          @default(0)
-  quotesCount  Int          @default(0)
-  replyControl ReplyControl @default(EVERYONE)
-  parentId     String?
-  tweetType    TweetType
+  id             String       @id @default(uuid())
+  userId         String
+  content        String       @db.Text
+  createdAt      DateTime     @default(now())
+  lastActivityAt DateTime     @default(now())
+  likesCount     Int          @default(0)
+  retweetCount   Int          @default(0)
+  repliesCount   Int          @default(0)
+  quotesCount    Int          @default(0)
+  replyControl   ReplyControl @default(EVERYONE)
+  parentId       String?
+  tweetType      TweetType
 
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent        Tweet?          @relation("parentTweets", fields: [parentId], references: [id], onDelete: Cascade)
@@ -143,7 +144,7 @@ model Tweet {
   tweetMedia    TweetMedia[]
   Notification  Notification[]
 
-  @@unique([createdAt, id])
+  @@unique([lastActivityAt, id])
   @@index([userId, createdAt])
   @@map("tweets")
 }
@@ -200,10 +201,11 @@ model Chat {
 model ChatGroup {
   name        String?
   description String?
-  photo       String?
+  photoId     String?
   chatId      String  @id
 
-  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  photo Media? @relation(fields: [photoId], references: [id])
+  chat  Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@map("chatGroups")
 }
@@ -238,6 +240,7 @@ model Media {
   userMedia         UserMedia[]
   profileMediaUsers User[]         @relation("profileMedia")
   coverMediaUsers   User[]         @relation("coverMedia")
+  ChatGroup         ChatGroup[]
 
   @@map("medias")
 }

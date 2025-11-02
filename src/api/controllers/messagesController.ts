@@ -8,7 +8,9 @@ import {
 } from "../../application/dtos/chat/messages.dto";
 import { MediaType } from "@/prisma/client";
 import { socketService } from "@/app";
-
+import { integer } from "zod/v4/core/regexes.cjs";
+import {sendPushNotification} from '@/application/services/FCMService';
+import { AppError } from "@/errors/AppError";
 
 
 
@@ -45,62 +47,44 @@ const getUnseenMessages = async (chatId: string) => {
   }
 };
 
-export const CreateChatFun = async (DMChat: boolean, participant_ids: string[]) => {
-    // validate input and remove duplicates to avoid creating duplicate chatUser rows
-    if (!Array.isArray(participant_ids)) {
-        throw new Error("participant_ids must be an array");
-    }
-
-    // remove duplicates
-    const uniqueParticipantIds = Array.from(new Set(participant_ids));
-
-    if (uniqueParticipantIds.length === 0) {
-        throw new Error("Participant IDs are required");
-    }
-
-    if (!DMChat && uniqueParticipantIds.length < 2) {
-        throw new Error("At least two participants are required to create a group chat");
-    }
-
-    try {
-        // create chat with deduped participants
+const CreateChatFun = async (DMChat: boolean, participant_ids: string[]) => {
+    try{
+        //ceating DM chat
         const newChat = await prisma.chat.create({
             data: {
                 DMChat: DMChat,
                 chatUsers: {
-                    create: uniqueParticipantIds.map((id) => ({ userId: id })),
+                    create: participant_ids.map(id => ({ userId: id }))
                 },
-            },
-        });
-
-        if (!DMChat) {
+            }
+        })
+        if(!DMChat){
             const users = await prisma.user.findMany({
                 where: {
-                    id: { in: uniqueParticipantIds },
+                    id: { in: participant_ids }
                 },
-                select: { name: true },
+                select: { name: true }
             });
-            const groupName = users.map((user) => user.name).join(", ");
+            const groupName = users.map((user) => user.name).join(', ');
             await prisma.chatGroup.create({
                 data: {
                     chatId: newChat.id,
-                    name: groupName,
-                },
-            });
+                    name: groupName
+                }
+            })
         }
-
         return newChat;
-    } catch (error) {
-        // rethrow so callers/tests receive a rejected promise
-        throw error;
+    }catch(error){
+            return error;
     }
-};
+
+}
 
 export const getChatInfo = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const chatId = req.params.chatId;
         if (!chatId) {
-            return res.status(400).json({ error: 'Chat ID is required' });
+            throw new AppError('Chat ID is required', 400);
         }
 
         const chatInfo = await prisma.chat.findUnique({
@@ -150,10 +134,10 @@ export const getChatInfo = async (req: Request, res: Response, next: NextFunctio
         });
 
         if (!chatInfo) {
-            return res.status(404).json({ error: 'Chat not found' });
+            throw new AppError('invalid chatId', 404);
         }               
         res.status(200).json(chatInfo);
-    } catch (error ) {
+    } catch (error) {
         console.error(' Error fetching messages:', error);
         next(error);
     }
@@ -162,21 +146,22 @@ export const getChatInfo = async (req: Request, res: Response, next: NextFunctio
 
 export const getChatMessages = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const {chatId, lastMessagetimestamp} = req.body;
-        if (!chatId || !lastMessagetimestamp) {
-            return res.status(400).json({ error: 'Chat ID and lastMessage timestamp are required' });
+        const chatId = req.params.chatId;
+        const { lastMessageTimestamp } = req.body;
+        if (!chatId || !lastMessageTimestamp) {
+            throw new AppError('Chat ID and lastMessage timestamp are required', 400);
         }
         const chatExists = await prisma.chat.findUnique({
             where: { id: chatId }
         });
         if (!chatExists) {
-            return res.status(404).json({ error: 'Chat not found' });
+            throw new AppError('invalid chatId', 404);
         }
         const messages = await prisma.message.findMany({
             where: {
                 chatId: chatId,
                 createdAt: {
-                    gt: lastMessagetimestamp
+                    gt: lastMessageTimestamp
                 }
             },
             include: {
@@ -208,7 +193,7 @@ export const getUserChats = async (req: Request, res: Response, next: NextFuncti
     try {
         const userId = (req as any).user.id;
         if (!userId) {
-            return res.status(400).json({ error: 'User ID is required' });
+            throw new AppError('User ID is required', 400);
         }
         const userChatsID = await prisma.chatUser.findMany({
             where: {
@@ -246,13 +231,10 @@ export const getUserChats = async (req: Request, res: Response, next: NextFuncti
                 }
             }
         });
-        if (!userChats) {
-            return res.status(404).json({ error: 'No chats found for this user' });
-        }
         res.status(200).json(userChats);
     } catch (error) {
         console.error('Error fetching user chats:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        next(error);
     }
 }
 
@@ -262,67 +244,76 @@ export const getUnseenMessagesCount = async (req: Request, res: Response, next: 
         if (chatId) {
             const unseenMessages = await getUnseenMessages(chatId);
             const unseenMessagesCount = (unseenMessages as any[]).length;
-            if (unseenMessagesCount === undefined) {
-                return res.status(404).json({ error: 'No unseen messages found' });
-            }
-                res.status(200).json({ unseenMessagesCount: unseenMessagesCount });
+            res.status(200).json({ unseenMessagesCount: unseenMessagesCount });
         } else {
-            return res.status(400).json({ error: 'Chat ID is required' });
+            throw new AppError('Chat ID is required', 400);
         }
     } catch (error) {
         console.error('Error fetching unseen messages count:', error);
-     res.status(500).json({ error: 'Internal server error' });    
+        next(error);    
     }
 }
 
-export const updateMessageStatus = async (req: Request, res: Response) => {
+
+
+export const updateMessageStatus = async (chatId: string) => {
   try {
-    const chatId = req.params.chatId;
     if (chatId) {
       await prisma.message.updateMany({
         where: {
           chatId: chatId,
+          status: { not: "READ" },
         },
         data: {
           status: "READ",
         },
       });
-      res.status(200).json({ message: "Message status updated successfully" });
+      const participant_ids = await prisma.chatUser.findMany({
+        where: { chatId: chatId },
+        select: { userId: true },
+      });
+        for (const participant of participant_ids) {
+          await prisma.user.update({
+              where: { id: participant.userId },
+              data: {
+                  unseenChatCount: { decrement: 1 }
+              }
+          });
+      }
+      return true;
     }
   } catch (error) {
     console.error("Error updating message status:", error);
-    res.status(500).json({ error: "Internal server error" });
+    return false;
   }
 };
+
+
+
 
 export const createChat = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const{ DMChat, participant_ids }: ChatInput = req.body;
         const userId = (req as any).user.id;
-        if (participant_ids.length === 0) {
-            return res.status(400).json({ error: 'Participant IDs are required' });
-        }
         if(participant_ids.length < 2 && DMChat === false){
-            return res.status(400).json({ error: 'At least two participants are required to create a chat' });
+            throw new AppError('At least two participants are required to create a chat group', 400);
         }
         for (const id of participant_ids) {
             const user = await prisma.user.findUnique({
                 where: { id: id }
             });
             if (!user) {
-                return res.status(404).json({ error: `User with ID ${id} not found` });
+                throw new AppError(`User with ID ${id} not found`, 404);
             }
         }
         participant_ids.push(userId as string);
         const newChat = await CreateChatFun(DMChat, participant_ids);
         if(newChat !== undefined){
-            console.log(newChat);
-            
             return res.status(201).json({ newChat });
         }
     } catch (error) {
         console.error('Error creating chat group:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        next(error);
     }
 }
 
@@ -353,11 +344,11 @@ export const deleteChat = async (req: Request, res: Response, next: NextFunction
             
             res.status(200).json({ message: 'Chat deleted successfully' });
         } else {
-            res.status(400).json({ error: 'Chat ID is required' });
+            throw new AppError('Chat ID is required', 400);
         }
     } catch (error) {
         console.error('Error deleting chat:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        next(error);
     }
 }
 
@@ -370,7 +361,7 @@ export const updateChatGroup = async (req: Request, res: Response, next: NextFun
                 where: { chatId: chatId }
             });
             if (!existingChatGroup) {
-                return res.status(404).json({ error: 'Chat group not found' });
+                throw new AppError('invalid chatId', 404);
             }
             const updatedChatGroup = await prisma.chatGroup.update({
                 where: { chatId: chatId },
@@ -382,11 +373,11 @@ export const updateChatGroup = async (req: Request, res: Response, next: NextFun
             });
             res.status(200).json({ updatedChatGroup });
         }else{
-            res.status(400).json({ error: 'Chat ID is required' });
+            throw new AppError('Chat ID is required', 400);
         }
     }catch(error){
         console.error('Error updating chat group:', error);
-        res.status(500).json({ error: 'Internal server error' });   
+        next(error);
     }
 }
 
@@ -397,12 +388,11 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
         const recipientId = messageInput.recipientId as Array<string> || [];
         const chatId = messageInput.chatId;
         if (!messageInput.data || !messageInput.data.content) {
-            return res.status(400).json({ error: 'Message content is required' });
+            throw new AppError('Message content is required', 400);
         }
         let chat: any;
         if (!chatId && recipientId.length > 0) {
             if(recipientId.length === 1){
-                //check if DM chat already exists
                 const existingChat = await prisma.chat.findFirst({
                     where: {
                         DMChat: true,
@@ -428,11 +418,11 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
                 where: { id: chatId }
             });
             if(!chat){
-                return res.status(404).json({ error: 'Chat not found' });
+                throw new AppError('invalid chatId', 404);
             }
         }
         else{
-            return res.status(400).json({ error: 'missing chatId or recipientId' });
+            throw new AppError('missing chatId or recipientId', 400);
         }
         const newMessage = await prisma.message.create({
             data: {
@@ -469,14 +459,61 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
                 });
             }
         }
+        const user = await prisma.user.findUnique({
+                            where: { id: userId },
+                            select: {
+                                username: true,
+                            }
+                        });
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                unseenChatCount: { increment: 1 }
+            }
+        });
         for(const recipient of recipientId){
-            socketService.sendMessageToChat(recipient, newMessage);
+            await prisma.user.update({
+                where: { id: recipient },
+                data: {
+                    unseenChatCount: { increment: 1 }
+                }
+            });
+            if(socketService.checkSocketStatus(recipient)){
+                socketService.sendMessageToChat(recipient, newMessage);
+            }else{
+                //handle offline user notification
+                const userFCMTokens = await prisma.fcmToken.findMany({
+                    where: { userId: recipient.toString() },
+                                });
+                const fcmTokens = userFCMTokens.length > 0 ? userFCMTokens.map(t => t.token).flat() : [];
+
+                if (fcmTokens && fcmTokens.length > 0) {
+                    const notificationPayload = {
+                        title: `New message from ${user?.username}`,
+                        body: messageInput.data.content,
+                    };
+                    const dataPayload = {
+                        chatId: newMessage.chatId,
+                        messageId: newMessage.id,
+                        content: messageInput.data.content,
+                        senderId: userId,
+                    } as Record<string, string>;
+                    const tokensToDelete = await sendPushNotification(fcmTokens, notificationPayload, dataPayload);
+                    if (tokensToDelete.length > 0) {
+                        await prisma.fcmToken.deleteMany({
+                            where: {
+                                token: { in: tokensToDelete },
+                            },
+                        });
+                    }
+                }
+            }
         }
         res.status(201).json({ newMessage });
         
     }catch(error){
         console.error('Error adding message to chat:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        next(error);
     }
 }
 
@@ -484,7 +521,7 @@ export const getUnseenChatsCount = async (req: Request, res: Response, next: Nex
     try {
         const userId = (req as any).user.id;
         if (!userId) {
-            return res.status(400).json({ error: 'User ID is required' });
+            throw new AppError('User ID is required', 400);
         }
         const userChats = await prisma.chatUser.findMany({
             where: { userId: userId },
@@ -503,7 +540,7 @@ export const getUnseenChatsCount = async (req: Request, res: Response, next: Nex
         res.status(200).json({ unseenChatsCount });
     } catch (error) {
         console.error('Error fetching unseen chats count:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        next(error);
     }
 }
 
