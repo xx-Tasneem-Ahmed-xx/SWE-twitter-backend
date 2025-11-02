@@ -6,11 +6,11 @@ const Ctx: {} = {}; // Placeholder context object if you want consistency with G
 
 // Create Redis client. Explicitly set the type to RedisClientType
 const redisClient: RedisClientType = createClient({
-  url:process.env.RED_URL, // matches Addr:"localhost:6379"
-  // NOTE: The 'password' option is typically for connection security, 
+  url: process.env.RED_URL,
+  // NOTE: The 'password' option is typically for connection security,
   // but if it's intentionally empty, we keep it as is.
-  password: "",                  // same as Password:""
-  database: 0                    // same as DB:0
+  password: "", // same as Password:""
+  database: 0, // same as DB:0
 });
 
 redisClient.on("error", (err: Error) => {
@@ -21,7 +21,6 @@ redisClient.on("error", (err: Error) => {
 redisClient.on("connect", () => {
   console.log("🔌 Connected to Redis successfully");
 });
-
 
 export async function connectRedis(): Promise<void> {
   try {

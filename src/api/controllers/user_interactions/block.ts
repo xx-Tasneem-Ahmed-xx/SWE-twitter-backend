@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
-import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 import { AppError } from "@/errors/AppError";
+import {
+  UserInteractionParamsSchema,
+  UserInteractionQuerySchema,
+} from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 import {
   checkBlockStatus,
   getBlockedList,
@@ -71,7 +74,23 @@ export const getBlockedUsers = async (
   try {
     const currentUserId = (req as any).user.id;
 
-    const blockedUsersData = await getBlockedList(currentUserId);
+    const queryResult = UserInteractionQuerySchema.safeParse(req.query);
+    if (!queryResult.success) throw queryResult.error;
+    const { cursor, limit } = queryResult.data;
+
+    let cursorId: string | undefined;
+    if (cursor) {
+      const decodedUsername = Buffer.from(cursor, "base64").toString("utf8");
+      const resolved = await resolveUsernameToId(decodedUsername);
+      cursorId = resolved.id;
+    }
+
+    const blockedUsersData = await getBlockedList(
+      currentUserId,
+      cursorId,
+      limit
+    );
+
     return res.status(200).json(blockedUsersData);
   } catch (error) {
     next(error);

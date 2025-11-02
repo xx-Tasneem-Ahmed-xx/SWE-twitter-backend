@@ -1,7 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
-import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 import { AppError } from "@/errors/AppError";
+import { addNotification } from "../notificationController";
+import { NotificationTitle } from "@prisma/client";
+import {
+  UserInteractionParamsSchema,
+  UserInteractionQuerySchema,
+} from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 import {
   createFollowRelation,
   removeFollowRelation,
@@ -46,6 +51,28 @@ export const followUser = async (
       userToFollow.id,
       followStatus
     );
+
+    try {
+      await addNotification(
+        userToFollow.id as any,
+        {
+          title:
+            followStatus === "PENDING"
+              ? NotificationTitle.REQUEST_TO_FOLLOW
+              : NotificationTitle.FOLLOW,
+          body:
+            followStatus === "PENDING"
+              ? `${(req as any).user.username} requested to follow you`
+              : `${(req as any).user.username} started following you`,
+          actorId: currentUserId as any,
+          tweetId: undefined,
+        },
+        next
+      );
+    } catch (err) {
+      console.error("Failed to send follow notification:", err);
+    }
+
     const statusCode = userToFollow.protectedAccount ? 202 : 201;
     const message = userToFollow.protectedAccount
       ? "Follow request sent"
@@ -107,6 +134,22 @@ export const acceptFollow = async (
       throw new AppError("Follow request already accepted", 409);
 
     await updateFollowStatus(follower.id, currentUserId);
+
+    try {
+      await addNotification(
+        follower.id as any,
+        {
+          title: NotificationTitle.ACCEPTED_FOLLOW,
+          body: `${(req as any).user.username} accepted your follow request`,
+          actorId: currentUserId as any,
+          tweetId: undefined,
+        },
+        next
+      );
+    } catch (err) {
+      console.error("Failed to send accepted-follow notification:", err);
+    }
+
     return res.status(200).json({
       message: "Follow request accepted",
     });
@@ -122,7 +165,6 @@ export const declineFollow = async (
   next: NextFunction
 ) => {
   try {
-    // Validate request parameters
     const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
     if (!paramsResult.success) throw paramsResult.error;
 
@@ -166,10 +208,24 @@ export const getFollowers = async (
         "Cannot view followers of blocked users or who have blocked you",
         403
       );
+
+    const queryResult = UserInteractionQuerySchema.safeParse(req.query);
+    if (!queryResult.success) throw queryResult.error;
+    const { cursor, limit } = queryResult.data;
+
+    let cursorId: string | undefined;
+    if (cursor) {
+      const decodedUsername = Buffer.from(cursor, "base64").toString("utf8");
+      const resolved = await resolveUsernameToId(decodedUsername);
+      cursorId = resolved.id;
+    }
+
     const followersData = await getFollowersList(
       user.id,
       currentUserId,
-      "ACCEPTED"
+      "ACCEPTED",
+      cursorId,
+      limit
     );
     return res.status(200).json(followersData);
   } catch (error) {
@@ -215,7 +271,25 @@ export const getFollowings = async (
         "Cannot view followings of blocked users or who have blocked you",
         403
       );
-    const followingsData = await getFollowingsList(user.id, currentUserId);
+
+    const queryResult = UserInteractionQuerySchema.safeParse(req.query);
+    if (!queryResult.success) throw queryResult.error;
+    const { cursor, limit } = queryResult.data;
+
+    let cursorId: string | undefined;
+    if (cursor) {
+      const decodedUsername = Buffer.from(cursor, "base64").toString("utf8");
+      const resolved = await resolveUsernameToId(decodedUsername);
+      cursorId = resolved.id;
+    }
+
+    const followingsData = await getFollowingsList(
+      user.id,
+      currentUserId,
+      cursorId,
+      limit
+    );
+
     return res.status(200).json(followingsData);
   } catch (error) {
     next(error);
