@@ -15,28 +15,30 @@ datasource db {
 }
 
 model User {
-  id                      String    @id @default(uuid())
+  id                      String        @id @default(uuid())
   name                    String?
-  username                String    @unique
-  email                   String    @unique
+  username                String        @unique
+  email                   String        @unique
   password                String
   saltPassword            String
   tokenVersion            Int?
   otp                     String?
   otpExpiry               DateTime?
   bio                     String?
-  dateOfBirth             DateTime
-  joinDate                DateTime  @default(now())
-  verified                Boolean   @default(false)
+  dateOfBirth             DateTime?
+  dobMonthDayVisibility   DobVisibility @default(ONLY_YOU)
+  dobYearVisibility       DobVisibility @default(ONLY_YOU)
+  joinDate                DateTime      @default(now())
+  verified                Boolean       @default(false)
   address                 String?
   website                 String?
-  protectedAccount        Boolean   @default(false)
-  isEmailVerified         Boolean   @default(false)
-  tfaVerifed              Boolean   @default(false)
+  protectedAccount        Boolean       @default(false)
+  isEmailVerified         Boolean       @default(false)
+  tfaVerifed              Boolean       @default(false)
   loginCodes              String?
-  loginCodesSet           Boolean   @default(false)
-  unseenChatCount         Int       @default(0)
-  unseenNotificationCount Int       @default(0)
+  loginCodesSet           Boolean       @default(false)
+  unseenChatCount         Int           @default(0)
+  unseenNotificationCount Int           @default(0)
   // TODO: add default ids when their medias is uploaded to s3
   profileMediaId          String?
   coverMediaId            String?
@@ -429,4 +431,12 @@ enum OSType {
   ANDROID
   IOS
   WEB
+}
+
+enum DobVisibility {
+  PUBLIC
+  YOUR_FOLLOWERS
+  PEOPLE_YOU_FOLLOW
+  YOU_FOLLOW_EACH_OTHER
+  ONLY_YOU
 }

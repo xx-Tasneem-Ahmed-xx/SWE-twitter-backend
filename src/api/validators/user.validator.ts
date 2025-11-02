@@ -17,11 +17,9 @@ export const updateUserValidator = [
     .isString()
     .isLength({ max: 30 })
     .withMessage("address too long"),
-  body("website").optional().isURL().withMessage("website must be a valid URL"),
+body("website")
+  .optional({ checkFalsy: true })
+  .isURL()
+  .withMessage("website must be a valid URL"),
   body("protectedAccount").optional().isBoolean(),
-  body("profilePhoto")
-    .optional()
-    .isURL()
-    .withMessage("profilePhoto must be a valid URL"),
-  body("cover").optional().isURL().withMessage("cover must be a valid URL"),
 ];
