@@ -136,7 +136,7 @@ export const getChatInfo = async (req: Request, res: Response, next: NextFunctio
         }               
         res.status(200).json(chatInfo);
     } catch (error) {
-        console.error(' Error fetching messages:', error);
+        console.error(' Error fetching chat info:', error);
         next(error);
     }
 };
@@ -293,6 +293,10 @@ export const createChat = async (req: Request, res: Response, next: NextFunction
     try {
         const{ DMChat, participant_ids }: ChatInput = req.body;
         const userId = (req as any).user.id;
+        if(DMChat === undefined || participant_ids.length === 0 || participant_ids === undefined){
+            throw new AppError('Missing chat type or participants id', 400);
+        }
+
         if(participant_ids.length < 2 && DMChat === false){
             throw new AppError('At least two participants are required to create a chat group', 400);
         }

@@ -18,7 +18,6 @@ export const getNotificationList = async (req: Request, res: Response, next: Nex
         if (!user) {
             throw new AppError('Unauthorized', 401);
         }
-        // Reset unseen notification count
         await prisma.user.update({
             where: { id: userId },
             data: { unseenNotificationCount: 0 },
@@ -85,16 +84,14 @@ export const markNotificationsAsRead = async (notificationId: string) => {
             where: { id: notificationId },
             data: { isRead: true },
         });
-        if(!updatedNotification){
-            throw new AppError('Notification not found', 404);
+        if(updatedNotification){
+            await prisma.user.update({
+                where: { id: userId },
+                data: { unseenNotificationCount: {
+                    decrement: 1,
+                } },
+            });
         }
-        await prisma.user.update({
-            where: { id: userId },
-            data: { unseenNotificationCount: {
-                decrement: 1,
-            } },
-        });
-        //return res.status(200).json({ message: 'Notification marked as read', notification: updatedNotification });
     } catch (error) {
         console.error('Error marking notifications as read:', error);
         return error;

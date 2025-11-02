@@ -235,7 +235,7 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
             content: {
                 "application/json": {
                     schema: z.object({
-                        error: z.string().openapi({ description: "At least two participants are required to create a chat" })
+                        error: z.string().openapi({ description: "Missing chat type or participants id" })
                     })
                 }
             }
@@ -345,6 +345,16 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
                     "application/json": {
                         schema: z.object({
                             error: z.string().openapi({ description: "Chat ID is required" })
+                        })
+                    }
+                }
+            },
+            404: {
+                description: "Chat not found",
+                content: {
+                    "application/json": {
+                        schema: z.object({
+                            error: z.string().openapi({ description: "invalid chatId" })
                         })
                     }
                 }
