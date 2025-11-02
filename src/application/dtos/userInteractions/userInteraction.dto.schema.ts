@@ -47,6 +47,16 @@ export const FollowsListResponseSchema = z
           isFollower: z
             .boolean()
             .describe("Is this user following the current user"),
+          youRequested: z
+            .boolean()
+            .describe(
+              "Has the current user sent a follow request to this user"
+            ),
+          followStatus: z
+            .enum(["NONE", "PENDING", "ACCEPTED"])
+            .describe(
+              "Follow status between result user and target (param) user"
+            ),
         })
       )
       .describe("List of followers, followings, blocked or muted users"),

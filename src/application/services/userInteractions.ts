@@ -79,6 +79,22 @@ export const isAlreadyFollowing = async (
   });
 };
 
+// Batch-check follow relations for a set of target users
+export const isAlreadyFollowingBatch = async (
+  followerId: string,
+  followingIds: string[],
+  status?: FollowStatus
+) => {
+  if (!followingIds || followingIds.length === 0) return new Set<string>();
+  const where: any = { followerId, followingId: { in: followingIds } };
+  if (status) where.status = status;
+  const rows = await prisma.follow.findMany({
+    where,
+    select: { followingId: true },
+  });
+  return new Set(rows.map((r) => r.followingId));
+};
+
 // Check if two users have blocked each other
 export const checkBlockStatus = async (userId1: string, userId2: string) => {
   const blockCount = await prisma.block.count({
@@ -107,17 +123,15 @@ const checkMutualFollowStatus = async (
   userIds: string[],
   currentUserId: string
 ) => {
-  const followedByCurrentUser = await prisma.follow.findMany({
-    where: {
-      followerId: currentUserId,
-      followingId: { in: userIds },
-      status: FollowStatus.ACCEPTED,
-    },
-    select: { followingId: true },
-  });
+  // Batch-check who currentUser is following (accepted)
+  const followedByCurrentUserSet = await isAlreadyFollowingBatch(
+    currentUserId,
+    userIds,
+    FollowStatus.ACCEPTED
+  );
 
-  // Check which users are following the current user
-  const followingCurrentUser = await prisma.follow.findMany({
+  // Batch-check who is following currentUser (accepted)
+  const followingCurrentUserRows = await prisma.follow.findMany({
     where: {
       followerId: { in: userIds },
       followingId: currentUserId,
@@ -126,24 +140,23 @@ const checkMutualFollowStatus = async (
     select: { followerId: true },
   });
 
-  const followedByCurrentUserSet = new Set(
-    followedByCurrentUser.map((follow) => follow.followingId)
-  );
-  const followingCurrentUserSet = new Set(
-    followingCurrentUser.map((follow) => follow.followerId)
+  const followingCurrentUserSetFinal = new Set(
+    followingCurrentUserRows.map((f) => f.followerId)
   );
 
   return {
     followedByCurrentUserSet,
-    followingCurrentUserSet,
+    followingCurrentUserSet: followingCurrentUserSetFinal,
   };
 };
 
 // Helper function to format user data for response
 const formatUserForResponse = (
   user: UserData,
-  isFollowing: boolean,
-  isFollower: boolean
+  isFollowing: boolean = false,
+  isFollower: boolean = false,
+  youRequested: boolean = false,
+  followStatus: FollowStatus | "NONE" = "NONE"
 ) => {
   return {
     username: user.username,
@@ -153,7 +166,9 @@ const formatUserForResponse = (
     verified: user.verified,
     isFollowing,
     isFollower,
-  };
+    youRequested,
+    followStatus,
+  } as any;
 };
 
 // Helper to compute the nextCursor (username-base64) from the last row of a page
@@ -165,6 +180,43 @@ const computeNextCursor = async (page: any[], hasMore: boolean) => {
     select: { username: true },
   });
   return nextUser ? Buffer.from(nextUser.username).toString("base64") : null;
+};
+
+// Helper to compute relationToTarget followStatus for a page of users
+const getRelationToTargetStatuses = async (
+  userIds: string[],
+  targetId: string,
+  direction: "EtoT" | "TtoE"
+) => {
+  if (!userIds || userIds.length === 0) return new Map<string, FollowStatus>();
+
+  if (direction === "EtoT") {
+    // returned user (E) -> target (T)
+    const rows = await prisma.follow.findMany({
+      where: {
+        followerId: { in: userIds },
+        followingId: targetId,
+        status: { in: [FollowStatus.ACCEPTED, FollowStatus.PENDING] },
+      },
+      select: { followerId: true, status: true },
+    });
+    const m = new Map<string, FollowStatus>();
+    rows.forEach((r) => m.set(r.followerId, r.status as FollowStatus));
+    return m;
+  }
+
+  // direction T -> E (target follows returned user)
+  const rows = await prisma.follow.findMany({
+    where: {
+      followerId: targetId,
+      followingId: { in: userIds },
+      status: { in: [FollowStatus.ACCEPTED, FollowStatus.PENDING] },
+    },
+    select: { followingId: true, status: true },
+  });
+  const m = new Map<string, FollowStatus>();
+  rows.forEach((r) => m.set(r.followingId, r.status as FollowStatus));
+  return m;
 };
 
 // Get followers list by status (followers or requests)
@@ -180,7 +232,7 @@ export const getFollowersList = async (
 
   const q: any = {
     where: {
-      followings: { some: { followingId: userId, status: followStatus } },
+      followings: { some: { followingId: userId } },
     },
     select: {
       id: true,
@@ -207,10 +259,31 @@ export const getFollowersList = async (
   const { followedByCurrentUserSet, followingCurrentUserSet } =
     await checkMutualFollowStatus(userIds, currentUserId);
 
+  const pendingRequestsSentByCurrentUserSet = await isAlreadyFollowingBatch(
+    currentUserId,
+    userIds,
+    FollowStatus.PENDING
+  );
+
+  // compute relationToTarget for followers list: returned user (E) -> target (userId)
+  const relationMap = await getRelationToTargetStatuses(
+    userIds,
+    userId,
+    "EtoT"
+  );
+
   const users = page.map((user: any) => {
     const isFollowing = followedByCurrentUserSet.has(user.id);
     const isFollower = followingCurrentUserSet.has(user.id);
-    return formatUserForResponse(user, isFollowing, isFollower);
+    const youRequested = pendingRequestsSentByCurrentUserSet.has(user.id);
+    const followStatus = (relationMap.get(user.id) as FollowStatus) ?? "NONE";
+    return formatUserForResponse(
+      user,
+      isFollowing,
+      isFollower,
+      youRequested,
+      followStatus
+    );
   });
 
   const nextCursor = await computeNextCursor(page, hasMore);
@@ -230,7 +303,7 @@ export const getFollowingsList = async (
   const q: any = {
     where: {
       followers: {
-        some: { followerId: userId, status: FollowStatus.ACCEPTED },
+        some: { followerId: userId },
       },
     },
     select: {
@@ -258,10 +331,31 @@ export const getFollowingsList = async (
   const { followedByCurrentUserSet, followingCurrentUserSet } =
     await checkMutualFollowStatus(userIds, currentUserId);
 
+  const pendingRequestsSentByCurrentUserSet = await isAlreadyFollowingBatch(
+    currentUserId,
+    userIds,
+    FollowStatus.PENDING
+  );
+
+  // compute relationToTarget for followings list: target (userId) -> returned user (E)
+  const relationMap = await getRelationToTargetStatuses(
+    userIds,
+    userId,
+    "TtoE"
+  );
+
   const users = page.map((user: any) => {
     const isFollowing = followedByCurrentUserSet.has(user.id);
     const isFollower = followingCurrentUserSet.has(user.id);
-    return formatUserForResponse(user, isFollowing, isFollower);
+    const youRequested = pendingRequestsSentByCurrentUserSet.has(user.id);
+    const followStatus = (relationMap.get(user.id) as FollowStatus) ?? "NONE";
+    return formatUserForResponse(
+      user,
+      isFollowing,
+      isFollower,
+      youRequested,
+      followStatus
+    );
   });
 
   const nextCursor = await computeNextCursor(page, hasMore);
@@ -353,7 +447,7 @@ export const getBlockedList = async (
   const hasMore = rows.length === take;
   const page = hasMore ? rows.slice(0, -1) : rows;
   const users = page.map((user: any) =>
-    formatUserForResponse(user, false, false)
+    formatUserForResponse(user, false, false, false)
   );
   const nextCursor = await computeNextCursor(page, hasMore);
 
@@ -434,7 +528,7 @@ export const getMutedList = async (
   const hasMore = rows.length === take;
   const page = hasMore ? rows.slice(0, -1) : rows;
   const users = page.map((user: any) =>
-    formatUserForResponse(user, false, false)
+    formatUserForResponse(user, false, false, false)
   );
   const nextCursor = await computeNextCursor(page, hasMore);
   return { users, nextCursor, hasMore };
