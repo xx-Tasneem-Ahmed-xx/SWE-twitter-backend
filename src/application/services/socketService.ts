@@ -151,6 +151,11 @@ export class SocketService {
             }
         });
 
+        socket.on('disconnect', () => {
+            console.log(`User ${userId} disconnected from socket ${socket.id}`);
+            // Additional cleanup can be done here if necessary
+        });
+
     }
 
     public checkSocketStatus(userID: string): boolean {

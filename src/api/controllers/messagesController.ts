@@ -8,10 +8,8 @@ import {
 } from "../../application/dtos/chat/messages.dto";
 import { MediaType } from "@/prisma/client";
 import { socketService } from "@/app";
-import { integer } from "zod/v4/core/regexes.cjs";
 import {sendPushNotification} from '@/application/services/FCMService';
 import { AppError } from "@/errors/AppError";
-
 
 
 
@@ -138,7 +136,7 @@ export const getChatInfo = async (req: Request, res: Response, next: NextFunctio
         }               
         res.status(200).json(chatInfo);
     } catch (error) {
-        console.error(' Error fetching messages:', error);
+        console.error(' Error fetching chat info:', error);
         next(error);
     }
 };
@@ -295,6 +293,10 @@ export const createChat = async (req: Request, res: Response, next: NextFunction
     try {
         const{ DMChat, participant_ids }: ChatInput = req.body;
         const userId = (req as any).user.id;
+        if(DMChat === undefined || participant_ids.length === 0 || participant_ids === undefined){
+            throw new AppError('Missing chat type or participants id', 400);
+        }
+
         if(participant_ids.length < 2 && DMChat === false){
             throw new AppError('At least two participants are required to create a chat group', 400);
         }
@@ -540,6 +542,32 @@ export const getUnseenChatsCount = async (req: Request, res: Response, next: Nex
         res.status(200).json({ unseenChatsCount });
     } catch (error) {
         console.error('Error fetching unseen chats count:', error);
+        next(error);
+    }
+}
+
+
+export const getUnseenMessagesCountOfUser = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = (req as any).user.id;
+        const chats = await prisma.chatUser.findMany({
+            where: { userId: userId },
+            select: { chatId: true }
+        });
+        let totalUnseenMessages = 0;
+        for (const chat of chats) {
+            const unseenMessages = await prisma.message.count({
+                where: {
+                    chatId: chat.chatId,
+                    userId: userId,
+                    status: { not: 'READ' }
+                }
+            });
+            totalUnseenMessages += unseenMessages;
+        }
+        res.status(200).json({ totalUnseenMessages });
+    } catch (error) {
+        console.error('Error fetching unseen messages count of user:', error);
         next(error);
     }
 }
