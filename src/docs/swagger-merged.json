@@ -3751,7 +3751,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-10-31T17:20:56.499Z"
+                        "default": "2025-11-02T10:37:19.810Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3958,7 +3958,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-10-31T17:20:56.499Z"
+                            "default": "2025-11-02T10:37:19.810Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4981,7 +4981,7 @@
         }
       }
     },
-    "/api/dm/chat/{chatId}": {
+    "api/dm/chat/{chatId}": {
       "get": {
         "summary": "Get chat information",
         "description": "Retrieve detailed information about a specific chat including messages, participants, and group details",
@@ -5067,9 +5067,87 @@
             }
           }
         }
+      },
+      "delete": {
+        "summary": "Delete a chat by its ID",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The ID of the chat to delete"
+            },
+            "required": true,
+            "description": "The ID of the chat to delete",
+            "name": "chatId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chat deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "description": "Chat deleted successfully"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Chat ID is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Chat ID is required"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal server error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
       }
     },
-    "/api/dm/chat/{chatId}/messages": {
+    "api/dm/chat/{chatId}/messages": {
       "get": {
         "summary": "Get chat messages",
         "description": "Retrieve messages from a specific chat",
@@ -5189,7 +5267,7 @@
         }
       }
     },
-    "/api/dm/chat": {
+    "api/dm/chat/user": {
       "get": {
         "summary": "Retrieve all chats that a specific user is participating in",
         "description": "Fetch a list of all chats that a user is involved in, including both direct messages and group chats",
@@ -5257,7 +5335,7 @@
         }
       }
     },
-    "/api/dm/chat/{chatId}/unseen-messages-count": {
+    "api/dm/chat/{chatId}/unseen-messages-count": {
       "get": {
         "summary": "get unseen messages count",
         "tags": [
@@ -5393,86 +5471,6 @@
                     "error": {
                       "type": "string",
                       "description": "User not found"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Internal server error"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "api/dm/chat/{chatId}": {
-      "delete": {
-        "summary": "Delete a chat by its ID",
-        "tags": [
-          "Chats"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "The ID of the chat to delete"
-            },
-            "required": true,
-            "description": "The ID of the chat to delete",
-            "name": "chatId",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Chat deleted successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "description": "Chat deleted successfully"
-                    }
-                  },
-                  "required": [
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request - Chat ID is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Chat ID is required"
                     }
                   },
                   "required": [
