@@ -54,7 +54,9 @@ export const FollowsListResponseSchema = z
             ),
           followStatus: z
             .enum(["NONE", "PENDING", "ACCEPTED"])
-            .describe("Follow status between result user and this user"),
+            .describe(
+              "Follow status between result user and target (param) user"
+            ),
         })
       )
       .describe("List of followers, followings, blocked or muted users"),
