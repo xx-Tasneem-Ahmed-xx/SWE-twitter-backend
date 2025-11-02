@@ -998,7 +998,7 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
  *       404:
  *         description: User not found.
  */
-router.post("/change-password", Auth(),  Reauth(), typedAuthController.ChangePassword); //tested
+router.post("/change-password", Auth(), typedAuthController.ChangePassword); //tested
 /**
  * @swagger
  * /change-email:
@@ -1027,7 +1027,7 @@ router.post("/change-password", Auth(),  Reauth(), typedAuthController.ChangePas
  *       401:
  *         description: Unauthorized or reauth failed.
  */
-router.post("/change-email", Auth(),  Reauth(), typedAuthController.ChangeEmail); //tested
+router.post("/change-email", Auth(), typedAuthController.ChangeEmail); //tested
 /**
  * @swagger
  * /verify-new-email:
