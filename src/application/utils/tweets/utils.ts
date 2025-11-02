@@ -2,24 +2,18 @@ import { prisma, ReplyControl } from "@/prisma/client";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
-
-//import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import fetch, { Response as FetchResponse } from "node-fetch";
 import zxcvbn from "zxcvbn";
-import { promisify } from "util";
-// The following imports assume you have 'prisma' and 'redisClient' configured
-
-// import { redisClient } from "../../../config/redis.js";
 import { redisClient } from "@/config/redis";
-// import { sendEmailSMTP as _sendEmailSMTP } from "./email-helper.js"; // optional: separate email helper
-import { performance } from "perf_hooks";
-// Use appropriate types for Express Request and Response
 import { Request, Response } from "express";
+import { AppError } from "@/errors/AppError";
+
 const uuidv4 = async () => {
   const { v4 } = await import("uuid");
   return v4();
 };
+
 export const validToRetweetOrQuote = async (parentTweetId: string) => {
   const rightToTweet = await prisma.tweet.findUnique({
     where: { id: parentTweetId },
@@ -42,11 +36,12 @@ export const isFollower = async (followerId: string, followingId: string) => {
 export const resolveUsernameToId = async (username: string) => {
   const user = await prisma.user.findUnique({
     where: { username },
-    select: { id: true },
+    select: { id: true, protectedAccount: true },
   });
-  if (!user?.id) throw new Error("User not found");
-  return user.id;
+  if (!user?.id) throw new AppError("User not found", 404);
+  return user;
 };
+
 export const isVerified = async (id: string) => {
   const user = await prisma.user.findUnique({
     where: { id },
@@ -163,8 +158,6 @@ export interface UserSession {
 }
 
 // --- Environment Variables (type assertions) ---
-console.log("JWT_SECRET used here:", process.env.JWT_SECRET);
-
 const JWT_SECRET: string = process.env.JWT_SECRET as string;
 const PEPPER: string = process.env.PEPPER || "";
 const COOKIE_DOMAIN: string = process.env.DOMAIN || "localhost";
@@ -203,7 +196,7 @@ export function SendError(
   } else if (accept.includes("application/x-yaml")) {
     res.type("application/x-yaml").status(status).send(`${message}`);
   } else {
-    res.status(status).json({ error: message });
+    res.status(status).json({ message: message });
   }
 }
 
@@ -283,7 +276,6 @@ export async function CheckPass(
   hashed: string
 ): Promise<boolean> {
   try {
-    
     return await bcrypt.compare(password + PEPPER, hashed);
   } catch {
     return false;
@@ -334,68 +326,68 @@ async function _getTTL(key: string): Promise<number> {
   return ttl; // -2 - key missing, -1 - no expiry, >=0 seconds
 }
 
-export async function Attempts(res: Response, email: string): Promise<boolean> {
-  // returns true if blocked / should stop, false otherwise
+export async function Attempts(
+  res: Response,
+  email: string,
+  clientType: string | string[]
+): Promise<boolean> {
   try {
-    const blockedVal: string | null = await redisClient.get(
-      `Login:block:${email}`
-    );
+    const blockedVal = await redisClient.get(`Login:block:${email}`);
     if (blockedVal === "1") {
       SendError(
         res,
         429,
-        "you are blocked wait 15 min utils you can try again"
+        "You are blocked. Wait 15 minutes before trying again."
       );
       return true;
     }
 
-    const exists: number = await redisClient.exists(`Login:fail:${email}`);
-    if (!exists) {
-      // first try
-      return false;
-    }
+    const exists = await redisClient.exists(`Login:fail:${email}`);
+    if (!exists) return false; // first attempt, no issue
 
-    const numStr: string | null = await redisClient.get(`Login:fail:${email}`);
+    const numStr = await redisClient.get(`Login:fail:${email}`);
     if (!numStr) {
-      SendError(res, 500, "something just went wrong");
+      SendError(res, 500, "Something went wrong");
       return true;
     }
-    const num: number = parseInt(numStr, 10);
+
+    const num = parseInt(numStr, 10);
     if (isNaN(num)) {
-      SendError(res, 500, "something just went wrong");
+      SendError(res, 500, "Invalid number format in Redis");
       return true;
     }
 
-    const ttl: number = await _getTTL(`Login:fail:${email}`);
+    const ttl = await _getTTL(`Login:fail:${email}`);
 
-    if (num === 3) {
-      // ask captcha
-      await redisClient.set(`Login:fail:${email}`, String(num + 1), {
-        EX: ttl > 0 ? ttl : 300,
-      });
-      SendError(res, 401, "Solve Captcha first");
-      return true;
-    }
-
-    if (num > 3 && num < 5) {
-      const captchaPassed: number = await redisClient.exists(
-        `captcha:passed:${email}`
-      );
-      if (!captchaPassed) {
-        SendError(res, 401, "You should Solve Captcha First");
+    // 🧱 Web CAPTCHA logic
+    if (clientType === "web") {
+      if (num === 3) {
+        await redisClient.set(`Login:fail:${email}`, String(num + 1), {
+          EX: ttl > 0 ? ttl : 300,
+        });
+        SendError(res, 401, "Solve CAPTCHA first");
         return true;
       }
-      return false;
+
+      if (num > 3 && num < 5) {
+        const captchaPassed = await redisClient.exists(
+          `captcha:passed:${email}`
+        );
+        if (!captchaPassed) {
+          SendError(res, 401, "You must solve CAPTCHA first");
+          return true;
+        }
+      }
     }
 
+    // 🧱 Universal lock logic (web + mobile)
     if (num >= 5) {
-      // lock user
       await SendEmail_FAILED_LOGIN(res, email).catch(console.error);
-      await redisClient.set(`Login:block:${email}`, "1", { EX: 5 * 60 });
+      await redisClient.set(`Login:block:${email}`, "1", { EX: 15 * 60 });
       SendError(
         res,
         401,
-        `You exceeded number of Attempts wait for ${ttl} seconds`
+        `You exceeded the number of attempts. Wait 15 minutes.`
       );
       return true;
     }
@@ -403,7 +395,7 @@ export async function Attempts(res: Response, email: string): Promise<boolean> {
     return false;
   } catch (err) {
     console.error("Attempts error:", err);
-    SendError(res, 500, "something just went wrong");
+    SendError(res, 500, "Internal server error");
     return true;
   }
 }
@@ -616,9 +608,7 @@ export async function SendEmailSmtp(
 
     await transporter.sendMail(mailOptions);
 
-    return res
-      .status(200)
-      .json({ success: true, message: "Email sent successfully" });
+    return;
   } catch (err) {
     // The error is typed as 'any' in the catch block for simplicity, but you can narrow it down (e.g., to Error)
     return SendError(
@@ -655,12 +645,12 @@ export async function Sendlocation(
     }
     const target: string =
       ip.includes("127.0.0.1") || ip.includes("::1") ? "8.8.8.8" : ip;
-    console.log("🌍 Sending location request for:", target);
+    // console.log("🌍 Sending location request for:", target);
     const resp: FetchResponse = await fetch(`http://ip-api.com/json/${target}`);
-    console.log("🌎 Geo API status:", resp.status);
+    // console.log("🌎 Geo API status:", resp.status);
     if (!resp.ok) throw new Error("failed to fetch geo info");
     const data: any = await resp.json();
-    console.log("🌎 Geo API raw data:", data);
+    // console.log("🌎 Geo API raw data:", data);
     if (!data || data.status !== "success")
       throw new Error("failed to get geo info");
     // normalize to GeoData fields used previously
@@ -788,7 +778,7 @@ export async function SetDeviceInfo(
     } catch (err) {
       throw new Error("something went wrong");
     }
-    console.log("Inside SetDeviceInfo received user:", user);
+    // console.log("Inside SetDeviceInfo received user:", user);
 
     // Upsert device record: find existing by userID, then update or create
     const existing = await prisma.deviceRecord.findFirst({
@@ -960,7 +950,7 @@ export async function SetSession(
       console.error("SetSession: missing user id");
       return false;
     }
-    console.log("setsessions been called");
+    // console.log("setsessions been called");
     const devid: string | null =
       (req as any).devid || (req.body as any)?.devid || null;
 
@@ -974,7 +964,7 @@ export async function SetSession(
     };
 
     const key: string = `User:sessions:${userId}:${jti}`;
-    console.log("Storing session in Redis key:", key, "session:", session);
+    // console.log("Storing session in Redis key:", key, "session:", session);
     // Push new session into Redis list (acts like array)
     await redisClient.rPush(key, JSON.stringify(session));
 
@@ -990,4 +980,3 @@ export async function SetSession(
     return false;
   }
 }
-//////HOSSAM//////////////////

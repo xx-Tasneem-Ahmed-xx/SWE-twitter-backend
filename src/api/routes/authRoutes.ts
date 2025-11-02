@@ -49,7 +49,120 @@ const router: Router = express.Router();
  * /signup:
  *   post:
  *     summary: Register a new user
- *     description: Creates a new user account and sends a verification email with a code.
+ *     description: Creates a new user account, validates Captcha for web clients, and sends a verification email containing a 6-digit code that expires in 15 minutes.
+ *     tags:
+ *       - Auth
+ *     parameters:
+ *       - in: header
+ *         name: x-client-type
+ *         schema:
+ *           type: string
+ *           example: web
+ *         required: false
+ *         description: Indicates the client type (e.g., "web" for browser clients requiring Captcha verification)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - dateOfBirth
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Full name of the user
+ *                 example: "John Doe"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Valid email address of the user
+ *                 example: "john@example.com"
+ *               dateOfBirth:
+ *                 type: string
+ *                 format: date
+ *                 description: User's date of birth in YYYY-MM-DD format
+ *                 example: "2003-05-21"
+ *     responses:
+ *       200:
+ *         description: User registration initiated successfully. Verification email sent.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "User registered successfully. Please verify your email to continue."
+ *       400:
+ *         description: Invalid or missing request fields.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Missing required fields"
+ *       401:
+ *         description: Captcha verification required for web clients.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "You must solve Captcha first"
+ *       409:
+ *         description: Email address is already associated with an existing account.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Email already in use"
+ *       500:
+ *         description: Internal server error or failed email delivery.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Failed to send verification email"
+ */
+
+router.post("/signup", typedAuthController.Create); //tested
+/**
+ * @swagger
+ * /finalize_signup:
+ *   post:
+ *     summary: Finalize user signup by setting a password
+ *     description: |
+ *       Completes the signup process after successful email verification.  
+ *       Accepts the user's verified email and chosen password, creates the user in the database,  
+ *       sends a welcome email, generates access/refresh tokens, and deletes temporary Redis data.
  *     tags:
  *       - Auth
  *     requestBody:
@@ -59,68 +172,120 @@ const router: Router = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - username
  *               - email
  *               - password
  *             properties:
- *               username:
- *                 type: string
- *                 example: "john_doe"
  *               email:
  *                 type: string
+ *                 format: email
+ *                 description: User's verified email address
  *                 example: "john@example.com"
  *               password:
  *                 type: string
+ *                 minLength: 8
+ *                 description: Strong password (min. 8 characters)
  *                 example: "StrongPassword123!"
  *     responses:
  *       201:
- *         description: User registered successfully and verification email sent
+ *         description: Signup finalized successfully. User account created, tokens issued, and welcome email sent.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Signup complete. Welcome!"
+ *                 user:
+ *                   type: object
+ *                   description: Newly created user object (password/salt omitted)
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "c8f26a23-8bc9-4e9a-9f1d-2e8f7f3a90aa"
+ *                     username:
+ *                       type: string
+ *                       example: "john_doe"
+ *                     name:
+ *                       type: string
+ *                       example: "John Doe"
+ *                     email:
+ *                       type: string
+ *                       example: "john@example.com"
+ *                     dateOfBirth:
+ *                       type: string
+ *                       format: date
+ *                       example: "2003-05-21"
+ *                     isEmailVerified:
+ *                       type: boolean
+ *                       example: true
+ *                 device:
+ *                   type: object
+ *                   description: Information about the registered device
+ *                   example:
+ *                     id: "device_abc123"
+ *                     userAgent: "Mozilla/5.0"
+ *                     ipAddress: "192.168.1.15"
+ *                 tokens:
+ *                   type: object
+ *                   properties:
+ *                     accessToken:
+ *                       type: string
+ *                       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                     refreshToken:
+ *                       type: string
+ *                       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *       400:
- *         description: Missing or invalid input fields
- *       409:
- *         description: Email already exists
- */
-router.post("/signup", typedAuthController.Create); //tested
-//router.post("/continue_signup",typedAuthController.ContinuS)
-
-router.post("/verify-signup", typedAuthController.Verify_signup_email); //tested
-/**
- * @swagger
- * /login:
- *   post:
- *     summary: Login with credentials
- *     description: Authenticates the user using email and password, returns access and refresh tokens.
- *     tags:
- *       - Auth
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 example: "john@example.com"
- *               password:
- *                 type: string
- *                 example: "StrongPassword123!"
- *     responses:
- *       200:
- *         description: Login successful, tokens returned
+ *         description: Missing email or password, or verification step not completed.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "You must verify your email first"
  *       401:
- *         description: Invalid credentials
+ *         description: Password validation failed (if enforced).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Password too weak"
+ *       409:
+ *         description: User already exists or signup already completed.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "User already exists"
+ *       500:
+ *         description: Internal server error or failed to send welcome email.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Failed to send welcome email"
  */
-router.post("/login", typedAuthController.Login); //tested
+
+router.post("/finalize_signup", typedAuthController.FinalizeSignup); // tested
 /**
  * @swagger
- * /verify-login:
+ * /verify-signup:
  *   post:
- *     summary: Verify login with code
- *     description: Verifies the login code sent to the user's email or device.
+ *     summary: Verify signup email with a 6-digit code
+ *     description: >
+ *       Verifies the user's email address using the 6-digit code sent to their inbox during signup.
+ *       After successful verification, the user can finalize their signup by setting a password via finalize_signup**.
  *     tags:
  *       - Auth
  *     requestBody:
@@ -135,140 +300,81 @@ router.post("/login", typedAuthController.Login); //tested
  *             properties:
  *               email:
  *                 type: string
+ *                 format: email
+ *                 description: The user's email address used during signup
  *                 example: "john@example.com"
  *               code:
  *                 type: string
- *                 example: "458973"
- *     responses:
- *       200:
- *         description: Login verified successfully
- *       400:
- *         description: Invalid verification code or expired session
- */
-router.post("/verify-login", typedAuthController.Verify_email); //tested
-
-// --- 2FA / Login Code Setup & Verification Routes (Require Auth & AdminAuth) ---
-/**
- * @openapi
- * /2fa/setup:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Initialize 2FA setup for the authenticated user
- *     description: Generates a secret key and QR code for enabling two-factor authentication (TOTP) for the logged-in user.
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Returns the generated 2FA secret and QR code URL.
- *       401:
- *         description: Unauthorized, missing or invalid token.
- *       500:
- *         description: Server error during 2FA setup.
- */
-router.post("/2fa/setup", Auth(),  typedAuthController.Create_2fA); //tested
-/**
- * @openapi
- * /2fa/verify:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Verify a 2FA token during setup or login
- *     description: Verifies the TOTP token entered by the user during setup or when logging in with 2FA enabled.
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               token:
- *                 type: string
+ *                 minLength: 6
+ *                 maxLength: 6
+ *                 description: The 6-digit verification code sent via email
  *                 example: "123456"
  *     responses:
  *       200:
- *         description: 2FA verified successfully.
+ *         description: Email verified successfully. User may now proceed to finalize signup.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Email verified successfully, please set your password."
  *       400:
- *         description: Invalid 2FA code or expired token.
- *       500:
- *         description: Internal server error during verification.
- */
-router.post("/2fa/verify", typedAuthController.Verify_2fA); //tested
-/**
- * @openapi
- * /generate-login-codes:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Generate backup login codes for the authenticated user
- *     description: Generates a set of backup login codes that can be used if the user loses access to their 2FA device.
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Returns a list of backup login codes.
+ *         description: Missing required fields, expired verification session, or user data missing.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Verification session expired, please sign up again"
  *       401:
- *         description: Unauthorized, missing or invalid token.
+ *         description: Incorrect or invalid verification code.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Verification code is incorrect"
  *       500:
- *         description: Server error generating login codes.
+ *         description: Internal server error or Redis failure.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Server error occurred during verification"
  */
 
-router.post("/generate-login-codes", Auth(),  typedAuthController.GenerteLoginCodes); //tested
-/**
- * @openapi
- * /verify-login-code:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Verify a backup login code
- *     description: Verifies one of the backup login codes generated by the user for account recovery or emergency access.
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               code:
- *                 type: string
- *                 example: "ABCD-1234"
- *     responses:
- *       200:
- *         description: Login code verified successfully.
- *       400:
- *         description: Invalid or already used code.
- *       500:
- *         description: Server error during login code verification.
- */
-router.post("/verify-login-code", typedAuthController.VerifyLoginCode); //tested
-
-// --- Password Management Routes ---
-
-/**
- * @openapi
- * /forget-password:
- *   post:
- *     tags:
- *       - Password Management
- *     summary: Send a password reset link or code
- *     description: Allows a logged-in user to request a password reset (sends email or SMS verification code).
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Password reset email or code sent successfully.
- *       401:
- *         description: Unauthorized, missing or invalid token.
- *       500:
- *         description: Internal server error sending password reset request.
- */
-router.post("/forget-password", Auth(),  typedAuthController.ForgetPassword);
+router.post("/verify-signup", typedAuthController.Verify_signup_email); //tested
 /**
  * @swagger
- * /reset-password:
+ * /login:
  *   post:
- *     summary: Reset password
- *     description: Resets a user's password using a token sent to their email.
+ *     summary: User login with credentials
+ *     description: >
+ *       Authenticates a user using their **email** and **password**.  
+ *       Returns both access and refresh tokens, sets a secure cookie for the refresh token,  
+ *       and sends login notifications (email & in-app).  
+ *       Rate-limited and device-tracked for enhanced security.
  *     tags:
  *       - Auth
  *     requestBody:
@@ -279,35 +385,204 @@ router.post("/forget-password", Auth(),  typedAuthController.ForgetPassword);
  *             type: object
  *             required:
  *               - email
- *               - token
- *               - newPassword
+ *               - password
  *             properties:
  *               email:
  *                 type: string
+ *                 format: email
+ *                 description: Registered email of the user
  *                 example: "john@example.com"
- *               token:
+ *               password:
  *                 type: string
- *                 example: "abc123token"
- *               newPassword:
- *                 type: string
- *                 example: "NewStrongPassword@123"
+ *                 format: password
+ *                 description: User's password
+ *                 example: "StrongPassword123!"
  *     responses:
  *       200:
- *         description: Password reset successfully.
+ *         description: Login successful — tokens issued and notifications sent.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 User:
+ *                   type: object
+ *                   description: Authenticated user details
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "cfe12a34-b5c6-7d89-e012-3456789abcde"
+ *                     username:
+ *                       type: string
+ *                       example: "john_doe"
+ *                     email:
+ *                       type: string
+ *                       example: "john@example.com"
+ *                     isEmailVerified:
+ *                       type: boolean
+ *                       example: true
+ *                 DeviceRecord:
+ *                   type: string
+ *                   description: Information about the device used for login
+ *                   example: "Windows 11 - Chrome 120"
+ *                 Token:
+ *                   type: string
+ *                   description: Short-lived access token (JWT)
+ *                 Refresh_token:
+ *                   type: string
+ *                   description: Long-lived refresh token (JWT)
+ *                 message:
+ *                   type: string
+ *                   example: "Login successful, email & in-app notification sent"
  *       400:
- *         description: Invalid or expired reset token.
+ *         description: Missing required fields (email or password)
+ *       401:
+ *         description: Invalid credentials (wrong email or password)
+ *       403:
+ *         description: Invalid email format
+ *       429:
+ *         description: Too many login attempts — try again later
+ *       500:
+ *         description: Internal server error or email sending failure
  */
-router.post("/reset-password", Auth(),  typedAuthController.ResetPassword);
+router.post("/login", typedAuthController.Login); //tested
+// /**
+//  * @swagger
+//  * /verify-login:
+//  *   post:
+//  *     summary: Verify login with code
+//  *     description: Verifies the login code sent to the user's email or device.
+//  *     tags:
+//  *       - Auth
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - email
+//  *               - code
+//  *             properties:
+//  *               email:
+//  *                 type: string
+//  *                 example: "john@example.com"
+//  *               code:
+//  *                 type: string
+//  *                 example: "458973"
+//  *     responses:
+//  *       200:
+//  *         description: Login verified successfully
+//  *       400:
+//  *         description: Invalid verification code or expired session
+//  */
+// router.post("/verify-login", typedAuthController.Verify_email); //tested
 
-// --- Session & Logout Routes ---
+// --- 2FA / Login Code Setup & Verification Routes (Require Auth & AdminAuth) ---
+// /**
+//  * @openapi
+//  * /2fa/setup:
+//  *   post:
+//  *     tags:
+//  *       - Auth
+//  *     summary: Initialize 2FA setup for the authenticated user
+//  *     description: Generates a secret key and QR code for enabling two-factor authentication (TOTP) for the logged-in user.
+//  *     security:
+//  *       - bearerAuth: []
+//  *     responses:
+//  *       200:
+//  *         description: Returns the generated 2FA secret and QR code URL.
+//  *       401:
+//  *         description: Unauthorized, missing or invalid token.
+//  *       500:
+//  *         description: Server error during 2FA setup.
+//  */
+// router.post("/2fa/setup", Auth(),  typedAuthController.Create_2fA); //tested
+// /**
+//  * @openapi
+//  * /2fa/verify:
+//  *   post:
+//  *     tags:
+//  *       - Auth
+//  *     summary: Verify a 2FA token during setup or login
+//  *     description: Verifies the TOTP token entered by the user during setup or when logging in with 2FA enabled.
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               token:
+//  *                 type: string
+//  *                 example: "123456"
+//  *     responses:
+//  *       200:
+//  *         description: 2FA verified successfully.
+//  *       400:
+//  *         description: Invalid 2FA code or expired token.
+//  *       500:
+//  *         description: Internal server error during verification.
+//  */
+// router.post("/2fa/verify", typedAuthController.Verify_2fA); //tested
+// /**
+//  * @openapi
+//  * /generate-login-codes:
+//  *   post:
+//  *     tags:
+//  *       - Auth
+//  *     summary: Generate backup login codes for the authenticated user
+//  *     description: Generates a set of backup login codes that can be used if the user loses access to their 2FA device.
+//  *     security:
+//  *       - bearerAuth: []
+//  *     responses:
+//  *       200:
+//  *         description: Returns a list of backup login codes.
+//  *       401:
+//  *         description: Unauthorized, missing or invalid token.
+//  *       500:
+//  *         description: Server error generating login codes.
+//  */
+
+// router.post("/generate-login-codes", Auth(),  typedAuthController.GenerteLoginCodes); //tested
+// /**
+//  * @openapi
+//  * /verify-login-code:
+//  *   post:
+//  *     tags:
+//  *       - Auth
+//  *     summary: Verify a backup login code
+//  *     description: Verifies one of the backup login codes generated by the user for account recovery or emergency access.
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               code:
+//  *                 type: string
+//  *                 example: "ABCD-1234"
+//  *     responses:
+//  *       200:
+//  *         description: Login code verified successfully.
+//  *       400:
+//  *         description: Invalid or already used code.
+//  *       500:
+//  *         description: Server error during login code verification.
+//  */
+// router.post("/verify-login-code", typedAuthController.VerifyLoginCode); //tested
+
+// --- Password Management Routes ---
+
 /**
- * @swagger
- * /refresh:
+ * @openapi
+ * /forget-password:
  *   post:
- *     summary: Refresh access token
- *     description: Generates a new access token using a valid refresh token.
  *     tags:
- *       - Auth
+ *       - Password Management
+ *     summary: Request password reset
+ *     description: Sends a password reset code or link to the user's email for account recovery.
  *     requestBody:
  *       required: true
  *       content:
@@ -315,33 +590,216 @@ router.post("/reset-password", Auth(),  typedAuthController.ResetPassword);
  *           schema:
  *             type: object
  *             required:
- *               - refreshToken
+ *               - email
  *             properties:
- *               refreshToken:
+ *               email:
  *                 type: string
- *                 example: "eyJhbGciOiJIUzI1NiIsInR..."
+ *                 format: email
+ *                 example: "john.doe@example.com"
  *     responses:
  *       200:
- *         description: New access token generated successfully
- *       403:
- *         description: Invalid or expired refresh token
+ *         description: Password reset code sent successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Reset code sent via email. Check your inbox!
+ *       400:
+ *         description: Missing or invalid email address.
+ *       404:
+ *         description: User not found.
+ *       500:
+ *         description: Internal server error while sending reset code.
  */
-router.get("/refresh",  typedAuthController.Refresh);
+router.post("/forget-password",  typedAuthController.ForgetPassword);
 /**
- * @swagger
- * /logout:
+ * @openapi
+ * /verify-reset-code:
  *   post:
- *     summary: Logout current user
- *     description: Ends the current user session and invalidates the tokens.
  *     tags:
  *       - Auth
+ *     summary: Verify password reset code
+ *     description: Verifies the reset code sent to the user's email. Once verified, the user can proceed to reset the password.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - code
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: The email of the user requesting password reset.
+ *               code:
+ *                 type: string
+ *                 description: The 6-digit reset code sent to the user's email.
+ *     responses:
+ *       200:
+ *         description: Reset code verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Reset code verified, you can now enter a new password"
+ *       400:
+ *         description: Validation error or missing fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Invalid reset code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+
+router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
+
+/**
+ * @openapi
+ * /reset-password:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Reset user password
+ *     description: Allows a user to reset their password after verifying the reset code. Requires email and new password.
+ *     security:
+ *       - bearerAuth: []   # assuming Auth() middleware uses Bearer token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: The email of the user whose password is being reset.
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: The new password to set for the user.
+ *     responses:
+ *       200:
+ *         description: Password reset successfully, notification sent
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Password reset successfully, notification sent"
+ *       400:
+ *         description: Validation error or missing fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Invalid reset code or unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error (email sending / DB update failed)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post("/reset-password",  typedAuthController.ResetPassword);
+
+// --- Session & Logout Routes ---
+/**
+ * @openapi
+ * /refresh:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Refresh access token
+ *     description: Generates a new short-lived access token using a valid refresh token provided in the request body.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refresh_token:
+ *                 type: string
+ *                 example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *     responses:
+ *       200:
+ *         description: New access token generated successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 access_token:
+ *                   type: string
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...                
+ *       401:
+ *         description: Missing or invalid refresh token.
+ *       500:
+ *         description: Internal server error during token refresh.
+ */
+router.post("/refresh",  typedAuthController.Refresh);
+/**
+ * @openapi
+ * /logout:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Logout current user
+ *     description: Ends the current user session and invalidates both access and refresh tokens.
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Logout successful.
+ *         description: Logout successful, session terminated.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Logged out successfully.
  *       401:
  *         description: Unauthorized or invalid session.
+ *       500:
+ *         description: Internal server error during logout.
  */
 router.post("/logout", Auth(),  typedAuthController.Logout, DeactivateUser()); //tested
 /**
@@ -383,40 +841,34 @@ router.get("/captcha", Auth(),  typedAuthController.Captcha);
 /**
  * @swagger
  * /signup_captcha:
- *   post:
- *     summary: Signup using CAPTCHA verification
- *     description: Registers a new user only if CAPTCHA verification passes.
+ *   get:
+ *     summary: Signup CAPTCHA verification
+ *     description: Marks CAPTCHA as passed for the given email.  
+ *                  No body required; email is passed as query parameter.  
+ *                  Returns a message confirming CAPTCHA verification.
  *     tags:
  *       - Captcha
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - username
- *               - email
- *               - password
- *               - captchaResponse
- *             properties:
- *               username:
- *                 type: string
- *                 example: "john_doe"
- *               email:
- *                 type: string
- *                 example: "john@example.com"
- *               password:
- *                 type: string
- *                 example: "StrongPassword123!"
- *               captchaResponse:
- *                 type: string
- *                 example: "03AHJ_Vuv2kjs..."
+ *     parameters:
+ *       - in: query
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: "john@example.com"
+ *         description: Email for which CAPTCHA was completed
  *     responses:
- *       201:
- *         description: Signup successful and CAPTCHA verified.
+ *       200:
+ *         description: CAPTCHA verified successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 Message:
+ *                   type: string
+ *                   example: "You passed the Captcha, you can register now"
  *       400:
- *         description: Invalid CAPTCHA or missing fields.
+ *         description: Invalid or missing email.
  */
 router.post("/signup_captcha",  typedAuthController.SignupCaptcha); //tested
 
@@ -450,64 +902,64 @@ router.post("/signup_captcha",  typedAuthController.SignupCaptcha); //tested
  *         description: Invalid password.
  */
 router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
-/**
- * @swagger
- * /reauth-tfa:
- *   post:
- *     summary: Reauthenticate using Two-Factor Authentication
- *     description: Confirms identity by verifying the user's TOTP or 2FA code.
- *     tags:
- *       - Reauthentication
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - code
- *             properties:
- *               code:
- *                 type: string
- *                 example: "428913"
- *     responses:
- *       200:
- *         description: Two-Factor reauthentication successful.
- *       400:
- *         description: Invalid or expired code.
- */
-router.post("/reauth-tfa", Auth(),  typedAuthController.ReauthTFA); //tested
-/**
- * @swagger
- * /reauth-code:
- *   post:
- *     summary: Reauthenticate using backup code
- *     description: Confirms identity using a backup code as an alternative to password or TFA.
- *     tags:
- *       - Reauthentication
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - backupCode
- *             properties:
- *               backupCode:
- *                 type: string
- *                 example: "ABCD-1234"
- *     responses:
- *       200:
- *         description: Backup code verified successfully.
- *       400:
- *         description: Invalid or expired backup code.
- */
-router.post("/reauth-code", Auth(),  typedAuthController.ReauthCode); //tested
+// /**
+//  * @swagger
+//  * /reauth-tfa:
+//  *   post:
+//  *     summary: Reauthenticate using Two-Factor Authentication
+//  *     description: Confirms identity by verifying the user's TOTP or 2FA code.
+//  *     tags:
+//  *       - Reauthentication
+//  *     security:
+//  *       - bearerAuth: []
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - code
+//  *             properties:
+//  *               code:
+//  *                 type: string
+//  *                 example: "428913"
+//  *     responses:
+//  *       200:
+//  *         description: Two-Factor reauthentication successful.
+//  *       400:
+//  *         description: Invalid or expired code.
+//  */
+// router.post("/reauth-tfa", Auth(),  typedAuthController.ReauthTFA); //tested
+// /**
+//  * @swagger
+//  * /reauth-code:
+//  *   post:
+//  *     summary: Reauthenticate using backup code
+//  *     description: Confirms identity using a backup code as an alternative to password or TFA.
+//  *     tags:
+//  *       - Reauthentication
+//  *     security:
+//  *       - bearerAuth: []
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - backupCode
+//  *             properties:
+//  *               backupCode:
+//  *                 type: string
+//  *                 example: "ABCD-1234"
+//  *     responses:
+//  *       200:
+//  *         description: Backup code verified successfully.
+//  *       400:
+//  *         description: Invalid or expired backup code.
+//  */
+// router.post("/reauth-code", Auth(),  typedAuthController.ReauthCode); //tested
 
 // --- Sensitive Change Routes (Require Auth & Reauth) ---
 /**
@@ -527,16 +979,24 @@ router.post("/reauth-code", Auth(),  typedAuthController.ReauthCode); //tested
  *           schema:
  *             type: object
  *             required:
- *               - newPassword
+ *               - password
+ *               - confirm
  *             properties:
- *               newPassword:
+ *               password:
+ *                 type: string
+ *                 example: "NewStrongPass@2024"
+ *               confirm:
  *                 type: string
  *                 example: "NewStrongPass@2024"
  *     responses:
  *       200:
  *         description: Password changed successfully.
+ *       400:
+ *         description: Invalid password format or validation failed.
  *       401:
- *         description: Reauthentication required or failed.
+ *         description: Reauthentication required or password not strong enough.
+ *       404:
+ *         description: User not found.
  */
 router.post("/change-password", Auth(),  Reauth(), typedAuthController.ChangePassword); //tested
 /**
@@ -659,6 +1119,145 @@ router.get("/sessions", Auth(),  typedAuthController.GetSession); //tested
 router.delete("/session/:sessionid", Auth(),  typedAuthController.LogoutSession);
 // router.post("/debug-redis",Auth(),typedAuthController.DebugRedis); //tested
 // --- Post-Request Cleanup Middleware ---
+/**
+ * @swagger
+ * /update_username:
+ *   put:
+ *     summary: Update current user's username
+ *     description: Updates the username of the authenticated user using their ID from req.user.id.
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: new_username123
+ *     responses:
+ *       200:
+ *         description: Username updated successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Username updated successfully ✅
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: clu6wq2k90001x3sdo8v9l0k4
+ *                     username:
+ *                       type: string
+ *                       example: new_username123
+ *       400:
+ *         description: Invalid username.
+ *       401:
+ *         description: Unauthorized or missing user ID.
+ *       500:
+ *         description: Internal server error.
+ */
+router.put("/update_username",Auth(),typedAuthController.UpdateUsername);
+/**
+ * @swagger
+ * /getUser:
+ *   post:
+ *     summary: Check if a user email exists
+ *     description: Verifies whether a given email address is already registered in the database.
+ *     tags:
+ *       - User
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: user@example.com
+ *     responses:
+ *       200:
+ *         description: Successfully checked if the email exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 exists:
+ *                   type: boolean
+ *                   description: True if user exists, false otherwise
+ *                   example: true
+ *       400:
+ *         description: Missing or invalid email in request body
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: email is required
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Internal Server Error
+ */
+router.post("/getUser",typedAuthController.CheckEmail);
+
+/**
+ * @swagger
+ * /user/{id}/email:
+ *   get:
+ *     summary: Get user's email by ID
+ *     tags:
+ *       - User
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the user
+ *     responses:
+ *       200:
+ *         description: User email retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 email:
+ *                   type: string
+ *                   example: user@example.com
+ *       400:
+ *         description: User ID is missing
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
 router.use(AfterChange());
 router.use(GeoGurd());
 export default router;

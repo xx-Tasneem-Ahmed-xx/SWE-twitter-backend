@@ -27,7 +27,7 @@ export default function AfterChange() {
     } catch (err) {
       console.error("AfterChange err:", err);
       // Fixed the typo in the original JS: uitls.SendError -> utils.SendError
-      return utils.SendError(res, 500, "something went wrong");
+      return next(err);
     }
   };
 }

@@ -1,13 +1,5 @@
 import { prisma, FollowStatus } from "@/prisma/client";
-import { Response } from "express";
-
-// Check if a user exists by username
-export const findUserByUsername = async (username: string) => {
-  return prisma.user.findUnique({
-    where: { username },
-    select: { id: true, protectedAccount: true },
-  });
-};
+import { AppError } from "@/errors/AppError";
 
 // Create a follow relationship
 export const createFollowRelation = async (
@@ -27,8 +19,8 @@ export const createFollowRelation = async (
       },
     });
   } catch (error: any) {
-    if (error.code === "P2002") {
-      throw new Error("Already following this user");
+    if (error?.code === "P2002") {
+      throw new AppError("Already following this user", 400);
     }
     throw error;
   }
@@ -87,6 +79,22 @@ export const isAlreadyFollowing = async (
   });
 };
 
+// Batch-check follow relations for a set of target users
+export const isAlreadyFollowingBatch = async (
+  followerId: string,
+  followingIds: string[],
+  status?: FollowStatus
+) => {
+  if (!followingIds || followingIds.length === 0) return new Set<string>();
+  const where: any = { followerId, followingId: { in: followingIds } };
+  if (status) where.status = status;
+  const rows = await prisma.follow.findMany({
+    where,
+    select: { followingId: true },
+  });
+  return new Set(rows.map((r) => r.followingId));
+};
+
 // Check if two users have blocked each other
 export const checkBlockStatus = async (userId1: string, userId2: string) => {
   const blockCount = await prisma.block.count({
@@ -105,7 +113,7 @@ type UserData = {
   id: string;
   username: string;
   name: string | null;
-  profileMedia: { keyName: string } | null;
+  profileMediaId: string | null;
   bio: string | null;
   verified: boolean;
 };
@@ -115,17 +123,15 @@ const checkMutualFollowStatus = async (
   userIds: string[],
   currentUserId: string
 ) => {
-  const followedByCurrentUser = await prisma.follow.findMany({
-    where: {
-      followerId: currentUserId,
-      followingId: { in: userIds },
-      status: FollowStatus.ACCEPTED,
-    },
-    select: { followingId: true },
-  });
+  // Batch-check who currentUser is following (accepted)
+  const followedByCurrentUserSet = await isAlreadyFollowingBatch(
+    currentUserId,
+    userIds,
+    FollowStatus.ACCEPTED
+  );
 
-  // Check which users are following the current user
-  const followingCurrentUser = await prisma.follow.findMany({
+  // Batch-check who is following currentUser (accepted)
+  const followingCurrentUserRows = await prisma.follow.findMany({
     where: {
       followerId: { in: userIds },
       followingId: currentUserId,
@@ -134,115 +140,226 @@ const checkMutualFollowStatus = async (
     select: { followerId: true },
   });
 
-  const followedByCurrentUserSet = new Set(
-    followedByCurrentUser.map((follow) => follow.followingId)
-  );
-  const followingCurrentUserSet = new Set(
-    followingCurrentUser.map((follow) => follow.followerId)
+  const followingCurrentUserSetFinal = new Set(
+    followingCurrentUserRows.map((f) => f.followerId)
   );
 
   return {
     followedByCurrentUserSet,
-    followingCurrentUserSet,
+    followingCurrentUserSet: followingCurrentUserSetFinal,
   };
 };
 
 // Helper function to format user data for response
 const formatUserForResponse = (
   user: UserData,
-  isFollowing: boolean,
-  isFollower: boolean
+  isFollowing: boolean = false,
+  isFollower: boolean = false,
+  youRequested: boolean = false,
+  followStatus: FollowStatus | "NONE" = "NONE"
 ) => {
   return {
     username: user.username,
     name: user.name,
-    photo: user.profileMedia ? user.profileMedia.keyName : null,
+    photo: user.profileMediaId,
     bio: user.bio || null,
     verified: user.verified,
     isFollowing,
     isFollower,
-  };
+    youRequested,
+    followStatus,
+  } as any;
+};
+
+// Helper to compute the nextCursor (username-base64) from the last row of a page
+const computeNextCursor = async (page: any[], hasMore: boolean) => {
+  if (!hasMore || page.length === 0) return null;
+  const lastId = page[page.length - 1].id;
+  const nextUser = await prisma.user.findUnique({
+    where: { id: lastId },
+    select: { username: true },
+  });
+  return nextUser ? Buffer.from(nextUser.username).toString("base64") : null;
+};
+
+// Helper to compute relationToTarget followStatus for a page of users
+const getRelationToTargetStatuses = async (
+  userIds: string[],
+  targetId: string,
+  direction: "EtoT" | "TtoE"
+) => {
+  if (!userIds || userIds.length === 0) return new Map<string, FollowStatus>();
+
+  if (direction === "EtoT") {
+    // returned user (E) -> target (T)
+    const rows = await prisma.follow.findMany({
+      where: {
+        followerId: { in: userIds },
+        followingId: targetId,
+        status: { in: [FollowStatus.ACCEPTED, FollowStatus.PENDING] },
+      },
+      select: { followerId: true, status: true },
+    });
+    const m = new Map<string, FollowStatus>();
+    rows.forEach((r) => m.set(r.followerId, r.status as FollowStatus));
+    return m;
+  }
+
+  // direction T -> E (target follows returned user)
+  const rows = await prisma.follow.findMany({
+    where: {
+      followerId: targetId,
+      followingId: { in: userIds },
+      status: { in: [FollowStatus.ACCEPTED, FollowStatus.PENDING] },
+    },
+    select: { followingId: true, status: true },
+  });
+  const m = new Map<string, FollowStatus>();
+  rows.forEach((r) => m.set(r.followingId, r.status as FollowStatus));
+  return m;
 };
 
 // Get followers list by status (followers or requests)
 export const getFollowersList = async (
   userId: string,
   currentUserId: string,
-  followStatus: FollowStatus
+  followStatus: FollowStatus,
+  cursorId?: string,
+  limit: number = 30
 ) => {
-  const followers = await prisma.follow.findMany({
-    where: { followingId: userId, status: followStatus },
-    include: {
-      follower: {
-        select: {
-          id: true,
-          username: true,
-          name: true,
-          bio: true,
-          verified: true,
-          profileMedia: {
-            select: {
-              keyName: true,
-            },
-          },
-        },
-      },
-    },
-  });
-  const followerIds = followers.map((f) => f.follower.id);
-  const { followedByCurrentUserSet, followingCurrentUserSet } =
-    await checkMutualFollowStatus(followerIds, currentUserId);
+  const effectiveLimit = Math.min(Math.max(limit, 1), 100);
+  const take = effectiveLimit + 1; // fetch one extra to detect hasMore
 
-  const formattedFollowers = followers.map((follow) => {
-    const user = follow.follower;
+  const q: any = {
+    where: {
+      followings: { some: { followingId: userId } },
+    },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      bio: true,
+      verified: true,
+      profileMediaId: true,
+    },
+    orderBy: { id: "asc" },
+    take,
+  };
+
+  if (cursorId) {
+    q.cursor = { id: cursorId };
+    q.skip = 1;
+  }
+
+  const rows = await prisma.user.findMany(q);
+  const hasMore = rows.length === take;
+  const page = hasMore ? rows.slice(0, -1) : rows;
+
+  const userIds = page.map((u: any) => u.id);
+  const { followedByCurrentUserSet, followingCurrentUserSet } =
+    await checkMutualFollowStatus(userIds, currentUserId);
+
+  const pendingRequestsSentByCurrentUserSet = await isAlreadyFollowingBatch(
+    currentUserId,
+    userIds,
+    FollowStatus.PENDING
+  );
+
+  // compute relationToTarget for followers list: returned user (E) -> target (userId)
+  const relationMap = await getRelationToTargetStatuses(
+    userIds,
+    userId,
+    "EtoT"
+  );
+
+  const users = page.map((user: any) => {
     const isFollowing = followedByCurrentUserSet.has(user.id);
     const isFollower = followingCurrentUserSet.has(user.id);
-    return formatUserForResponse(user, isFollowing, isFollower);
+    const youRequested = pendingRequestsSentByCurrentUserSet.has(user.id);
+    const followStatus = (relationMap.get(user.id) as FollowStatus) ?? "NONE";
+    return formatUserForResponse(
+      user,
+      isFollowing,
+      isFollower,
+      youRequested,
+      followStatus
+    );
   });
 
-  return {
-    users: formattedFollowers,
-  };
+  const nextCursor = await computeNextCursor(page, hasMore);
+  return { users, nextCursor, hasMore };
 };
 
 // Get list of followings with mutual follow information
 export const getFollowingsList = async (
   userId: string,
-  currentUserId: string
+  currentUserId: string,
+  cursorId?: string,
+  limit: number = 30
 ) => {
-  const followings = await prisma.follow.findMany({
-    where: { followerId: userId, status: FollowStatus.ACCEPTED },
-    include: {
-      following: {
-        select: {
-          id: true,
-          username: true,
-          name: true,
-          bio: true,
-          verified: true,
-          profileMedia: {
-            select: {
-              keyName: true,
-            },
-          },
-        },
+  const effectiveLimit = Math.min(Math.max(limit, 1), 100);
+  const take = effectiveLimit + 1;
+
+  const q: any = {
+    where: {
+      followers: {
+        some: { followerId: userId },
       },
     },
-  });
-  const followingIds = followings.map((f) => f.following.id);
-  const { followedByCurrentUserSet, followingCurrentUserSet } =
-    await checkMutualFollowStatus(followingIds, currentUserId);
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      bio: true,
+      verified: true,
+      profileMediaId: true,
+    },
+    orderBy: { id: "asc" },
+    take,
+  };
 
-  const formattedFollowings = followings.map((follow) => {
-    const user = follow.following;
+  if (cursorId) {
+    q.cursor = { id: cursorId };
+    q.skip = 1;
+  }
+
+  const rows = await prisma.user.findMany(q);
+  const hasMore = rows.length === take;
+  const page = hasMore ? rows.slice(0, -1) : rows;
+
+  const userIds = page.map((u: any) => u.id);
+  const { followedByCurrentUserSet, followingCurrentUserSet } =
+    await checkMutualFollowStatus(userIds, currentUserId);
+
+  const pendingRequestsSentByCurrentUserSet = await isAlreadyFollowingBatch(
+    currentUserId,
+    userIds,
+    FollowStatus.PENDING
+  );
+
+  // compute relationToTarget for followings list: target (userId) -> returned user (E)
+  const relationMap = await getRelationToTargetStatuses(
+    userIds,
+    userId,
+    "TtoE"
+  );
+
+  const users = page.map((user: any) => {
     const isFollowing = followedByCurrentUserSet.has(user.id);
     const isFollower = followingCurrentUserSet.has(user.id);
-    return formatUserForResponse(user, isFollowing, isFollower);
+    const youRequested = pendingRequestsSentByCurrentUserSet.has(user.id);
+    const followStatus = (relationMap.get(user.id) as FollowStatus) ?? "NONE";
+    return formatUserForResponse(
+      user,
+      isFollowing,
+      isFollower,
+      youRequested,
+      followStatus
+    );
   });
 
-  return {
-    users: formattedFollowings,
-  };
+  const nextCursor = await computeNextCursor(page, hasMore);
+  return { users, nextCursor, hasMore };
 };
 
 // Block a user
@@ -275,7 +392,7 @@ export const createBlockRelation = async (
     });
   } catch (error) {
     console.error("Create block relation error:", error);
-    throw new Error("Failed to create block relation");
+    throw new AppError("Failed to create block relation", 500);
   }
 };
 
@@ -295,38 +412,46 @@ export const removeBlockRelation = async (
     });
   } catch (error) {
     console.error("Remove block relation error:", error);
-    throw new Error("Failed to remove block relation");
+    throw new AppError("Failed to remove block relation", 500);
   }
 };
 
 // Get list of users blocked
-export const getBlockedList = async (blockerId: string) => {
-  const blockedUsers = await prisma.block.findMany({
-    where: { blockerId },
-    include: {
-      blocked: {
-        select: {
-          id: true,
-          username: true,
-          name: true,
-          bio: true,
-          verified: true,
-          profileMedia: {
-            select: {
-              keyName: true,
-            },
-          },
-        },
-      },
+export const getBlockedList = async (
+  blockerId: string,
+  cursorId?: string,
+  limit: number = 30
+) => {
+  const effectiveLimit = Math.min(Math.max(limit, 1), 100);
+  const take = effectiveLimit + 1;
+
+  const q: any = {
+    where: { blocked: { some: { blockerId } } },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      bio: true,
+      verified: true,
+      profileMediaId: true,
     },
-  });
-  const formattedBlockedUsers = blockedUsers.map((block) => {
-    const user = block.blocked;
-    return formatUserForResponse(user, false, false);
-  });
-  return {
-    users: formattedBlockedUsers,
+    orderBy: { id: "asc" },
+    take,
   };
+  if (cursorId) {
+    q.cursor = { id: cursorId };
+    q.skip = 1;
+  }
+
+  const rows = await prisma.user.findMany(q);
+  const hasMore = rows.length === take;
+  const page = hasMore ? rows.slice(0, -1) : rows;
+  const users = page.map((user: any) =>
+    formatUserForResponse(user, false, false, false)
+  );
+  const nextCursor = await computeNextCursor(page, hasMore);
+
+  return { users, nextCursor, hasMore };
 };
 
 // check if user is muted by muterId
@@ -351,7 +476,7 @@ export const createMuteRelation = async (muterId: string, mutedId: string) => {
     });
   } catch (error) {
     console.error("Mute user error:", error);
-    throw new Error("Failed to create mute relation");
+    throw new AppError("Failed to create mute relation", 500);
   }
 };
 
@@ -368,36 +493,43 @@ export const removeMuteRelation = async (muterId: string, mutedId: string) => {
     });
   } catch (error) {
     console.error("Remove mute relation error:", error);
-    throw new Error("Failed to remove mute relation");
+    throw new AppError("Failed to remove mute relation", 500);
   }
 };
 
 // Get list of users muted
-export const getMutedList = async (muterId: string) => {
-  const mutedUsers = await prisma.mute.findMany({
-    where: { muterId },
-    include: {
-      muted: {
-        select: {
-          id: true,
-          username: true,
-          name: true,
-          bio: true,
-          verified: true,
-          profileMedia: {
-            select: {
-              keyName: true,
-            },
-          },
-        },
-      },
+export const getMutedList = async (
+  muterId: string,
+  cursorId?: string,
+  limit: number = 30
+) => {
+  const effectiveLimit = Math.min(Math.max(limit, 1), 100);
+  const take = effectiveLimit + 1;
+
+  const q: any = {
+    where: { muted: { some: { muterId } } },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      bio: true,
+      verified: true,
+      profileMediaId: true,
     },
-  });
-  const formattedMutedUsers = mutedUsers.map((mute) => {
-    const user = mute.muted;
-    return formatUserForResponse(user, false, false);
-  });
-  return {
-    users: formattedMutedUsers,
+    orderBy: { id: "asc" },
+    take,
   };
+  if (cursorId) {
+    q.cursor = { id: cursorId };
+    q.skip = 1;
+  }
+
+  const rows = await prisma.user.findMany(q);
+  const hasMore = rows.length === take;
+  const page = hasMore ? rows.slice(0, -1) : rows;
+  const users = page.map((user: any) =>
+    formatUserForResponse(user, false, false, false)
+  );
+  const nextCursor = await computeNextCursor(page, hasMore);
+  return { users, nextCursor, hasMore };
 };

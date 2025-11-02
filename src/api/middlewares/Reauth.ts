@@ -1,9 +1,8 @@
-// Reauth.ts
 import * as utils from "../../application/utils/tweets/utils";
 import { redisClient } from "../../config/redis";
-import { GeoData } from "../../application/utils/tweets/utils"; // <-- FIX: Import GeoData
-
+import { GeoData } from "../../application/utils/tweets/utils";
 import { Request, Response, NextFunction } from "express";
+import { AppError } from "@/errors/AppError";
 
 // Define the custom user object expected on the Request
 interface RequestWithAuthEmail extends Request {
@@ -18,32 +17,45 @@ interface RequestWithAuthEmail extends Request {
  * Reauth middleware
  * - Ensures req.user.email exists (Auth should set it)
  * - Checks Redis key Reauth:<email> exists, then deletes it
- * - If absent -> abort with 401 (same behavior as Go)
+ * - If absent -> abort with 401
  */
 export default function Reauth() {
-  return async function (req: RequestWithAuthEmail, res: Response, next: NextFunction): Promise<void | Response> {
+  return async function (
+    req: RequestWithAuthEmail, 
+    res: Response, 
+    next: NextFunction
+  ): Promise<void> {
     try {
+      // Extract email from authenticated user
       const email: string | undefined = req.user?.email;
+
       if (!email) {
-        return res.status(401).json("you didnot authorize your action choose authorization method");
+        throw new AppError(
+          "You did not authorize your action. Please choose an authorization method", 
+          401
+        );
       }
 
-      // Check if the key exists in Redis
+      // Check if the reauth key exists in Redis
       const exists: number = await redisClient.exists(`Reauth:${email}`);
-      
-      // attempt to delete the key whether it exists or not
-      // Note: Node Redis clients' `del` usually returns the number of keys deleted (0 or 1 here)
-      await redisClient.del(`Reauth:${email}`); 
 
+      // Delete the reauth key (single-use token pattern)
+      await redisClient.del(`Reauth:${email}`);
+
+      // If key didn't exist, user hasn't completed reauth flow
       if (!exists || exists === 0) {
-        return res.status(401).json("you didnot authorize your action choose authorization method");
+        throw new AppError(
+          "Re-authentication required. Please verify your identity first", 
+          401
+        );
       }
 
+      // Reauth successful, proceed to next middleware
       next();
+
     } catch (err) {
-      console.error("Reauth middleware error:", err);
-      // NOTE: Original used `res.status(500).json("something went wrong")` instead of `utils.SendError`
-      return res.status(500).json("something went wrong");
+      // Pass error to centralized error handler
+      next(err);
     }
   };
 }
