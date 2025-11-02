@@ -6,6 +6,8 @@ import {
   SearchUserResponseDTOSchema,
   UpdateUserProfilePhotoParamsSchema,
   UpdateUserBannerParamsSchema,
+  AddFcmTokenDTOSchema,
+  FcmTokenResponseDTOSchema,
 } from "./user.dto.schema";
 
 export type UpdateUserProfileDTO = z.infer<typeof UpdateUserProfileDTOSchema>;
@@ -16,3 +18,10 @@ export type UpdateUserProfilePhotoDTO = z.infer<
   typeof UpdateUserProfilePhotoParamsSchema
 >;
 export type UpdateUserBannerDTO = z.infer<typeof UpdateUserBannerParamsSchema>;
+export type AddFcmTokenDTO = z.infer<typeof AddFcmTokenDTOSchema>;
+export type FcmTokenResponseDTO = z.infer<typeof FcmTokenResponseDTOSchema>;
+// optional addition (for pagination support in search)
+export type PaginatedSearchUserResponse = {
+  users: SearchUserResponseDTO[];
+  nextCursor: string | null;
+};

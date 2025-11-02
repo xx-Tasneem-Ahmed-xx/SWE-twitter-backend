@@ -1,12 +1,16 @@
 import prisma from "../../database";
 import { UpdateUserProfileDTO, UserProfileResponseDTO } from "../dtos/user.dto";
+import { OSType } from "@prisma/client";
+import { AppError } from "@/errors/AppError";
+import bcrypt from "bcrypt";
 
 export class UserService {
   /**
    * Get user profile by username
    */
   async getUserProfile(
-    username: string
+    username: string,
+    viewerId: string
   ): Promise<UserProfileResponseDTO | null> {
     const user = await prisma.user.findUnique({
       where: { username },
@@ -22,9 +26,10 @@ export class UserService {
         address: true,
         website: true,
         protectedAccount: true,
-
-        // new fields based on schema
         profileMediaId: true,
+        coverMediaId: true,
+        dobMonthDayVisibility: true,
+        dobYearVisibility: true,
         profileMedia: {
           select: {
             id: true,
@@ -33,7 +38,6 @@ export class UserService {
             type: true,
           },
         },
-        coverMediaId: true,
         coverMedia: {
           select: {
             id: true,
@@ -42,9 +46,57 @@ export class UserService {
             type: true,
           },
         },
+
+        _count: {
+          select: {
+            followers: true,
+            followings: true,
+          },
+        },
       },
     });
-    return user;
+
+    if (!user) return null;
+
+    // Convert Date -> string
+    const serializedUser = {
+      ...user,
+      joinDate: user.joinDate.toISOString(),
+      dateOfBirth: user.dateOfBirth ? user.dateOfBirth.toISOString() : null,
+    };
+
+    if (user.id === viewerId) {
+      return {
+        ...serializedUser,
+        isFollower: false,
+        isFollowing: false,
+      };
+    }
+
+    const [isFollowerRelation, isFollowingRelation] = await Promise.all([
+      prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: user.id,
+            followingId: viewerId,
+          },
+        },
+      }),
+      prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: viewerId,
+            followingId: user.id,
+          },
+        },
+      }),
+    ]);
+
+    return {
+      ...serializedUser,
+      isFollower: !!isFollowerRelation,
+      isFollowing: !!isFollowingRelation,
+    };
   }
 
   /**
@@ -54,6 +106,24 @@ export class UserService {
     id: string,
     data: UpdateUserProfileDTO
   ): Promise<UserProfileResponseDTO> {
+    if (data.username) {
+      const existingUser = await prisma.user.findUnique({
+        where: { username: data.username },
+      });
+      if (existingUser && existingUser.id !== id) {
+        throw new AppError(
+          "Username already exists. Please choose another.",
+          400
+        );
+      }
+    }
+
+    let hashedPassword: string | undefined;
+    if (data.password) {
+      const saltRounds = 10;
+      hashedPassword = await bcrypt.hash(data.password, saltRounds);
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id },
       data: {
@@ -62,8 +132,15 @@ export class UserService {
         bio: data.bio,
         address: data.address,
         website: data.website,
+        dateOfBirth:
+          data.dateOfBirth && data.dateOfBirth.trim() !== ""
+            ? new Date(data.dateOfBirth)
+            : null,
         protectedAccount: data.protectedAccount,
-        // note: profileMediaId and coverMediaId are updated via dedicated methods below
+        email: data.email,
+        dobMonthDayVisibility: data.dobMonthDayVisibility,
+        dobYearVisibility: data.dobYearVisibility,
+        ...(hashedPassword && { password: hashedPassword }),
       },
       select: {
         id: true,
@@ -77,6 +154,8 @@ export class UserService {
         address: true,
         website: true,
         protectedAccount: true,
+        dobMonthDayVisibility: true,
+        dobYearVisibility: true,
         profileMediaId: true,
         profileMedia: {
           select: {
@@ -98,40 +177,127 @@ export class UserService {
       },
     });
 
-    return updatedUser;
+    return {
+      ...updatedUser,
+      joinDate:
+        updatedUser.joinDate instanceof Date
+          ? updatedUser.joinDate.toISOString()
+          : updatedUser.joinDate,
+      dateOfBirth:
+        updatedUser.dateOfBirth != null
+          ? updatedUser.dateOfBirth instanceof Date
+            ? updatedUser.dateOfBirth.toISOString()
+            : updatedUser.dateOfBirth
+          : null,
+    };
   }
 
   /**
    * Search for users by name or username
    */
-  async searchUsers(query: string) {
-    const users = await prisma.user.findMany({
+  async searchUsers(
+    query: string,
+    viewerId: string,
+    pageSize: number = 10,
+    cursor?: string
+  ) {
+    if (!query.trim()) return { users: [], nextCursor: null };
+
+    // STEP 1 — Find all users matching the query in username or name
+    const results = await prisma.user.findMany({
       where: {
         OR: [
           { username: { contains: query, mode: "insensitive" } },
           { name: { contains: query, mode: "insensitive" } },
         ],
+        NOT: { id: viewerId }, // exclude current user
       },
       select: {
         id: true,
         username: true,
         name: true,
         verified: true,
-        profileMediaId: true,
+        bio: true,
         profileMedia: {
-          select: {
-            id: true,
-            keyName: true,
-            type: true,
-          },
+          select: { id: true, keyName: true },
+        },
+        _count: {
+          select: { followers: true },
         },
       },
-      take: 10,
     });
 
-    return users;
-  }
+    // STEP 2 — Compute a "relevance score" similar to X
+    const queryLower = query.toLowerCase();
+    const scored = results.map((user) => {
+      let score = 0;
 
+      const usernameLower = user.username.toLowerCase();
+      const nameLower = (user.name ?? "").toLowerCase();
+
+      if (usernameLower.startsWith(queryLower)) score += 5;
+      else if (nameLower.startsWith(queryLower)) score += 4;
+      else if (usernameLower.includes(queryLower)) score += 3;
+      else if (nameLower.includes(queryLower)) score += 2;
+
+      if (user.verified) score += 2;
+
+      score += Math.min(user._count.followers, 500) / 100; // small boost cap
+
+      return { ...user, score };
+    });
+
+    // STEP 3 — Sort by score descending (like Twitter relevance)
+    scored.sort((a, b) => b.score - a.score);
+
+    // STEP 4 — Apply pagination manually (cursor = last seen user id)
+    let startIndex = 0;
+    if (cursor) {
+      const cursorIndex = scored.findIndex((u) => u.id === cursor);
+      if (cursorIndex !== -1) startIndex = cursorIndex + 1;
+    }
+
+    const paginated = scored.slice(startIndex, startIndex + pageSize);
+    const nextCursor =
+      startIndex + pageSize < scored.length
+        ? scored[startIndex + pageSize].id
+        : null;
+
+    // STEP 5 — Add isFollowing / isFollower context
+    const enrichedUsers = await Promise.all(
+      paginated.map(async (user) => {
+        const [isFollowing, isFollower] = await Promise.all([
+          prisma.follow.findUnique({
+            where: {
+              followerId_followingId: {
+                followerId: viewerId,
+                followingId: user.id,
+              },
+            },
+          }),
+          prisma.follow.findUnique({
+            where: {
+              followerId_followingId: {
+                followerId: user.id,
+                followingId: viewerId,
+              },
+            },
+          }),
+        ]);
+
+        return {
+          ...user,
+          isFollowing: !!isFollowing,
+          isFollower: !!isFollower,
+        };
+      })
+    );
+
+    return {
+      users: enrichedUsers,
+      nextCursor,
+    };
+  }
   /**
    * Update user's profile photo using mediaId
    */
@@ -222,5 +388,28 @@ export class UserService {
     });
 
     return updatedUser;
+  }
+  // insert fcm token in fcm_tokens table
+  async addFcmToken(userId: string, token: string, osType: OSType) {
+    const existingToken = await prisma.fcmToken.findUnique({
+      where: { token },
+    });
+
+    if (existingToken) {
+      // If token exists, just update its userId and osType (if needed)
+      return prisma.fcmToken.update({
+        where: { token },
+        data: { userId, osType },
+      });
+    }
+
+    // Otherwise create a new one
+    return prisma.fcmToken.create({
+      data: {
+        token,
+        osType,
+        userId,
+      },
+    });
   }
 }

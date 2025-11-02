@@ -10,9 +10,14 @@
     "skipLibCheck": true,
     "baseUrl": "./src",
     "paths": { "@/*": ["*"] },
-    "types": ["node", "express"], 
+    "types": ["node", "express"],
     "typeRoots": ["./node_modules/@types", "./src/types"]
   },
-  "include": ["src/**/*","src","src/types/express.d.ts","src/types/**/*.d.ts"],
+  "include": [
+    "src/**/*",
+    "src",
+    "src/types/express.d.ts",
+    "src/types/**/*.d.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }
