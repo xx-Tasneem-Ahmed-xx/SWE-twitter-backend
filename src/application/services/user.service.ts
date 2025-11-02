@@ -28,7 +28,8 @@ export class UserService {
         protectedAccount: true,
         profileMediaId: true,
         coverMediaId: true,
-
+        dobMonthDayVisibility: true,
+        dobYearVisibility: true,
         profileMedia: {
           select: {
             id: true,
@@ -61,7 +62,7 @@ export class UserService {
     const serializedUser = {
       ...user,
       joinDate: user.joinDate.toISOString(),
-      dateOfBirth: user.dateOfBirth.toISOString(),
+      dateOfBirth: user.dateOfBirth ? user.dateOfBirth.toISOString() : null,
     };
 
     if (user.id === viewerId) {
@@ -131,10 +132,15 @@ export class UserService {
         bio: data.bio,
         address: data.address,
         website: data.website,
-        dateOfBirth: data.dateOfBirth,
+        dateOfBirth:
+          data.dateOfBirth && data.dateOfBirth.trim() !== ""
+            ? new Date(data.dateOfBirth)
+            : null,
         protectedAccount: data.protectedAccount,
         email: data.email,
-        ...(hashedPassword && { password: hashedPassword }), // only update password if provided
+        dobMonthDayVisibility: data.dobMonthDayVisibility,
+        dobYearVisibility: data.dobYearVisibility,
+        ...(hashedPassword && { password: hashedPassword }),
       },
       select: {
         id: true,
@@ -148,6 +154,8 @@ export class UserService {
         address: true,
         website: true,
         protectedAccount: true,
+        dobMonthDayVisibility: true,
+        dobYearVisibility: true,
         profileMediaId: true,
         profileMedia: {
           select: {
@@ -183,6 +191,7 @@ export class UserService {
           : null,
     };
   }
+
   /**
    * Search for users by name or username
    */

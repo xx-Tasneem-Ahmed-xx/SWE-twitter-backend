@@ -3542,9 +3542,11 @@
                           "REPLY",
                           "QUOTE",
                           "FOLLOW",
-                          "RequestToFollow",
-                          "AcceptedFollow",
-                          "MENTION"
+                          "REQUEST_TO_FOLLOW",
+                          "ACCEPTED_FOLLOW",
+                          "MENTION",
+                          "LOGIN",
+                          "PASSWORD_CHANGED"
                         ]
                       },
                       "body": {
@@ -3558,7 +3560,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-01T08:44:09.435Z"
+                        "default": "2025-11-02T09:15:21.810Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3656,9 +3658,11 @@
                       "REPLY",
                       "QUOTE",
                       "FOLLOW",
-                      "RequestToFollow",
-                      "AcceptedFollow",
-                      "MENTION"
+                      "REQUEST_TO_FOLLOW",
+                      "ACCEPTED_FOLLOW",
+                      "MENTION",
+                      "LOGIN",
+                      "PASSWORD_CHANGED"
                     ]
                   },
                   "body": {
@@ -3702,9 +3706,11 @@
                         "REPLY",
                         "QUOTE",
                         "FOLLOW",
-                        "RequestToFollow",
-                        "AcceptedFollow",
-                        "MENTION"
+                        "REQUEST_TO_FOLLOW",
+                        "ACCEPTED_FOLLOW",
+                        "MENTION",
+                        "LOGIN",
+                        "PASSWORD_CHANGED"
                       ]
                     },
                     "body": {
@@ -3718,7 +3724,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-11-01T08:44:09.435Z"
+                      "default": "2025-11-02T09:15:21.810Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3925,9 +3931,11 @@
                               "REPLY",
                               "QUOTE",
                               "FOLLOW",
-                              "RequestToFollow",
-                              "AcceptedFollow",
-                              "MENTION"
+                              "REQUEST_TO_FOLLOW",
+                              "ACCEPTED_FOLLOW",
+                              "MENTION",
+                              "LOGIN",
+                              "PASSWORD_CHANGED"
                             ]
                           },
                           "body": {
@@ -3941,7 +3949,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-01T08:44:09.435Z"
+                            "default": "2025-11-02T09:15:21.810Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4061,9 +4069,11 @@
                         "REPLY",
                         "QUOTE",
                         "FOLLOW",
-                        "RequestToFollow",
-                        "AcceptedFollow",
-                        "MENTION"
+                        "REQUEST_TO_FOLLOW",
+                        "ACCEPTED_FOLLOW",
+                        "MENTION",
+                        "LOGIN",
+                        "PASSWORD_CHANGED"
                       ]
                     },
                     "body": {
@@ -4077,7 +4087,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-11-01T08:44:09.435Z"
+                      "default": "2025-11-02T09:15:21.810Z"
                     },
                     "userId": {
                       "type": "string",

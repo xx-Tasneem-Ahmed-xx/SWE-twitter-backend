@@ -27,7 +27,12 @@ export const UpdateUserProfileDTOSchema = z
         { message: "Invalid URL format" }
       ),
     protectedAccount: z.boolean().optional(),
-    dateOfBirth: z.string().optional(),
+    dateOfBirth: z
+      .string()
+      .optional()
+      .refine((val) => val === "" || !!val, {
+        message: "Invalid date of birth",
+      }),
     email: z.string().email().optional(),
     password: z
       .string()
@@ -40,8 +45,29 @@ export const UpdateUserProfileDTOSchema = z
         "Password must contain at least one special character"
       )
       .optional(),
+
+    // 👇 New fields for date of birth visibility settings
+    dobMonthDayVisibility: z
+      .enum([
+        "PUBLIC",
+        "YOUR_FOLLOWERS",
+        "PEOPLE_YOU_FOLLOW",
+        "YOU_FOLLOW_EACH_OTHER",
+        "ONLY_YOU",
+      ])
+      .optional(),
+    dobYearVisibility: z
+      .enum([
+        "PUBLIC",
+        "YOUR_FOLLOWERS",
+        "PEOPLE_YOU_FOLLOW",
+        "YOU_FOLLOW_EACH_OTHER",
+        "ONLY_YOU",
+      ])
+      .optional(),
   })
   .openapi("UpdateUserProfileDTO");
+
 
 /* ==========================
    User Response DTO

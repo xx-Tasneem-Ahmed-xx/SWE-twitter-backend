@@ -22,9 +22,4 @@ body("website")
   .isURL()
   .withMessage("website must be a valid URL"),
   body("protectedAccount").optional().isBoolean(),
-  body("profilePhoto")
-    .optional()
-    .isURL()
-    .withMessage("profilePhoto must be a valid URL"),
-  body("cover").optional().isURL().withMessage("cover must be a valid URL"),
 ];

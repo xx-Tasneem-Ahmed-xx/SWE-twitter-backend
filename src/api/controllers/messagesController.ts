@@ -359,7 +359,7 @@ export const updateChatGroup = async (req: Request, res: Response, next: NextFun
                 data: {
                     name: name || existingChatGroup.name,
                     description: description || existingChatGroup.description,
-                    photo: photo || existingChatGroup.photo
+                    photoId: photo || existingChatGroup.photoId
                 }
             });
             res.status(200).json({ updatedChatGroup });
