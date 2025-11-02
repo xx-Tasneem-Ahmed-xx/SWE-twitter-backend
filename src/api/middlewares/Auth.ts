@@ -13,6 +13,7 @@ interface AuthUser {
   role: string;
 }
 
+
 interface RequestWithAuth extends Request {
   user?: AuthUser;
   jti?: string;
