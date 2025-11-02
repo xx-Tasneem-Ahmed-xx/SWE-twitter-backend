@@ -962,12 +962,13 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
 // router.post("/reauth-code", Auth(),  typedAuthController.ReauthCode); //tested
 
 // --- Sensitive Change Routes (Require Auth & Reauth) ---
+
 /**
  * @swagger
  * /change-password:
  *   post:
  *     summary: Change user password
- *     description: Changes the current password after successful reauthentication.
+ *     description: Allows an authenticated user to change their password after verifying the old one. Invalidates old tokens by incrementing token version.
  *     tags:
  *       - Account
  *     security:
@@ -979,32 +980,50 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
  *           schema:
  *             type: object
  *             required:
- *               - password
- *               - confirm
+ *               - oldPassword
+ *               - newPassword
+ *               - confirmPassword
  *             properties:
- *               password:
+ *               oldPassword:
  *                 type: string
- *                 example: "NewStrongPass@2024"
- *               confirm:
+ *                 example: "OldPass@2024"
+ *               newPassword:
  *                 type: string
- *                 example: "NewStrongPass@2024"
+ *                 example: "NewStrongPass@2025"
+ *               confirmPassword:
+ *                 type: string
+ *                 example: "NewStrongPass@2025"
  *     responses:
  *       200:
- *         description: Password changed successfully.
+ *         description: Password updated successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 Message:
+ *                   type: string
+ *                   example: Password updated successfully
+ *                 Score:
+ *                   type: object
+ *                   description: Password strength analysis
  *       400:
- *         description: Invalid password format or validation failed.
+ *         description: Invalid password or validation failed.
  *       401:
- *         description: Reauthentication required or password not strong enough.
+ *         description: Incorrect old password or reauthentication required.
  *       404:
  *         description: User not found.
+ *       500:
+ *         description: Internal server error.
  */
 router.post("/change-password", Auth(), typedAuthController.ChangePassword); //tested
+
 /**
  * @swagger
  * /change-email:
  *   post:
- *     summary: Change user email
- *     description: Changes the user’s email after successful reauthentication.
+ *     summary: Request email change
+ *     description: Sends a 6-digit verification code to the new email. The change will be finalized after verifying the code using `/verify-new-email`.
  *     tags:
  *       - Account
  *     security:
@@ -1023,17 +1042,24 @@ router.post("/change-password", Auth(), typedAuthController.ChangePassword); //t
  *                 example: "newemail@example.com"
  *     responses:
  *       200:
- *         description: Email change requested successfully.
+ *         description: Verification code sent successfully to the new email.
+ *       400:
+ *         description: Invalid email format.
  *       401:
- *         description: Unauthorized or reauth failed.
+ *         description: Unauthorized or current email missing.
+ *       409:
+ *         description: Email already exists.
+ *       500:
+ *         description: Internal server error.
  */
 router.post("/change-email", Auth(), typedAuthController.ChangeEmail); //tested
+
 /**
  * @swagger
  * /verify-new-email:
  *   post:
- *     summary: Verify new email address
- *     description: Verifies a newly changed email by checking the verification code sent to it.
+ *     summary: Verify and finalize email change
+ *     description: Confirms the email change using the code sent to the new address. Issues new access & refresh tokens with the updated email.
  *     tags:
  *       - Account
  *     security:
@@ -1045,16 +1071,43 @@ router.post("/change-email", Auth(), typedAuthController.ChangeEmail); //tested
  *           schema:
  *             type: object
  *             required:
+ *               - desiredEmail
  *               - code
  *             properties:
+ *               desiredEmail:
+ *                 type: string
+ *                 example: "newemail@example.com"
  *               code:
  *                 type: string
  *                 example: "842613"
  *     responses:
  *       200:
- *         description: Email verified successfully.
+ *         description: Email changed and verified successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Email changed successfully
+ *                 newEmail:
+ *                   type: string
+ *                   example: "newemail@example.com"
+ *                 Token:
+ *                   type: string
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *                 Refresh_token:
+ *                   type: string
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *       400:
  *         description: Invalid or expired verification code.
+ *       401:
+ *         description: Email mismatch or unauthorized.
+ *       404:
+ *         description: User not found.
+ *       500:
+ *         description: Internal server error.
  */
 router.post("/verify-new-email",Auth(),  typedAuthController.VerifyNewEmail); //tested
 
@@ -1124,7 +1177,7 @@ router.delete("/session/:sessionid", Auth(),  typedAuthController.LogoutSession)
  * /update_username:
  *   put:
  *     summary: Update current user's username
- *     description: Updates the username of the authenticated user using their ID from req.user.id.
+ *     description: Updates the authenticated user's username and issues new access & refresh tokens with an incremented token version.
  *     tags:
  *       - User
  *     security:
@@ -1140,10 +1193,10 @@ router.delete("/session/:sessionid", Auth(),  typedAuthController.LogoutSession)
  *             properties:
  *               username:
  *                 type: string
- *                 example: new_username123
+ *                 example: "new_username123"
  *     responses:
  *       200:
- *         description: Username updated successfully.
+ *         description: Username updated successfully and new tokens issued.
  *         content:
  *           application/json:
  *             schema:
@@ -1161,10 +1214,24 @@ router.delete("/session/:sessionid", Auth(),  typedAuthController.LogoutSession)
  *                     username:
  *                       type: string
  *                       example: new_username123
+ *                     tokenVersion:
+ *                       type: integer
+ *                       example: 5
+ *                 tokens:
+ *                   type: object
+ *                   properties:
+ *                     access:
+ *                       type: string
+ *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *                     refresh:
+ *                       type: string
+ *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *       400:
  *         description: Invalid username.
  *       401:
  *         description: Unauthorized or missing user ID.
+ *       404:
+ *         description: User not found.
  *       500:
  *         description: Internal server error.
  */
