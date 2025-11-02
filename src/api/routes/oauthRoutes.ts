@@ -27,25 +27,28 @@ const router: Router = express.Router();
  *   get:
  *     tags:
  *       - OAuth
- *     summary: Redirect user to OAuth provider for authorization
- *     description: Initiates the OAuth 2.0 authorization flow by redirecting the user to the specified provider (e.g., Google or GitHub) for login.
+ *     summary: Start OAuth 2.0 authorization flow
+ *     description: >
+ *       Initiates the OAuth 2.0 authorization process by redirecting the user to the chosen provider's authorization page.
+ *       Supported providers: **Google** and **GitHub**.
  *     parameters:
  *       - in: path
  *         name: provider
  *         required: true
- *         description: OAuth provider to use (google or github)
+ *         description: The OAuth provider to authenticate with.
  *         schema:
  *           type: string
  *           enum: [google, github]
  *     responses:
  *       302:
- *         description: Redirects user to the OAuth provider's login page.
+ *         description: Redirects the user to the selected OAuth provider's authorization page.
  *       400:
- *         description: Invalid or unsupported provider specified.
+ *         description: Unsupported or missing provider name.
  *       500:
- *         description: Internal server error during authorization.
+ *         description: Internal server error during authorization setup.
  */
 router.get("/authorize/:provider", typedOauthController.Authorize);
+
 /**
  * @openapi
  * /callback/google:
@@ -53,16 +56,63 @@ router.get("/authorize/:provider", typedOauthController.Authorize);
  *     tags:
  *       - OAuth
  *     summary: Handle Google OAuth callback
- *     description: Handles the callback from Google after user authorization. Exchanges the authorization code for tokens and retrieves user information.
+ *     description: >
+ *       This endpoint handles the callback from **Google OAuth** after user authorization.
+ *       It exchanges the received authorization code for an ID token, retrieves the user's profile and email,
+ *       creates or updates the user in the database, issues access and refresh tokens, stores session info,
+ *       and sends a login notification email.
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         required: true
+ *         description: Authorization code returned by Google after user consent.
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
- *         description: User successfully authenticated with Google.
+ *         description: User successfully authenticated and tokens issued.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   description: JWT access token.
+ *                 refreshToken:
+ *                   type: string
+ *                   description: JWT refresh token stored in cookies and Redis.
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     username:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     dateOfBirth:
+ *                       type: string
+ *                     isEmailVerified:
+ *                       type: boolean
+ *                 deviceRecord:
+ *                   type: object
+ *                   description: Information about the device used for login.
+ *                 location:
+ *                   type: object
+ *                   description: IP-based geolocation info.
+ *                 message:
+ *                   type: string
+ *                   example: User registered and logged in successfully ✅
  *       400:
  *         description: Missing or invalid authorization code.
  *       500:
- *         description: Error during token exchange or user data retrieval.
+ *         description: Error during token exchange, user creation, or email notification.
  */
 router.get("/callback/google", typedOauthController.CallbackGoogle);
+
 /**
  * @openapi
  * /callback/github:
@@ -70,16 +120,63 @@ router.get("/callback/google", typedOauthController.CallbackGoogle);
  *     tags:
  *       - OAuth
  *     summary: Handle GitHub OAuth callback
- *     description: Handles the callback from GitHub after user authorization. Exchanges the authorization code for tokens and retrieves user profile data.
+ *     description: >
+ *       This endpoint handles the callback from **GitHub OAuth** after the user grants access.
+ *       It exchanges the authorization code for an access token, retrieves the user’s primary verified email,
+ *       fetches GitHub profile data, creates or links the user in the system, issues JWT tokens,
+ *       logs the device info, and sends a login alert email.
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         required: true
+ *         description: Authorization code returned by GitHub after user consent.
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
- *         description: User successfully authenticated with GitHub.
+ *         description: User successfully authenticated and tokens issued.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   description: JWT access token.
+ *                 refreshToken:
+ *                   type: string
+ *                   description: JWT refresh token stored in cookies and Redis.
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     username:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     dateOfBirth:
+ *                       type: string
+ *                     isEmailVerified:
+ *                       type: boolean
+ *                 deviceRecord:
+ *                   type: object
+ *                   description: Information about the device used for login.
+ *                 location:
+ *                   type: object
+ *                   description: IP-based geolocation info.
+ *                 message:
+ *                   type: string
+ *                   example: User logged in successfully via GitHub ✅
  *       400:
  *         description: Missing or invalid authorization code.
  *       500:
- *         description: Error during token exchange or user data retrieval.
+ *         description: Error during token exchange, user lookup, or email notification.
  */
 router.get("/callback/github", typedOauthController.CallbackGithub);
+
 
 // router.get("/callback/facebook", typedOauthController.CallbackFacebook);
 // router.get("/callback/linkedin", typedOauthController.CallbackLinkedin);

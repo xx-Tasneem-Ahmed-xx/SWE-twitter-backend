@@ -3558,7 +3558,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-02T14:46:54.726Z"
+                        "default": "2025-11-02T14:48:10.098Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3718,7 +3718,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-11-02T14:46:54.726Z"
+                      "default": "2025-11-02T14:48:10.098Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3941,7 +3941,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-02T14:46:54.726Z"
+                            "default": "2025-11-02T14:48:10.098Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4077,7 +4077,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-11-02T14:46:54.726Z"
+                      "default": "2025-11-02T14:48:10.098Z"
                     },
                     "userId": {
                       "type": "string",
@@ -7767,7 +7767,7 @@
     "/change-password": {
       "post": {
         "summary": "Change user password",
-        "description": "Changes the current password after successful reauthentication.",
+        "description": "Allows an authenticated user to change their password after verifying the old one. Invalidates old tokens by incrementing token version.",
         "tags": [
           "Account"
         ],
@@ -7783,17 +7783,22 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "password",
-                  "confirm"
+                  "oldPassword",
+                  "newPassword",
+                  "confirmPassword"
                 ],
                 "properties": {
-                  "password": {
+                  "oldPassword": {
                     "type": "string",
-                    "example": "NewStrongPass@2024"
+                    "example": "OldPass@2024"
                   },
-                  "confirm": {
+                  "newPassword": {
                     "type": "string",
-                    "example": "NewStrongPass@2024"
+                    "example": "NewStrongPass@2025"
+                  },
+                  "confirmPassword": {
+                    "type": "string",
+                    "example": "NewStrongPass@2025"
                   }
                 }
               }
@@ -7802,24 +7807,44 @@
         },
         "responses": {
           "200": {
-            "description": "Password changed successfully."
+            "description": "Password updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Message": {
+                      "type": "string",
+                      "example": "Password updated successfully"
+                    },
+                    "Score": {
+                      "type": "object",
+                      "description": "Password strength analysis"
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
-            "description": "Invalid password format or validation failed."
+            "description": "Invalid password or validation failed."
           },
           "401": {
-            "description": "Reauthentication required or password not strong enough."
+            "description": "Incorrect old password or reauthentication required."
           },
           "404": {
             "description": "User not found."
+          },
+          "500": {
+            "description": "Internal server error."
           }
         }
       }
     },
     "/change-email": {
       "post": {
-        "summary": "Change user email",
-        "description": "Changes the user’s email after successful reauthentication.",
+        "summary": "Request email change",
+        "description": "Sends a 6-digit verification code to the new email. The change will be finalized after verifying the code using `/verify-new-email`.",
         "tags": [
           "Account"
         ],
@@ -7849,18 +7874,27 @@
         },
         "responses": {
           "200": {
-            "description": "Email change requested successfully."
+            "description": "Verification code sent successfully to the new email."
+          },
+          "400": {
+            "description": "Invalid email format."
           },
           "401": {
-            "description": "Unauthorized or reauth failed."
+            "description": "Unauthorized or current email missing."
+          },
+          "409": {
+            "description": "Email already exists."
+          },
+          "500": {
+            "description": "Internal server error."
           }
         }
       }
     },
     "/verify-new-email": {
       "post": {
-        "summary": "Verify new email address",
-        "description": "Verifies a newly changed email by checking the verification code sent to it.",
+        "summary": "Verify and finalize email change",
+        "description": "Confirms the email change using the code sent to the new address. Issues new access & refresh tokens with the updated email.",
         "tags": [
           "Account"
         ],
@@ -7876,9 +7910,14 @@
               "schema": {
                 "type": "object",
                 "required": [
+                  "desiredEmail",
                   "code"
                 ],
                 "properties": {
+                  "desiredEmail": {
+                    "type": "string",
+                    "example": "newemail@example.com"
+                  },
                   "code": {
                     "type": "string",
                     "example": "842613"
@@ -7890,10 +7929,44 @@
         },
         "responses": {
           "200": {
-            "description": "Email verified successfully."
+            "description": "Email changed and verified successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Email changed successfully"
+                    },
+                    "newEmail": {
+                      "type": "string",
+                      "example": "newemail@example.com"
+                    },
+                    "Token": {
+                      "type": "string",
+                      "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    },
+                    "Refresh_token": {
+                      "type": "string",
+                      "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid or expired verification code."
+          },
+          "401": {
+            "description": "Email mismatch or unauthorized."
+          },
+          "404": {
+            "description": "User not found."
+          },
+          "500": {
+            "description": "Internal server error."
           }
         }
       }
