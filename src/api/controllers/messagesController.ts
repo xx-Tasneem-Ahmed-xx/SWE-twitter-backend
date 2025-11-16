@@ -383,10 +383,8 @@ export const updateChatGroup = async (req: Request, res: Response, next: NextFun
     }
 }
 
-export const addMessageToChat = async (req: Request, res: Response, next: NextFunction) => {
+export const addMessageToChat = async (messageInput: newMessageInput, userId: string) => {
     try {
-        const userId = (req as any).user.id;
-        const messageInput: newMessageInput = req.body;
         const recipientId = messageInput.recipientId as Array<string> || [];
         const chatId = messageInput.chatId;
         if (!messageInput.data || !messageInput.data.content) {
@@ -480,42 +478,39 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
                     unseenChatCount: { increment: 1 }
                 }
             });
+            //to handle website socket message sending
             if(socketService.checkSocketStatus(recipient)){
                 socketService.sendMessageToChat(recipient, newMessage);
-            }else{
-                //handle offline user notification
-                const userFCMTokens = await prisma.fcmToken.findMany({
-                    where: { userId: recipient.toString() },
-                                });
-                const fcmTokens = userFCMTokens.length > 0 ? userFCMTokens.map(t => t.token).flat() : [];
-
-                if (fcmTokens && fcmTokens.length > 0) {
-                    const notificationPayload = {
-                        title: `New message from ${user?.username}`,
-                        body: messageInput.data.content,
-                    };
-                    const dataPayload = {
-                        chatId: newMessage.chatId,
-                        messageId: newMessage.id,
-                        content: messageInput.data.content,
-                        senderId: userId,
-                    } as Record<string, string>;
-                    const tokensToDelete = await sendPushNotification(fcmTokens, notificationPayload, dataPayload);
-                    if (tokensToDelete.length > 0) {
-                        await prisma.fcmToken.deleteMany({
-                            where: {
-                                token: { in: tokensToDelete },
-                            },
-                        });
-                    }
+            }
+            //handle offline user notification
+            const userFCMTokens = await prisma.fcmToken.findMany({
+                where: { userId: recipient.toString() },
+                            });
+            const fcmTokens = userFCMTokens.length > 0 ? userFCMTokens.map(t => t.token).flat() : [];
+            if (fcmTokens && fcmTokens.length > 0) {
+                const notificationPayload = {
+                    title: `New message from ${user?.username}`,
+                    body: messageInput.data.content,
+                };
+                const dataPayload = {
+                    chatId: newMessage.chatId,
+                    messageId: newMessage.id,
+                    content: messageInput.data.content,
+                    senderId: userId,
+                } as Record<string, string>;
+                const tokensToDelete = await sendPushNotification(fcmTokens, notificationPayload, dataPayload);
+                if (tokensToDelete.length > 0) {
+                    await prisma.fcmToken.deleteMany({
+                        where: {
+                            token: { in: tokensToDelete },
+                        },
+                    });
                 }
             }
         }
-        res.status(201).json({ newMessage });
-        
     }catch(error){
         console.error('Error adding message to chat:', error);
-        next(error);
+        return error;
     }
 }
 

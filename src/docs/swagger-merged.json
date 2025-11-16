@@ -3766,7 +3766,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-02T11:38:34.906Z"
+                        "default": "2025-11-16T12:54:22.367Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3973,7 +3973,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-02T11:38:34.906Z"
+                            "default": "2025-11-16T12:54:22.367Z"
                           },
                           "userId": {
                             "type": "string",
@@ -5947,7 +5947,7 @@
                   "properties": {
                     "error": {
                       "type": "string",
-                      "description": "At least two participants are required to create a chat"
+                      "description": "Missing chat type or participants id"
                     }
                   },
                   "required": [
@@ -6048,6 +6048,25 @@
                     "error": {
                       "type": "string",
                       "description": "Chat ID is required"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chat not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "invalid chatId"
                     }
                   },
                   "required": [

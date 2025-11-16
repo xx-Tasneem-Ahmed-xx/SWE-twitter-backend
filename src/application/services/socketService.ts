@@ -2,8 +2,9 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import prisma from '../../database';
 import * as utils from '../utils/tweets/utils';
 import { redisClient } from '../../config/redis';
-import { updateMessageStatus } from '@/api/controllers/messagesController';
+import { addMessageToChat, updateMessageStatus } from '@/api/controllers/messagesController';
 import { markNotificationsAsRead } from '@/api/controllers/notificationController';
+import { newMessageInput } from '../dtos/chat/messages.dto';
 
 export class SocketService {
     public io: SocketIOServer;
@@ -148,6 +149,14 @@ export class SocketService {
                 await markNotificationsAsRead(data.notificationId);
             } catch (error) {
                 console.error('Error marking notification as read:', error);
+            }
+        });
+
+        socket.on('add-message', async (data: { message: newMessageInput }) => {
+            try {
+                await addMessageToChat(data.message, userId);
+            } catch (error) {
+                console.error('Error adding message to chat via socket:', error);
             }
         });
 
