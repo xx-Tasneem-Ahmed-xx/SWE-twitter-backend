@@ -373,65 +373,6 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
     });
 
     registry.registerPath({
-        method: "post",
-        path: "api/dm/chat/new-message",
-        summary: "Add a message to a chat",
-        tags: ["Chats"],
-        request: {
-            body: {
-                required: true,
-                content: {
-                    "application/json": {
-                        schema: newMessageInput
-                    }
-                },
-                description: "Message data along with chatId(if exists) and recipient IDs"
-            }
-        },
-        responses: {
-            201: {
-                description: "Message added successfully",
-                content: {
-                    "application/json": {
-                        schema: MessageSchema
-                    }
-                }
-            },
-            400: {
-                description: "Bad Request - Invalid input data",
-                content: {
-                    "application/json": {
-                        schema: z.object({
-                            error: z.string().openapi({ description: "Message content is required or missing chatId or recipientId" })
-                        })
-                    }
-                }
-            },
-            404: {
-                description: "Chat not found",
-                content: {
-                    "application/json": {
-                        schema: z.object({
-                            error: z.string().openapi({ description: "invalid chatId" })
-                        })
-                    }
-                }
-            },
-            500: {
-                description: "Internal server error",
-                content: {
-                    "application/json": {
-                        schema: z.object({
-                            error: z.string().openapi({ description: "Internal server error" })
-                        })
-                    }
-                }
-            }
-
-        }
-    });
-
-    registry.registerPath({
         method: "get",
         path: "api/dm/chat/unseen-chats",
         summary: "Get unseen chats count for a user",
