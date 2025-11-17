@@ -28,10 +28,46 @@ class TweetService {
     }
   }
 
+  private async saveMentionedUsers(
+    tweetId: string,
+    content: string,
+    mentionerId: string
+  ) {
+    const MENTION_REGEX = /@(\w+)/g;
+    const usernames =
+      content.match(MENTION_REGEX)?.map((u) => u.slice(1)) || [];
+
+    if (usernames.length > 0) {
+      const mentionedUsers = await prisma.user.findMany({
+        where: {
+          AND: [
+            { username: { in: usernames } },
+            { blocked: { none: { blockerId: mentionerId } } },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (mentionedUsers.length > 0) {
+        await prisma.mention.createMany({
+          data: mentionedUsers.map((user) => ({
+            mentionerId,
+            mentionedId: user.id,
+            tweetId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+  }
+
   async createTweet(dto: CreateTweetServiceDto) {
     const tweet = await prisma.tweet.create({
       data: { ...dto, tweetType: TweetType.TWEET },
     });
+
+    await this.saveMentionedUsers(tweet.id, tweet.content, tweet.userId);
+
     try {
       await enqueueHashtagJob({ tweetId: tweet.id, content: tweet.content });
     } catch (err) {
@@ -55,6 +91,8 @@ class TweetService {
       }),
     ]);
 
+    await this.saveMentionedUsers(quote.id, quote.content, quote.userId);
+
     try {
       await enqueueHashtagJob({ tweetId: quote.id, content: quote.content });
     } catch (err) {
@@ -77,6 +115,8 @@ class TweetService {
         data: { repliesCount: { increment: 1 } },
       }),
     ]);
+
+    await this.saveMentionedUsers(reply.id, reply.content, reply.userId);
 
     try {
       await enqueueHashtagJob({ tweetId: reply.id, content: reply.content });
