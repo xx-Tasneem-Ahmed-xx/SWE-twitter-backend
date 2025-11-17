@@ -667,12 +667,19 @@ export async function ResetPassword(req: Request, res: Response, next: NextFunct
     await utils.RsetResetAttempts(email);
 
     const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser;
-    if (user) {
-      const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
-      const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
-      const location = await utils.Sendlocation(ip as string);
+    if (!user) throw new AppError("User not found", 404);
 
-      const emailMessage = `Hello ${user.username},
+    let devid: string | null = null;
+    let deviceRecord: string | null = null;
+
+    const result = await utils.SetDeviceInfo(req, res, email);
+    devid = result.devid;
+    deviceRecord = result.deviceRecord;
+
+    const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
+    const location = await utils.Sendlocation(ip as string);
+
+    const emailMessage = `Hello ${user.username},
 
 🔐 Your password was just changed!
 
@@ -683,34 +690,34 @@ export async function ResetPassword(req: Request, res: Response, next: NextFunct
 If this wasn't you, secure your account immediately!
 — Artemisa Team`;
 
-      utils.SendEmailSmtp(res, email, emailMessage).catch(() => {
-        throw new AppError("Failed to send password change notification", 500);
-      });
+    utils.SendEmailSmtp(res, email, emailMessage).catch(() => {
+      throw new AppError("Failed to send password change notification", 500);
+    });
 
-      await addNotification(user.id as UUID, {
-        title: 'Password_Changed',
-        body: `Your password was changed from ${deviceRecord || "unknown device"} at ${location}`,
-        actorId: user.id as UUID,
-      }, (err) => { if (err) throw new AppError("Failed to create notification", 500) });
-    }
-        const accessObj = await utils.GenerateJwt({
+    await addNotification(user.id as UUID, {
+      title: 'Password_Changed',
+      body: `Your password was changed from ${deviceRecord || "unknown device"} at ${location}`,
+      actorId: user.id as UUID,
+    }, (err) => { if (err) throw new AppError("Failed to create notification", 500) });
+
+    const accessObj = await utils.GenerateJwt({
       username: user.username,
       email,
       id: user.id,
       expiresInSeconds: 60 * 60,
       version: user.tokenVersion || 0,
       devid,
-      role:"user", 
+      role:"user",
     });
 
-  const refreshObj = await utils.GenerateJwt({
+    const refreshObj = await utils.GenerateJwt({
       username: user.username,
       email,
       id: user.id,
       expiresInSeconds: 30 * 24 * 60 * 60,
       version: user.tokenVersion || 0,
       devid,
-       role: "user",
+      role: "user",
     });
 
     res.cookie("refresh_token", refreshObj.token, {
@@ -720,11 +727,18 @@ If this wasn't you, secure your account immediately!
       sameSite: "lax",
       domain: CLIENT_DOMAIN,
     });
-    return utils.SendRes(res, { message: "Password reset successfully, notification sent" ,refresh_token:refreshObj.token,accesstoken:accessObj.token});
+
+    return utils.SendRes(res, {
+      message: "Password reset successfully, notification sent!",
+      refresh_token: refreshObj.token,
+      accesstoken: accessObj.token
+    });
+
   } catch (err) {
     next(err);
   }
 }
+
 
 
 export async function ReauthPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
