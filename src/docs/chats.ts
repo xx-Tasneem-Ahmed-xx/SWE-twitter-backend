@@ -374,45 +374,6 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
 
     registry.registerPath({
         method: "get",
-        path: "api/dm/chat/unseen-chats",
-        summary: "Get unseen chats count for a user",
-        tags: ["Chats"],
-        responses: {
-            200: {
-                description: "Unseen chats count retrieved successfully",
-                content: {
-                    "application/json": {
-                        schema: z.object({
-                            unseenChatsCount: z.number().openapi({ description: "The count of unseen chats for the user" })
-                        })
-                    }
-                }
-            },
-            400: {
-                description: "Bad Request - User ID is required",
-                content: {
-                    "application/json": {
-                        schema: z.object({
-                            error: z.string().openapi({ description: "User ID is required" })
-                        })
-                    }
-                }
-            },
-            500: {
-                description: "Internal server error",
-                content: {
-                    "application/json": {
-                        schema: z.object({
-                            error: z.string().openapi({ description: "Internal server error" })
-                        })
-                    }
-                }
-            }
-        }
-    });
-
-    registry.registerPath({
-        method: "get",
         path: "api/dm/chat/all-unseen-messages-count",
         summary: "Get all unseen messages count for a user",
         tags: ["Chats"],

@@ -141,7 +141,7 @@ export class SocketService {
         });
 
         socket.on('open-chat', async (data: { chatId: string }) => {
-            await updateMessageStatus(data.chatId);
+            await updateMessageStatus(data.chatId, userId);
         })
 
         socket.on('open-notification', async(data: { notificationId: string }) => {
@@ -162,7 +162,6 @@ export class SocketService {
 
         socket.on('disconnect', () => {
             console.log(`User ${userId} disconnected from socket ${socket.id}`);
-            // Additional cleanup can be done here if necessary
         });
 
     }
