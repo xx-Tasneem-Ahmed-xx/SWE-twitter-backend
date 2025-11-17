@@ -19,7 +19,7 @@ import {
 } from "@/application/dtos/tweets/tweet.dto.schema";
 import { SearchParams } from "@/types/types";
 import encoderService from "@/application/services/encoder";
-import { attachHashtagsToTweet } from "./hashtags";
+import { enqueueHashtagJob } from "@/background/jobs/hashtags";
 
 class TweetService {
   private validateId(id: string) {
@@ -27,53 +27,63 @@ class TweetService {
       throw new AppError("Invalid ID", 400);
     }
   }
+
   async createTweet(dto: CreateTweetServiceDto) {
-    return prisma.$transaction(async (tx) => {
-      const tweet = await tx.tweet.create({
-        data: { ...dto, tweetType: TweetType.TWEET },
-      });
-      // TODO: Background Job
-      await attachHashtagsToTweet(tweet.id, tweet.content, tx);
-      return tweet;
+    const tweet = await prisma.tweet.create({
+      data: { ...dto, tweetType: TweetType.TWEET },
     });
+    try {
+      await enqueueHashtagJob({ tweetId: tweet.id, content: tweet.content });
+    } catch (err) {
+      console.log("Failed to enqueue hashtag job for tweet");
+    }
+    return tweet;
   }
 
   async createQuote(dto: CreateReplyOrQuoteServiceDTO) {
     const valid = await validToRetweetOrQuote(dto.parentId);
     if (!valid) throw new AppError("You cannot quote a protected tweet", 403);
 
-    return prisma.$transaction(async (tx) => {
-      const quote = await prisma.tweet.create({
+    const [quote] = await prisma.$transaction([
+      prisma.tweet.create({
         data: { ...dto, tweetType: TweetType.QUOTE },
-      });
+      }),
 
-      await prisma.tweet.update({
+      prisma.tweet.update({
         where: { id: dto.parentId },
         data: { quotesCount: { increment: 1 } },
-      });
-      // TODO: Background Job
-      await attachHashtagsToTweet(quote.id, quote.content, tx);
-      return quote;
-    });
+      }),
+    ]);
+
+    try {
+      await enqueueHashtagJob({ tweetId: quote.id, content: quote.content });
+    } catch (err) {
+      console.log("Failed to enqueue hashtag job for quote");
+    }
+    return quote;
   }
 
   async createReply(dto: CreateReplyOrQuoteServiceDTO) {
     const valid = await validToReply(dto.parentId, dto.userId);
     if (!valid) throw new AppError("You cannot reply to this tweet", 403);
 
-    return prisma.$transaction(async (tx) => {
-      const reply = await prisma.tweet.create({
+    const [reply] = await prisma.$transaction([
+      prisma.tweet.create({
         data: { ...dto, tweetType: TweetType.REPLY },
-      });
+      }),
 
-      await prisma.tweet.update({
+      prisma.tweet.update({
         where: { id: dto.parentId },
         data: { repliesCount: { increment: 1 } },
-      });
-      // TODO: Background Job
-      await attachHashtagsToTweet(reply.id, reply.content, tx);
-      return reply;
-    });
+      }),
+    ]);
+
+    try {
+      await enqueueHashtagJob({ tweetId: reply.id, content: reply.content });
+    } catch (err) {
+      console.log("Failed to enqueue hashtag job for reply");
+    }
+    return reply;
   }
 
   async createRetweet(dto: CreateReTweetServiceDto) {
