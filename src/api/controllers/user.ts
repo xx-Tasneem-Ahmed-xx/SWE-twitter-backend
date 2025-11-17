@@ -447,13 +447,13 @@ If this was not you, immediately change your password!
       throw new AppError("Failed to send login notification email", 500);
     });
 
-    await addNotification(user.id as UUID, {
-      title: 'LOGIN',
-      body: `Login from ${deviceRecord || "unknown device"} at ${location}`,
-      actorId: user.id as UUID,
-    }, (err) => {
-      if (err) throw new AppError("Failed to create login notification", 500);
-    });
+    // await addNotification(user.id as UUID, {
+    //   title: 'LOGIN',
+    //   body: `Login from ${deviceRecord || "unknown device"} at ${location}`,
+    //   actorId: user.id as UUID,
+    // }, (err) => {
+    //   if (err) throw new AppError("Failed to create login notification", 500);
+    // });
 
     return utils.SendRes(res, {
       user: {
@@ -694,12 +694,12 @@ If this wasn't you, secure your account immediately!
       throw new AppError("Failed to send password change notification", 500);
     });
 
-    await addNotification(user.id as UUID, {
-      title: 'Password_Changed',
-      body: `Your password was changed from ${deviceRecord || "unknown device"} at ${location}`,
-      actorId: user.id as UUID,
-      tweetId:"32423",
-    }, (err) => { if (err) throw new AppError(err, 500) });
+    // await addNotification(user.id as UUID, {
+    //   title: 'Password_Changed',
+    //   body: `Your password was changed from ${deviceRecord || "unknown device"} at ${location}`,
+    //   actorId: user.id as UUID,
+    //   tweetId:"32423",
+    // }, (err) => { if (err) throw new AppError(err, 500) });
 
     const accessObj = await utils.GenerateJwt({
       username: user.username,
