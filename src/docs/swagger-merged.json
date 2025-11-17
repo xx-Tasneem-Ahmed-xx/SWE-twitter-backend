@@ -3519,7 +3519,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-02T11:38:34.906Z"
+                        "default": "2025-11-17T16:54:39.732Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3570,6 +3570,184 @@
                     }
                   },
                   "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new notification for a user",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Bearer token for authentication"
+            },
+            "required": true,
+            "description": "Bearer token for authentication",
+            "name": "Authorization",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "enum": [
+                      "LIKE",
+                      "RETWEET",
+                      "REPLY",
+                      "QUOTE",
+                      "FOLLOW",
+                      "RequestToFollow",
+                      "AcceptedFollow",
+                      "MENTION"
+                    ]
+                  },
+                  "body": {
+                    "type": "string",
+                    "maxLength": 280
+                  },
+                  "tweetId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "actorId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "title",
+                  "body"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Notification created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string",
+                      "enum": [
+                        "LIKE",
+                        "RETWEET",
+                        "REPLY",
+                        "QUOTE",
+                        "FOLLOW",
+                        "RequestToFollow",
+                        "AcceptedFollow",
+                        "MENTION"
+                      ]
+                    },
+                    "body": {
+                      "type": "string",
+                      "maxLength": 280
+                    },
+                    "isRead": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date",
+                      "default": "2025-11-17T16:54:39.732Z"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "tweetId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "actorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "body",
+                    "userId"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid notification data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Invalid notification data"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Unauthorized"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal Server Error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -3707,7 +3885,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-02T11:38:34.906Z"
+                            "default": "2025-11-17T16:54:39.732Z"
                           },
                           "userId": {
                             "type": "string",
@@ -3830,7 +4008,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-11-02T13:11:14.211Z"
+                      "default": "2025-11-17T16:54:39.732Z"
                     },
                     "userId": {
                       "type": "string",
@@ -7669,8 +7847,10 @@
     "/change-password": {
       "post": {
         "summary": "Change user password",
-        "description": "Changes the current password after successful reauthentication.",
-        "tags": ["Account"],
+        "description": "Allows an authenticated user to change their password after verifying the old one. Invalidates old tokens by incrementing token version.",
+        "tags": [
+          "Account"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -7682,15 +7862,23 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["password", "confirm"],
+                "required": [
+                  "oldPassword",
+                  "newPassword",
+                  "confirmPassword"
+                ],
                 "properties": {
-                  "password": {
+                  "oldPassword": {
                     "type": "string",
-                    "example": "NewStrongPass@2024"
+                    "example": "OldPass@2024"
                   },
-                  "confirm": {
+                  "newPassword": {
                     "type": "string",
-                    "example": "NewStrongPass@2024"
+                    "example": "NewStrongPass@2025"
+                  },
+                  "confirmPassword": {
+                    "type": "string",
+                    "example": "NewStrongPass@2025"
                   }
                 }
               }
@@ -7699,25 +7887,47 @@
         },
         "responses": {
           "200": {
-            "description": "Password changed successfully."
+            "description": "Password updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Message": {
+                      "type": "string",
+                      "example": "Password updated successfully"
+                    },
+                    "Score": {
+                      "type": "object",
+                      "description": "Password strength analysis"
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
-            "description": "Invalid password format or validation failed."
+            "description": "Invalid password or validation failed."
           },
           "401": {
-            "description": "Reauthentication required or password not strong enough."
+            "description": "Incorrect old password or reauthentication required."
           },
           "404": {
             "description": "User not found."
+          },
+          "500": {
+            "description": "Internal server error."
           }
         }
       }
     },
     "/change-email": {
       "post": {
-        "summary": "Change user email",
-        "description": "Changes the user’s email after successful reauthentication.",
-        "tags": ["Account"],
+        "summary": "Request email change",
+        "description": "Sends a 6-digit verification code to the new email. The change will be finalized after verifying the code using `/verify-new-email`.",
+        "tags": [
+          "Account"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -7742,19 +7952,30 @@
         },
         "responses": {
           "200": {
-            "description": "Email change requested successfully."
+            "description": "Verification code sent successfully to the new email."
+          },
+          "400": {
+            "description": "Invalid email format."
           },
           "401": {
-            "description": "Unauthorized or reauth failed."
+            "description": "Unauthorized or current email missing."
+          },
+          "409": {
+            "description": "Email already exists."
+          },
+          "500": {
+            "description": "Internal server error."
           }
         }
       }
     },
     "/verify-new-email": {
       "post": {
-        "summary": "Verify new email address",
-        "description": "Verifies a newly changed email by checking the verification code sent to it.",
-        "tags": ["Account"],
+        "summary": "Verify and finalize email change",
+        "description": "Confirms the email change using the code sent to the new address. Issues new access & refresh tokens with the updated email.",
+        "tags": [
+          "Account"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -7766,8 +7987,15 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["code"],
+                "required": [
+                  "desiredEmail",
+                  "code"
+                ],
                 "properties": {
+                  "desiredEmail": {
+                    "type": "string",
+                    "example": "newemail@example.com"
+                  },
                   "code": {
                     "type": "string",
                     "example": "842613"
@@ -7779,10 +8007,44 @@
         },
         "responses": {
           "200": {
-            "description": "Email verified successfully."
+            "description": "Email changed and verified successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Email changed successfully"
+                    },
+                    "newEmail": {
+                      "type": "string",
+                      "example": "newemail@example.com"
+                    },
+                    "Token": {
+                      "type": "string",
+                      "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    },
+                    "Refresh_token": {
+                      "type": "string",
+                      "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid or expired verification code."
+          },
+          "401": {
+            "description": "Email mismatch or unauthorized."
+          },
+          "404": {
+            "description": "User not found."
+          },
+          "500": {
+            "description": "Internal server error."
           }
         }
       }
@@ -7861,8 +8123,10 @@
     "/update_username": {
       "put": {
         "summary": "Update current user's username",
-        "description": "Updates the username of the authenticated user using their ID from req.user.id.",
-        "tags": ["User"],
+        "description": "Updates the authenticated user's username and issues new access & refresh tokens with an incremented token version.",
+        "tags": [
+          "User"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -7887,7 +8151,7 @@
         },
         "responses": {
           "200": {
-            "description": "Username updated successfully.",
+            "description": "Username updated successfully and new tokens issued.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7907,6 +8171,23 @@
                         "username": {
                           "type": "string",
                           "example": "new_username123"
+                        },
+                        "tokenVersion": {
+                          "type": "integer",
+                          "example": 5
+                        }
+                      }
+                    },
+                    "tokens": {
+                      "type": "object",
+                      "properties": {
+                        "access": {
+                          "type": "string",
+                          "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                        },
+                        "refresh": {
+                          "type": "string",
+                          "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                         }
                       }
                     }
@@ -7920,6 +8201,9 @@
           },
           "401": {
             "description": "Unauthorized or missing user ID."
+          },
+          "404": {
+            "description": "User not found."
           },
           "500": {
             "description": "Internal server error."
@@ -8049,15 +8333,17 @@
     },
     "/authorize/{provider}": {
       "get": {
-        "tags": ["OAuth"],
-        "summary": "Redirect user to OAuth provider for authorization",
-        "description": "Initiates the OAuth 2.0 authorization flow by redirecting the user to the specified provider (e.g., Google or GitHub) for login.",
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Start OAuth 2.0 authorization flow",
+        "description": "Initiates the OAuth 2.0 authorization process by redirecting the user to the chosen provider's authorization page. Supported providers: **Google** and **GitHub**.\n",
         "parameters": [
           {
             "in": "path",
             "name": "provider",
             "required": true,
-            "description": "OAuth provider to use (google or github)",
+            "description": "The OAuth provider to authenticate with.",
             "schema": {
               "type": "string",
               "enum": ["google", "github"]
@@ -8066,13 +8352,13 @@
         ],
         "responses": {
           "302": {
-            "description": "Redirects user to the OAuth provider's login page."
+            "description": "Redirects the user to the selected OAuth provider's authorization page."
           },
           "400": {
-            "description": "Invalid or unsupported provider specified."
+            "description": "Unsupported or missing provider name."
           },
           "500": {
-            "description": "Internal server error during authorization."
+            "description": "Internal server error during authorization setup."
           }
         }
       }
@@ -8081,16 +8367,79 @@
       "get": {
         "tags": ["OAuth"],
         "summary": "Handle Google OAuth callback",
-        "description": "Handles the callback from Google after user authorization. Exchanges the authorization code for tokens and retrieves user information.",
+        "description": "This endpoint handles the callback from **Google OAuth** after user authorization. It exchanges the received authorization code for an ID token, retrieves the user's profile and email, creates or updates the user in the database, issues access and refresh tokens, stores session info, and sends a login notification email.\n",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "description": "Authorization code returned by Google after user consent.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "User successfully authenticated with Google."
+            "description": "User successfully authenticated and tokens issued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string",
+                      "description": "JWT access token."
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "description": "JWT refresh token stored in cookies and Redis."
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "username": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "dateOfBirth": {
+                          "type": "string"
+                        },
+                        "isEmailVerified": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "deviceRecord": {
+                      "type": "object",
+                      "description": "Information about the device used for login."
+                    },
+                    "location": {
+                      "type": "object",
+                      "description": "IP-based geolocation info."
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User registered and logged in successfully ✅"
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Missing or invalid authorization code."
           },
           "500": {
-            "description": "Error during token exchange or user data retrieval."
+            "description": "Error during token exchange, user creation, or email notification."
           }
         }
       }
@@ -8099,16 +8448,79 @@
       "get": {
         "tags": ["OAuth"],
         "summary": "Handle GitHub OAuth callback",
-        "description": "Handles the callback from GitHub after user authorization. Exchanges the authorization code for tokens and retrieves user profile data.",
+        "description": "This endpoint handles the callback from **GitHub OAuth** after the user grants access. It exchanges the authorization code for an access token, retrieves the user’s primary verified email, fetches GitHub profile data, creates or links the user in the system, issues JWT tokens, logs the device info, and sends a login alert email.\n",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "description": "Authorization code returned by GitHub after user consent.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "User successfully authenticated with GitHub."
+            "description": "User successfully authenticated and tokens issued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string",
+                      "description": "JWT access token."
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "description": "JWT refresh token stored in cookies and Redis."
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "username": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "dateOfBirth": {
+                          "type": "string"
+                        },
+                        "isEmailVerified": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "deviceRecord": {
+                      "type": "object",
+                      "description": "Information about the device used for login."
+                    },
+                    "location": {
+                      "type": "object",
+                      "description": "IP-based geolocation info."
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User logged in successfully via GitHub ✅"
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Missing or invalid authorization code."
           },
           "500": {
-            "description": "Error during token exchange or user data retrieval."
+            "description": "Error during token exchange, user lookup, or email notification."
           }
         }
       }
