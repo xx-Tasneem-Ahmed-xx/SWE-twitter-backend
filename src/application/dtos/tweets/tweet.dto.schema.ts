@@ -24,7 +24,7 @@ const UserSchema = z.object({
   id: z.uuid(),
   name: z.string().min(1, { message: "Content must not be empty" }).nullable(),
   username: StringSchema,
-  profileMedia: z.object({ id: z.uuid(), keyName: z.string() }),
+  profileMedia: z.object({ id: z.uuid() }),
   verified: z.boolean(),
   protectedAccount: z.boolean(),
 });

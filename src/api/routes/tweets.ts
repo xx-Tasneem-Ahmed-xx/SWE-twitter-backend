@@ -15,6 +15,8 @@ router.route("/users/:username").get(tweetController.getUserTweets);
 
 router.route("/search").get(tweetController.searchTweets);
 
+router.route("/users/:username/mentioned").get(tweetController.getMentionedTweets);
+
 router
   .route("/:id")
   .get(tweetController.getTweet)

@@ -325,6 +325,33 @@ class TweetService {
     };
   }
 
+  async getMentionedTweets(dto: CursorServiceDTO) {
+    const tweets = await prisma.tweet.findMany({
+      where: {
+        mention: {
+          some: { mentionedId: dto.userId },
+        },
+      },
+      select: this.tweetSelectFields(),
+      orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
+      take: dto.limit + 1,
+      ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
+    });
+
+    const hasNextPage = tweets.length > dto.limit;
+    const paginatedTweets = hasNextPage ? tweets.slice(0, -1) : tweets;
+    const cursor = {
+      id: paginatedTweets[paginatedTweets.length - 1].id,
+      lastActivityAt:
+        paginatedTweets[paginatedTweets.length - 1].lastActivityAt,
+    };
+    const hashedCursor = encoderService.encode(cursor);
+    return {
+      data: paginatedTweets,
+      nextCursor: hasNextPage ? hashedCursor : null,
+    };
+  }
+
   async searchTweets(dto: SearchServiceDTO) {
     const parsedDTO = SearchServiceSchema.parse(dto);
 
