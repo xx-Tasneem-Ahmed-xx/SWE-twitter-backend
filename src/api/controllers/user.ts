@@ -46,13 +46,13 @@ interface PrismaUser {
   otp: string | null;
 }
 
-// --- Environment Variables ---
+
 const JWT_SECRET: string = process.env.JWT_SECRET || "changeme";
 const PEPPER: string = process.env.PEPPER || "";
 const DOMAIN: string = process.env.DOMAIN || "localhost";
 const CLIENT_DOMAIN: string = process.env.CLIENT_DOMAIN || "localhost";
 
-// --- Helper Functions ---
+
 function timingSafeEqual(a: string | Buffer | number | object, b: string | Buffer | number | object): boolean {
   try {
     const A: Buffer = Buffer.from(String(a));
@@ -103,7 +103,7 @@ function validateJwt(token: string): { ok: boolean; payload?: LocalJwtPayload; e
   }
 }
 
-/* --------------------- Controller Functions --------------------- */
+
 
 export async function Create(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -113,7 +113,7 @@ export async function Create(req: Request, res: Response, next: NextFunction): P
       throw new AppError("Missing required fields", 400);
     }
 
-    // Check if email already exists
+    
     const existingUser = await prisma.user.findUnique({
       where: { email: input.email },
     });
@@ -436,8 +436,8 @@ export async function Login(req: Request, res: Response, next: NextFunction): Pr
 
 🚀 Your account was just accessed!
 
-📍 Location: ${location}
-💻 Device info: ${deviceRecord || "unknown"}
+📍 Location: ${JSON.stringify(location, null, 2)}
+💻 Device info: ${JSON.stringify(deviceRecord, null, 2)}
 🕒 Time: ${new Date().toLocaleString()}
 
 If this was not you, immediately change your password!
@@ -447,13 +447,13 @@ If this was not you, immediately change your password!
       throw new AppError("Failed to send login notification email", 500);
     });
 
-    // await addNotification(user.id as UUID, {
-    //   title: 'LOGIN',
-    //   body: `Login from ${deviceRecord || "unknown device"} at ${location}`,
-    //   actorId: user.id as UUID,
-    // }, (err) => {
-    //   if (err) throw new AppError("Failed to create login notification", 500);
-    // });
+    await addNotification(user.id as UUID, {
+      title: 'LOGIN',
+      body: `Login from ${deviceRecord || "unknown device"} at ${location}`,
+      actorId: user.id as UUID,
+    }, (err) => {
+      if (err) throw new AppError("Failed to create login notification", 500);
+    });
 
     return utils.SendRes(res, {
       user: {
@@ -693,8 +693,34 @@ If this wasn't you, secure your account immediately!
         actorId: user.id as UUID,
       }, (err) => { if (err) throw new AppError("Failed to create notification", 500) });
     }
+        const accessObj = await utils.GenerateJwt({
+      username: user.username,
+      email,
+      id: user.id,
+      expiresInSeconds: 60 * 60,
+      version: user.tokenVersion || 0,
+      devid,
+      role:"user", 
+    });
 
-    return utils.SendRes(res, { message: "Password reset successfully, notification sent" });
+  const refreshObj = await utils.GenerateJwt({
+      username: user.username,
+      email,
+      id: user.id,
+      expiresInSeconds: 30 * 24 * 60 * 60,
+      version: user.tokenVersion || 0,
+      devid,
+       role: "user",
+    });
+
+    res.cookie("refresh_token", refreshObj.token, {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.COOKIE_SECURE === "true",
+      sameSite: "lax",
+      domain: CLIENT_DOMAIN,
+    });
+    return utils.SendRes(res, { message: "Password reset successfully, notification sent" ,refresh_token:refreshObj.token,accesstoken:accessObj.token});
   } catch (err) {
     next(err);
   }
@@ -950,13 +976,12 @@ export async function VerifyNewEmail(req: Request, res: Response, next: NextFunc
     if (storedCode !== code) throw new AppError("Incorrect verification code", 401);
     if (storedNewEmail !== desiredEmail) throw new AppError("Email mismatch", 401);
 
-    // ✅ Update email and increment token version (optional)
+
     const user = await prisma.user.update({
       where: { email: currentEmail },
       data: { email: desiredEmail }
     });
 
-    // ✅ Generate new tokens with updated email
     const accessObj = await utils.GenerateJwt({
       username: user.username,
       email: desiredEmail,
@@ -1403,21 +1428,16 @@ export async function CallbackGithub(req: Request, res: Response, next: NextFunc
     await utils.SendEmailSmtp(res,email,emailMsg);
 
     // ✅ Final Response
-    return res.json({
-      token,
-      refreshToken,
-      message: "User logged in successfully via GitHub ✅",
-     user: {
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        email: user.email,
-        dateOfBirth: user.dateOfBirth,
-        isEmailVerified: user.isEmailVerified,
-      },
-      deviceRecord,
-      location: geo,
-    });
+  const redirectUrl = `${process.env.FRONTEND_URL}/login/success?token=${encodeURIComponent(token.token)}&refresh-token=${encodeURIComponent(refreshToken.token)}&user=${encodeURIComponent(JSON.stringify({
+  id: user.id,
+  username: user.username,
+  name: user.name,
+  email: user.email,
+  dateOfBirth: user.dateOfBirth,
+  isEmailVerified: user.isEmailVerified
+}))}`;
+return res.redirect(redirectUrl);
+
   } catch (err) {
     console.error("CallbackGithub err:", err);
     next(err);
@@ -1536,21 +1556,17 @@ export async function CallbackGoogle(req: Request, res: Response, next: NextFunc
     await utils.SendEmailSmtp(res,email,emailMsg );
 
     // ✅ Final Response
-    return res.json({
-      token,
-      refreshToken,
-     user: {
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        email: user.email,
-        dateOfBirth: user.dateOfBirth,
-        isEmailVerified: user.isEmailVerified,
-      },
-      message: "User registered and logged in successfully ✅",
-      deviceRecord,
-      location: geo,
-    });
+  const redirectUrl = `${process.env.FRONTEND_URL}/login/success?token=${encodeURIComponent(token.token)}&refresh-token=${encodeURIComponent(refreshToken.token)}&user=${encodeURIComponent(JSON.stringify({
+  id: user.id,
+  username: user.username,
+  name: user.name,
+  email: user.email,
+  dateOfBirth: user.dateOfBirth,
+  isEmailVerified: user.isEmailVerified
+}))}`;
+
+return res.redirect(redirectUrl);
+
   } catch (err) {
     console.error("CallbackGoogle err:", err);
     next(err);
@@ -1623,7 +1639,7 @@ export const UpdateUsername = async (
 
     const newVersion = (currentUser.tokenVersion || 0) + 1;
 
-    // 🧱 Update username and token version
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
@@ -1632,7 +1648,7 @@ export const UpdateUsername = async (
       },
     });
 
-    // 🪄 Generate new access & refresh tokens
+
     const accessObj = await utils.GenerateJwt({
       username: updatedUser.username,
       email: currentUser.email,
