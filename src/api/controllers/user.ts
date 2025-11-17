@@ -698,7 +698,8 @@ If this wasn't you, secure your account immediately!
       title: 'Password_Changed',
       body: `Your password was changed from ${deviceRecord || "unknown device"} at ${location}`,
       actorId: user.id as UUID,
-    }, (err) => { if (err) throw new AppError("Failed to create notification", 500) });
+      tweetId:"32423",
+    }, (err) => { if (err) throw new AppError(err, 500) });
 
     const accessObj = await utils.GenerateJwt({
       username: user.username,

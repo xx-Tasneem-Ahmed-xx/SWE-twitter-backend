@@ -1,5 +1,5 @@
 import admin from 'firebase-admin';
-import serviceAccount from '../../../twitter-clone-project-ca1b1-firebase-adminsdk-fbsvc-a74d00fca4.json';
+import serviceAccount from '../../../psychic-fin-474008-h8-1be573080339.json';
 
 
 const initializeFirebase = () => {
