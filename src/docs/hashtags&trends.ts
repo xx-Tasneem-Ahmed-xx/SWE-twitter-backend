@@ -6,10 +6,6 @@ import {
   TrendTweetsResponseSchema,
 } from "@/application/dtos/trends/trend.dto.schema";
 
-const TrendIdParamSchema = z.object({
-  id: z.string().describe("The hashtag (without # symbol)"),
-});
-
 export function registerHashtagAndTrendsDocs(registry: OpenAPIRegistry) {
   // Register schemas
   registry.register("TrendQuery", TrendQuerySchema);
@@ -47,7 +43,9 @@ export function registerHashtagAndTrendsDocs(registry: OpenAPIRegistry) {
     description: "Returns tweets that contain the specified trending hashtag",
     tags: ["Trends"],
     request: {
-      params: TrendIdParamSchema,
+      params: z.object({
+        id: z.string().describe("The encoded hashtag ID"),
+      }),
       query: TrendQuerySchema,
     },
     responses: {

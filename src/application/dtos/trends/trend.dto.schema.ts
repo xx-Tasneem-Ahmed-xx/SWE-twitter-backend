@@ -1,5 +1,6 @@
 import z from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { TweetResponsesSchema } from "@/application/dtos/tweets/tweet.dto.schema";
 
 extendZodWithOpenApi(z);
 
@@ -24,6 +25,7 @@ export const TrendQuerySchema = z
 
 // Individual trend item schema (for internal use only, not registered in OpenAPI)
 export const TrendItemSchema = z.object({
+  id: z.string(),
   hashtag: z.string(),
   tweetCount: z.number().int(),
   rank: z.number().int(),
@@ -35,6 +37,10 @@ export const TrendsResponseSchema = z
     trends: z
       .array(
         z.object({
+          id: z.string().openapi({
+            description: "Encoded hashtag ID (use this for fetching tweets)",
+            example: "eyJoYXNoSWQiOiIxMjM0In0.signature",
+          }),
           hashtag: z.string().openapi({
             description: "The hashtag text without # symbol",
             example: "typescript",
@@ -54,9 +60,14 @@ export const TrendsResponseSchema = z
         description:
           "Array of trending hashtags, sorted by popularity (rank 1-30)",
         example: [
-          { hashtag: "typescript", tweetCount: 1234, rank: 1 },
-          { hashtag: "javascript", tweetCount: 987, rank: 2 },
-          { hashtag: "nodejs", tweetCount: 654, rank: 3 },
+          {
+            id: "abc123.sig",
+            hashtag: "typescript",
+            tweetCount: 1234,
+            rank: 1,
+          },
+          { id: "def456.sig", hashtag: "javascript", tweetCount: 987, rank: 2 },
+          { id: "ghi789.sig", hashtag: "nodejs", tweetCount: 654, rank: 3 },
         ],
       }),
     updatedAt: z.string().datetime().openapi({
@@ -72,11 +83,17 @@ export const TrendsResponseSchema = z
 // Trend tweets response schema
 export const TrendTweetsResponseSchema = z
   .object({
-    tweets: z.array(z.any()).describe("List of tweets with this hashtag"), // TODO: Replace with actual Tweet schema
-    nextCursor: z
-      .string()
-      .nullable()
-      .describe("Cursor for next page of results"),
-    hasMore: z.boolean().describe("Whether there are more results"),
+    tweets: z.array(TweetResponsesSchema).openapi({
+      description: "List of tweets containing this hashtag",
+    }),
+    nextCursor: z.string().nullable().openapi({
+      description:
+        "Encoded cursor for next page of results (null if no more pages)",
+    }),
+    hasMore: z.boolean().openapi({
+      description: "Whether there are more tweets available for pagination",
+    }),
   })
-  .openapi("TrendTweetsResponse");
+  .openapi("TrendTweetsResponse", {
+    description: "Paginated list of tweets for a trending hashtag",
+  });

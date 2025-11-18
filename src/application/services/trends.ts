@@ -1,6 +1,7 @@
 import { prisma } from "@/prisma/client";
 import { AppError } from "@/errors/AppError";
 import { redisClient } from "@/config/redis";
+import encoderService from "@/application/services/encoder";
 
 // Trends configuration constants
 const TRENDS_CACHE_KEY = "trends:global";
@@ -10,6 +11,7 @@ const TREND_PERIOD_HOURS = 24; // Last 24 hours
 
 // Trend data structure
 export type TrendData = {
+  id: string; // Encoded hashtag ID
   hashtag: string;
   tweetCount: number;
   rank: number;
@@ -58,12 +60,18 @@ export async function calculateAndCacheTrends(
   const hashMap = new Map(hashes.map((h) => [h.id, h.tag_text]));
 
   const trends: TrendData[] = hashtagCounts
-    .map((item, index) => ({
-      hashtag: hashMap.get(item.hashId) || "",
-      tweetCount: item._count.hashId,
-      rank: index + 1,
-    }))
-    .filter((trend) => trend.hashtag !== "");
+    .map((item, index) => {
+      const hashtag = hashMap.get(item.hashId) || "";
+      if (!hashtag) return null;
+
+      return {
+        id: encoderService.encode(item.hashId),
+        hashtag,
+        tweetCount: item._count.hashId,
+        rank: index + 1,
+      };
+    })
+    .filter((trend): trend is TrendData => trend !== null);
 
   const cacheData = {
     trends,
@@ -114,36 +122,25 @@ export const fetchTrends = async (limit: number = TRENDS_LIMIT) => {
 
 // Fetch tweets for a specific trend with pagination
 export const fetchTrendTweets = async (
-  trend: string,
+  hashtagId: string,
   cursor?: string | null,
-  limit: number = 20
+  limit: number = 30
 ) => {
-  // Normalize the hashtag (remove # if present, lowercase)
-  const normalizedTag = trend.startsWith("#")
-    ? trend.slice(1).toLowerCase()
-    : trend.toLowerCase();
-
-  // Find the hash by tag_text
   const hash = await prisma.hash.findUnique({
     where: {
-      tag_text: normalizedTag,
+      id: hashtagId,
     },
   });
-
   if (!hash) {
     throw new AppError("Hashtag not found", 404);
   }
-
-  // Get tweets that have this hashtag
   const where: any = {
     hashId: hash.id,
   };
 
-  // Apply cursor-based pagination if cursor is provided
   if (cursor) {
-    // Cursor should be a tweet ID
     where.tweetId = {
-      lt: cursor, // Get tweets older than cursor
+      lt: cursor,
     };
   }
 
@@ -157,12 +154,9 @@ export const fetchTrendTweets = async (
               id: true,
               username: true,
               name: true,
+              profileMedia: { select: { id: true } },
               verified: true,
-            },
-          },
-          tweetMedia: {
-            include: {
-              media: true,
+              protectedAccount: true,
             },
           },
         },
@@ -173,12 +167,14 @@ export const fetchTrendTweets = async (
         createdAt: "desc",
       },
     },
-    take: limit + 1, // Get one extra to determine if there are more
+    take: limit + 1,
   });
 
   const hasMore = tweetHashes.length > limit;
   const tweets = hasMore ? tweetHashes.slice(0, limit) : tweetHashes;
-  const nextCursor = hasMore ? tweets[tweets.length - 1].tweetId : null;
+  const nextCursor = hasMore
+    ? encoderService.encode(tweets[tweets.length - 1].tweetId)
+    : null;
 
   return {
     tweets: tweets.map((th) => th.tweet),
