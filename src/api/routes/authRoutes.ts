@@ -970,10 +970,9 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
  *     summary: Change user password
  *     description: >
  *       Allows an authenticated user to change their account password after validating the old one.
- *      The system checks password strength, prevents reuse of old passwords, updates the stored hash
- *      with a new salt, increments `tokenVersion` to invalidate previous tokens, and logs password
- *      history for security. A security notification email is then sent to the account owner.
- *
+ *       The system checks password strength, prevents reuse of old passwords, updates the stored hash
+ *       with a new salt, increments `tokenVersion` to invalidate previous tokens, and logs password
+ *       history for security. A security notification email is then sent to the account owner.
  *       This endpoint requires a valid Bearer token.
  *
  *     tags:
@@ -1010,26 +1009,23 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
  *             schema:
  *               type: object
  *               properties:
- *                 Message:
+ *                 message:
  *                   type: string
- *                   example: Password updated successfully
- *                 Score:
+ *                   example: "Password updated successfully"
+ *                 score:
  *                   type: object
  *                   description: Password strength analysis result
  *                   properties:
  *                     score:
  *                       type: integer
- *                       description: Strength score from 0 (weakest) to 4 (strongest)
  *                       example: 3
  *                     crack_times_display:
  *                       type: object
- *                       description: Estimated crack times
  *                       example:
  *                         offline_fast_hashing_1e10_per_second: "centuries"
  *                         online_no_throttling_10_per_second: "months"
  *                     feedback:
  *                       type: object
- *                       description: Password improvement suggestions
  *                       properties:
  *                         warning:
  *                           type: string
@@ -1051,7 +1047,7 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Confirm password does not match the new password
+ *                   example: "Confirm password does not match the new password"
  *
  *       401:
  *         description: Old password incorrect or reauthentication required.
@@ -1060,6 +1056,7 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
  *       500:
  *         description: Internal server error while updating password or sending notification email.
  */
+
 router.post("/change-password", Auth(), typedAuthController.ChangePassword); //tested
 
 /**
