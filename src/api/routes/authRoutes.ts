@@ -964,15 +964,23 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
 // --- Sensitive Change Routes (Require Auth & Reauth) ---
 
 /**
- * @swagger
+ * @openapi
  * /change-password:
  *   post:
  *     summary: Change user password
- *     description: Allows an authenticated user to change their password after verifying the old one. Invalidates old tokens by incrementing token version.
+ *     description: >
+ *       Allows an authenticated user to change their account password after validating the old one.
+       The system checks password strength, prevents reuse of old passwords, updates the stored hash
+       with a new salt, increments `tokenVersion` to invalidate previous tokens, and logs password
+       history for security. A security notification email is then sent to the account owner.
+ *
+ *       This endpoint requires a valid Bearer token.
+ *
  *     tags:
  *       - Account
  *     security:
  *       - bearerAuth: []
+ *
  *     requestBody:
  *       required: true
  *       content:
@@ -993,9 +1001,10 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
  *               confirmPassword:
  *                 type: string
  *                 example: "NewStrongPass@2025"
+ *
  *     responses:
  *       200:
- *         description: Password updated successfully.
+ *         description: Password updated successfully
  *         content:
  *           application/json:
  *             schema:
@@ -1006,15 +1015,50 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
  *                   example: Password updated successfully
  *                 Score:
  *                   type: object
- *                   description: Password strength analysis
+ *                   description: Password strength analysis result
+ *                   properties:
+ *                     score:
+ *                       type: integer
+ *                       description: Strength score from 0 (weakest) to 4 (strongest)
+ *                       example: 3
+ *                     crack_times_display:
+ *                       type: object
+ *                       description: Estimated crack times
+ *                       example:
+ *                         offline_fast_hashing_1e10_per_second: "centuries"
+ *                         online_no_throttling_10_per_second: "months"
+ *                     feedback:
+ *                       type: object
+ *                       description: Password improvement suggestions
+ *                       properties:
+ *                         warning:
+ *                           type: string
+ *                           example: "Repeats like 'aaa' are easy to guess"
+ *                         suggestions:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                           example:
+ *                             - "Use a longer password"
+ *                             - "Add more unpredictable words"
+ *
  *       400:
- *         description: Invalid password or validation failed.
+ *         description: Validation failed (missing fields, weak password, confirmation mismatch, etc.)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Confirm password does not match the new password
+ *
  *       401:
- *         description: Incorrect old password or reauthentication required.
+ *         description: Old password incorrect or reauthentication required.
  *       404:
  *         description: User not found.
  *       500:
- *         description: Internal server error.
+ *         description: Internal server error while updating password or sending notification email.
  */
 router.post("/change-password", Auth(), typedAuthController.ChangePassword); //tested
 
@@ -1204,7 +1248,7 @@ router.delete("/session/:sessionid", Auth(),  typedAuthController.LogoutSession)
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Username updated successfully ✅
+ *                   example: Username updated successfully 
  *                 user:
  *                   type: object
  *                   properties:
