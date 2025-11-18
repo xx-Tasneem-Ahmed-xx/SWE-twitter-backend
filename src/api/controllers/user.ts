@@ -1431,22 +1431,22 @@ export async function CallbackGithub(req: Request, res: Response, next: NextFunc
 
     // 📧 Send Professional Login Email
     const emailMsg = `
-<h2>👋 Hello, ${user.username || name}</h2>
-<p>We noticed a new login to your account via <b>GitHub</b>.</p>
+👋 Hello, ${user.username || name}
 
-<table style="border-collapse: collapse;">
-  <tr><td>🕒 <b>Time</b></td><td>${new Date().toLocaleString()}</td></tr>
-  <tr><td>📍 <b>Location</b></td><td>${geo.City || "Unknown"}, ${geo.Country || ""}</td></tr>
-  <tr><td>🌐 <b>IP Address</b></td><td>${geo.Query || ip}</td></tr>
-  <tr><td>🖥️ <b>Device</b></td><td>${req.get("User-Agent") || "Unknown"}</td></tr>
-</table>
+We noticed a new login to your account via GitHub.
 
-<p>Your login was successful 🎉</p>
-<p>If this wasn’t you, please reset your password or contact support immediately.</p>
+🕒 Time: ${new Date().toLocaleString()}
+📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
+🌐 IP Address: ${geo.Query || ip}
+🖥️ Device: ${req.get("User-Agent") || "Unknown"}
 
-<hr>
-<p>— The Artemisa Security Team 🦊</p>
+Your login was successful 🎉
+
+If this wasn’t you, please reset your password or contact support immediately.
+
+— The Artemisa Security Team 🦊
 `;
+
 
     await utils.SendEmailSmtp(res,email,emailMsg);
 
@@ -1557,24 +1557,22 @@ export async function CallbackGoogle(req: Request, res: Response, next: NextFunc
     const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
     const geo = await utils.Sendlocation(ip);
 
-    const emailMsg = `
-<h2>👋 Hi, ${user.username || name}</h2>
+   const emailMsg = `
+👋 Hi, ${user.username || name}
 
-<p>We noticed a new login to your account <strong>(${email})</strong>.</p>
+We noticed a new login to your account (${email}).
 
-<table style="border-collapse: collapse;">
-  <tr><td>🕒 <b>Time</b></td><td>${new Date().toLocaleString()}</td></tr>
-  <tr><td>📍 <b>Location</b></td><td>${geo.City || "Unknown"}, ${geo.Country || ""}</td></tr>
-  <tr><td>🌐 <b>IP Address</b></td><td>${geo.Query || ip}</td></tr>
-  <tr><td>🖥️ <b>Device</b></td><td>${req.get("User-Agent") || "Unknown"}</td></tr>
-</table>
+🕒 Time: ${new Date().toLocaleString()}
+📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
+🌐 IP Address: ${geo.Query || ip}
+🖥️ Device: ${req.get("User-Agent") || "Unknown"}
 
-<p>If this was you — awesome! You’re all set 🎉</p>
-<p>If this wasn’t you, please secure your account immediately.</p>
+If this was you — awesome! You’re all set 🎉
+If this wasn’t you, please secure your account immediately.
 
-<hr>
-<p>— The Artemisa Security Team 🌙</p>
+— The Artemisa Security Team 🌙
 `;
+
 
     await utils.SendEmailSmtp(res,email,emailMsg );
 
