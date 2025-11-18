@@ -7,9 +7,9 @@ import {
   CreateReplyOrQuoteServiceDTO,
   CreateReTweetServiceDto,
   CreateTweetServiceDto,
-  CursorServiceDTO,
-  RetweetsServiceDTO,
+  InteractionsCursorServiceDTO,
   SearchServiceDTO,
+  TweetCursorServiceDTO,
 } from "@/application/dtos/tweets/service/tweets.dto";
 import { AppError } from "@/errors/AppError";
 import { generateTweetSumamry } from "@/application/services/aiSummary";
@@ -155,7 +155,8 @@ class TweetService {
     ]);
   }
 
-  async getRetweets(tweetId: string, dto: RetweetsServiceDTO) {
+  //TODO: update docs
+  async getRetweets(tweetId: string, dto: InteractionsCursorServiceDTO) {
     this.validateId(tweetId);
     const retweeters = await prisma.retweet.findMany({
       where: { tweetId },
@@ -164,12 +165,16 @@ class TweetService {
           select: this.userSelectFields(),
         },
         createdAt: true,
+        userId: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { userId: "desc" }],
       take: dto.limit + 1,
-      ...(dto && {
+      ...(dto.cursor && {
         cursor: {
-          userId_createdAt: { userId: dto.userId, createdAt: dto.createdAt },
+          userId_createdAt: {
+            userId: dto.cursor.userId,
+            createdAt: dto.cursor.createdAt,
+          },
         },
         skip: 1,
       }),
@@ -266,7 +271,8 @@ class TweetService {
       }),
     ]);
   }
-  async getLikedTweets(dto: CursorServiceDTO) {
+
+  async getLikedTweets(dto: InteractionsCursorServiceDTO) {
     const tweetLikes = await prisma.tweetLike.findMany({
       where: { userId: dto.userId },
       select: {
@@ -275,29 +281,35 @@ class TweetService {
             ...this.tweetSelectFields(dto.userId),
           },
         },
+        createdAt: true,
+        userId: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { userId: "desc" }],
       take: dto.limit + 1,
       ...(dto.cursor && {
         cursor: {
-          userId_tweetId: { userId: dto.userId, tweetId: dto.cursor.id },
+          userId_createdAt: {
+            userId: dto.userId,
+            createdAt: dto.cursor.createdAt,
+          },
         },
         skip: 1,
       }),
     });
 
     const hasNextPage = tweetLikes.length > dto.limit;
-    const paginatedTweetLikes = hasNextPage
-      ? tweetLikes.slice(0, -1)
-      : tweetLikes;
-    const rawTweets = paginatedTweetLikes.map((tl) => tl.tweet);
+    const sliced = hasNextPage ? tweetLikes.slice(0, -1) : tweetLikes;
+
+    const rawTweets = sliced.map((t) => t.tweet);
     const tweets = await this.checkUserInteractions(rawTweets);
 
-    const lastTweet = tweets[tweets.length - 1];
-    const cursor = lastTweet
-      ? { id: lastTweet.id, lastActivityAt: lastTweet.lastActivityAt }
+    const lastLike = sliced[sliced.length - 1];
+    const cursor = lastLike
+      ? {
+          userId: dto.userId,
+          createdAt: lastLike.createdAt,
+        }
       : null;
-
     return {
       data: tweets,
       nextCursor: hasNextPage ? encoderService.encode(cursor) : null,
@@ -398,12 +410,11 @@ class TweetService {
     };
   }
 
-  async getUserTweets(dto: CursorServiceDTO) {
+  async getUserTweets(dto: TweetCursorServiceDTO) {
     const tweets = await prisma.tweet.findMany({
       where: { userId: dto.userId },
       select: {
         ...this.tweetSelectFields(dto.userId),
-        retweets: { select: { user: { select: this.userSelectFields() } } },
       },
       orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
@@ -417,14 +428,14 @@ class TweetService {
       lastActivityAt:
         paginatedTweets[paginatedTweets.length - 1].lastActivityAt,
     };
-    const hashedCursor = encoderService.encode(cursor);
+    const data = await this.checkUserInteractions(paginatedTweets);
     return {
-      data: paginatedTweets,
-      nextCursor: hasNextPage ? hashedCursor : null,
+      data,
+      nextCursor: hasNextPage ? encoderService.encode(cursor) : null,
     };
   }
 
-  async getMentionedTweets(dto: CursorServiceDTO) {
+  async getMentionedTweets(dto: TweetCursorServiceDTO) {
     const tweets = await prisma.tweet.findMany({
       where: {
         mention: {
