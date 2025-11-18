@@ -1,13 +1,15 @@
 import z from "zod";
 import {
-  TrendQuerySchema,
+  TrendsQuerySchema,
+  HashtagTweetsQuerySchema,
   TrendItemSchema,
   TrendsResponseSchema,
-  TrendTweetsResponseSchema,
+  HashtagTweetsResponseSchema,
 } from "./trend.dto.schema";
 
 // Infer types from schemas
-export type TrendQuery = z.infer<typeof TrendQuerySchema>;
+export type TrendsQuery = z.infer<typeof TrendsQuerySchema>;
+export type HashtagTweetsQuery = z.infer<typeof HashtagTweetsQuerySchema>;
 export type TrendItem = z.infer<typeof TrendItemSchema>;
 export type TrendsResponse = z.infer<typeof TrendsResponseSchema>;
-export type TrendTweetsResponse = z.infer<typeof TrendTweetsResponseSchema>;
+export type HashtagTweetsResponse = z.infer<typeof HashtagTweetsResponseSchema>;

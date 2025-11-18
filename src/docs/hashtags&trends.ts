@@ -1,27 +1,28 @@
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 import {
-  TrendQuerySchema,
+  TrendsQuerySchema,
+  HashtagTweetsQuerySchema,
   TrendsResponseSchema,
-  TrendTweetsResponseSchema,
+  HashtagTweetsResponseSchema,
 } from "@/application/dtos/trends/trend.dto.schema";
 
 export function registerHashtagAndTrendsDocs(registry: OpenAPIRegistry) {
   // Register schemas
-  registry.register("TrendQuery", TrendQuerySchema);
+  registry.register("TrendsQuery", TrendsQuerySchema);
+  registry.register("HashtagTweetsQuery", HashtagTweetsQuerySchema);
   registry.register("TrendsResponse", TrendsResponseSchema);
-  registry.register("TrendTweetsResponse", TrendTweetsResponseSchema);
+  registry.register("HashtagTweetsResponse", HashtagTweetsResponseSchema);
 
-  // GET /api/trends - Get trending hashtags
   registry.registerPath({
     method: "get",
-    path: "/api/trends",
+    path: "/api/hashtags/trends",
     summary: "Get trending hashtags",
     description:
       "Returns the top trending hashtags based on tweet count in the last 24 hours",
-    tags: ["Trends"],
+    tags: ["Hashtags"],
     request: {
-      query: TrendQuerySchema,
+      query: TrendsQuerySchema,
     },
     responses: {
       200: {
@@ -35,25 +36,24 @@ export function registerHashtagAndTrendsDocs(registry: OpenAPIRegistry) {
     },
   });
 
-  // GET /api/trends/:id/tweets - Get tweets for a trending hashtag
   registry.registerPath({
     method: "get",
-    path: "/api/trends/{id}/tweets",
-    summary: "Get tweets for a trending hashtag",
-    description: "Returns tweets that contain the specified trending hashtag",
-    tags: ["Trends"],
+    path: "/api/hashtags/{id}/tweets",
+    summary: "Get tweets for a hashtag",
+    description: "Returns tweets that contain the specified hashtag (works for any hashtag, trending or not)",
+    tags: ["Hashtags"],
     request: {
       params: z.object({
-        id: z.string().describe("The encoded hashtag ID"),
+        id: z.string().describe("The encoded hashtag ID (get this from the trends list endpoint)"),
       }),
-      query: TrendQuerySchema,
+      query: HashtagTweetsQuerySchema,
     },
     responses: {
       200: {
         description: "List of tweets with this hashtag",
         content: {
           "application/json": {
-            schema: TrendTweetsResponseSchema,
+            schema: HashtagTweetsResponseSchema,
           },
         },
       },

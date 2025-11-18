@@ -4,8 +4,22 @@ import { TweetResponsesSchema } from "@/application/dtos/tweets/tweet.dto.schema
 
 extendZodWithOpenApi(z);
 
-// Query parameters schema
-export const TrendQuerySchema = z
+// Query parameters schema for getting trends list (no cursor needed)
+export const TrendsQuerySchema = z
+  .object({
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(30)
+      .default(30)
+      .optional()
+      .describe("Number of trends to return (max: 30)"),
+  })
+  .openapi("TrendsQuery");
+
+// Query parameters schema for hashtag tweets (with cursor for pagination)
+export const HashtagTweetsQuerySchema = z
   .object({
     cursor: z
       .string()
@@ -21,7 +35,7 @@ export const TrendQuerySchema = z
       .default(30)
       .describe("Number of results per page (default: 30)"),
   })
-  .openapi("TrendQuery");
+  .openapi("HashtagTweetsQuery");
 
 // Individual trend item schema (for internal use only, not registered in OpenAPI)
 export const TrendItemSchema = z.object({
@@ -80,8 +94,8 @@ export const TrendsResponseSchema = z
     description: "List of trending hashtags from the last 24 hours",
   });
 
-// Trend tweets response schema
-export const TrendTweetsResponseSchema = z
+// Hashtag tweets response schema
+export const HashtagTweetsResponseSchema = z
   .object({
     tweets: z.array(TweetResponsesSchema).openapi({
       description: "List of tweets containing this hashtag",
@@ -94,6 +108,6 @@ export const TrendTweetsResponseSchema = z
       description: "Whether there are more tweets available for pagination",
     }),
   })
-  .openapi("TrendTweetsResponse", {
-    description: "Paginated list of tweets for a trending hashtag",
+  .openapi("HashtagTweetsResponse", {
+    description: "Paginated list of tweets for a hashtag",
   });

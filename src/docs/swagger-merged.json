@@ -26,7 +26,19 @@
       }
     },
     "schemas": {
-      "TrendQuery": {
+      "TrendsQuery": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30,
+            "default": 30,
+            "description": "Number of trends to return (max: 30)"
+          }
+        }
+      },
+      "HashtagTweetsQuery": {
         "type": "object",
         "properties": {
           "cursor": {
@@ -52,6 +64,11 @@
             "items": {
               "type": "object",
               "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Encoded hashtag ID (use this for fetching tweets)",
+                  "example": "eyJoYXNoSWQiOiIxMjM0In0.signature"
+                },
                 "hashtag": {
                   "type": "string",
                   "description": "The hashtag text without # symbol",
@@ -69,6 +86,7 @@
                 }
               },
               "required": [
+                "id",
                 "hashtag",
                 "tweetCount",
                 "rank"
@@ -77,16 +95,19 @@
             "description": "Array of trending hashtags, sorted by popularity (rank 1-30)",
             "example": [
               {
+                "id": "abc123.sig",
                 "hashtag": "typescript",
                 "tweetCount": 1234,
                 "rank": 1
               },
               {
+                "id": "def456.sig",
                 "hashtag": "javascript",
                 "tweetCount": 987,
                 "rank": 2
               },
               {
+                "id": "ghi789.sig",
                 "hashtag": "nodejs",
                 "tweetCount": 654,
                 "rank": 3
@@ -106,31 +127,136 @@
         ],
         "description": "List of trending hashtags from the last 24 hours"
       },
-      "TrendTweetsResponse": {
+      "HashtagTweetsResponse": {
         "type": "object",
         "properties": {
           "tweets": {
             "type": "array",
             "items": {
-              "nullable": true
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "content": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "likesCount": {
+                  "type": "integer"
+                },
+                "retweetCount": {
+                  "type": "integer"
+                },
+                "repliesCount": {
+                  "type": "integer"
+                },
+                "quotesCount": {
+                  "type": "integer"
+                },
+                "replyControl": {
+                  "type": "string",
+                  "enum": [
+                    "EVERYONE",
+                    "FOLLOWINGS",
+                    "VERIFIED",
+                    "MENTIONED"
+                  ]
+                },
+                "parentId": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "uuid"
+                },
+                "tweetType": {
+                  "type": "string",
+                  "enum": [
+                    "TWEET",
+                    "REPLY",
+                    "QUOTE"
+                  ]
+                },
+                "user": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string",
+                      "nullable": true,
+                      "minLength": 1
+                    },
+                    "username": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "profileMedia": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ]
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "protectedAccount": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "username",
+                    "profileMedia",
+                    "verified",
+                    "protectedAccount"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "createdAt",
+                "likesCount",
+                "retweetCount",
+                "repliesCount",
+                "quotesCount",
+                "replyControl",
+                "tweetType",
+                "user"
+              ]
             },
-            "description": "List of tweets with this hashtag"
+            "description": "List of tweets containing this hashtag"
           },
           "nextCursor": {
             "type": "string",
             "nullable": true,
-            "description": "Cursor for next page of results"
+            "description": "Encoded cursor for next page of results (null if no more pages)"
           },
           "hasMore": {
             "type": "boolean",
-            "description": "Whether there are more results"
+            "description": "Whether there are more tweets available for pagination"
           }
         },
         "required": [
           "tweets",
           "nextCursor",
           "hasMore"
-        ]
+        ],
+        "description": "Paginated list of tweets for a hashtag"
       },
       "CreateTweetDTO": {
         "type": "object",
@@ -3725,36 +3851,24 @@
         }
       }
     },
-    "/api/trends": {
+    "/api/hashtags/trends": {
       "get": {
         "summary": "Get trending hashtags",
         "description": "Returns the top trending hashtags based on tweet count in the last 24 hours",
         "tags": [
-          "Trends"
+          "Hashtags"
         ],
         "parameters": [
           {
             "schema": {
-              "type": "string",
-              "nullable": true,
-              "default": null,
-              "description": "Opaque cursor for pagination."
-            },
-            "required": false,
-            "description": "Opaque cursor for pagination.",
-            "name": "cursor",
-            "in": "query"
-          },
-          {
-            "schema": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 50,
+              "maximum": 30,
               "default": 30,
-              "description": "Number of results per page (default: 30)"
+              "description": "Number of trends to return (max: 30)"
             },
             "required": false,
-            "description": "Number of results per page (default: 30)",
+            "description": "Number of trends to return (max: 30)",
             "name": "limit",
             "in": "query"
           }
@@ -3773,21 +3887,21 @@
         }
       }
     },
-    "/api/trends/{id}/tweets": {
+    "/api/hashtags/{id}/tweets": {
       "get": {
-        "summary": "Get tweets for a trending hashtag",
-        "description": "Returns tweets that contain the specified trending hashtag",
+        "summary": "Get tweets for a hashtag",
+        "description": "Returns tweets that contain the specified hashtag (works for any hashtag, trending or not)",
         "tags": [
-          "Trends"
+          "Hashtags"
         ],
         "parameters": [
           {
             "schema": {
               "type": "string",
-              "description": "The hashtag (without # symbol)"
+              "description": "The encoded hashtag ID (get this from the trends list endpoint)"
             },
             "required": true,
-            "description": "The hashtag (without # symbol)",
+            "description": "The encoded hashtag ID (get this from the trends list endpoint)",
             "name": "id",
             "in": "path"
           },
@@ -3823,7 +3937,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TrendTweetsResponse"
+                  "$ref": "#/components/schemas/HashtagTweetsResponse"
                 }
               }
             }
@@ -3892,7 +4006,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-18T08:35:33.012Z"
+                        "default": "2025-11-18T09:44:39.826Z"
                       },
                       "userId": {
                         "type": "string",
@@ -4099,7 +4213,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-18T08:35:33.012Z"
+                            "default": "2025-11-18T09:44:39.826Z"
                           },
                           "userId": {
                             "type": "string",

@@ -1,6 +1,6 @@
 import { Worker } from "bullmq";
 import { bullRedisConfig } from "@/background/config/redis";
-import { calculateAndCacheTrends } from "@/application/services/trends";
+import { calculateAndCacheTrends } from "@/application/services/hashtags";
 import type { TrendUpdateJobData } from "@/background/types/jobs";
 
 // Trends calculation worker

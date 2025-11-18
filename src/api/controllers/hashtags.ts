@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { TrendQuerySchema } from "@/application/dtos/trends/trend.dto.schema";
-import { fetchTrends, fetchTrendTweets } from "@/application/services/trends";
+import { HashtagTweetsQuerySchema } from "@/application/dtos/trends/trend.dto.schema";
+import { fetchTrends, fetchHashtagTweets } from "@/application/services/hashtags";
 import encoderService from "@/application/services/encoder";
 
 export const getTrends = async (
@@ -19,7 +19,7 @@ export const getTrends = async (
   }
 };
 
-export const getTrendTweets = async (
+export const getHashtagTweets = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -33,14 +33,14 @@ export const getTrendTweets = async (
       throw new Error("Invalid hashtag ID");
     }
 
-    const queryResult = TrendQuerySchema.safeParse(req.query);
+    const queryResult = HashtagTweetsQuerySchema.safeParse(req.query);
     if (!queryResult.success) throw queryResult.error;
     const { cursor, limit } = queryResult.data;
 
     // Decode cursor
     const decodedCursor = encoderService.decode<string>(cursor);
 
-    const tweets = await fetchTrendTweets(hashtagId, decodedCursor, limit);
+    const tweets = await fetchHashtagTweets(hashtagId, decodedCursor, limit);
     res.json(tweets);
   } catch (error) {
     next(error);
