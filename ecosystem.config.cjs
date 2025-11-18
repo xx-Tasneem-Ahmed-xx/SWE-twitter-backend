@@ -1,0 +1,26 @@
+const path = require("path");
+const dotenv = require("dotenv");
+
+module.exports = {
+  apps: [
+    ...[
+      { name: "worker-hashtags", file: "hashtags.js" },
+      // add more workers here
+    ].map((worker) => ({
+      name: worker.name,
+      script: path.join("dist", "background", "workers", worker.file),
+      instances: 1,
+      exec_mode: "fork",
+      watch: false,
+      env: {
+        NODE_ENV: "development",
+        ...dotenv.config({ path: path.resolve(__dirname, ".env") }).parsed,
+      },
+      env_production: {
+        NODE_ENV: "production",
+        ...dotenv.config({ path: path.resolve(__dirname, ".env.production") })
+          .parsed,
+      },
+    })),
+  ],
+};
