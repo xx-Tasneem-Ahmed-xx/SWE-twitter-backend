@@ -4006,7 +4006,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-18T09:44:39.826Z"
+                        "default": "2025-11-18T14:06:13.290Z"
                       },
                       "userId": {
                         "type": "string",
@@ -4099,9 +4099,69 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "unseenCount": {
-                      "type": "number",
-                      "description": "Count of unseen notifications"
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string",
+                      "enum": [
+                        "LIKE",
+                        "RETWEET",
+                        "REPLY",
+                        "QUOTE",
+                        "FOLLOW",
+                        "RequestToFollow",
+                        "AcceptedFollow",
+                        "MENTION"
+                      ]
+                    },
+                    "body": {
+                      "type": "string",
+                      "maxLength": 280
+                    },
+                    "isRead": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date",
+                      "default": "2025-11-18T14:06:13.290Z"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "tweetId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "actorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "body",
+                    "userId"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid notification data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Invalid notification data"
                     }
                   },
                   "required": [
@@ -4213,7 +4273,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-18T09:44:39.826Z"
+                            "default": "2025-11-18T14:06:13.290Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4237,9 +4297,126 @@
                       }
                     }
                   },
-                  "required": [
-                    "notifications"
-                  ]
+                  "required": ["notifications"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Unauthorized"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal Server Error"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mark-as-read/{NotificationId}": {
+      "patch": {
+        "summary": "Update a notification status to read",
+        "tags": ["Notifications"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "ID of the notification to update"
+            },
+            "required": true,
+            "description": "ID of the notification to update",
+            "name": "NotificationId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Bearer token for authentication"
+            },
+            "required": true,
+            "description": "Bearer token for authentication",
+            "name": "Authorization",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string",
+                      "enum": [
+                        "LIKE",
+                        "RETWEET",
+                        "REPLY",
+                        "QUOTE",
+                        "FOLLOW",
+                        "RequestToFollow",
+                        "AcceptedFollow",
+                        "MENTION"
+                      ]
+                    },
+                    "body": {
+                      "type": "string",
+                      "maxLength": 280
+                    },
+                    "isRead": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date",
+                      "default": "2025-11-18T14:06:13.290Z"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "tweetId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "actorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "required": ["id", "title", "body", "userId"]
                 }
               }
             }
@@ -7656,12 +7833,7 @@
           "Auth"
         ],
         "summary": "Reset user password",
-        "description": "Allows a user to reset their password after verifying the reset code. Requires email and new password.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
+        "description": "Allows a user to reset their password after verifying the reset code. No login required.",
         "requestBody": {
           "required": true,
           "content": {
@@ -7676,12 +7848,19 @@
                   "email": {
                     "type": "string",
                     "format": "email",
-                    "description": "The email of the user whose password is being reset."
+                    "description": "The user's email",
+                    "example": "user@example.com"
                   },
                   "password": {
                     "type": "string",
                     "format": "password",
-                    "description": "The new password to set for the user."
+                    "description": "The new password",
+                    "example": "NewStrongPass@2025"
+                  },
+                  "resetCode": {
+                    "type": "string",
+                    "description": "Code sent to user's email for password reset",
+                    "example": "123456"
                   }
                 }
               }
@@ -7699,6 +7878,37 @@
                     "message": {
                       "type": "string",
                       "example": "Password reset successfully, notification sent"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "dateOfBirth": {
+                          "type": "string"
+                        },
+                        "isEmailVerified": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "refreshtoken": {
+                      "type": "string",
+                      "description": "JWT refresh token"
+                    },
+                    "accesstoken": {
+                      "type": "string",
+                      "description": "JWT access token"
                     }
                   }
                 }
@@ -7710,7 +7920,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Email, password, and reset code are required"
+                    }
+                  }
                 }
               }
             }
@@ -7720,7 +7936,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid or expired reset code"
+                    }
+                  }
                 }
               }
             }
@@ -7730,7 +7952,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "User not found"
+                    }
+                  }
                 }
               }
             }
@@ -7740,7 +7968,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Internal server error"
+                    }
+                  }
                 }
               }
             }
@@ -7965,7 +8199,7 @@
     "/change-password": {
       "post": {
         "summary": "Change user password",
-        "description": "Allows an authenticated user to change their password after verifying the old one. Invalidates old tokens by incrementing token version.",
+        "description": "Allows an authenticated user to change their account password after validating the old one. The system checks password strength, prevents reuse of old passwords, updates the stored hash with a new salt, increments `tokenVersion` to invalidate previous tokens, and logs password history for security. A security notification email is then sent to the account owner. This endpoint requires a valid Bearer token.\n",
         "tags": [
           "Account"
         ],
@@ -8005,19 +8239,51 @@
         },
         "responses": {
           "200": {
-            "description": "Password updated successfully.",
+            "description": "Password updated successfully",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "Message": {
+                    "message": {
                       "type": "string",
                       "example": "Password updated successfully"
                     },
-                    "Score": {
+                    "score": {
                       "type": "object",
-                      "description": "Password strength analysis"
+                      "description": "Password strength analysis result",
+                      "properties": {
+                        "score": {
+                          "type": "integer",
+                          "example": 3
+                        },
+                        "crack_times_display": {
+                          "type": "object",
+                          "example": {
+                            "offline_fast_hashing_1e10_per_second": "centuries",
+                            "online_no_throttling_10_per_second": "months"
+                          }
+                        },
+                        "feedback": {
+                          "type": "object",
+                          "properties": {
+                            "warning": {
+                              "type": "string",
+                              "example": "Repeats like 'aaa' are easy to guess"
+                            },
+                            "suggestions": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "example": [
+                                "Use a longer password",
+                                "Add more unpredictable words"
+                              ]
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -8025,16 +8291,29 @@
             }
           },
           "400": {
-            "description": "Invalid password or validation failed."
+            "description": "Validation failed (missing fields, weak password, confirmation mismatch, etc.)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Confirm password does not match the new password"
+                    }
+                  }
+                }
+              }
+            }
           },
           "401": {
-            "description": "Incorrect old password or reauthentication required."
+            "description": "Old password incorrect or reauthentication required."
           },
           "404": {
             "description": "User not found."
           },
           "500": {
-            "description": "Internal server error."
+            "description": "Internal server error while updating password or sending notification email."
           }
         }
       }
@@ -8287,7 +8566,7 @@
                   "properties": {
                     "message": {
                       "type": "string",
-                      "example": "Username updated successfully ✅"
+                      "example": "Username updated successfully"
                     },
                     "user": {
                       "type": "object",
@@ -8505,8 +8784,8 @@
         "tags": [
           "OAuth"
         ],
-        "summary": "Handle Google OAuth callback",
-        "description": "This endpoint handles the callback from **Google OAuth** after user authorization. It exchanges the received authorization code for an ID token, retrieves the user's profile and email, creates or updates the user in the database, issues access and refresh tokens, stores session info, and sends a login notification email.\n",
+        "summary": "Google OAuth callback",
+        "description": "Handles Google OAuth callback after user authorization. Exchanges the authorization code for Google tokens, extracts email and profile info, creates/links the user, generates JWT access & refresh tokens, stores refresh token in Redis, sets a secure HttpOnly cookie, sends login notification email, then redirects to the frontend.\n\n This endpoint does **NOT** return JSON.  \nIt **redirects (302)** to the frontend with tokens and user info encoded in the URL.\n",
         "parameters": [
           {
             "in": "query",
@@ -8519,57 +8798,13 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "User successfully authenticated and tokens issued.",
-            "content": {
-              "application/json": {
+          "302": {
+            "description": "Redirects to the frontend with tokens and user info.",
+            "headers": {
+              "Location": {
+                "description": "Example redirect URL structure:   `{FRONTEND_URL}/login/success?token={accessToken}&refresh-token={refreshToken}&user={jsonUser}`\n",
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "token": {
-                      "type": "string",
-                      "description": "JWT access token."
-                    },
-                    "refreshToken": {
-                      "type": "string",
-                      "description": "JWT refresh token stored in cookies and Redis."
-                    },
-                    "user": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "username": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "email": {
-                          "type": "string"
-                        },
-                        "dateOfBirth": {
-                          "type": "string"
-                        },
-                        "isEmailVerified": {
-                          "type": "boolean"
-                        }
-                      }
-                    },
-                    "deviceRecord": {
-                      "type": "object",
-                      "description": "Information about the device used for login."
-                    },
-                    "location": {
-                      "type": "object",
-                      "description": "IP-based geolocation info."
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "User registered and logged in successfully ✅"
-                    }
-                  }
+                  "type": "string"
                 }
               }
             }
@@ -8578,7 +8813,7 @@
             "description": "Missing or invalid authorization code."
           },
           "500": {
-            "description": "Error during token exchange, user creation, or email notification."
+            "description": "Internal error during token exchange, user creation, or notification process."
           }
         }
       }
@@ -8588,8 +8823,8 @@
         "tags": [
           "OAuth"
         ],
-        "summary": "Handle GitHub OAuth callback",
-        "description": "This endpoint handles the callback from **GitHub OAuth** after the user grants access. It exchanges the authorization code for an access token, retrieves the user’s primary verified email, fetches GitHub profile data, creates or links the user in the system, issues JWT tokens, logs the device info, and sends a login alert email.\n",
+        "summary": "GitHub OAuth callback",
+        "description": "Handles GitHub OAuth callback after user authorization. Exchanges the authorization code for an access token, retrieves the verified primary email, fetches GitHub profile, creates/links the user, generates JWT access & refresh tokens, stores refresh token in Redis, sets a secure HttpOnly cookie, sends login alert email, then redirects the user to the frontend.\n\n This endpoint does **NOT** return JSON.  \nIt **redirects (302)** to the frontend with tokens and user info encoded in the URL.\n",
         "parameters": [
           {
             "in": "query",
@@ -8602,66 +8837,22 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "User successfully authenticated and tokens issued.",
-            "content": {
-              "application/json": {
+          "302": {
+            "description": "Redirects to the frontend with access token, refresh token, and user info.",
+            "headers": {
+              "Location": {
+                "description": "Example redirect URL structure:   `{FRONTEND_URL}/login/success?token={accessToken}&refresh-token={refreshToken}&user={jsonUser}`\n",
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "token": {
-                      "type": "string",
-                      "description": "JWT access token."
-                    },
-                    "refreshToken": {
-                      "type": "string",
-                      "description": "JWT refresh token stored in cookies and Redis."
-                    },
-                    "user": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "username": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "email": {
-                          "type": "string"
-                        },
-                        "dateOfBirth": {
-                          "type": "string"
-                        },
-                        "isEmailVerified": {
-                          "type": "boolean"
-                        }
-                      }
-                    },
-                    "deviceRecord": {
-                      "type": "object",
-                      "description": "Information about the device used for login."
-                    },
-                    "location": {
-                      "type": "object",
-                      "description": "IP-based geolocation info."
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "User logged in successfully via GitHub ✅"
-                    }
-                  }
+                  "type": "string"
                 }
               }
             }
           },
           "400": {
-            "description": "Missing or invalid authorization code."
+            "description": "No verified email found, or invalid code."
           },
           "500": {
-            "description": "Error during token exchange, user lookup, or email notification."
+            "description": "Internal error during token exchange, user lookup, or login email notification."
           }
         }
       }
