@@ -329,18 +329,21 @@ model Mention {
 }
 
 model Retweet {
-  userId  String
-  tweetId String
+  userId    String
+  tweetId   String
+  createdAt DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
 
   @@id([userId, tweetId])
+  @@unique([userId, createdAt])
 }
 
 model TweetLike {
-  tweetId String
-  userId  String
+  tweetId   String
+  userId    String
+  createdAt DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
@@ -349,13 +352,14 @@ model TweetLike {
 }
 
 model TweetBookmark {
-  id      String @id @default(uuid())
-  userId  String
-  tweetId String
+  userId    String
+  tweetId   String
+  createdAt DateTime @default(now())
 
   tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@id([userId, tweetId])
   @@map("tweetbookmarks")
 }
 
