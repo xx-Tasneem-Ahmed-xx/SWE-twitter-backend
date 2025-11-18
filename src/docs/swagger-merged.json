@@ -3558,7 +3558,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-18T03:13:00.336Z"
+                        "default": "2025-11-18T03:17:18.983Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3718,7 +3718,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-11-18T03:13:00.336Z"
+                      "default": "2025-11-18T03:17:18.983Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3941,7 +3941,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-18T03:13:00.336Z"
+                            "default": "2025-11-18T03:17:18.983Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4077,7 +4077,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-11-18T03:13:00.336Z"
+                      "default": "2025-11-18T03:17:18.983Z"
                     },
                     "userId": {
                       "type": "string",
@@ -7764,83 +7764,6 @@
         }
       }
     },
-    "/change-password": {
-      "post": {
-        "summary": "Change user password",
-        "description": "Allows an authenticated user to change their password after verifying the old one. Invalidates old tokens by incrementing token version.",
-        "tags": [
-          "Account"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "oldPassword",
-                  "newPassword",
-                  "confirmPassword"
-                ],
-                "properties": {
-                  "oldPassword": {
-                    "type": "string",
-                    "example": "OldPass@2024"
-                  },
-                  "newPassword": {
-                    "type": "string",
-                    "example": "NewStrongPass@2025"
-                  },
-                  "confirmPassword": {
-                    "type": "string",
-                    "example": "NewStrongPass@2025"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Password updated successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "Message": {
-                      "type": "string",
-                      "example": "Password updated successfully"
-                    },
-                    "Score": {
-                      "type": "object",
-                      "description": "Password strength analysis"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid password or validation failed."
-          },
-          "401": {
-            "description": "Incorrect old password or reauthentication required."
-          },
-          "404": {
-            "description": "User not found."
-          },
-          "500": {
-            "description": "Internal server error."
-          }
-        }
-      }
-    },
     "/change-email": {
       "post": {
         "summary": "Request email change",
@@ -8089,7 +8012,7 @@
                   "properties": {
                     "message": {
                       "type": "string",
-                      "example": "Username updated successfully ✅"
+                      "example": "Username updated successfully"
                     },
                     "user": {
                       "type": "object",
@@ -8302,13 +8225,52 @@
         }
       }
     },
+    "/callback/google": {
+      "get": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Google OAuth callback",
+        "description": "Handles Google OAuth callback after user authorization. Exchanges the authorization code for Google tokens, extracts email and profile info, creates/links the user, generates JWT access & refresh tokens, stores refresh token in Redis, sets a secure HttpOnly cookie, sends login notification email, then redirects to the frontend.\n\n This endpoint does **NOT** return JSON.  \nIt **redirects (302)** to the frontend with tokens and user info encoded in the URL.\n",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "description": "Authorization code returned by Google after user consent.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirects to the frontend with tokens and user info.",
+            "headers": {
+              "Location": {
+                "description": "Example redirect URL structure:   `{FRONTEND_URL}/login/success?token={accessToken}&refresh-token={refreshToken}&user={jsonUser}`\n",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid authorization code."
+          },
+          "500": {
+            "description": "Internal error during token exchange, user creation, or notification process."
+          }
+        }
+      }
+    },
     "/callback/github": {
       "get": {
         "tags": [
           "OAuth"
         ],
-        "summary": "GitHub OAuth callback",
-        "description": "Handles GitHub OAuth callback after user authorization. Exchanges the authorization code for an access token, retrieves the verified primary email, fetches GitHub profile, creates/links the user, generates JWT access & refresh tokens, stores refresh token in Redis, sets a secure HttpOnly cookie, sends login alert email, then redirects the user to the frontend.\n\n This endpoint does **NOT** return JSON.  \nIt **redirects (302)** to the frontend with tokens and user info encoded in the URL.\n",
+        "summary": "Handle GitHub OAuth callback",
+        "description": "This endpoint handles the callback from **GitHub OAuth** after the user grants access. It exchanges the authorization code for an access token, retrieves the user’s primary verified email, fetches GitHub profile data, creates or links the user in the system, issues JWT tokens, logs the device info, and sends a login alert email.\n",
         "parameters": [
           {
             "in": "query",
@@ -8321,22 +8283,66 @@
           }
         ],
         "responses": {
-          "302": {
-            "description": "Redirects to the frontend with access token, refresh token, and user info.",
-            "headers": {
-              "Location": {
-                "description": "Example redirect URL structure:   `{FRONTEND_URL}/login/success?token={accessToken}&refresh-token={refreshToken}&user={jsonUser}`\n",
+          "200": {
+            "description": "User successfully authenticated and tokens issued.",
+            "content": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string",
+                      "description": "JWT access token."
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "description": "JWT refresh token stored in cookies and Redis."
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "username": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "dateOfBirth": {
+                          "type": "string"
+                        },
+                        "isEmailVerified": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "deviceRecord": {
+                      "type": "object",
+                      "description": "Information about the device used for login."
+                    },
+                    "location": {
+                      "type": "object",
+                      "description": "IP-based geolocation info."
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User logged in successfully via GitHub ✅"
+                    }
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "No verified email found, or invalid code."
+            "description": "Missing or invalid authorization code."
           },
           "500": {
-            "description": "Internal error during token exchange, user lookup, or login email notification."
+            "description": "Error during token exchange, user lookup, or email notification."
           }
         }
       }

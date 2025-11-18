@@ -48,6 +48,46 @@ const router: Router = express.Router();
  *         description: Internal server error during authorization setup.
  */
 router.get("/authorize/:provider", typedOauthController.Authorize);
+/**
+ * @openapi
+ * /callback/google:
+ *   get:
+ *     tags:
+ *       - OAuth
+ *     summary: Google OAuth callback
+ *     description: >
+ *       Handles Google OAuth callback after user authorization.
+ *       Exchanges the authorization code for Google tokens, extracts email and profile info,
+ *       creates/links the user, generates JWT access & refresh tokens, stores refresh token in Redis,
+ *       sets a secure HttpOnly cookie, sends login notification email, then redirects to the frontend.
+ *
+ *        This endpoint does **NOT** return JSON.  
+ *       It **redirects (302)** to the frontend with tokens and user info encoded in the URL.
+ *
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         required: true
+ *         description: Authorization code returned by Google after user consent.
+ *         schema:
+ *           type: string
+ *
+ *     responses:
+ *       302:
+ *         description: Redirects to the frontend with tokens and user info.
+ *         headers:
+ *           Location:
+ *             description: >
+ *               Example redirect URL structure:  
+ *               `{FRONTEND_URL}/login/success?token={accessToken}&refresh-token={refreshToken}&user={jsonUser}`
+ *             schema:
+ *               type: string
+ *       400:
+ *         description: Missing or invalid authorization code.
+ *       500:
+ *         description: Internal error during token exchange, user creation, or notification process.
+ */
+router.get("/callback/google", typedOauthController.CallbackGoogle);
 
 
 /**
@@ -91,6 +131,7 @@ router.get("/authorize/:provider", typedOauthController.Authorize);
  *         description: Internal error during token exchange, user lookup, or login email notification.
  */
 router.get("/callback/github", typedOauthController.CallbackGithub);
+
 
 
 // router.get("/callback/facebook", typedOauthController.CallbackFacebook);
