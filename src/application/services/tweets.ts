@@ -424,9 +424,9 @@ class TweetService {
     const hasNextPage = tweets.length > dto.limit;
     const paginatedTweets = hasNextPage ? tweets.slice(0, -1) : tweets;
     const cursor = {
-      id: paginatedTweets[paginatedTweets.length - 1].id,
+      id: paginatedTweets[paginatedTweets.length - 1]?.id,
       lastActivityAt:
-        paginatedTweets[paginatedTweets.length - 1].lastActivityAt,
+        paginatedTweets[paginatedTweets.length - 1]?.lastActivityAt,
     };
     const data = await this.checkUserInteractions(paginatedTweets);
     return {
@@ -451,9 +451,9 @@ class TweetService {
     const hasNextPage = tweets.length > dto.limit;
     const paginatedTweets = hasNextPage ? tweets.slice(0, -1) : tweets;
     const cursor = {
-      id: paginatedTweets[paginatedTweets.length - 1].id,
+      id: paginatedTweets[paginatedTweets.length - 1]?.id,
       lastActivityAt:
-        paginatedTweets[paginatedTweets.length - 1].lastActivityAt,
+        paginatedTweets[paginatedTweets.length - 1]?.lastActivityAt,
     };
     const hashedCursor = encoderService.encode(cursor);
     return {
