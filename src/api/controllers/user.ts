@@ -1058,32 +1058,40 @@ export async function VerifyNewEmail(req: Request, res: Response, next: NextFunc
 
 
 
-
 export async function GetUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const email: string | undefined =
       (req as any).user?.email ||
       (req.query?.email as string) ||
       (req.body?.email as string);
-    
+
     if (!email) {
       throw new AppError("User is not authorized for this route", 401);
     }
-    
+
     const user = await prisma.user.findUnique({ where: { email } });
-    
     if (!user) {
       throw new AppError("User not found", 404);
     }
-    
-    return utils.SendRes(res, {user: {
+
+    // ⬇️ Fetch existing device info instead of setting it
+      const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
+    return utils.SendRes(res, {
+      user: {
         id: user.id,
         username: user.username,
         name: user.name,
         email: user.email,
         dateOfBirth: user.dateOfBirth,
         isEmailVerified: user.isEmailVerified,
-      },});
+        bio: user.bio,
+        protectedAcc: user.protectedAccount,
+        
+      },
+      DeviceRecords: deviceRecord,
+      message: "User info returned with device history"
+    });
+
   } catch (err) {
     next(err);
   }
