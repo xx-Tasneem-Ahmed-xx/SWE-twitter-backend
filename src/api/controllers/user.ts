@@ -736,6 +736,14 @@ If this wasn't you, secure your account immediately!
     });
 
     return utils.SendRes(res, {
+        user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+        isEmailVerified: user.isEmailVerified,
+      },
       message: "Password reset successfully, notification sent!",
       refresh_token: refreshObj.token,
       accesstoken: accessObj.token
