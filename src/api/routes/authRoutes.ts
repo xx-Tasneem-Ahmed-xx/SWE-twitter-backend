@@ -1205,19 +1205,77 @@ router.post("/verify-new-email",Auth(),  typedAuthController.VerifyNewEmail); //
  * @swagger
  * /user:
  *   get:
- *     summary: Get current user information
- *     description: Retrieves information about the authenticated user.
- *     tags:
- *       - User
+ *     summary: Get authenticated user info including device history
+ *     description: Returns user profile data and previously logged device information.
+ *     tags: [User]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: User info retrieved successfully.
+ *         description: User information with device records
+ *         content:
+ *           application/json:
+ *             example:
+ *               user:
+ *                 id: "uuid"
+ *                 username: "master_hossam"
+ *                 name: "Hossam"
+ *                 email: "test@example.com"
+ *                 dateOfBirth: "2003-10-02"
+ *                 isEmailVerified: true
+ *                 bio: "Backend engineer"
+ *                 protectedAcc: false
+ *               DeviceRecords:
+ *                 - id: "device-id"
+ *                   ip: "102.xx.xx.1"
+ *                   agent: "Firefox on Ubuntu"
+ *                   location: "Cairo, Egypt"
+ *                   updatedAt: "2025-11-18T14:22:10Z"
+ *               message: "User info returned with device history"
  *       401:
- *         description: Unauthorized or token missing.
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
  */
-router.get("/user", Auth(),Reauth(),  typedAuthController.GetUser); //tested
+
+router.get("/user", Auth(),  typedAuthController.GetUser); //tested
+/**
+ * @swagger
+ * /userinfo:
+ *   get:
+ *     summary: Get authenticated user info (Reauthentication required)
+ *     description: Same response as `/user` but requires an additional reauthentication step for extra security on sensitive account screens.
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully returned user info and device history
+ *         content:
+ *           application/json:
+ *             example:
+ *               user:
+ *                 id: "uuid"
+ *                 username: "master_hossam"
+ *                 name: "Hossam"
+ *                 email: "user@example.com"
+ *                 dateOfBirth: "2003-10-02"
+ *                 isEmailVerified: true
+ *                 bio: "Backend engineer"
+ *                 protectedAcc: false
+ *               DeviceRecords:
+ *                 - id: "device-id"
+ *                   ip: "102.xx.xx.1"
+ *                   agent: "Firefox on Ubuntu Linux"
+ *                   location: "Cairo, Egypt"
+ *                   updatedAt: "2025-11-18T14:22:10Z"
+ *               message: "User info returned with device history"
+ *       401:
+ *         description: Unauthorized or reauthentication required
+ *       404:
+ *         description: User not found
+ */
+router.get("/userinfo",Auth(),Reauth(),typedAuthController.GetUser); //tested
 /**
  * @swagger
  * /sessions:
