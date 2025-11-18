@@ -5,6 +5,7 @@ module.exports = {
   apps: [
     ...[
       { name: "worker-hashtags", file: "hashtags.js" },
+      { name: "worker-trends", file: "trends.js" },
       // add more workers here
     ].map((worker) => ({
       name: worker.name,
