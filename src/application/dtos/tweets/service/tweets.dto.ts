@@ -1,5 +1,6 @@
 import z from "zod";
 import {
+  BaseCursorSchema,
   CreateReplyOrQuoteServiceSchema,
   createReTweetServiceSchema,
   createTweetServiceSchema,
@@ -26,3 +27,5 @@ export type SearchServiceDTO = z.infer<typeof SearchServiceSchema>;
 export type TweetResponses = z.infer<typeof TweetResponsesSchema>;
 
 export type CursorServiceDTO = z.infer<typeof CursorServiceSchema>;
+
+export type RetweetsServiceDTO = z.infer<typeof BaseCursorSchema>;

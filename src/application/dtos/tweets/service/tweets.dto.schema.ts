@@ -25,9 +25,14 @@ export const TimelineServiceSchema = TimelineSchema.extend({
 
 export const SearchServiceSchema = SearchDTOSchema.extend({ userId: z.uuid() });
 
-export const CursorServiceSchema = z.object({
+//TODO: EDIT THE NAMINGS
+export const BaseCursorSchema = z.object({
   userId: z.uuid(),
+  createdAt: z.coerce.date(),
   limit: z.coerce.number().min(1).max(40).default(20),
+});
+
+export const CursorServiceSchema = BaseCursorSchema.extend({
   cursor: z
     .object({ lastActivityAt: z.coerce.date(), id: z.uuid() })
     .optional(),
