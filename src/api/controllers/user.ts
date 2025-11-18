@@ -327,11 +327,9 @@ export async function FinalizeSignup(
 
     const input: any = JSON.parse(userJson);
 
-    let username: string = input.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (!username) username = `user${Math.floor(Math.random() * 10000)}`;
+    const username = await utils.generateUsername(input.name);
+console.log(username);
 
-    const existing = await prisma.user.findUnique({ where: { username } });
-    if (existing) username = `${username}${Math.floor(Math.random() * 10000)}`;
 
     const salt: string = crypto.randomBytes(16).toString("hex");
     const hashed: string = await utils.HashPassword(password, salt);
@@ -451,11 +449,8 @@ export async function Login(
       throw new AppError("Try again and enter your info correctly", 401);
     }
 
-    const ok: boolean = await utils.CheckPass(
-      password + user.saltPassword,
-      user.password
-    );
-
+    const ok: boolean = await utils.CheckPass(password, user.password,user.saltPassword);
+    
     if (!ok) {
       await utils.IncrAttempts(res, email);
       throw new AppError("Invalid credentials", 401);
@@ -790,17 +785,25 @@ export async function ResetPassword(
 
     const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
     const location = await utils.Sendlocation(ip as string);
+const readableLocation = typeof location === "object"
+  ? JSON.stringify(location, null, 2)
+  : location;
 
-    const emailMessage = `Hello ${user.username},
+const readableDevice = typeof deviceRecord === "object"
+  ? JSON.stringify(deviceRecord, null, 2)
+  : deviceRecord || "unknown";
+
+const emailMessage = `Hello ${user.username},
 
 🔐 Your password was just changed!
 
-📍 Location: ${location}
-💻 Device info: ${deviceRecord || "unknown"}
+📍 Location: ${readableLocation}
+💻 Device info: ${readableDevice}
 🕒 Time: ${new Date().toLocaleString()}
 
 If this wasn't you, secure your account immediately!
 — Artemisa Team`;
+
 
     utils.SendEmailSmtp(res, email, emailMessage).catch(() => {
       throw new AppError("Failed to send password change notification", 500);
@@ -841,7 +844,16 @@ If this wasn't you, secure your account immediately!
       domain: CLIENT_DOMAIN,
     });
 
+    
     return utils.SendRes(res, {
+        user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+        isEmailVerified: user.isEmailVerified,
+      },
       message: "Password reset successfully, notification sent!",
       refresh_token: refreshObj.token,
       accesstoken: accessObj.token
@@ -873,12 +885,9 @@ export async function ReauthPassword(req: Request, res: Response, next: NextFunc
     if (!user) {
       throw new AppError("Enter email or password correctly", 401);
     }
-
-    const ok: boolean = await utils.CheckPass(
-      password + user.saltPassword,
-      user.password
-    );
-
+    
+    const ok: boolean = await utils.CheckPass(password , user.password,user.saltPassword);
+    
     if (!ok) {
       throw new AppError("Enter email or password correctly", 401);
     }
@@ -1013,7 +1022,7 @@ export async function ChangePassword(
       throw new AppError("User not found", 404);
     }
 
-    const isOldPassValid = await utils.CheckPass(oldPassword, user.password);
+    const isOldPassValid = await utils.CheckPass(oldPassword, user.password,user.saltPassword);
     if (!isOldPassValid) {
       throw new AppError("Old password is incorrect", 401);
     }
@@ -1528,10 +1537,11 @@ export async function CallbackGithub(
     } else {
       user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
+        const username = await utils.generateUsername(name);
         user = await prisma.user.create({
           data: {
             email,
-            username: utils.generateUsername(name),
+            username,
             name,
             password: "",
             saltPassword: "",
@@ -1594,22 +1604,22 @@ export async function CallbackGithub(
 
     // 📧 Send Professional Login Email
     const emailMsg = `
-<h2>👋 Hello, ${user.username || name}</h2>
-<p>We noticed a new login to your account via <b>GitHub</b>.</p>
+👋 Hello, ${user.username || name}
 
-<table style="border-collapse: collapse;">
-  <tr><td>🕒 <b>Time</b></td><td>${new Date().toLocaleString()}</td></tr>
-  <tr><td>📍 <b>Location</b></td><td>${geo.City || "Unknown"}, ${geo.Country || ""}</td></tr>
-  <tr><td>🌐 <b>IP Address</b></td><td>${geo.Query || ip}</td></tr>
-  <tr><td>🖥️ <b>Device</b></td><td>${req.get("User-Agent") || "Unknown"}</td></tr>
-</table>
+We noticed a new login to your account via GitHub.
 
-<p>Your login was successful 🎉</p>
-<p>If this wasn’t you, please reset your password or contact support immediately.</p>
+🕒 Time: ${new Date().toLocaleString()}
+📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
+🌐 IP Address: ${geo.Query || ip}
+🖥️ Device: ${req.get("User-Agent") || "Unknown"}
 
-<hr>
-<p>— The Artemisa Security Team 🦊</p>
+Your login was successful 🎉
+
+If this wasn’t you, please reset your password or contact support immediately.
+
+— The Artemisa Security Team 🦊
 `;
+
 
     await utils.SendEmailSmtp(res,email,emailMsg);
 
@@ -1656,10 +1666,11 @@ export async function CallbackGoogle(req: Request, res: Response, next: NextFunc
     } else {
       user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
+      const username = await utils.generateUsername(name);
         user = await prisma.user.create({
           data: {
             email,
-            username: utils.generateUsername(name),
+            username,
             name,
             password: "",
             saltPassword: "",
@@ -1720,24 +1731,22 @@ export async function CallbackGoogle(req: Request, res: Response, next: NextFunc
     const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
     const geo = await utils.Sendlocation(ip);
 
-    const emailMsg = `
-<h2>👋 Hi, ${user.username || name}</h2>
+   const emailMsg = `
+👋 Hi, ${user.username || name}
 
-<p>We noticed a new login to your account <strong>(${email})</strong>.</p>
+We noticed a new login to your account (${email}).
 
-<table style="border-collapse: collapse;">
-  <tr><td>🕒 <b>Time</b></td><td>${new Date().toLocaleString()}</td></tr>
-  <tr><td>📍 <b>Location</b></td><td>${geo.City || "Unknown"}, ${geo.Country || ""}</td></tr>
-  <tr><td>🌐 <b>IP Address</b></td><td>${geo.Query || ip}</td></tr>
-  <tr><td>🖥️ <b>Device</b></td><td>${req.get("User-Agent") || "Unknown"}</td></tr>
-</table>
+🕒 Time: ${new Date().toLocaleString()}
+📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
+🌐 IP Address: ${geo.Query || ip}
+🖥️ Device: ${req.get("User-Agent") || "Unknown"}
 
-<p>If this was you — awesome! You’re all set 🎉</p>
-<p>If this wasn’t you, please secure your account immediately.</p>
+If this was you — awesome! You’re all set 🎉
+If this wasn’t you, please secure your account immediately.
 
-<hr>
-<p>— The Artemisa Security Team 🌙</p>
+— The Artemisa Security Team 🌙
 `;
+
 
     await utils.SendEmailSmtp(res,email,emailMsg );
 
