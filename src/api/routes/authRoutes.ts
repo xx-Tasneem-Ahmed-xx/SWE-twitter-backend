@@ -680,9 +680,7 @@ router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
  *     tags:
  *       - Auth
  *     summary: Reset user password
- *     description: Allows a user to reset their password after verifying the reset code. Requires email and new password.
- *     security:
- *       - bearerAuth: []   # assuming Auth() middleware uses Bearer token
+ *     description: Allows a user to reset their password after verifying the reset code. No login required.
  *     requestBody:
  *       required: true
  *       content:
@@ -692,15 +690,18 @@ router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
  *             required:
  *               - email
  *               - password
+ *               - resetCode
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
- *                 description: The email of the user whose password is being reset.
  *               password:
  *                 type: string
  *                 format: password
- *                 description: The new password to set for the user.
+ *               resetCode:
+ *                 type: string
+ *                 description: Code sent to user's email for password reset
+ *
  *     responses:
  *       200:
  *         description: Password reset successfully, notification sent
@@ -712,30 +713,19 @@ router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
  *                 message:
  *                   type: string
  *                   example: "Password reset successfully, notification sent"
+ *                 refreshtoken:
+ *                   type: string
+ *                 accesstoken:
+ *                   type: string
+ *
  *       400:
  *         description: Validation error or missing fields
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       401:
  *         description: Invalid reset code or unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       404:
  *         description: User not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Internal server error (email sending / DB update failed)
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  */
 router.post("/reset-password",  typedAuthController.ResetPassword);
 

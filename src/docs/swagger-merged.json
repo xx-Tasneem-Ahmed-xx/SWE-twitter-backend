@@ -3558,7 +3558,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-18T03:20:07.754Z"
+                        "default": "2025-11-18T03:22:03.316Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3718,7 +3718,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-11-18T03:20:07.754Z"
+                      "default": "2025-11-18T03:22:03.316Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3941,7 +3941,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-18T03:20:07.754Z"
+                            "default": "2025-11-18T03:22:03.316Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4077,7 +4077,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-11-18T03:20:07.754Z"
+                      "default": "2025-11-18T03:22:03.316Z"
                     },
                     "userId": {
                       "type": "string",
@@ -7760,6 +7760,128 @@
           },
           "401": {
             "description": "Invalid password."
+          }
+        }
+      }
+    },
+    "/change-password": {
+      "post": {
+        "summary": "Change user password",
+        "description": "Allows an authenticated user to change their account password after validating the old one. The system checks password strength, prevents reuse of old passwords, updates the stored hash with a new salt, increments `tokenVersion` to invalidate previous tokens, and logs password history for security. A security notification email is then sent to the account owner. This endpoint requires a valid Bearer token.\n",
+        "tags": [
+          "Account"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "oldPassword",
+                  "newPassword",
+                  "confirmPassword"
+                ],
+                "properties": {
+                  "oldPassword": {
+                    "type": "string",
+                    "example": "OldPass@2024"
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "example": "NewStrongPass@2025"
+                  },
+                  "confirmPassword": {
+                    "type": "string",
+                    "example": "NewStrongPass@2025"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Password updated successfully"
+                    },
+                    "score": {
+                      "type": "object",
+                      "description": "Password strength analysis result",
+                      "properties": {
+                        "score": {
+                          "type": "integer",
+                          "example": 3
+                        },
+                        "crack_times_display": {
+                          "type": "object",
+                          "example": {
+                            "offline_fast_hashing_1e10_per_second": "centuries",
+                            "online_no_throttling_10_per_second": "months"
+                          }
+                        },
+                        "feedback": {
+                          "type": "object",
+                          "properties": {
+                            "warning": {
+                              "type": "string",
+                              "example": "Repeats like 'aaa' are easy to guess"
+                            },
+                            "suggestions": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "example": [
+                                "Use a longer password",
+                                "Add more unpredictable words"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (missing fields, weak password, confirmation mismatch, etc.)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Confirm password does not match the new password"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Old password incorrect or reauthentication required."
+          },
+          "404": {
+            "description": "User not found."
+          },
+          "500": {
+            "description": "Internal server error while updating password or sending notification email."
           }
         }
       }
