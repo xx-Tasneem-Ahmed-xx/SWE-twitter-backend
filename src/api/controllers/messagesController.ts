@@ -203,6 +203,18 @@ export const getUserChats = async (req: Request, res: Response, next: NextFuncti
                         }
                     }
                 },
+                messages: {
+                    take: 1,
+                    orderBy: { createdAt: 'desc' },
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                            }
+                        }
+                    }
+                },
                 chatGroup: {
                     select: {
                         name: true,
