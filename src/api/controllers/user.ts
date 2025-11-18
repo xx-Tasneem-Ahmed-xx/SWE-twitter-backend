@@ -388,7 +388,7 @@ export async function Login(req: Request, res: Response, next: NextFunction): Pr
       throw new AppError("Try again and enter your info correctly", 401);
     }
 
-    const ok: boolean = await utils.CheckPass(password + user.saltPassword, user.password);
+    const ok: boolean = await utils.CheckPass(password, user.password,user.saltPassword);
     
     if (!ok) {
       await utils.IncrAttempts(res, email);
@@ -768,7 +768,7 @@ export async function ReauthPassword(req: Request, res: Response, next: NextFunc
       throw new AppError("Enter email or password correctly", 401);
     }
     
-    const ok: boolean = await utils.CheckPass(password + user.saltPassword, user.password);
+    const ok: boolean = await utils.CheckPass(password , user.password,user.saltPassword);
     
     if (!ok) {
       throw new AppError("Enter email or password correctly", 401);
@@ -876,7 +876,7 @@ export async function ChangePassword(req: Request, res: Response, next: NextFunc
       throw new AppError("User not found", 404);
     }
 
-    const isOldPassValid = await utils.CheckPass(oldPassword, user.password);
+    const isOldPassValid = await utils.CheckPass(oldPassword, user.password,user.saltPassword);
     if (!isOldPassValid) {
       throw new AppError("Old password is incorrect", 401);
     }

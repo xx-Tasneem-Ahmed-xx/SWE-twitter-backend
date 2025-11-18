@@ -281,10 +281,12 @@ export async function HashPassword(
 
 export async function CheckPass(
   password: string,
-  hashed: string
+  hashed: string,
+  salt:string
+
 ): Promise<boolean> {
   try {
-    return await bcrypt.compare(password + PEPPER, hashed);
+    return await bcrypt.compare(password + PEPPER+salt, hashed);
   } catch {
     return false;
   }
