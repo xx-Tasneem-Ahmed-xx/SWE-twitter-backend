@@ -12,38 +12,20 @@ import {sendPushNotification} from '@/application/services/FCMService';
 import { AppError } from "@/errors/AppError";
 
 
-
-const getUnseenMessages = async (chatId: string) => {
-  try {
-    const unseenMessages = await prisma.message.findMany({
-      where: {
-        chatId: chatId,
-        status: {
-          not: "READ",
-        },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-          },
-        },
-        messageMedia: {
-          include: {
-            media: true,
-          },
-        },
-      },
-    });
-    if (unseenMessages) {
-      return unseenMessages;
+const getUnseenMessagesCountofChat = async (chatId: string, userId: string) => {
+    try {
+        const unseenMessagesCount = await prisma.message.count({
+                where: {
+                    chatId: chatId,
+                    userId: { not: userId },
+                    status: { not: 'READ' }
+                }
+            });
+            return unseenMessagesCount;
+    } catch (error) {
+        
     }
-    return [];
-  } catch (error) {
-    return error;
-  }
-};
+}
 
 const CreateChatFun = async (DMChat: boolean, participant_ids: string[]) => {
     try{
@@ -77,6 +59,7 @@ const CreateChatFun = async (DMChat: boolean, participant_ids: string[]) => {
     }
 
 }
+
 
 export const getChatInfo = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -136,7 +119,7 @@ export const getChatInfo = async (req: Request, res: Response, next: NextFunctio
         }               
         res.status(200).json(chatInfo);
     } catch (error) {
-        console.error(' Error fetching messages:', error);
+        console.error(' Error fetching chat info:', error);
         next(error);
     }
 };
@@ -220,6 +203,18 @@ export const getUserChats = async (req: Request, res: Response, next: NextFuncti
                         }
                     }
                 },
+                messages: {
+                    take: 1,
+                    orderBy: { createdAt: 'desc' },
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                            }
+                        }
+                    }
+                },
                 chatGroup: {
                     select: {
                         name: true,
@@ -229,6 +224,10 @@ export const getUserChats = async (req: Request, res: Response, next: NextFuncti
                 }
             }
         });
+        for (const chat of userChats) {
+            const unseenCount = await getUnseenMessagesCountofChat(chat.id, userId);
+            (chat as any).unseenMessagesCount = unseenCount;
+        }
         res.status(200).json(userChats);
     } catch (error) {
         console.error('Error fetching user chats:', error);
@@ -236,63 +235,37 @@ export const getUserChats = async (req: Request, res: Response, next: NextFuncti
     }
 }
 
-export const getUnseenMessagesCount = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const chatId = req.params.chatId;
-        if (chatId) {
-            const unseenMessages = await getUnseenMessages(chatId);
-            const unseenMessagesCount = (unseenMessages as any[]).length;
-            res.status(200).json({ unseenMessagesCount: unseenMessagesCount });
-        } else {
-            throw new AppError('Chat ID is required', 400);
-        }
-    } catch (error) {
-        console.error('Error fetching unseen messages count:', error);
-        next(error);    
-    }
-}
 
-
-
-export const updateMessageStatus = async (chatId: string) => {
+export const updateMessageStatus = async (chatId: string, userId: string) => {
   try {
     if (chatId) {
       await prisma.message.updateMany({
         where: {
           chatId: chatId,
           status: { not: "READ" },
+          userId: { not: userId }
         },
         data: {
           status: "READ",
         },
       });
-      const participant_ids = await prisma.chatUser.findMany({
-        where: { chatId: chatId },
-        select: { userId: true },
-      });
-        for (const participant of participant_ids) {
-          await prisma.user.update({
-              where: { id: participant.userId },
-              data: {
-                  unseenChatCount: { decrement: 1 }
-              }
-          });
-      }
       return true;
     }
   } catch (error) {
-    console.error("Error updating message status:", error);
+      console.error("Error updating message status:", error);
     return false;
   }
 };
-
-
 
 
 export const createChat = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const{ DMChat, participant_ids }: ChatInput = req.body;
         const userId = (req as any).user.id;
+        if(DMChat === undefined || participant_ids.length === 0 || participant_ids === undefined){
+            throw new AppError('Missing chat type or participants id', 400);
+        }
+        
         if(participant_ids.length < 2 && DMChat === false){
             throw new AppError('At least two participants are required to create a chat group', 400);
         }
@@ -314,6 +287,7 @@ export const createChat = async (req: Request, res: Response, next: NextFunction
         next(error);
     }
 }
+
 
 export const deleteChat = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -350,6 +324,7 @@ export const deleteChat = async (req: Request, res: Response, next: NextFunction
     }
 }
 
+
 export const updateChatGroup = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const chatId = req.params.chatId;
@@ -379,10 +354,9 @@ export const updateChatGroup = async (req: Request, res: Response, next: NextFun
     }
 }
 
-export const addMessageToChat = async (req: Request, res: Response, next: NextFunction) => {
+
+export const addMessageToChat = async (messageInput: newMessageInput, userId: string) => {
     try {
-        const userId = (req as any).user.id;
-        const messageInput: newMessageInput = req.body;
         const recipientId = messageInput.recipientId as Array<string> || [];
         const chatId = messageInput.chatId;
         if (!messageInput.data || !messageInput.data.content) {
@@ -458,11 +432,11 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
             }
         }
         const user = await prisma.user.findUnique({
-                            where: { id: userId },
-                            select: {
-                                username: true,
-                            }
-                        });
+            where: { id: userId },
+            select: {
+                username: true,
+            }
+        });
         await prisma.user.update({
             where: { id: userId },
             data: {
@@ -476,91 +450,64 @@ export const addMessageToChat = async (req: Request, res: Response, next: NextFu
                     unseenChatCount: { increment: 1 }
                 }
             });
+            //to handle website socket message sending
             if(socketService.checkSocketStatus(recipient)){
                 socketService.sendMessageToChat(recipient, newMessage);
-            }else{
-                //handle offline user notification
-                const userFCMTokens = await prisma.fcmToken.findMany({
-                    where: { userId: recipient.toString() },
-                                });
-                const fcmTokens = userFCMTokens.length > 0 ? userFCMTokens.map(t => t.token).flat() : [];
-
-                if (fcmTokens && fcmTokens.length > 0) {
-                    const notificationPayload = {
-                        title: `New message from ${user?.username}`,
-                        body: messageInput.data.content,
-                    };
-                    const dataPayload = {
-                        chatId: newMessage.chatId,
-                        messageId: newMessage.id,
-                        content: messageInput.data.content,
-                        senderId: userId,
-                    } as Record<string, string>;
-                    const tokensToDelete = await sendPushNotification(fcmTokens, notificationPayload, dataPayload);
-                    if (tokensToDelete.length > 0) {
-                        await prisma.fcmToken.deleteMany({
+            }
+            //handle offline user notification
+            const userFCMTokens = await prisma.fcmToken.findMany({
+                where: { userId: recipient.toString() },
+            });
+            const fcmTokens = userFCMTokens.length > 0 ? userFCMTokens.map(t => t.token).flat() : [];
+            if (fcmTokens && fcmTokens.length > 0) {
+                const notificationPayload = {
+                    title: `New message from ${user?.username}`,
+                    body: messageInput.data.content,
+                };
+                const dataPayload = {
+                    chatId: newMessage.chatId,
+                    messageId: newMessage.id,
+                    content: messageInput.data.content,
+                    senderId: userId,
+                } as Record<string, string>;
+                const tokensToDelete = await sendPushNotification(fcmTokens, notificationPayload, dataPayload);
+                if (tokensToDelete.length > 0) {
+                    await prisma.fcmToken.deleteMany({
+                        where: {
+                            token: { in: tokensToDelete },
+                        },
+                    });
+                }
+            }
+        }
+    }catch(error){
+        console.error('Error adding message to chat:', error);
+        return error;
+    }
+}
+    
+// Get total unseen messages count for the user across all chats
+    export const getUnseenMessagesCountOfUser = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const userId = (req as any).user.id;
+            let totalUnseenMessages = 0;
+            const chats = await prisma.chatUser.findMany({
+                where: { userId: userId },
+            include: {
+                chat: {
+                    include: {
+                        messages: {
                             where: {
-                                token: { in: tokensToDelete },
-                            },
-                        });
+                                status: { not: 'READ' },
+                                userId: { not: userId }
+                            }
+                        }
                     }
                 }
             }
-        }
-        res.status(201).json({ newMessage });
-        
-    }catch(error){
-        console.error('Error adding message to chat:', error);
-        next(error);
-    }
-}
-
-export const getUnseenChatsCount = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = (req as any).user.id;
-        if (!userId) {
-            throw new AppError('User ID is required', 400);
-        }
-        const userChats = await prisma.chatUser.findMany({
-            where: { userId: userId },
-            select: { chatId: true }
-        });
-        let unseenChatsCount = 0;
-        for (const chat of userChats) {
-            const lastMessage = await prisma.message.findFirst({
-                where: { chatId: chat.chatId, userId: userId },
-                orderBy: { createdAt: 'desc' }
-            });
-            if (lastMessage?.status !== 'READ') {
-                unseenChatsCount++;
-            }
-        }
-        res.status(200).json({ unseenChatsCount });
-    } catch (error) {
-        console.error('Error fetching unseen chats count:', error);
-        next(error);
-    }
-}
-
-
-export const getUnseenMessagesCountOfUser = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = (req as any).user.id;
-        const chats = await prisma.chatUser.findMany({
-            where: { userId: userId },
-            select: { chatId: true }
-        });
-        let totalUnseenMessages = 0;
-        for (const chat of chats) {
-            const unseenMessages = await prisma.message.count({
-                where: {
-                    chatId: chat.chatId,
-                    userId: userId,
-                    status: { not: 'READ' }
-                }
-            });
-            totalUnseenMessages += unseenMessages;
-        }
+        })
+        const unseenMessagesCounts = chats.map(chat => chat.chat.messages.length);
+        totalUnseenMessages = unseenMessagesCounts.reduce((acc, count) => acc + count, 0);
         res.status(200).json({ totalUnseenMessages });
     } catch (error) {
         console.error('Error fetching unseen messages count of user:', error);
@@ -569,3 +516,19 @@ export const getUnseenMessagesCountOfUser = async (req: Request, res: Response, 
 }
 
 
+//get unseen messages count in a specific chat
+export const getUnseenMessagesCount = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const chatId = req.params.chatId;
+        const userId = (req as any).user.id;
+        if (chatId) {
+            const unseenMessagesCount = await getUnseenMessagesCountofChat(chatId, userId);
+            res.status(200).json({ unseenMessagesCount: unseenMessagesCount });
+        } else {
+            throw new AppError('Chat ID is required', 400);
+        }
+    } catch (error) {
+        console.error('Error fetching unseen messages count:', error);
+        next(error);    
+    }
+}

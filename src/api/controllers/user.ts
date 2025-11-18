@@ -46,17 +46,14 @@ interface PrismaUser {
   otp: string | null;
 }
 
-// --- Environment Variables ---
+
 const JWT_SECRET: string = process.env.JWT_SECRET || "changeme";
 const PEPPER: string = process.env.PEPPER || "";
 const DOMAIN: string = process.env.DOMAIN || "localhost";
 const CLIENT_DOMAIN: string = process.env.CLIENT_DOMAIN || "localhost";
 
-// --- Helper Functions ---
-function timingSafeEqual(
-  a: string | Buffer | number | object,
-  b: string | Buffer | number | object
-): boolean {
+
+function timingSafeEqual(a: string | Buffer | number | object, b: string | Buffer | number | object): boolean {
   try {
     const A: Buffer = Buffer.from(String(a));
     const B: Buffer = Buffer.from(String(b));
@@ -122,7 +119,7 @@ function validateJwt(token: string): {
   }
 }
 
-/* --------------------- Controller Functions --------------------- */
+
 
 export async function Create(
   req: Request,
@@ -136,7 +133,7 @@ export async function Create(
       throw new AppError("Missing required fields", 400);
     }
 
-    // Check if email already exists
+    
     const existingUser = await prisma.user.findUnique({
       where: { email: input.email },
     });
@@ -468,22 +465,24 @@ export async function Login(
 
     const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
 
-    const accessObj = generateJwt({
+    const accessObj = await utils.GenerateJwt({
       username: user.username,
       email,
       id: user.id,
       expiresInSeconds: 60 * 60,
       version: user.tokenVersion || 0,
       devid,
+      role:"user", 
     });
 
-    const refreshObj = generateJwt({
+    const refreshObj = await utils.GenerateJwt({
       username: user.username,
       email,
       id: user.id,
       expiresInSeconds: 30 * 24 * 60 * 60,
       version: user.tokenVersion || 0,
       devid,
+       role: "user",
     });
 
     res.cookie("refresh_token", refreshObj.token, {
@@ -503,8 +502,8 @@ export async function Login(
 
 🚀 Your account was just accessed!
 
-📍 Location: ${location}
-💻 Device info: ${deviceRecord || "unknown"}
+📍 Location: ${JSON.stringify(location, null, 2)}
+💻 Device info: ${JSON.stringify(deviceRecord, null, 2)}
 🕒 Time: ${new Date().toLocaleString()}
 
 If this was not you, immediately change your password!
@@ -514,20 +513,23 @@ If this was not you, immediately change your password!
       throw new AppError("Failed to send login notification email", 500);
     });
 
-    await addNotification(
-      user.id as UUID,
-      {
-        title: "LOGIN",
-        body: `Login from ${deviceRecord || "unknown device"} at ${location}`,
-        actorId: user.id as UUID,
-      },
-      (err) => {
-        if (err) throw new AppError("Failed to create login notification", 500);
-      }
-    );
+    // await addNotification(user.id as UUID, {
+    //   title: 'LOGIN',
+    //   body: `Login from ${deviceRecord || "unknown device"} at ${location}`,
+    //   actorId: user.id as UUID,
+    // }, (err) => {
+    //   if (err) throw new AppError("Failed to create login notification", 500);
+    // });
 
     return utils.SendRes(res, {
-      User: user,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+        isEmailVerified: user.isEmailVerified,
+      },
       DeviceRecord: deviceRecord,
       Token: accessObj.token,
       Refresh_token: refreshObj.token,
@@ -567,13 +569,14 @@ export async function Refresh(
 
     const { devid } = await utils.SetDeviceInfo(req, res, email);
 
-    const newAccess = generateJwt({
+    const newAccess = await utils.GenerateJwt({
       username,
       email,
       id,
       expiresInSeconds: 60 * 60,
       version,
       devid,
+      role: "user",
     });
 
     const jti: string = uuidv4();
@@ -775,19 +778,20 @@ export async function ResetPassword(
     await redisClient.del(`Reset:code:${email}`);
     await utils.RsetResetAttempts(email);
 
-    const user = (await prisma.user.findUnique({
-      where: { email },
-    })) as PrismaUser;
-    if (user) {
-      const { devid, deviceRecord } = await utils.SetDeviceInfo(
-        req,
-        res,
-        email
-      );
-      const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
-      const location = await utils.Sendlocation(ip as string);
+    const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser;
+    if (!user) throw new AppError("User not found", 404);
 
-      const emailMessage = `Hello ${user.username},
+    let devid: string | null = null;
+    let deviceRecord: string | null = null;
+
+    const result = await utils.SetDeviceInfo(req, res, email);
+    devid = result.devid;
+    deviceRecord = result.deviceRecord;
+
+    const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
+    const location = await utils.Sendlocation(ip as string);
+
+    const emailMessage = `Hello ${user.username},
 
 🔐 Your password was just changed!
 
@@ -798,38 +802,59 @@ export async function ResetPassword(
 If this wasn't you, secure your account immediately!
 — Artemisa Team`;
 
-      utils.SendEmailSmtp(res, email, emailMessage).catch(() => {
-        throw new AppError("Failed to send password change notification", 500);
-      });
+    utils.SendEmailSmtp(res, email, emailMessage).catch(() => {
+      throw new AppError("Failed to send password change notification", 500);
+    });
 
-      await addNotification(
-        user.id as UUID,
-        {
-          title: "PASSWORD_CHANGED",
-          body: `Your password was changed from ${
-            deviceRecord || "unknown device"
-          } at ${location}`,
-          actorId: user.id as UUID,
-        },
-        (err) => {
-          if (err) throw new AppError("Failed to create notification", 500);
-        }
-      );
-    }
+    // await addNotification(user.id as UUID, {
+    //   title: 'Password_Changed',
+    //   body: `Your password was changed from ${deviceRecord || "unknown device"} at ${location}`,
+    //   actorId: user.id as UUID,
+    //   tweetId:"32423",
+    // }, (err) => { if (err) throw new AppError(err, 500) });
+
+    const accessObj = await utils.GenerateJwt({
+      username: user.username,
+      email,
+      id: user.id,
+      expiresInSeconds: 60 * 60,
+      version: user.tokenVersion || 0,
+      devid,
+      role:"user",
+    });
+
+    const refreshObj = await utils.GenerateJwt({
+      username: user.username,
+      email,
+      id: user.id,
+      expiresInSeconds: 30 * 24 * 60 * 60,
+      version: user.tokenVersion || 0,
+      devid,
+      role: "user",
+    });
+
+    res.cookie("refresh_token", refreshObj.token, {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.COOKIE_SECURE === "true",
+      sameSite: "lax",
+      domain: CLIENT_DOMAIN,
+    });
 
     return utils.SendRes(res, {
-      message: "Password reset successfully, notification sent",
+      message: "Password reset successfully, notification sent!",
+      refresh_token: refreshObj.token,
+      accesstoken: accessObj.token
     });
+
   } catch (err) {
     next(err);
   }
 }
 
-export async function ReauthPassword(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
+
+
+export async function ReauthPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { email, password } = req.body;
 
@@ -977,63 +1002,55 @@ export async function ChangePassword(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { password, confirm } = req.body;
-    const email: string | undefined =
-      (req as any).user?.email || req.body?.email;
-
-    if (!email) {
-      throw new AppError("You are unauthorized to access this route", 401);
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+ const email: string | undefined=(req as any ).user?.email
+    if (!email || !oldPassword || !newPassword || !confirmPassword) {
+      throw new AppError("Please provide email, old password, new password, and confirmation", 400);
     }
 
-    const passValidation: string = await utils.ValidatePassword(password);
-
-    if (passValidation !== "0") {
-      throw new AppError(passValidation, 400);
-    }
-
-    const user = (await prisma.user.findUnique({
-      where: { email },
-    })) as PrismaUser | null;
-
+    const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser | null;
     if (!user) {
       throw new AppError("User not found", 404);
     }
 
-    const score: zxcvbn.ZXCVBNResult = utils.AnalisePass(password, user);
+    const isOldPassValid = await utils.CheckPass(oldPassword, user.password);
+    if (!isOldPassValid) {
+      throw new AppError("Old password is incorrect", 401);
+    }
 
+    const passValidation: string = await utils.ValidatePassword(newPassword);
+    if (passValidation !== "0") {
+      throw new AppError(passValidation, 400);
+    }
+
+    const score: zxcvbn.ZXCVBNResult = utils.AnalisePass(newPassword, user);
     if (score.score < 3) {
-      throw new AppError("Your password is not strong enough", 401);
+      throw new AppError("Your new password is not strong enough", 401);
     }
 
-    if (confirm !== password) {
-      throw new AppError("Confirm password does not match the password", 401);
+    if (confirmPassword !== newPassword) {
+      throw new AppError("Confirm password does not match the new password", 400);
     }
 
-    const oldPassCheck: string = await utils.NotOldPassword(password, user.id);
-
+    const oldPassCheck: string = await utils.NotOldPassword(newPassword, user.id);
     if (oldPassCheck !== "0") {
       throw new AppError(oldPassCheck, 401);
     }
 
     const salt: string = crypto.randomBytes(16).toString("hex");
-    const hashed: string = await utils.HashPassword(password, salt);
+    const hashed: string = await utils.HashPassword(newPassword, salt);
 
     await prisma.user.updateMany({
       where: { email },
-      data: { saltPassword: salt, password: hashed },
+      data: { saltPassword: salt, password: hashed, tokenVersion: (user.tokenVersion || 0) + 1 }
     });
 
     await utils.AddPasswordHistory(hashed, user.id);
 
-    const ip: string =
-      req.ip || (req as any).connection?.remoteAddress || "unknown";
-    const username: string =
-      (req as any).user?.username || user.username || "user";
-    const geo: utils.GeoData | null = await utils
-      .Sendlocation(ip)
-      .catch(() => null);
+    const ip: string = req.ip || (req as any).connection?.remoteAddress || "unknown";
+    const geo: utils.GeoData | null = await utils.Sendlocation(ip).catch(() => null);
 
-    const message: string = `Hi, ${username}
+    const message: string = `Hi, ${user.username || "user"}
 
 We're letting you know that the password for your account (${email}) was just changed.
 
@@ -1046,18 +1063,13 @@ If you did NOT change your password, please secure your account immediately.
 — The Artemisa Team
 `;
 
-    await prisma.user.updateMany({
-      where: { email },
-      data: { tokenVersion: (user.tokenVersion || 0) + 1 },
-    });
-
-    utils.SendEmailSmtp(res, email, message).catch((err) => {
+    utils.SendEmailSmtp(res, email, message).catch(() => {
       throw new AppError("Failed to send password change email", 500);
     });
 
     return utils.SendRes(res, {
-      Message: "Password updated correctly",
-      Score: score,
+      Message: "Password updated successfully",
+      Score: score
     });
   } catch (err) {
     next(err);
@@ -1070,103 +1082,118 @@ export async function ChangeEmail(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { email: newEmail } = (req as any).body;
-    const currentEmail: string | undefined =
-      (req as any).user?.email || req.body?.currentEmail;
+    const { email: newEmail } = req.body;
+    const currentEmail: string | undefined = (req as any).user?.email || req.body?.currentEmail;
 
-    if (!newEmail) {
-      throw new AppError("Email is required", 400);
-    }
+    if (!newEmail) throw new AppError("Email is required", 400);
+    if (!currentEmail) throw new AppError("Must provide your current email", 401);
+    if (newEmail === currentEmail) throw new AppError("New email must be different than the old one", 401);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) throw new AppError("Input email is not valid", 401);
 
-    if (!currentEmail) {
-      throw new AppError("Must provide your current email", 401);
-    }
+    const user = await prisma.user.findUnique({ where: { email: currentEmail } });
+    if (!user) throw new AppError("User not found", 404);
 
-    if (newEmail === currentEmail) {
-      throw new AppError("New email must be different than the old one", 401);
-    }
+    const exists = await prisma.user.findUnique({ where: { email: newEmail } });
+    if (exists) throw new AppError("This email is already in use", 409);
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
-      throw new AppError("Input email is not valid", 401);
-    }
+    // Generate random 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(code);
 
-    const ok: boolean = await utils.VerifEmailHelper(
-      res,
-      currentEmail,
-      newEmail
-    );
+    // Store in Redis with 10 min expiration
+    await redisClient.setEx(`ChangeEmail:code:${currentEmail}`, 15*60, code);
+    await redisClient.setEx(`ChangeEmail:new:${currentEmail}`, 15*60, newEmail);
 
-    if (!ok) {
-      throw new AppError("Failed to send verification email", 500);
-    }
+    // Send verification email with the code
+    const msg= `Hi ${user.name || "there"},
+        You requested to change your account email. Use the verification code below to confirm:
+        ${code}
+        This code will expire in 15 minutes
+        If you didn’t request this, please ignore this message.
+        -Artemsia team
+      `;
+    await utils.SendEmailSmtp(res, newEmail, msg);
+
+   
+
+    return utils.SendRes(res, { message: "Verification code sent successfully to your new email" });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+
+
+export async function VerifyNewEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { email: desiredEmail, code } = req.body;
+    const currentEmail: string | undefined = (req as any).user?.email || req.body?.currentEmail;
+    
+    if (!currentEmail) throw new AppError("Current email is required", 401);
+    if (!code) throw new AppError("Verification code is required", 400);
+
+    const storedCode = await redisClient.get(`ChangeEmail:code:${currentEmail}`);
+    const storedNewEmail = await redisClient.get(`ChangeEmail:new:${currentEmail}`);
+
+    if (!storedCode || !storedNewEmail) throw new AppError("Verification code not found or expired", 400);
+    if (storedCode !== code) throw new AppError("Incorrect verification code", 401);
+    if (storedNewEmail !== desiredEmail) throw new AppError("Email mismatch", 401);
+
+
+    const user = await prisma.user.update({
+      where: { email: currentEmail },
+      data: { email: desiredEmail }
+    });
+
+    const accessObj = await utils.GenerateJwt({
+      username: user.username,
+      email: desiredEmail,
+      id: user.id,
+      expiresInSeconds: 60 * 60, // 1 hour
+      version: user.tokenVersion || 0,
+      devid: null,
+      role: "user"
+    });
+
+    const refreshObj = await utils.GenerateJwt({
+      username: user.username,
+      email: desiredEmail,
+      id: user.id,
+      expiresInSeconds: 30 * 24 * 60 * 60, // 30 days
+      version: user.tokenVersion || 0,
+      devid: null,
+      role: "user"
+    });
+
+    // Set new refresh token cookie
+    res.cookie("refresh_token", refreshObj.token, {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.COOKIE_SECURE === "true",
+      sameSite: "lax",
+      domain: CLIENT_DOMAIN,
+    });
+
+    // ✅ Optional: delete old Redis codes
+    await redisClient.del(`ChangeEmail:code:${currentEmail}`);
+    await redisClient.del(`ChangeEmail:new:${currentEmail}`);
 
     return utils.SendRes(res, {
-      message: "Now you can verify your email to change it",
+      message: "Email changed successfully",
+      newEmail: desiredEmail,
+      Token: accessObj.token,
+      Refresh_token: refreshObj.token
     });
   } catch (err) {
     next(err);
   }
 }
 
-export async function VerifyNewEmail(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const { email: desiredEmail, code } = (req as any).body;
-    const currentEmail: string | undefined =
-      (req as any).user?.email || req.body?.currentEmail;
 
-    if (!currentEmail) {
-      throw new AppError("Current email is required", 401);
-    }
 
-    if (!code) {
-      throw new AppError("Verification code is required", 400);
-    }
 
-    const stored: string | null = await redisClient.get(
-      `ChangeEmail:code:${currentEmail}`
-    );
-
-    if (!stored) {
-      throw new AppError("Verification code not found or expired", 400);
-    }
-
-    if (stored !== code) {
-      throw new AppError("Enter code correctly", 401);
-    }
-
-    await prisma.user.updateMany({
-      where: { email: currentEmail },
-      data: { email: desiredEmail },
-    });
-
-    const updated = await prisma.user.findUnique({
-      where: { email: desiredEmail },
-    });
-
-    if (!updated) {
-      throw new AppError("Failed to update user with the new email", 500);
-    }
-
-    await prisma.user.updateMany({
-      where: { email: desiredEmail },
-      data: { tokenVersion: (updated.tokenVersion || 0) + 1 },
-    });
-
-    return utils.SendRes(res, { message: "Email changed correctly" });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function GetUser(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
+export async function GetUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const email: string | undefined =
       (req as any).user?.email ||
@@ -1182,8 +1209,15 @@ export async function GetUser(
     if (!user) {
       throw new AppError("User not found", 404);
     }
-
-    return utils.SendRes(res, { User: user });
+    
+    return utils.SendRes(res, {user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+        isEmailVerified: user.isEmailVerified,
+      },});
   } catch (err) {
     next(err);
   }
@@ -1580,14 +1614,16 @@ export async function CallbackGithub(
     await utils.SendEmailSmtp(res,email,emailMsg);
 
     // ✅ Final Response
-    return res.json({
-      token,
-      refreshToken,
-      message: "User logged in successfully via GitHub ✅",
-      user,
-      deviceRecord,
-      location: geo,
-    });
+  const redirectUrl = `${process.env.FRONTEND_URL}/login/success?token=${encodeURIComponent(token.token)}&refresh-token=${encodeURIComponent(refreshToken.token)}&user=${encodeURIComponent(JSON.stringify({
+  id: user.id,
+  username: user.username,
+  name: user.name,
+  email: user.email,
+  dateOfBirth: user.dateOfBirth,
+  isEmailVerified: user.isEmailVerified
+}))}`;
+return res.redirect(redirectUrl);
+
   } catch (err) {
     console.error("CallbackGithub err:", err);
     next(err);
@@ -1706,14 +1742,17 @@ export async function CallbackGoogle(req: Request, res: Response, next: NextFunc
     await utils.SendEmailSmtp(res,email,emailMsg );
 
     // ✅ Final Response
-    return res.json({
-      token,
-      refreshToken,
-      user,
-      message: "User registered and logged in successfully ✅",
-      deviceRecord,
-      location: geo,
-    });
+  const redirectUrl = `${process.env.FRONTEND_URL}/login/success?token=${encodeURIComponent(token.token)}&refresh-token=${encodeURIComponent(refreshToken.token)}&user=${encodeURIComponent(JSON.stringify({
+  id: user.id,
+  username: user.username,
+  name: user.name,
+  email: user.email,
+  dateOfBirth: user.dateOfBirth,
+  isEmailVerified: user.isEmailVerified
+}))}`;
+
+return res.redirect(redirectUrl);
+
   } catch (err) {
     console.error("CallbackGoogle err:", err);
     next(err);
@@ -1739,39 +1778,116 @@ export async function CheckEmail(
     return next(err);
   }
 }
+// export const UpdateUsername = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//    const userId = (req as any).user.id;
+//     const { username } = req.body;
+
+//     if (!userId) {
+//       throw new AppError("Unauthorized: Missing user ID", 401);
+//     }
+
+//     if (!username || typeof username !== 'string' || username.trim() === '') {
+//       throw new AppError("Invalid username", 400);
+//     }
+
+//     const updatedUser = await prisma.user.update({
+//       where: { id: userId },
+//       data: { username },
+//     });
+
+//     return utils.SendRes(res, {
+//       message: 'Username updated successfully ✅',
+//       user: {
+//         id: updatedUser.id,
+//         username: updatedUser.username,
+//       },
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 export const UpdateUsername = async (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
-    const userId = (req as any).user.id;
+    const userId = (req as any).user?.id;
     const { username } = req.body;
 
-    if (!userId) {
-      throw new AppError("Unauthorized: Missing user ID", 401);
-    }
-
-    if (!username || typeof username !== "string" || username.trim() === "") {
+    if (!userId) throw new AppError("Unauthorized: Missing user ID", 401);
+    if (!username || typeof username !== "string" || username.trim() === "")
       throw new AppError("Invalid username", 400);
-    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, username: true, tokenVersion: true },
+    });
+
+    if (!currentUser) throw new AppError("User not found", 404);
+
+    const newVersion = (currentUser.tokenVersion || 0) + 1;
+
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { username },
+      data: {
+        username,
+        tokenVersion: newVersion,
+      },
     });
 
+
+    const accessObj = await utils.GenerateJwt({
+      username: updatedUser.username,
+      email: currentUser.email,
+      id: updatedUser.id,
+      role: "user",
+      version: newVersion,
+      expiresInSeconds: 60 * 60, // 1 hour
+    });
+
+    const refreshObj = await utils.GenerateJwt({
+      username: updatedUser.username,
+      email: currentUser.email,
+      id: updatedUser.id,
+      role: "user",
+      version: newVersion,
+      expiresInSeconds: 60 * 60 * 24 * 30, // 30 days
+    });
+
+    // 🍪 Set refresh token cookie
+    res.cookie("refresh_token", refreshObj.token, {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.COOKIE_SECURE === "true",
+      sameSite: "lax",
+      domain: CLIENT_DOMAIN,
+    });
+
+    // ✅ Optional: reset session if you’re tracking sessions in Redis
+    await utils.SetSession(req, userId, refreshObj.jti);
+
+    // 🎯 Return result
     return utils.SendRes(res, {
       message: "Username updated successfully ✅",
       user: {
         id: updatedUser.id,
         username: updatedUser.username,
+        tokenVersion: newVersion,
       },
+      tokens: {
+        access: accessObj.token,
+        refresh: refreshObj.token,
+      },
+      
     });
   } catch (err) {
     next(err);
   }
 };
+
 
 /* --------------------- Exports --------------------- */
 

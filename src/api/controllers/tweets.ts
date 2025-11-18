@@ -6,7 +6,6 @@ import tweetService from "@/application/services/tweets";
 import encoderService from "@/application/services/encoder";
 
 export class TweetController {
-  
   async createTweet(req: Request, res: Response, next: NextFunction) {
     try {
       const data = req.body;
@@ -195,6 +194,29 @@ export class TweetController {
       });
 
       const tweets = await tweetService.getUserTweets(parsedDTO);
+      res.status(200).json(tweets);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getMentionedTweets(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { username } = req.params;
+      const query = req.query;
+
+      const { id: userId } = await resolveUsernameToId(username);
+      const decodedCursor = encoderService.decode<{
+        lastActivityAt: string;
+        id: string;
+      }>(query.cursor as string);
+
+      const parsedDTO = CursorServiceSchema.parse({
+        userId,
+        limit: query.limit,
+        cursor: decodedCursor ?? undefined,
+      });
+      const tweets = await tweetService.getMentionedTweets(parsedDTO);
       res.status(200).json(tweets);
     } catch (error) {
       next(error);

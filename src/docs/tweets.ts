@@ -10,10 +10,7 @@ import {
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 import { listErrors } from "@/docs/errors";
-import {
-  TweetIdParams,
-  UsernameParams,
-} from "@/docs/utils/utils";
+import { TweetIdParams, UsernameParams } from "@/docs/utils/utils";
 const errors = listErrors();
 
 function registerSubList(
@@ -226,6 +223,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     tags: ["Tweets Interactions"],
     request: {
       params: UsernameParams,
+      query: CursorDTOSchema,
     },
     responses: {
       200: {
