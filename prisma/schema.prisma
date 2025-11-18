@@ -349,6 +349,7 @@ model TweetLike {
   tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
 
   @@id([userId, tweetId])
+  @@unique([userId, createdAt])
 }
 
 model TweetBookmark {
@@ -360,6 +361,7 @@ model TweetBookmark {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, tweetId])
+  @@unique([userId, createdAt])
   @@map("tweetbookmarks")
 }
 
