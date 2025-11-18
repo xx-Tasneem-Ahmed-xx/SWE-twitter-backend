@@ -10,7 +10,7 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
 
     registry.registerPath({
     method: "get",
-    path: "/api/dm/chat/{chatId}",
+    path: "api/dm/chat/{chatId}",
     summary: "Get chat information",
     description: "Retrieve detailed information about a specific chat including messages, participants, and group details",
     tags: ["Chats"],
@@ -39,11 +39,11 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
         }
       },
       404: {
-        description: "Chat not found",
+        description: "invalid chatId",
         content: {
           "application/json": {
             schema: z.object({
-              error: z.string().openapi({ description: "Chat not found" })
+              error: z.string().openapi({ description: "invalid chatId" })
             }).openapi("ChatErrorResponse")
           }
         }
@@ -63,17 +63,19 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: "get",
-    path: "/api/dm/chat/{chatId}/messages",
+    path: "api/dm/chat/{chatId}/messages",
     summary: "Get chat messages",
     description: "Retrieve messages from a specific chat",
     tags: ["Chats"],
     request: {
+      params: z.object({
+          chatId: z.string().uuid().openapi({ description: "Chat ID" })
+      }),
       body: {
         required: true,
         content: {
           "application/json": {
             schema: z.object({
-              chatId: z.string().uuid().openapi({ description: "Chat ID" }),
               lastMessageTimestamp: z.string().datetime().optional().openapi({ description: "Timestamp of the last message received (for pagination)" })
             })
           }
@@ -90,7 +92,7 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
         }
       },
       400: {
-        description: "Bad request - Chat ID is required",
+        description: "Bad request - ChatID and lastMessageTimestamp are required",
         content: {
           "application/json": {
             schema: z.object({
@@ -100,11 +102,11 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
         }
       },
       404: {
-        description: "Chat not found",
+        description: "invalid chat ID",
         content: {
           "application/json": {
             schema: z.object({
-              error: z.string().openapi({ description: "Chat not found" })
+              error: z.string().openapi({ description: "invalid chatId" })
             }).openapi("ChatErrorResponse")
           }
         }
@@ -124,15 +126,10 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: "get",
-    path: "/api/dm/chat/{userId}",
+    path: "api/dm/chat/user",
     summary: "Retrieve all chats that a specific user is participating in",
     description: "Fetch a list of all chats that a user is involved in, including both direct messages and group chats",
     tags: ["Chats"],
-    request: {
-        params: z.object({
-            userId: z.string().uuid().openapi({ description: "User ID" })
-        })
-    },
     responses: {
       200: {
         description: "List of chats retrieved successfully",
@@ -152,16 +149,6 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
           }
         }
       },
-      404: {
-        description: "No chats found for user",
-        content: {
-          "application/json": {
-            schema: z.object({
-              error: z.string().openapi({ description: "No chats found for user" })
-            }).openapi("ChatErrorResponse")
-          }
-        }
-      },
       500: {
         description: "Internal server error",
         content: {
@@ -177,7 +164,7 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: "get",
-    path: "/api/dm/chat/{chatId}/unseenMessagesCount",
+    path: "api/dm/chat/{chatId}/unseen-messages-count",
     summary: "get unseen messages count",
     tags: ["Chats"],
     request: {
@@ -206,16 +193,6 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
                 }
             }
         },
-        404: {
-            description: "No unseen messages found",
-            content: {
-                "application/json": {
-                    schema: z.object({
-                        error: z.string().openapi({ description: "No unseen messages found" })
-                    })
-                }
-            }
-        },
         500: {
             description: "Internal server error",
             content: {
@@ -231,13 +208,10 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
 
  registry.registerPath({
     method: "post",
-    path: "api/dm/chat/{userId}/createchat",
+    path: "api/dm/chat/create-chat",
     summary: "Create a new chat",
     tags: ["Chats"],
     request: {
-        params: z.object({
-            userId: z.string().uuid().openapi({ description: "User ID to create chat with" })
-        }),
         body: {
             required: true,
             content: {
@@ -261,7 +235,7 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
             content: {
                 "application/json": {
                     schema: z.object({
-                        error: z.string().openapi({ description: "At least two participants are required to create a chat" })
+                        error: z.string().openapi({ description: "Missing chat type or participants id" })
                     })
                 }
             }
@@ -375,97 +349,12 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
                     }
                 }
             },
-            500: {
-                description: "Internal server error",
-                content: {
-                    "application/json": {
-                        schema: z.object({
-                            error: z.string().openapi({ description: "Internal server error" })
-                        })
-                    }
-                }
-            }
-        }
-    });
-
-    registry.registerPath({
-        method: "post",
-        path: "api/dm/chat/{userId}/message",
-        summary: "Add a message to a chat",
-        tags: ["Chats"],
-        request: {
-            params: z.object({
-                userId: z.string().uuid().openapi({ description: "The ID of the user to send the message to" }),
-            }),
-            body: {
-                required: true,
-                content: {
-                    "application/json": {
-                        schema: newMessageInput
-                    }
-                }
-            }
-        },
-        responses: {
-            201: {
-                description: "Message added successfully",
-                content: {
-                    "application/json": {
-                        schema: MessageSchema
-                    }
-                }
-            },
-            400: {
-                description: "Bad Request - Invalid input data",
-                content: {
-                    "application/json": {
-                        schema: z.object({
-                            error: z.string().openapi({ description: "Message content is required or missing chatId or recipientId" })
-                        })
-                    }
-                }
-            },
             404: {
                 description: "Chat not found",
                 content: {
                     "application/json": {
                         schema: z.object({
-                            error: z.string().openapi({ description: "Chat not found" })
-                        })
-                    }
-                }
-            },
-            500: {
-                description: "Internal server error",
-                content: {
-                    "application/json": {
-                        schema: z.object({
-                            error: z.string().openapi({ description: "Internal server error" })
-                        })
-                    }
-                }
-            }
-
-        }
-    });
-
-    registry.registerPath({
-        method: "put",
-        path: "api/dm/chat/{chatId}/messageStatus",
-        summary: "Update message status in a chat",
-        tags: ["Chats"],
-        request: {
-            params: z.object({
-                chatId: z.string().uuid().openapi({ description: "The ID of the chat containing the message" }),
-            }),
-        },
-        responses: {
-            200: {
-                description: "Message status updated successfully",
-                content: {
-                    "application/json": {
-                        schema: z.object({
-                            status: z.string().openapi({ description: "Message status updated successfully" })
+                            error: z.string().openapi({ description: "invalid chatId" })
                         })
                     }
                 }
@@ -485,31 +374,16 @@ export const registerChatDocs = (registry: OpenAPIRegistry) => {
 
     registry.registerPath({
         method: "get",
-        path: "api/dm/chat/{userId}/unseenChats",
-        summary: "Get unseen chats count for a user",
+        path: "api/dm/chat/all-unseen-messages-count",
+        summary: "Get all unseen messages count for a user",
         tags: ["Chats"],
-        request: {
-            params: z.object({
-                userId: z.string().uuid().openapi({ description: "The ID of the user" }),
-            })
-        },
         responses: {
             200: {
-                description: "Unseen chats count retrieved successfully",
+                description: "Unseen messages count retrieved successfully",
                 content: {
                     "application/json": {
                         schema: z.object({
-                            unseenChatsCount: z.number().openapi({ description: "The count of unseen chats for the user" })
-                        })
-                    }
-                }
-            },
-            400: {
-                description: "Bad Request - User ID is required",
-                content: {
-                    "application/json": {
-                        schema: z.object({
-                            error: z.string().openapi({ description: "User ID is required" })
+                            totalUnseenMessages: z.number().openapi({ description: "The count of unseen messages for the user" })
                         })
                     }
                 }

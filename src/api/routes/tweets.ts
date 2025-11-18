@@ -11,6 +11,12 @@ router
 
 router.route("/likedtweets").get(tweetController.getLikedTweets);
 
+router.route("/users/:username").get(tweetController.getUserTweets);
+
+router.route("/search").get(tweetController.searchTweets);
+
+router.route("/users/:username/mentioned").get(tweetController.getMentionedTweets);
+
 router
   .route("/:id")
   .get(tweetController.getTweet)
@@ -39,7 +45,5 @@ router
   .delete(tweetController.deleteLike);
 
 router.route("/:id/summary").get(tweetController.getTweetSummary);
-
-router.route("/search").get(tweetController.searchTweets);
 
 export default router;

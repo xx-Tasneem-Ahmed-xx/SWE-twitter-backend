@@ -15,28 +15,30 @@ datasource db {
 }
 
 model User {
-  id                      String    @id @default(uuid())
+  id                      String        @id @default(uuid())
   name                    String?
-  username                String    @unique
-  email                   String    @unique
+  username                String        @unique
+  email                   String        @unique
   password                String
   saltPassword            String
   tokenVersion            Int?
   otp                     String?
   otpExpiry               DateTime?
   bio                     String?
-  dateOfBirth             DateTime
-  joinDate                DateTime  @default(now())
-  verified                Boolean   @default(false)
+  dateOfBirth             DateTime?
+  dobMonthDayVisibility   DobVisibility @default(ONLY_YOU)
+  dobYearVisibility       DobVisibility @default(ONLY_YOU)
+  joinDate                DateTime      @default(now())
+  verified                Boolean       @default(false)
   address                 String?
   website                 String?
-  protectedAccount        Boolean   @default(false)
-  isEmailVerified         Boolean   @default(false)
-  tfaVerifed              Boolean   @default(false)
+  protectedAccount        Boolean       @default(false)
+  isEmailVerified         Boolean       @default(false)
+  tfaVerifed              Boolean       @default(false)
   loginCodes              String?
-  loginCodesSet           Boolean   @default(false)
-  unseenChatCount         Int       @default(0)
-  unseenNotificationCount Int       @default(0)
+  loginCodesSet           Boolean       @default(false)
+  unseenChatCount         Int           @default(0)
+  unseenNotificationCount Int           @default(0)
   // TODO: add default ids when their medias is uploaded to s3
   profileMediaId          String?
   coverMediaId            String?
@@ -117,17 +119,18 @@ model OAuthAccount {
 }
 
 model Tweet {
-  id           String       @id @default(uuid())
-  userId       String
-  content      String       @db.Text
-  createdAt    DateTime     @default(now())
-  likesCount   Int          @default(0)
-  retweetCount Int          @default(0)
-  repliesCount Int          @default(0)
-  quotesCount  Int          @default(0)
-  replyControl ReplyControl @default(EVERYONE)
-  parentId     String?
-  tweetType    TweetType
+  id             String       @id @default(uuid())
+  userId         String
+  content        String       @db.Text
+  createdAt      DateTime     @default(now())
+  lastActivityAt DateTime     @default(now())
+  likesCount     Int          @default(0)
+  retweetCount   Int          @default(0)
+  repliesCount   Int          @default(0)
+  quotesCount    Int          @default(0)
+  replyControl   ReplyControl @default(EVERYONE)
+  parentId       String?
+  tweetType      TweetType
 
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent        Tweet?          @relation("parentTweets", fields: [parentId], references: [id], onDelete: Cascade)
@@ -141,7 +144,7 @@ model Tweet {
   tweetMedia    TweetMedia[]
   Notification  Notification[]
 
-  @@unique([createdAt, id])
+  @@unique([lastActivityAt, id])
   @@index([userId, createdAt])
   @@map("tweets")
 }
@@ -198,20 +201,21 @@ model Chat {
 model ChatGroup {
   name        String?
   description String?
-  photo       String?
+  photoId     String?
   chatId      String  @id
 
-  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  photo Media? @relation(fields: [photoId], references: [id])
+  chat  Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@map("chatGroups")
 }
 
 model Notification {
-  id        String           @id @default(uuid())
+  id        String            @id @default(uuid())
   title     NotificationTitle
   body      String
-  isRead    Boolean          @default(false)
-  createdAt DateTime         @default(now())
+  isRead    Boolean           @default(false)
+  createdAt DateTime          @default(now())
   userId    String
   tweetId   String?
   actorId   String?
@@ -236,6 +240,7 @@ model Media {
   userMedia         UserMedia[]
   profileMediaUsers User[]         @relation("profileMedia")
   coverMediaUsers   User[]         @relation("coverMedia")
+  ChatGroup         ChatGroup[]
 
   @@map("medias")
 }
@@ -324,33 +329,39 @@ model Mention {
 }
 
 model Retweet {
-  userId  String
-  tweetId String
+  userId    String
+  tweetId   String
+  createdAt DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
 
   @@id([userId, tweetId])
+  @@unique([userId, createdAt])
 }
 
 model TweetLike {
-  tweetId String
-  userId  String
+  tweetId   String
+  userId    String
+  createdAt DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
 
   @@id([userId, tweetId])
+  @@unique([userId, createdAt])
 }
 
 model TweetBookmark {
-  id      String @id @default(uuid())
-  userId  String
-  tweetId String
+  userId    String
+  tweetId   String
+  createdAt DateTime @default(now())
 
   tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@id([userId, tweetId])
+  @@unique([userId, createdAt])
   @@map("tweetbookmarks")
 }
 
@@ -399,9 +410,11 @@ enum NotificationTitle {
   REPLY
   QUOTE
   FOLLOW
-  RequestToFollow
-  AcceptedFollow
+  REQUEST_TO_FOLLOW
+  ACCEPTED_FOLLOW
   MENTION
+  LOGIN
+  PASSWORD_CHANGED
 }
 
 enum MediaType {
@@ -424,4 +437,12 @@ enum OSType {
   ANDROID
   IOS
   WEB
+}
+
+enum DobVisibility {
+  PUBLIC
+  YOUR_FOLLOWERS
+  PEOPLE_YOU_FOLLOW
+  YOU_FOLLOW_EACH_OTHER
+  ONLY_YOU
 }

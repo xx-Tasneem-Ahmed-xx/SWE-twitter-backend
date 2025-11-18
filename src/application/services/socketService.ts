@@ -2,6 +2,9 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import prisma from '../../database';
 import * as utils from '../utils/tweets/utils';
 import { redisClient } from '../../config/redis';
+import { addMessageToChat, updateMessageStatus } from '@/api/controllers/messagesController';
+import { markNotificationsAsRead } from '@/api/controllers/notificationController';
+import { newMessageInput } from '../dtos/chat/messages.dto';
 
 export class SocketService {
     public io: SocketIOServer;
@@ -125,22 +128,8 @@ export class SocketService {
     }
     
     private setupUserEvents(socket: Socket, userId: string): void {
-        // Handle sending messages
-        socket.on('send-message', async(data: { chatId: string; message: string }) => {
-            // Broadcast message to all users in the chat room
-            const usersId = (await this.getAllUsers(data.chatId)).filter(id => id !== userId);
-            for(const id of usersId){
-                socket.to(id).emit('new-message', {
-                    userId,
-                    chatId: data.chatId,
-                    message: data.message,
-                    timestamp: new Date().toISOString()
-                });
-            }
-        });
 
-        // Handle typing indicators
-        socket.on('typing', async (data: { userId: string; chatId: string; isTyping: boolean }) => {
+        socket.on('typing', async (data: {chatId: string; isTyping: boolean }) => {
             const usersId = (await this.getAllUsers(data.chatId)).filter(id => id !== userId);
             for(const id of usersId){
             socket.to(id).emit('user-typing', {
@@ -151,10 +140,34 @@ export class SocketService {
         }
         });
 
+        socket.on('open-chat', async (data: { chatId: string }) => {
+            await updateMessageStatus(data.chatId, userId);
+        })
+
+        socket.on('open-notification', async(data: { notificationId: string }) => {
+            try {
+                await markNotificationsAsRead(data.notificationId);
+            } catch (error) {
+                console.error('Error marking notification as read:', error);
+            }
+        });
+
+        socket.on('add-message', async (data: { message: newMessageInput }) => {
+            try {
+                await addMessageToChat(data.message, userId);
+            } catch (error) {
+                console.error('Error adding message to chat via socket:', error);
+            }
+        });
+
+        socket.on('disconnect', () => {
+            console.log(`User ${userId} disconnected from socket ${socket.id}`);
+        });
+
     }
 
-    public checkSocketStatus(userId: string): boolean {
-        const room = this.io.sockets.adapter.rooms.get(userId);
+    public checkSocketStatus(userID: string): boolean {
+        const room = this.io.sockets.adapter.rooms.get(userID);
         return room !== undefined && room.size > 0;
     }
 
