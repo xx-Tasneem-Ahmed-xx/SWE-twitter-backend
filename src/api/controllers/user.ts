@@ -272,11 +272,9 @@ export async function FinalizeSignup(req: Request, res: Response, next: NextFunc
 
     const input: any = JSON.parse(userJson);
 
-    let username: string = input.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (!username) username = `user${Math.floor(Math.random() * 10000)}`;
-    
-    const existing = await prisma.user.findUnique({ where: { username } });
-    if (existing) username = `${username}${Math.floor(Math.random() * 10000)}`;
+    const username = await utils.generateUsername(input.name);
+console.log(username);
+
 
     const salt: string = crypto.randomBytes(16).toString("hex");
     const hashed: string = await utils.HashPassword(password, salt);
@@ -1365,10 +1363,11 @@ export async function CallbackGithub(req: Request, res: Response, next: NextFunc
     } else {
       user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
+        const username = await utils.generateUsername(name);
         user = await prisma.user.create({
           data: {
             email,
-            username: utils.generateUsername(name),
+            username,
             name,
             password: "",
             saltPassword: "",
@@ -1493,10 +1492,11 @@ export async function CallbackGoogle(req: Request, res: Response, next: NextFunc
     } else {
       user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
+      const username = await utils.generateUsername(name);
         user = await prisma.user.create({
           data: {
             email,
-            username: utils.generateUsername(name),
+            username,
             name,
             password: "",
             saltPassword: "",

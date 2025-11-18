@@ -2,7 +2,7 @@ import { prisma, ReplyControl } from "@/prisma/client";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
-
+import { faker } from "@faker-js/faker";
 //import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import fetch, { Response as FetchResponse } from "node-fetch";
@@ -295,12 +295,25 @@ export async function CheckPass(
 
 
 /* ------------------------------ Username generator ------------------------------ */
-
-export function generateUsername(name: string): string {
-  const base = name.toLowerCase().replace(/\s+/g, "");
-  const rand = Math.floor(Math.random() * 10000);
-  return `${base}${rand}`;
+export async function isTaken(username: string): Promise<boolean> {
+  const exists = await prisma.user.findUnique({ where: { username } });
+  return !!exists;
 }
+
+export async function generateUsername(name: string): Promise<string> {
+  const base = name.toLowerCase().replace(/\s+/g, "");
+
+  for (;;) {
+    const adjective = faker.word.adjective();
+    const animal = faker.animal.type();
+    const unique = faker.string.alphanumeric({ length: 4 }).toLowerCase();
+
+    const username = `${base}_${adjective}${animal}_${unique}`;
+
+    if (!(await isTaken(username))) return username;
+  }
+}
+
 
 /* ------------------------------ Email checks (gmail-only logic preserved) ------------------------------ */
 
