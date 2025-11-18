@@ -1,5 +1,5 @@
 import {Router} from "express";
-import { addMediaTotweet, getTweetMedia, requestToUploadMedia, requestToDownloadMedia, addMediaToMessage, getMessageMedia, confirmMediaUpload } from "../controllers/mediaController";
+import { addMediaTotweet, getTweetMedia, requestToUploadMedia, requestToDownloadMedia, addMediaToMessage, getMessageMedia, confirmMediaUpload, dropMedia } from "../controllers/mediaController";
 const router = Router();
 
 
