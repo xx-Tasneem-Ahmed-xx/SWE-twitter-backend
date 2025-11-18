@@ -695,12 +695,17 @@ router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
  *               email:
  *                 type: string
  *                 format: email
+ *                 description: The user's email
+ *                 example: "user@example.com"
  *               password:
  *                 type: string
  *                 format: password
+ *                 description: The new password
+ *                 example: "NewStrongPass@2025"
  *               resetCode:
  *                 type: string
  *                 description: Code sent to user's email for password reset
+ *                 example: "123456"
  *
  *     responses:
  *       200:
@@ -713,20 +718,73 @@ router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
  *                 message:
  *                   type: string
  *                   example: "Password reset successfully, notification sent"
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     dateOfBirth:
+ *                       type: string
+ *                     isEmailVerified:
+ *                       type: boolean
  *                 refreshtoken:
  *                   type: string
+ *                   description: JWT refresh token
  *                 accesstoken:
  *                   type: string
+ *                   description: JWT access token
  *
  *       400:
  *         description: Validation error or missing fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Email, password, and reset code are required"
+ *
  *       401:
  *         description: Invalid reset code or unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid or expired reset code"
+ *
  *       404:
  *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "User not found"
+ *
  *       500:
  *         description: Internal server error (email sending / DB update failed)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error"
  */
+
 router.post("/reset-password",  typedAuthController.ResetPassword);
 
 // --- Session & Logout Routes ---
