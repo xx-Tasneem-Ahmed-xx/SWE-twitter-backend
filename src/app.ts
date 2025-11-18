@@ -15,6 +15,7 @@ import tweetRoutes from "@/api/routes/tweets";
 import timelineRoutes from "@/api/routes/timeline";
 import userInteractionsRoutes from "@/api/routes/userInteractions";
 import userRouter from "@/api/routes/user.routes";
+import trendsRoutes from "@/api/routes/trends";
 import { errorHandler } from "@/api/middlewares/errorHandler";
 import authRoutes from "@/api/routes/authRoutes";
 import Auth from "@/api/middlewares/Auth";
@@ -73,6 +74,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/tweets", tweetRoutes);
 app.use("/api/home", timelineRoutes);
 app.use("/api/users", userRouter);
+app.use("/api/trends", trendsRoutes);
 app.use("/api", userInteractionsRoutes);
 
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
