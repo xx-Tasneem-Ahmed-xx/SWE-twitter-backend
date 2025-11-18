@@ -355,52 +355,6 @@
             "description": "New photo URL for the group chat"
           }
         }
-      },
-      "newMessageInput": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "type": "object",
-            "properties": {
-              "messageMedia": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "name": {
-                      "type": "string"
-                    },
-                    "url": {
-                      "type": "string",
-                      "format": "uri"
-                    },
-                    "size": {
-                      "type": "number"
-                    },
-                    "type": {
-                      "type": "string"
-                    }
-                  }
-                }
-              },
-              "content": {
-                "type": "string"
-              }
-            }
-          },
-          "recipientId": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          "chatId": {
-            "type": "string",
-            "format": "uuid"
-          }
-        },
-        "required": ["data"]
       }
     },
     "parameters": {}
@@ -3519,7 +3473,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-17T16:54:39.732Z"
+                        "default": "2025-11-17T22:01:00.781Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3970,7 +3924,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-02T14:48:10.098Z"
+                            "default": "2025-11-17T22:01:00.781Z"
                           },
                           "userId": {
                             "type": "string",
@@ -6030,7 +5984,7 @@
                   "properties": {
                     "error": {
                       "type": "string",
-                      "description": "At least two participants are required to create a chat"
+                      "description": "Missing chat type or participants id"
                     }
                   },
                   "required": ["error"]
@@ -6130,69 +6084,6 @@
               }
             }
           },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Internal server error"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "api/dm/chat/new-message": {
-      "post": {
-        "summary": "Add a message to a chat",
-        "tags": ["Chats"],
-        "requestBody": {
-          "required": true,
-          "description": "Message data along with chatId(if exists) and recipient IDs",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/newMessageInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Message added successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Message"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request - Invalid input data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Message content is required or missing chatId or recipientId"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
           "404": {
             "description": "Chat not found",
             "content": {
@@ -6223,69 +6114,6 @@
                     }
                   },
                   "required": ["error"]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "api/dm/chat/unseen-chats": {
-      "get": {
-        "summary": "Get unseen chats count for a user",
-        "tags": ["Chats"],
-        "responses": {
-          "200": {
-            "description": "Unseen chats count retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "unseenChatsCount": {
-                      "type": "number",
-                      "description": "The count of unseen chats for the user"
-                    }
-                  },
-                  "required": ["unseenChatsCount"]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request - User ID is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "User ID is required"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Internal server error"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
                 }
               }
             }
