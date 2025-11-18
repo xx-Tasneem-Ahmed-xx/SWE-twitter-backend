@@ -970,9 +970,9 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
  *     summary: Change user password
  *     description: >
  *       Allows an authenticated user to change their account password after validating the old one.
-       The system checks password strength, prevents reuse of old passwords, updates the stored hash
-       with a new salt, increments `tokenVersion` to invalidate previous tokens, and logs password
-       history for security. A security notification email is then sent to the account owner.
+ *      The system checks password strength, prevents reuse of old passwords, updates the stored hash
+ *      with a new salt, increments `tokenVersion` to invalidate previous tokens, and logs password
+ *      history for security. A security notification email is then sent to the account owner.
  *
  *       This endpoint requires a valid Bearer token.
  *
