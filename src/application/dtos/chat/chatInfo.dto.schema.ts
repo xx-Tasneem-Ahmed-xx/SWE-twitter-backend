@@ -62,7 +62,8 @@ export const ChatInfoSchema = z.object({
   updatedAt: z.string().datetime(),
   messages: z.array(MessageSchema),
   chatUsers: z.array(ChatUserRelationSchema),
-  chatGroup: ChatGroupSchema.nullable()
+  chatGroup: ChatGroupSchema.nullable(),
+  unseenMessagesCount: z.number().optional()
 }).openapi("ChatInfo");
 
 export const CreateChatInput = z.object({

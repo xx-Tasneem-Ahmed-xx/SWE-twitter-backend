@@ -1,13 +1,11 @@
 import { Router } from "express";
-import { getChatInfo, getUserChats, getUnseenMessagesCount, updateMessageStatus, createChat, updateChatGroup, addMessageToChat, getUnseenChatsCount, deleteChat, getChatMessages, getUnseenMessagesCountOfUser} from "../controllers/messagesController";
+import { getChatInfo, getUserChats, getUnseenMessagesCount, createChat, updateChatGroup, deleteChat, getChatMessages, getUnseenMessagesCountOfUser} from "../controllers/messagesController";
 const router = Router();
 
 
 router.get("/chat/user", getUserChats)
 router.post("/chat/create-chat", createChat)
-router.get("/chat/unseen-chats", getUnseenChatsCount)
 router.get("/chat/all-unseen-messages-count", getUnseenMessagesCountOfUser)
-router.post("/chat/new-message", addMessageToChat)
 router.get("/chat/:chatId/messages", getChatMessages)
 router.patch("/chat/:chatId/group", updateChatGroup)
 router.get("/chat/:chatId/unseen-messages-count", getUnseenMessagesCount)
