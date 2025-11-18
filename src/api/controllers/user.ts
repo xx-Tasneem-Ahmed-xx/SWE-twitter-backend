@@ -735,6 +735,7 @@ If this wasn't you, secure your account immediately!
       domain: CLIENT_DOMAIN,
     });
 
+    
     return utils.SendRes(res, {
         user: {
         id: user.id,
