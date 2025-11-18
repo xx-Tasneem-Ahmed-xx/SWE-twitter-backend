@@ -678,17 +678,25 @@ export async function ResetPassword(req: Request, res: Response, next: NextFunct
 
     const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
     const location = await utils.Sendlocation(ip as string);
+const readableLocation = typeof location === "object"
+  ? JSON.stringify(location, null, 2)
+  : location;
 
-    const emailMessage = `Hello ${user.username},
+const readableDevice = typeof deviceRecord === "object"
+  ? JSON.stringify(deviceRecord, null, 2)
+  : deviceRecord || "unknown";
+
+const emailMessage = `Hello ${user.username},
 
 🔐 Your password was just changed!
 
-📍 Location: ${location}
-💻 Device info: ${deviceRecord || "unknown"}
+📍 Location: ${readableLocation}
+💻 Device info: ${readableDevice}
 🕒 Time: ${new Date().toLocaleString()}
 
 If this wasn't you, secure your account immediately!
 — Artemisa Team`;
+
 
     utils.SendEmailSmtp(res, email, emailMessage).catch(() => {
       throw new AppError("Failed to send password change notification", 500);
