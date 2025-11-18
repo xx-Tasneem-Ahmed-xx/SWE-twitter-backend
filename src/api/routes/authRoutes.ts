@@ -1217,7 +1217,7 @@ router.post("/verify-new-email",Auth(),  typedAuthController.VerifyNewEmail); //
  *       401:
  *         description: Unauthorized or token missing.
  */
-router.get("/user", Auth(),  typedAuthController.GetUser); //tested
+router.get("/user", Auth(),Reauth(),  typedAuthController.GetUser); //tested
 /**
  * @swagger
  * /sessions:
