@@ -91,27 +91,6 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: "get",
-    path: "/api/followers/requests",
-    summary: "Get a list of follow requests",
-    tags: ["User Interactions"],
-    request: {
-      query: UserInteractionQuerySchema,
-    },
-    responses: {
-      200: {
-        description: "List of follow requests retrieved successfully",
-        content: {
-          "application/json": {
-            schema: FollowsListResponseSchema,
-          },
-        },
-      },
-      500: { description: "Internal server error" },
-    },
-  });
-
-  registry.registerPath({
-    method: "get",
     path: "/api/followings/{username}",
     summary: "Get a list of followings for a user by their username",
     tags: ["User Interactions"],
