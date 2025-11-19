@@ -1,67 +1,4 @@
-// import { PrismaClient } from "@prisma/client";
-// const prisma = new PrismaClient();
-
-// async function seed() {
-//   try {
-//     await prisma.user.deleteMany();
-
-//     const users = await prisma.user.createMany({
-//       data: [
-//         {
-//           name: "Alice Johnson",
-//           username: "alice",
-//           email: "alice@example.com",
-//           password: "hashed_password_1",
-//           saltPassword: "random_salt_1",
-//           dateOfBirth: new Date("1995-06-15"),
-//         },
-//         {
-//           name: "Bob Smith",
-//           username: "bob",
-//           email: "bob@example.com",
-//           password: "hashed_password_2",
-//           saltPassword: "random_salt_2",
-//           dateOfBirth: new Date("1993-03-20"),
-//         },
-//         {
-//           name: "Charlie Adams",
-//           username: "charlie",
-//           email: "charlie@example.com",
-//           password: "hashed_password_3",
-//           saltPassword: "random_salt_3",
-//           dateOfBirth: new Date("1990-12-02"),
-//         },
-//         {
-//           name: "David Lee",
-//           username: "david",
-//           email: "david@example.com",
-//           password: "hashed_password_4",
-//           saltPassword: "random_salt_4",
-//           dateOfBirth: new Date("1998-08-10"),
-//         },
-//         {
-//           name: "Eve Carter",
-//           username: "eve",
-//           email: "eve@example.com",
-//           password: "hashed_password_5",
-//           saltPassword: "random_salt_5",
-//           dateOfBirth: new Date("1997-09-25"),
-//         },
-//       ],
-//     });
-
-//     console.log(`✅ Seeded ${users.count} users successfully!`);
-//   } catch (error) {
-//     console.error("❌ Seeding failed:", error);
-//     process.exit(1);
-//   } finally {
-//     await prisma.$disconnect();
-//   }
-// }
-
-// seed();
-
-//====================================================================//
+// prisma/seed-for-you.ts
 import {
   PrismaClient,
   MediaType,
@@ -72,15 +9,13 @@ import {
   OSType,
   ReplyControl,
 } from "@prisma/client";
-
 const prisma = new PrismaClient();
 
 async function main() {
   const { faker } = await import("@faker-js/faker");
 
-  console.log("Clearing existing data...");
-
-  // Order matters — delete child tables first, then parents
+  console.log("Clearing DB (careful!)");
+  // delete in right order
   await prisma.notification.deleteMany();
   await prisma.tweetBookmark.deleteMany();
   await prisma.tweetLike.deleteMany();
@@ -107,276 +42,163 @@ async function main() {
   await prisma.media.deleteMany();
   await prisma.user.deleteMany();
 
-  console.log("Seeding fresh data...");
-
-  // ====== USERS (5) ======
+  // USERS
   const users = [];
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 0; i < 50; i++) {
     const u = await prisma.user.create({
       data: {
-        id: faker.string.uuid(),
-        username: `test_user${i}`,
-        email: `test_user${i}@example.com`,
-        password: `hashedPassword${i}`,
-        saltPassword: `salt${i}`,
+        username: `user${i}`,
+        email: `user${i}@example.com`,
+        password: `hashed-${i}`,
+        saltPassword: `salt-${i}`,
         name: faker.person.fullName(),
         bio: faker.lorem.sentence(),
-        verified: i % 2 === 0,
-        protectedAccount: false,
-        dateOfBirth: faker.date.birthdate({ min: 18, max: 40, mode: "age" }),
+        verified: i % 10 === 0,
+        dateOfBirth: faker.date.birthdate({ min: 18, max: 45, mode: "age" }),
       },
     });
     users.push(u);
   }
 
-  // ====== MEDIA (5) ======
-  const medias = [];
-  for (let i = 1; i <= 5; i++) {
+  // MEDIA (some profiles)
+  const media = [];
+  for (let i = 0; i < 20; i++) {
     const m = await prisma.media.create({
       data: {
-        name: `photo${i}.jpg`,
-        keyName: `https://example.com/photo${i}.jpg`,
+        name: `img${i}.jpg`,
+        keyName: `https://example.com/img${i}.jpg`,
         type: MediaType.IMAGE,
-        size: faker.number.int({ min: 500, max: 5000 }),
+        size: 1024 + i,
       },
     });
-    medias.push(m);
+    media.push(m);
+  }
+  // attach some profile media
+  for (let i = 0; i < users.length && i < media.length; i++) {
+    await prisma.user.update({
+      where: { id: users[i].id },
+      data: { profileMediaId: media[i].id },
+    });
   }
 
-  // ====== PROFILE + COVER IMAGES ======
-  await prisma.user.update({
-    where: { id: users[0].id },
-    data: { profileMediaId: medias[0].id, coverMediaId: medias[1].id },
-  });
-  await prisma.user.update({
-    where: { id: users[1].id },
-    data: { profileMediaId: medias[2].id },
-  });
-  await prisma.user.update({
-    where: { id: users[2].id },
-    data: { coverMediaId: medias[3].id },
-  });
+  // HASHES (topics)
+  const topics = [
+    "sports",
+    "news",
+    "entertainment",
+    "tech",
+    "music",
+    "politics",
+  ];
+  const hashRows = [];
+  for (const t of topics) {
+    const h = await prisma.hash.create({ data: { tag_text: t } });
+    hashRows.push(h);
+  }
 
-  // ====== TWEETS ======
+  // TWEETS: create 500 tweets across topics and times
   const tweets = [];
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 0; i < 500; i++) {
+    const user = users[i % users.length];
+    const topic = topics[i % topics.length];
+    // random createdAt in last 7 days
+    const createdAt = faker.date.recent({ days: 7 });
     const t = await prisma.tweet.create({
       data: {
-        userId: users[(i - 1) % users.length].id,
-        content: faker.lorem.sentences(1),
+        userId: user.id,
+        content: `${faker.lorem.sentence()} #${topic}`,
+        createdAt,
+        lastActivityAt: createdAt,
         tweetType: TweetType.TWEET,
         replyControl: ReplyControl.EVERYONE,
+        likesCount: faker.number.int({ min: 0, max: 200 }),
+        retweetCount: faker.number.int({ min: 0, max: 100 }),
+        repliesCount: faker.number.int({ min: 0, max: 50 }),
       },
     });
-    tweets.push(t);
+    tweets.push({ ...t, topic });
+    // attach topic hashtag to tweet
+    const tag = hashRows[topics.indexOf(topic)];
+    await prisma.tweetHash.create({ data: { tweetId: t.id, hashId: tag.id } });
   }
 
-  // ====== TWEET SUMMARY ======
-  for (let i = 0; i < 5; i++) {
-    await prisma.tweetSummary.create({
-      data: { tweetId: tweets[i].id, summary: faker.lorem.sentence() },
-    });
-  }
-
-  // ====== HASH + TWEETHASH ======
-  const hashes = [];
-  for (let i = 1; i <= 5; i++) {
-    const h = await prisma.hash.create({
-      data: { tag_text: `tag${i}` },
-    });
-    hashes.push(h);
-  }
-  for (let i = 0; i < 5; i++) {
-    await prisma.tweetHash.create({
-      data: { tweetId: tweets[i].id, hashId: hashes[i].id },
-    });
-  }
-
-  // ====== TWEET MEDIA ======
-  for (let i = 0; i < 5; i++) {
-    await prisma.tweetMedia.create({
-      data: { tweetId: tweets[i].id, mediaId: medias[i].id },
-    });
-  }
-
-  // ====== MENTIONS ======
-  for (let i = 0; i < 5; i++) {
-    await prisma.mention.create({
-      data: {
-        tweetId: tweets[i].id,
-        mentionerId: users[i].id,
-        mentionedId: users[(i + 1) % users.length].id,
-      },
-    });
-  }
-
-  // ====== FOLLOW / MUTE / BLOCK ======
-  for (let i = 0; i < 5; i++) {
-    await prisma.follow.create({
-      data: {
-        followerId: users[i].id,
-        followingId: users[(i + 1) % users.length].id,
-        status: i % 2 === 0 ? FollowStatus.ACCEPTED : FollowStatus.PENDING,
-      },
-    });
-
-    await prisma.mute.create({
-      data: { muterId: users[i].id, mutedId: users[(i + 2) % users.length].id },
-    });
-
-    await prisma.block.create({
-      data: {
-        blockerId: users[i].id,
-        blockedId: users[(i + 3) % users.length].id,
-      },
-    });
-  } // ====== CHATS + CHAT GROUPS ======
-  const chats = [];
-  for (let i = 1; i <= 5; i++) {
-    const c = await prisma.chat.create({
-      data: { DMChat: i % 2 === 0 },
-    });
-    chats.push(c);
-
-    if (!c.DMChat) {
-      await prisma.chatGroup.create({
-        data: {
-          chatId: c.id,
-          name: `Group ${i}`,
-          description: `Chat group ${i}`,
-          photoId: medias[i - 1].id,
-        },
-      });
+  // FOLLOW GRAPH: provide a relatively dense graph (each user follows 6-12 others)
+  for (const u of users) {
+    const followCount = faker.number.int({ min: 6, max: 12 });
+    const shuffled = faker.helpers.shuffle(users.map((x) => x.id));
+    let added = 0;
+    for (const targetId of shuffled) {
+      if (targetId === u.id) continue;
+      try {
+        await prisma.follow.create({
+          data: {
+            followerId: u.id,
+            followingId: targetId,
+            status: FollowStatus.ACCEPTED,
+          },
+        });
+        added++;
+      } catch {
+        // ignore duplicates
+      }
+      if (added >= followCount) break;
     }
   }
 
-  // ====== CHAT USERS ======
-  for (let i = 0; i < 5; i++) {
-    await prisma.chatUser.create({
-      data: { userId: users[i].id, chatId: chats[i].id },
-    });
-    if (chats[i].DMChat === true) {
-      await prisma.chatUser.create({
-        data: { userId: users[(i + 1) % users.length].id, chatId: chats[i].id },
-      });
+  // ENGAGEMENTS: likes & retweets skew to create trending tweets
+  // Make some tweets viral by adding many likes/retweets
+  const viralTweetCount = 10;
+  for (let i = 0; i < viralTweetCount; i++) {
+    const t = tweets[faker.number.int({ min: 0, max: tweets.length - 1 })];
+    // add 50-200 likes
+    for (let j = 0; j < faker.number.int({ min: 50, max: 200 }); j++) {
+      const uid = users[faker.number.int({ min: 0, max: users.length - 1 })].id;
+      try {
+        await prisma.tweetLike.create({ data: { userId: uid, tweetId: t.id } });
+      } catch {}
+    }
+    // add retweets
+    for (let j = 0; j < faker.number.int({ min: 20, max: 120 }); j++) {
+      const uid = users[faker.number.int({ min: 0, max: users.length - 1 })].id;
+      try {
+        await prisma.retweet.create({ data: { userId: uid, tweetId: t.id } });
+      } catch {}
     }
   }
 
-  // ====== MESSAGES + MESSAGE MEDIA ======
-  const messages = [];
-  for (let i = 0; i < 5; i++) {
-    const m = await prisma.message.create({
-      data: {
-        chatId: chats[i].id,
-        userId: users[i].id,
-        content: faker.lorem.sentence(),
-        status: MessageStatus.SENT,
-      },
-    });
-    messages.push(m);
-
-    await prisma.messageMedia.create({
-      data: { messageId: m.id, mediaId: medias[i].id },
-    });
+  // For every user, create some likes on tweets that match a topic they often post
+  for (const u of users) {
+    // pick 2 favorite topics
+    const favs = faker.helpers.arrayElements(topics, 2);
+    // pick 20 tweets matching those topics and like them
+    const candidates = tweets.filter((t) => favs.includes(t.topic));
+    const sample = faker.helpers.arrayElements(candidates, 20);
+    for (const t of sample) {
+      try {
+        await prisma.tweetLike.create({
+          data: { userId: u.id, tweetId: t.id },
+        });
+      } catch {}
+    }
   }
 
-  // ====== RETWEETS / LIKES / BOOKMARKS ======
-  for (let i = 0; i < 5; i++) {
-    await prisma.retweet.create({
-      data: {
-        userId: users[i].id,
-        tweetId: tweets[(i + 1) % tweets.length].id,
-      },
-    });
-
-    await prisma.tweetLike.create({
-      data: {
-        userId: users[i].id,
-        tweetId: tweets[(i + 2) % tweets.length].id,
-      },
-    });
-
-    await prisma.tweetBookmark.create({
-      data: { userId: users[i].id, tweetId: tweets[i].id },
-    });
-  }
-
-  // ====== NOTIFICATIONS ======
-  for (let i = 0; i < 5; i++) {
-    await prisma.notification.create({
-      data: {
-        title: NotificationTitle.LIKE,
-        body: faker.lorem.sentence(),
-        isRead: false,
-        userId: users[i].id,
-        tweetId: tweets[i].id,
-        actorId: users[(i + 1) % users.length].id,
-      },
-    });
-  }
-
-  // ====== SESSIONS ======
-  for (let i = 0; i < 5; i++) {
-    await prisma.session.create({
-      data: {
-        jti: `sess-${faker.string.uuid()}`,
-        userId: users[i].id,
-        isActive: true,
-        expire_at: faker.date.soon({ days: 30 }),
-      },
-    });
-  }
-
-  // ====== DEVICE RECORDS ======
-  for (let i = 0; i < 5; i++) {
-    await prisma.deviceRecord.create({
-      data: {
-        userId: users[i].id,
-        city: faker.location.city(),
-        region: faker.location.state(),
-        country: faker.location.country(),
-        locale: "en-US",
-        lastLogin: faker.date.recent(),
-        browser: faker.internet.userAgent(),
-      },
-    });
-  }
-
-  // ====== OLD PASSWORDS ======
-  for (let i = 0; i < 5; i++) {
-    await prisma.oldPassword.create({
-      data: { userId: users[i].id, password: `oldHashedPassword${i + 1}` },
-    });
-  }
-
-  // ====== OAUTH ACCOUNTS ======
-  for (let i = 0; i < 5; i++) {
-    await prisma.oAuthAccount.create({
-      data: {
-        provider: i % 2 === 0 ? "google" : "facebook",
-        providerId: `prov-${i + 1}`,
-        userId: users[i].id,
-      },
-    });
-  }
-
-  // ====== FCM TOKENS ======
-  for (let i = 0; i < 5; i++) {
+  // Create some notifications and FCM tokens
+  for (const u of users.slice(0, 10)) {
     await prisma.fcmToken.create({
       data: {
         token: `fcm-${faker.string.uuid()}`,
         osType: OSType.WEB,
-        userId: users[i].id,
+        userId: u.id,
       },
     });
   }
 
-  console.log("Seeding complete!");
+  console.log("Seeding complete.");
 }
 
 main()
   .catch((e) => {
-    console.error("Seeding failed:", e);
+    console.error(e);
     process.exit(1);
   })
   .finally(async () => {

@@ -1,9 +1,15 @@
 import { Router } from "express";
-import { TimelineController } from "@/api/controllers/timeline";
+import TimelineController from "@/api/controllers/timeline";
 
 const router = Router();
-const timelineController = new TimelineController();
 
-router.route("/timeline").get(timelineController.getTimeline);
+router.get(
+  "/timeline",
+  TimelineController.getTimeline.bind(TimelineController)
+);
+router.get(
+  "/for-you",
+  TimelineController.getForYou.bind(TimelineController)
+);
 
 export default router;
