@@ -10,5 +10,6 @@ router.post("/add-media-to-message", addMediaToMessage)
 router.get("/message-media/:messageId", getMessageMedia)
 router.post("/add-media-to-tweet", addMediaTotweet)
 router.get("/tweet-media/:tweetId", getTweetMedia)
+//router.delete("/delete-media/:keyName", dropMedia)
 
 export default router;
