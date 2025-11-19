@@ -39,7 +39,7 @@ pipeline {
                     dir('frontend') {
                         checkout([
                             $class: 'GitSCM',
-                            branches: [[name: '*/main']],
+                            branches: [[name: '*/prod']],
                             userRemoteConfigs: [[
                                 url: 'https://github.com/CUFE-Software-Engineering-Project/SWE-twitter-Frontend.git',  
                                 credentialsId: "${GIT_CREDENTIALS}"
