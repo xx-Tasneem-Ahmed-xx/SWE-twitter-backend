@@ -680,9 +680,7 @@ router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
  *     tags:
  *       - Auth
  *     summary: Reset user password
- *     description: Allows a user to reset their password after verifying the reset code. Requires email and new password.
- *     security:
- *       - bearerAuth: []   # assuming Auth() middleware uses Bearer token
+ *     description: Allows a user to reset their password after verifying the reset code. No login required.
  *     requestBody:
  *       required: true
  *       content:
@@ -692,15 +690,23 @@ router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
  *             required:
  *               - email
  *               - password
+ *               - resetCode
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
- *                 description: The email of the user whose password is being reset.
+ *                 description: The user's email
+ *                 example: "user@example.com"
  *               password:
  *                 type: string
  *                 format: password
- *                 description: The new password to set for the user.
+ *                 description: The new password
+ *                 example: "NewStrongPass@2025"
+ *               resetCode:
+ *                 type: string
+ *                 description: Code sent to user's email for password reset
+ *                 example: "123456"
+ *
  *     responses:
  *       200:
  *         description: Password reset successfully, notification sent
@@ -712,31 +718,73 @@ router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
  *                 message:
  *                   type: string
  *                   example: "Password reset successfully, notification sent"
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     dateOfBirth:
+ *                       type: string
+ *                     isEmailVerified:
+ *                       type: boolean
+ *                 refreshtoken:
+ *                   type: string
+ *                   description: JWT refresh token
+ *                 accesstoken:
+ *                   type: string
+ *                   description: JWT access token
+ *
  *       400:
  *         description: Validation error or missing fields
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Email, password, and reset code are required"
+ *
  *       401:
  *         description: Invalid reset code or unauthorized
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid or expired reset code"
+ *
  *       404:
  *         description: User not found
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "User not found"
+ *
  *       500:
  *         description: Internal server error (email sending / DB update failed)
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error"
  */
+
 router.post("/reset-password",  typedAuthController.ResetPassword);
 
 // --- Session & Logout Routes ---
@@ -964,15 +1012,22 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
 // --- Sensitive Change Routes (Require Auth & Reauth) ---
 
 /**
- * @swagger
+ * @openapi
  * /change-password:
  *   post:
  *     summary: Change user password
- *     description: Allows an authenticated user to change their password after verifying the old one. Invalidates old tokens by incrementing token version.
+ *     description: >
+ *       Allows an authenticated user to change their account password after validating the old one.
+ *       The system checks password strength, prevents reuse of old passwords, updates the stored hash
+ *       with a new salt, increments `tokenVersion` to invalidate previous tokens, and logs password
+ *       history for security. A security notification email is then sent to the account owner.
+ *       This endpoint requires a valid Bearer token.
+ *
  *     tags:
  *       - Account
  *     security:
  *       - bearerAuth: []
+ *
  *     requestBody:
  *       required: true
  *       content:
@@ -993,29 +1048,63 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
  *               confirmPassword:
  *                 type: string
  *                 example: "NewStrongPass@2025"
+ *
  *     responses:
  *       200:
- *         description: Password updated successfully.
+ *         description: Password updated successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 Message:
+ *                 message:
  *                   type: string
- *                   example: Password updated successfully
- *                 Score:
+ *                   example: "Password updated successfully"
+ *                 score:
  *                   type: object
- *                   description: Password strength analysis
+ *                   description: Password strength analysis result
+ *                   properties:
+ *                     score:
+ *                       type: integer
+ *                       example: 3
+ *                     crack_times_display:
+ *                       type: object
+ *                       example:
+ *                         offline_fast_hashing_1e10_per_second: "centuries"
+ *                         online_no_throttling_10_per_second: "months"
+ *                     feedback:
+ *                       type: object
+ *                       properties:
+ *                         warning:
+ *                           type: string
+ *                           example: "Repeats like 'aaa' are easy to guess"
+ *                         suggestions:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                           example:
+ *                             - "Use a longer password"
+ *                             - "Add more unpredictable words"
+ *
  *       400:
- *         description: Invalid password or validation failed.
+ *         description: Validation failed (missing fields, weak password, confirmation mismatch, etc.)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Confirm password does not match the new password"
+ *
  *       401:
- *         description: Incorrect old password or reauthentication required.
+ *         description: Old password incorrect or reauthentication required.
  *       404:
  *         description: User not found.
  *       500:
- *         description: Internal server error.
+ *         description: Internal server error while updating password or sending notification email.
  */
+
 router.post("/change-password", Auth(), typedAuthController.ChangePassword); //tested
 
 /**
@@ -1116,19 +1205,77 @@ router.post("/verify-new-email",Auth(),  typedAuthController.VerifyNewEmail); //
  * @swagger
  * /user:
  *   get:
- *     summary: Get current user information
- *     description: Retrieves information about the authenticated user.
- *     tags:
- *       - User
+ *     summary: Get authenticated user info including device history
+ *     description: Returns user profile data and previously logged device information.
+ *     tags: [User]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: User info retrieved successfully.
+ *         description: User information with device records
+ *         content:
+ *           application/json:
+ *             example:
+ *               user:
+ *                 id: "uuid"
+ *                 username: "master_hossam"
+ *                 name: "Hossam"
+ *                 email: "test@example.com"
+ *                 dateOfBirth: "2003-10-02"
+ *                 isEmailVerified: true
+ *                 bio: "Backend engineer"
+ *                 protectedAcc: false
+ *               DeviceRecords:
+ *                 - id: "device-id"
+ *                   ip: "102.xx.xx.1"
+ *                   agent: "Firefox on Ubuntu"
+ *                   location: "Cairo, Egypt"
+ *                   updatedAt: "2025-11-18T14:22:10Z"
+ *               message: "User info returned with device history"
  *       401:
- *         description: Unauthorized or token missing.
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
  */
+
 router.get("/user", Auth(),  typedAuthController.GetUser); //tested
+/**
+ * @swagger
+ * /userinfo:
+ *   get:
+ *     summary: Get authenticated user info (Reauthentication required)
+ *     description: Same response as `/user` but requires an additional reauthentication step for extra security on sensitive account screens.
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully returned user info and device history
+ *         content:
+ *           application/json:
+ *             example:
+ *               user:
+ *                 id: "uuid"
+ *                 username: "master_hossam"
+ *                 name: "Hossam"
+ *                 email: "user@example.com"
+ *                 dateOfBirth: "2003-10-02"
+ *                 isEmailVerified: true
+ *                 bio: "Backend engineer"
+ *                 protectedAcc: false
+ *               DeviceRecords:
+ *                 - id: "device-id"
+ *                   ip: "102.xx.xx.1"
+ *                   agent: "Firefox on Ubuntu Linux"
+ *                   location: "Cairo, Egypt"
+ *                   updatedAt: "2025-11-18T14:22:10Z"
+ *               message: "User info returned with device history"
+ *       401:
+ *         description: Unauthorized or reauthentication required
+ *       404:
+ *         description: User not found
+ */
+router.get("/userinfo",Auth(),Reauth(),typedAuthController.GetUser); //tested
 /**
  * @swagger
  * /sessions:
@@ -1204,7 +1351,7 @@ router.delete("/session/:sessionid", Auth(),  typedAuthController.LogoutSession)
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Username updated successfully ✅
+ *                   example: Username updated successfully 
  *                 user:
  *                   type: object
  *                   properties:

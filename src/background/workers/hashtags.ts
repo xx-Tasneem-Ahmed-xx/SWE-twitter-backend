@@ -4,7 +4,8 @@ import { attachHashtagsToTweet } from "@/application/services/hashtags";
 import { prisma } from "@/prisma/client";
 import type { HashtagJobData } from "@/background/types/jobs";
 
-const worker = new Worker<HashtagJobData>(
+// Hashtag extraction worker
+const hashtagWorker = new Worker<HashtagJobData>(
   "hashtags",
   async (job) => {
     const { tweetId, content } = job.data;
@@ -20,14 +21,14 @@ const worker = new Worker<HashtagJobData>(
   }
 );
 
-worker.on("completed", (job) => {
+hashtagWorker.on("completed", (job) => {
   console.log(
     `[hashtags.worker] completed job ${job.id} tweetId=${job.data.tweetId}`
   );
 });
-worker.on("failed", (job, err) => {
+hashtagWorker.on("failed", (job, err) => {
   console.error(`[hashtags.worker] failed job ${job?.id}`, err);
 });
-worker.on("error", (err) => {
+hashtagWorker.on("error", (err) => {
   console.error("[hashtags.worker] worker error", err);
 });

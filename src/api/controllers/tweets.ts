@@ -1,4 +1,7 @@
-import { CursorServiceSchema } from "@/application/dtos/tweets/service/tweets.dto.schema";
+import {
+  InteractionsCursorServiceSchema,
+  TweetCursorServiceSchema,
+} from "@/application/dtos/tweets/service/tweets.dto.schema";
 import { SearchDTOSchema } from "@/application/dtos/tweets/tweet.dto.schema";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { Request, Response, NextFunction } from "express";
@@ -65,8 +68,9 @@ export class TweetController {
 
   async getTweet(req: Request, res: Response, next: NextFunction) {
     try {
+      const userId = (req as any).user.id;
       const { id } = req.params;
-      const tweet = await tweetService.getTweet(id);
+      const tweet = await tweetService.getTweet(id, userId);
       res.status(200).json(tweet);
     } catch (error) {
       next(error);
@@ -85,8 +89,21 @@ export class TweetController {
 
   async getRetweets(req: Request, res: Response, next: NextFunction) {
     try {
+      const userId = (req as any).user.id;
       const { id } = req.params;
-      const retweets = await tweetService.getRetweets(id);
+      const query = req.query;
+
+      const decodedCursor = encoderService.decode<{
+        userId: string;
+        createdAt: string;
+      }>(query.cursor as string);
+
+      const parsedDTO = InteractionsCursorServiceSchema.parse({
+        userId,
+        limit: query.limit,
+        cursor: decodedCursor ?? undefined,
+      });
+      const retweets = await tweetService.getRetweets(id, parsedDTO);
       res.status(200).json(retweets);
     } catch (error) {
       next(error);
@@ -159,7 +176,19 @@ export class TweetController {
   async getLikedTweets(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as any).user.id;
-      const tweets = await tweetService.getLikedTweets(userId);
+      const query = req.query;
+
+      const decodedCursor = encoderService.decode<{
+        createdAt: string;
+        userId: string;
+      }>(query.cursor as string);
+
+      const parsedDTO = InteractionsCursorServiceSchema.parse({
+        userId,
+        limit: query.limit,
+        cursor: decodedCursor ?? undefined,
+      });
+      const tweets = await tweetService.getLikedTweets(parsedDTO);
       res.status(200).json(tweets);
     } catch (error) {
       next(error);
@@ -187,7 +216,7 @@ export class TweetController {
         id: string;
       }>(query.cursor as string);
 
-      const parsedDTO = CursorServiceSchema.parse({
+      const parsedDTO = TweetCursorServiceSchema.parse({
         userId,
         limit: query.limit,
         cursor: decodedCursor ?? undefined,
@@ -211,7 +240,7 @@ export class TweetController {
         id: string;
       }>(query.cursor as string);
 
-      const parsedDTO = CursorServiceSchema.parse({
+      const parsedDTO = TweetCursorServiceSchema.parse({
         userId,
         limit: query.limit,
         cursor: decodedCursor ?? undefined,
