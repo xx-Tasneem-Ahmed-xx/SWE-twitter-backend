@@ -4237,9 +4237,126 @@
                       }
                     }
                   },
-                  "required": [
-                    "notifications"
-                  ]
+                  "required": ["notifications"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Unauthorized"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal Server Error"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mark-as-read/{NotificationId}": {
+      "patch": {
+        "summary": "Update a notification status to read",
+        "tags": ["Notifications"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "ID of the notification to update"
+            },
+            "required": true,
+            "description": "ID of the notification to update",
+            "name": "NotificationId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Bearer token for authentication"
+            },
+            "required": true,
+            "description": "Bearer token for authentication",
+            "name": "Authorization",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string",
+                      "enum": [
+                        "LIKE",
+                        "RETWEET",
+                        "REPLY",
+                        "QUOTE",
+                        "FOLLOW",
+                        "RequestToFollow",
+                        "AcceptedFollow",
+                        "MENTION"
+                      ]
+                    },
+                    "body": {
+                      "type": "string",
+                      "maxLength": 280
+                    },
+                    "isRead": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date",
+                      "default": "2025-11-18T14:57:47.489Z"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "tweetId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "actorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "required": ["id", "title", "body", "userId"]
                 }
               }
             }
@@ -7665,8 +7782,7 @@
                 "type": "object",
                 "required": [
                   "email",
-                  "password",
-                  "resetCode"
+                  "password"
                 ],
                 "properties": {
                   "email": {
@@ -8274,8 +8390,8 @@
     },
     "/user": {
       "get": {
-        "summary": "Get current user information",
-        "description": "Retrieves information about the authenticated user.",
+        "summary": "Get authenticated user info including device history",
+        "description": "Returns user profile data and previously logged device information.",
         "tags": [
           "User"
         ],
@@ -8286,10 +8402,90 @@
         ],
         "responses": {
           "200": {
-            "description": "User info retrieved successfully."
+            "description": "User information with device records",
+            "content": {
+              "application/json": {
+                "example": {
+                  "user": {
+                    "id": "uuid",
+                    "username": "master_hossam",
+                    "name": "Hossam",
+                    "email": "test@example.com",
+                    "dateOfBirth": "2003-10-02",
+                    "isEmailVerified": true,
+                    "bio": "Backend engineer",
+                    "protectedAcc": false
+                  },
+                  "DeviceRecords": [
+                    {
+                      "id": "device-id",
+                      "ip": "102.xx.xx.1",
+                      "agent": "Firefox on Ubuntu",
+                      "location": "Cairo, Egypt",
+                      "updatedAt": "2025-11-18T14:22:10Z"
+                    }
+                  ],
+                  "message": "User info returned with device history"
+                }
+              }
+            }
           },
           "401": {
-            "description": "Unauthorized or token missing."
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/userinfo": {
+      "get": {
+        "summary": "Get authenticated user info (Reauthentication required)",
+        "description": "Same response as `/user` but requires an additional reauthentication step for extra security on sensitive account screens.",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully returned user info and device history",
+            "content": {
+              "application/json": {
+                "example": {
+                  "user": {
+                    "id": "uuid",
+                    "username": "master_hossam",
+                    "name": "Hossam",
+                    "email": "user@example.com",
+                    "dateOfBirth": "2003-10-02",
+                    "isEmailVerified": true,
+                    "bio": "Backend engineer",
+                    "protectedAcc": false
+                  },
+                  "DeviceRecords": [
+                    {
+                      "id": "device-id",
+                      "ip": "102.xx.xx.1",
+                      "agent": "Firefox on Ubuntu Linux",
+                      "location": "Cairo, Egypt",
+                      "updatedAt": "2025-11-18T14:22:10Z"
+                    }
+                  ],
+                  "message": "User info returned with device history"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized or reauthentication required"
+          },
+          "404": {
+            "description": "User not found"
           }
         }
       }

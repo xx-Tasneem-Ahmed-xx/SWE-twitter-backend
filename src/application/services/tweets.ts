@@ -7,8 +7,9 @@ import {
   CreateReplyOrQuoteServiceDTO,
   CreateReTweetServiceDto,
   CreateTweetServiceDto,
-  CursorServiceDTO,
+  InteractionsCursorServiceDTO,
   SearchServiceDTO,
+  TweetCursorServiceDTO,
 } from "@/application/dtos/tweets/service/tweets.dto";
 import { AppError } from "@/errors/AppError";
 import { generateTweetSumamry } from "@/application/services/aiSummary";
@@ -59,6 +60,18 @@ class TweetService {
         });
       }
     }
+  }
+
+  private async checkUserInteractions(tweets: any[]) {
+    return tweets.map((t) => {
+      const { tweetLikes, retweets, tweetBookmark, ...tweet } = t;
+      return {
+        ...tweet,
+        isLiked: tweetLikes.length > 0,
+        isRetweeted: retweets.length > 0,
+        isBookmarked: tweetBookmark.length > 0,
+      };
+    });
   }
 
   async createTweet(dto: CreateTweetServiceDto) {
@@ -142,33 +155,62 @@ class TweetService {
     ]);
   }
 
-  async getRetweets(tweetId: string) {
+  //TODO: update docs
+  async getRetweets(tweetId: string, dto: InteractionsCursorServiceDTO) {
     this.validateId(tweetId);
-    return prisma.retweet.findMany({
+    const retweeters = await prisma.retweet.findMany({
       where: { tweetId },
       select: {
         user: {
           select: this.userSelectFields(),
         },
+        createdAt: true,
+        userId: true,
       },
+      orderBy: [{ createdAt: "desc" }, { userId: "desc" }],
+      take: dto.limit + 1,
+      ...(dto.cursor && {
+        cursor: {
+          userId_createdAt: {
+            userId: dto.cursor.userId,
+            createdAt: dto.cursor.createdAt,
+          },
+        },
+        skip: 1,
+      }),
     });
+
+    const hasNextPage = retweeters.length > dto.limit;
+    const paginatedRetweets = hasNextPage
+      ? retweeters.slice(0, -1)
+      : retweeters;
+
+    const lastReTweet = paginatedRetweets[paginatedRetweets.length - 1];
+    const cursor = lastReTweet
+      ? { userId: lastReTweet.user.id, createdAt: lastReTweet.createdAt }
+      : null;
+
+    return {
+      data: paginatedRetweets,
+      nextCursor: hasNextPage ? encoderService.encode(cursor) : null,
+    };
   }
 
-  async getTweet(id: string) {
+  async getTweet(id: string, userId: string) {
     this.validateId(id);
     return prisma.tweet.findUnique({
       where: { id },
-      include: {
-        user: {
-          select: this.userSelectFields(),
-        },
-      },
+      select: this.tweetSelectFields(userId),
     });
   }
 
   async updateTweet(id: string, content: string) {
     this.validateId(id);
-    return prisma.tweet.update({ where: { id }, data: { content } });
+    return prisma.tweet.update({
+      where: { id },
+      data: { content },
+      select: { id: true },
+    });
   }
 
   async deleteTweet(id: string) {
@@ -230,19 +272,48 @@ class TweetService {
     ]);
   }
 
-  async getLikedTweets(userId: string) {
-    return prisma.tweetLike.findMany({
-      where: { userId },
+  async getLikedTweets(dto: InteractionsCursorServiceDTO) {
+    const tweetLikes = await prisma.tweetLike.findMany({
+      where: { userId: dto.userId },
       select: {
         tweet: {
-          include: {
-            user: {
-              select: this.userSelectFields(),
-            },
+          select: {
+            ...this.tweetSelectFields(dto.userId),
           },
         },
+        createdAt: true,
+        userId: true,
       },
+      orderBy: [{ createdAt: "desc" }, { userId: "desc" }],
+      take: dto.limit + 1,
+      ...(dto.cursor && {
+        cursor: {
+          userId_createdAt: {
+            userId: dto.userId,
+            createdAt: dto.cursor.createdAt,
+          },
+        },
+        skip: 1,
+      }),
     });
+
+    const hasNextPage = tweetLikes.length > dto.limit;
+    const sliced = hasNextPage ? tweetLikes.slice(0, -1) : tweetLikes;
+
+    const rawTweets = sliced.map((t) => t.tweet);
+    const tweets = await this.checkUserInteractions(rawTweets);
+
+    const lastLike = sliced[sliced.length - 1];
+    const cursor = lastLike
+      ? {
+          userId: dto.userId,
+          createdAt: lastLike.createdAt,
+        }
+      : null;
+    return {
+      data: tweets,
+      nextCursor: hasNextPage ? encoderService.encode(cursor) : null,
+    };
   }
 
   async getTweetReplies(tweetId: string) {
@@ -339,12 +410,11 @@ class TweetService {
     };
   }
 
-  async getUserTweets(dto: CursorServiceDTO) {
+  async getUserTweets(dto: TweetCursorServiceDTO) {
     const tweets = await prisma.tweet.findMany({
       where: { userId: dto.userId },
       select: {
-        ...this.tweetSelectFields(),
-        retweets: { select: { user: { select: this.userSelectFields() } } },
+        ...this.tweetSelectFields(dto.userId),
       },
       orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
@@ -354,25 +424,25 @@ class TweetService {
     const hasNextPage = tweets.length > dto.limit;
     const paginatedTweets = hasNextPage ? tweets.slice(0, -1) : tweets;
     const cursor = {
-      id: paginatedTweets[paginatedTweets.length - 1].id,
+      id: paginatedTweets[paginatedTweets.length - 1]?.id,
       lastActivityAt:
-        paginatedTweets[paginatedTweets.length - 1].lastActivityAt,
+        paginatedTweets[paginatedTweets.length - 1]?.lastActivityAt,
     };
-    const hashedCursor = encoderService.encode(cursor);
+    const data = await this.checkUserInteractions(paginatedTweets);
     return {
-      data: paginatedTweets,
-      nextCursor: hasNextPage ? hashedCursor : null,
+      data,
+      nextCursor: hasNextPage ? encoderService.encode(cursor) : null,
     };
   }
 
-  async getMentionedTweets(dto: CursorServiceDTO) {
+  async getMentionedTweets(dto: TweetCursorServiceDTO) {
     const tweets = await prisma.tweet.findMany({
       where: {
         mention: {
           some: { mentionedId: dto.userId },
         },
       },
-      select: this.tweetSelectFields(),
+      select: this.tweetSelectFields(dto.userId),
       orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
       ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
@@ -381,9 +451,9 @@ class TweetService {
     const hasNextPage = tweets.length > dto.limit;
     const paginatedTweets = hasNextPage ? tweets.slice(0, -1) : tweets;
     const cursor = {
-      id: paginatedTweets[paginatedTweets.length - 1].id,
+      id: paginatedTweets[paginatedTweets.length - 1]?.id,
       lastActivityAt:
-        paginatedTweets[paginatedTweets.length - 1].lastActivityAt,
+        paginatedTweets[paginatedTweets.length - 1]?.lastActivityAt,
     };
     const hashedCursor = encoderService.encode(cursor);
     return {
@@ -401,7 +471,7 @@ class TweetService {
       parsedDTO.peopleFilter
     );
 
-    const selectFields = this.tweetSelectFields();
+    const selectFields = this.tweetSelectFields(dto.userId);
 
     const searchParams = {
       where: wherePrismaFilter,
@@ -487,7 +557,7 @@ class TweetService {
     };
   }
 
-  private tweetSelectFields() {
+  private tweetSelectFields(userId: string) {
     return {
       id: true,
       content: true,
@@ -500,8 +570,21 @@ class TweetService {
       replyControl: true,
       tweetType: true,
       parentId: true,
+      userId: true,
       user: {
         select: this.userSelectFields(),
+      },
+      tweetLikes: {
+        where: { userId },
+        select: { userId: true },
+      },
+      retweets: {
+        where: { userId },
+        select: { userId: true },
+      },
+      tweetBookmark: {
+        where: { userId },
+        select: { userId: true },
       },
     };
   }
