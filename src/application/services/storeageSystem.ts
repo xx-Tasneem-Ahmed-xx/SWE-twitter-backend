@@ -2,8 +2,7 @@ import prisma from "@/database";
 import { AppError } from "@/errors/AppError";
 import {S3Client, HeadObjectCommand, HeadObjectCommandOutput, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { error } from "console";
-
+import { getKey } from "./secrets";
 interface FileDetail {
     keyName: string; 
     fileType: string; 
@@ -30,7 +29,7 @@ class StorageSystem {
     expirationInSeconds: number = 300
     ): Promise<string> {
         const command = new PutObjectCommand({
-            Bucket: process.env.AWS_S3_BUCKET,
+            Bucket: await getKey("AWS_S3_BUCKET"),
             Key: keyName,
             ContentType: contentType
         });
@@ -40,7 +39,7 @@ class StorageSystem {
 
     public async getS3ObjectMetadata(keyName: string): Promise<HeadObjectCommandOutput | null> {
         const command = new HeadObjectCommand({
-            Bucket: process.env.AWS_S3_BUCKET,
+            Bucket: await getKey("AWS_S3_BUCKET"),
             Key: keyName,
         });
 
@@ -65,7 +64,7 @@ class StorageSystem {
             throw new AppError("media not found on s3", 404);
         }
         const command = new GetObjectCommand({
-            Bucket: process.env.AWS_S3_BUCKET,
+            Bucket: await getKey("AWS_S3_BUCKET"),
             Key: keyName,
         });
         return getSignedUrl(this.s3Client, command, { expiresIn: expirationInSeconds });
@@ -80,7 +79,7 @@ class StorageSystem {
     const uploadedFiles: SignedUploadDetail[] = [];
     for (const detail of fileDetails) {
       const command = new PutObjectCommand({
-        Bucket: process.env.PROCESS_AWS_S3_BUCKET,
+        Bucket: await getKey("AWS_S3_BUCKET"),
         Key: detail.keyName,
         ContentType: detail.fileType,
       });
@@ -96,7 +95,7 @@ class StorageSystem {
 
   public async dropS3Media(keyName: string): Promise<any> {
   const params = {
-    Bucket: process.env.AWS_S3_BUCKET,
+    Bucket: await getKey("AWS_S3_BUCKET"),
     Key: keyName, 
   };
 
