@@ -81,11 +81,7 @@ class TweetService {
 
     await this.saveMentionedUsers(tweet.id, tweet.content, tweet.userId);
 
-    try {
-      await enqueueHashtagJob({ tweetId: tweet.id, content: tweet.content });
-    } catch (err) {
-      console.log("Failed to enqueue hashtag job for tweet");
-    }
+    enqueueHashtagJob({ tweetId: tweet.id, content: tweet.content });
     return tweet;
   }
 
@@ -106,11 +102,8 @@ class TweetService {
 
     await this.saveMentionedUsers(quote.id, quote.content, quote.userId);
 
-    try {
-      await enqueueHashtagJob({ tweetId: quote.id, content: quote.content });
-    } catch (err) {
-      console.log("Failed to enqueue hashtag job for quote");
-    }
+    enqueueHashtagJob({ tweetId: quote.id, content: quote.content });
+
     return quote;
   }
 
@@ -131,11 +124,7 @@ class TweetService {
 
     await this.saveMentionedUsers(reply.id, reply.content, reply.userId);
 
-    try {
-      await enqueueHashtagJob({ tweetId: reply.id, content: reply.content });
-    } catch (err) {
-      console.log("Failed to enqueue hashtag job for reply");
-    }
+    enqueueHashtagJob({ tweetId: reply.id, content: reply.content });
     return reply;
   }
 
