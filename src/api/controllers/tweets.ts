@@ -6,7 +6,7 @@ import { SearchDTOSchema } from "@/application/dtos/tweets/tweet.dto.schema";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { Request, Response, NextFunction } from "express";
 import tweetService from "@/application/services/tweets";
-import encoderService from "@/application/services/encoder";
+import { encoderService } from "@/application/services/encoder";
 
 export class TweetController {
   async createTweet(req: Request, res: Response, next: NextFunction) {

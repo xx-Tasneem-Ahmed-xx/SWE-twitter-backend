@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { HashtagTweetsQuerySchema } from "@/application/dtos/trends/trend.dto.schema";
 import { fetchTrends, fetchHashtagTweets } from "@/application/services/hashtags";
-import encoderService from "@/application/services/encoder";
+import {encoderService} from "@/application/services/encoder";
 
 export const getTrends = async (
   req: Request,

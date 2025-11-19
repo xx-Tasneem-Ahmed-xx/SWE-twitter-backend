@@ -19,7 +19,7 @@ import {
   SearchTab,
 } from "@/application/dtos/tweets/tweet.dto.schema";
 import { SearchParams } from "@/types/types";
-import encoderService from "@/application/services/encoder";
+import { encoderService } from "@/application/services/encoder";
 import { enqueueHashtagJob } from "@/background/jobs/hashtags";
 
 class TweetService {
@@ -28,7 +28,6 @@ class TweetService {
       throw new AppError("Invalid ID", 400);
     }
   }
-
   private async saveMentionedUsers(
     tweetId: string,
     content: string,
