@@ -3,8 +3,6 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 
-
-
 //import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import fetch, { Response as FetchResponse } from "node-fetch";
@@ -12,6 +10,7 @@ import zxcvbn from "zxcvbn";
 import { redisClient } from "@/config/redis";
 import { Request, Response } from "express";
 import { AppError } from "@/errors/AppError";
+import { getKey } from "@/application/services/secrets";
 
 const uuidv4 = async () => {
   const { v4 } = await import("uuid");
@@ -278,11 +277,10 @@ export async function HashPassword(
 export async function CheckPass(
   password: string,
   hashed: string,
-  salt:string
-
+  salt: string
 ): Promise<boolean> {
   try {
-    return await bcrypt.compare(password + PEPPER+salt, hashed);
+    return await bcrypt.compare(password + PEPPER + salt, hashed);
   } catch {
     return false;
   }

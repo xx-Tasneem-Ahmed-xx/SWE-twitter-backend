@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/prisma/client";
 import { AppError } from "@/errors/AppError";
 import { redisClient } from "@/config/redis";
-import encoderService from "@/application/services/encoder";
+import {encoderService} from "@/application/services/encoder";
 
 // Trends configuration constants
 const TRENDS_CACHE_KEY = "trends:global";
