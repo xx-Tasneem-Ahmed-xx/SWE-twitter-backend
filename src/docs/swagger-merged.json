@@ -35,10 +35,17 @@
           },
           "replyControl": {
             "type": "string",
-            "enum": ["EVERYONE", "FOLLOWINGS", "VERIFIED", "MENTIONED"]
+            "enum": [
+              "EVERYONE",
+              "FOLLOWINGS",
+              "VERIFIED",
+              "MENTIONED"
+            ]
           }
         },
-        "required": ["content"]
+        "required": [
+          "content"
+        ]
       },
       "UserInteractionsListResponse": {
         "type": "object",
@@ -117,7 +124,11 @@
             "description": "True if more data is available; false if this is the last page."
           }
         },
-        "required": ["users", "nextCursor", "hasMore"]
+        "required": [
+          "users",
+          "nextCursor",
+          "hasMore"
+        ]
       },
       "ChatUser": {
         "type": "object",
@@ -138,7 +149,12 @@
             "nullable": true
           }
         },
-        "required": ["id", "username", "name", "profilePhoto"]
+        "required": [
+          "id",
+          "username",
+          "name",
+          "profilePhoto"
+        ]
       },
       "Media": {
         "type": "object",
@@ -156,14 +172,24 @@
           },
           "type": {
             "type": "string",
-            "enum": ["IMAGE", "VIDEO", "GIF"]
+            "enum": [
+              "IMAGE",
+              "VIDEO",
+              "GIF"
+            ]
           },
           "size": {
             "type": "number",
             "nullable": true
           }
         },
-        "required": ["id", "name", "url", "type", "size"]
+        "required": [
+          "id",
+          "name",
+          "url",
+          "type",
+          "size"
+        ]
       },
       "MessageMedia": {
         "type": "object",
@@ -180,7 +206,11 @@
             "$ref": "#/components/schemas/Media"
           }
         },
-        "required": ["messageId", "mediaId", "media"]
+        "required": [
+          "messageId",
+          "mediaId",
+          "media"
+        ]
       },
       "Message": {
         "type": "object",
@@ -206,7 +236,11 @@
           },
           "status": {
             "type": "string",
-            "enum": ["PENDING", "SENT", "READ"]
+            "enum": [
+              "PENDING",
+              "SENT",
+              "READ"
+            ]
           },
           "user": {
             "$ref": "#/components/schemas/ChatUser"
@@ -248,7 +282,12 @@
             "$ref": "#/components/schemas/ChatUser"
           }
         },
-        "required": ["id", "chatId", "userId", "user"]
+        "required": [
+          "id",
+          "chatId",
+          "userId",
+          "user"
+        ]
       },
       "ChatGroup": {
         "type": "object",
@@ -266,7 +305,11 @@
             "nullable": true
           }
         },
-        "required": ["name", "photo", "description"]
+        "required": [
+          "name",
+          "photo",
+          "description"
+        ]
       },
       "ChatInfo": {
         "type": "object",
@@ -300,6 +343,9 @@
           },
           "chatGroup": {
             "$ref": "#/components/schemas/ChatGroup"
+          },
+          "unseenMessagesCount": {
+            "type": "number"
           }
         },
         "required": [
@@ -320,7 +366,9 @@
             "description": "Chat ID is required"
           }
         },
-        "required": ["error"]
+        "required": [
+          "error"
+        ]
       },
       "CreateChatInput": {
         "type": "object",
@@ -336,7 +384,9 @@
             }
           }
         },
-        "required": ["participant_ids"]
+        "required": [
+          "participant_ids"
+        ]
       },
       "UpdateChatGroupInput": {
         "type": "object",
@@ -363,7 +413,9 @@
     "/api/tweets": {
       "post": {
         "summary": "Create a tweet",
-        "tags": ["Tweets"],
+        "tags": [
+          "Tweets"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -402,7 +454,9 @@
     "/api/tweets/{id}/retweets": {
       "post": {
         "summary": "Retweet a tweet",
-        "tags": ["Tweets"],
+        "tags": [
+          "Tweets"
+        ],
         "parameters": [
           {
             "schema": {
@@ -424,7 +478,9 @@
       },
       "delete": {
         "summary": "Delete a retweet",
-        "tags": ["Tweets"],
+        "tags": [
+          "Tweets"
+        ],
         "parameters": [
           {
             "schema": {
@@ -446,7 +502,9 @@
       },
       "get": {
         "summary": "Get tweet retweets",
-        "tags": ["Tweets"],
+        "tags": [
+          "Tweets"
+        ],
         "parameters": [
           {
             "schema": {
@@ -492,12 +550,11 @@
                               "id": {
                                 "type": "string",
                                 "format": "uuid"
-                              },
-                              "keyName": {
-                                "type": "string"
                               }
                             },
-                            "required": ["id", "keyName"]
+                            "required": [
+                              "id"
+                            ]
                           },
                           "verified": {
                             "type": "boolean"
@@ -517,7 +574,9 @@
                       }
                     }
                   },
-                  "required": ["users"]
+                  "required": [
+                    "users"
+                  ]
                 }
               }
             }
@@ -546,7 +605,9 @@
     "/api/tweets/{id}/replies": {
       "post": {
         "summary": "Reply to a tweet",
-        "tags": ["Tweets"],
+        "tags": [
+          "Tweets"
+        ],
         "parameters": [
           {
             "schema": {
@@ -596,7 +657,9 @@
       },
       "get": {
         "summary": "Get tweet replies",
-        "tags": ["Tweets"],
+        "tags": [
+          "Tweets"
+        ],
         "parameters": [
           {
             "schema": {
@@ -660,7 +723,11 @@
                       },
                       "tweetType": {
                         "type": "string",
-                        "enum": ["TWEET", "REPLY", "QUOTE"]
+                        "enum": [
+                          "TWEET",
+                          "REPLY",
+                          "QUOTE"
+                        ]
                       },
                       "user": {
                         "type": "object",
@@ -684,12 +751,11 @@
                               "id": {
                                 "type": "string",
                                 "format": "uuid"
-                              },
-                              "keyName": {
-                                "type": "string"
                               }
                             },
-                            "required": ["id", "keyName"]
+                            "required": [
+                              "id"
+                            ]
                           },
                           "verified": {
                             "type": "boolean"
@@ -749,7 +815,9 @@
     "/api/tweets/{id}/quotes": {
       "post": {
         "summary": "Quote a tweet",
-        "tags": ["Tweets"],
+        "tags": [
+          "Tweets"
+        ],
         "parameters": [
           {
             "schema": {
@@ -799,7 +867,9 @@
       },
       "get": {
         "summary": "Get tweet quotes",
-        "tags": ["Tweets"],
+        "tags": [
+          "Tweets"
+        ],
         "parameters": [
           {
             "schema": {
@@ -863,7 +933,11 @@
                       },
                       "tweetType": {
                         "type": "string",
-                        "enum": ["TWEET", "REPLY", "QUOTE"]
+                        "enum": [
+                          "TWEET",
+                          "REPLY",
+                          "QUOTE"
+                        ]
                       },
                       "user": {
                         "type": "object",
@@ -887,12 +961,11 @@
                               "id": {
                                 "type": "string",
                                 "format": "uuid"
-                              },
-                              "keyName": {
-                                "type": "string"
                               }
                             },
-                            "required": ["id", "keyName"]
+                            "required": [
+                              "id"
+                            ]
                           },
                           "verified": {
                             "type": "boolean"
@@ -934,7 +1007,9 @@
     "/api/tweets/{id}": {
       "get": {
         "summary": "Get tweet details",
-        "tags": ["Tweets"],
+        "tags": [
+          "Tweets"
+        ],
         "parameters": [
           {
             "schema": {
@@ -996,7 +1071,11 @@
                     },
                     "tweetType": {
                       "type": "string",
-                      "enum": ["TWEET", "REPLY", "QUOTE"]
+                      "enum": [
+                        "TWEET",
+                        "REPLY",
+                        "QUOTE"
+                      ]
                     },
                     "user": {
                       "type": "object",
@@ -1020,12 +1099,11 @@
                             "id": {
                               "type": "string",
                               "format": "uuid"
-                            },
-                            "keyName": {
-                              "type": "string"
                             }
                           },
-                          "required": ["id", "keyName"]
+                          "required": [
+                            "id"
+                          ]
                         },
                         "verified": {
                           "type": "boolean"
@@ -1083,7 +1161,9 @@
       "patch": {
         "summary": "Update a tweet",
         "description": "Updates a tweet if the user is its author.",
-        "tags": ["Tweets"],
+        "tags": [
+          "Tweets"
+        ],
         "parameters": [
           {
             "schema": {
@@ -1109,7 +1189,9 @@
                     "minLength": 1
                   }
                 },
-                "required": ["content"]
+                "required": [
+                  "content"
+                ]
               }
             }
           }
@@ -1141,7 +1223,9 @@
       "delete": {
         "summary": "Delete a tweet",
         "description": "Deletes a tweet if the user is its author.",
-        "tags": ["Tweets"],
+        "tags": [
+          "Tweets"
+        ],
         "parameters": [
           {
             "schema": {
@@ -1183,7 +1267,9 @@
     "/api/tweets/users/{username}/mentioned": {
       "get": {
         "summary": "Get tweets that the user is mentioned in",
-        "tags": ["Tweets Interactions"],
+        "tags": [
+          "Tweets Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -1197,6 +1283,27 @@
             "description": "Username",
             "name": "username",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The cursor for pagination"
+            },
+            "required": false,
+            "description": "The cursor for pagination",
+            "name": "cursor",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1249,7 +1356,11 @@
                       },
                       "tweetType": {
                         "type": "string",
-                        "enum": ["TWEET", "REPLY", "QUOTE"]
+                        "enum": [
+                          "TWEET",
+                          "REPLY",
+                          "QUOTE"
+                        ]
                       },
                       "user": {
                         "type": "object",
@@ -1273,12 +1384,11 @@
                               "id": {
                                 "type": "string",
                                 "format": "uuid"
-                              },
-                              "keyName": {
-                                "type": "string"
                               }
                             },
-                            "required": ["id", "keyName"]
+                            "required": [
+                              "id"
+                            ]
                           },
                           "verified": {
                             "type": "boolean"
@@ -1339,7 +1449,9 @@
       "post": {
         "summary": "Like a tweet",
         "description": "Likes a tweet on behalf of the current user.",
-        "tags": ["Tweets Interactions"],
+        "tags": [
+          "Tweets Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -1380,7 +1492,9 @@
       "delete": {
         "summary": "Unlike a tweet",
         "description": "Removes a like from the tweet.",
-        "tags": ["Tweets Interactions"],
+        "tags": [
+          "Tweets Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -1420,7 +1534,9 @@
       },
       "get": {
         "summary": "Get tweet likes",
-        "tags": ["Tweets Interactions"],
+        "tags": [
+          "Tweets Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -1466,12 +1582,11 @@
                               "id": {
                                 "type": "string",
                                 "format": "uuid"
-                              },
-                              "keyName": {
-                                "type": "string"
                               }
                             },
-                            "required": ["id", "keyName"]
+                            "required": [
+                              "id"
+                            ]
                           },
                           "verified": {
                             "type": "boolean"
@@ -1491,7 +1606,9 @@
                       }
                     }
                   },
-                  "required": ["users"]
+                  "required": [
+                    "users"
+                  ]
                 }
               }
             }
@@ -1520,7 +1637,9 @@
     "/api/tweets/likedtweets": {
       "get": {
         "summary": "Get tweets liked by the user",
-        "tags": ["Tweets Interactions"],
+        "tags": [
+          "Tweets Interactions"
+        ],
         "responses": {
           "200": {
             "description": "Liked tweets fetched successfully",
@@ -1571,7 +1690,11 @@
                       },
                       "tweetType": {
                         "type": "string",
-                        "enum": ["TWEET", "REPLY", "QUOTE"]
+                        "enum": [
+                          "TWEET",
+                          "REPLY",
+                          "QUOTE"
+                        ]
                       },
                       "user": {
                         "type": "object",
@@ -1595,12 +1718,11 @@
                               "id": {
                                 "type": "string",
                                 "format": "uuid"
-                              },
-                              "keyName": {
-                                "type": "string"
                               }
                             },
-                            "required": ["id", "keyName"]
+                            "required": [
+                              "id"
+                            ]
                           },
                           "verified": {
                             "type": "boolean"
@@ -1661,7 +1783,9 @@
       "post": {
         "summary": "Bookmark a tweet",
         "description": "Adds a tweet to the user’s bookmarks.",
-        "tags": ["Tweets Interactions"],
+        "tags": [
+          "Tweets Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -1702,7 +1826,9 @@
       "delete": {
         "summary": "Remove bookmark",
         "description": "Removes the tweet from user’s bookmarks.",
-        "tags": ["Tweets Interactions"],
+        "tags": [
+          "Tweets Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -1745,7 +1871,9 @@
       "get": {
         "summary": "Get tweet summary",
         "description": "Returns an AI-generated summary of a tweet.",
-        "tags": ["Tweets Interactions"],
+        "tags": [
+          "Tweets Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -1780,7 +1908,11 @@
                       "minLength": 1
                     }
                   },
-                  "required": ["id", "tweetId", "summary"]
+                  "required": [
+                    "id",
+                    "tweetId",
+                    "summary"
+                  ]
                 }
               }
             }
@@ -1810,7 +1942,9 @@
       "get": {
         "summary": "Search for tweets",
         "description": "Search tweets by content, hashtag, or users.",
-        "tags": ["Tweets"],
+        "tags": [
+          "Tweets"
+        ],
         "parameters": [
           {
             "schema": {
@@ -1824,7 +1958,10 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["ANYONE", "FOLLOWINGS"],
+              "enum": [
+                "ANYONE",
+                "FOLLOWINGS"
+              ],
               "default": "ANYONE"
             },
             "required": false,
@@ -1834,7 +1971,12 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["TOP", "LATEST", "PEOPLE", "MEDIA"],
+              "enum": [
+                "TOP",
+                "LATEST",
+                "PEOPLE",
+                "MEDIA"
+              ],
               "default": "TOP"
             },
             "required": false,
@@ -1929,7 +2071,11 @@
                     },
                     "tweetType": {
                       "type": "string",
-                      "enum": ["TWEET", "REPLY", "QUOTE"]
+                      "enum": [
+                        "TWEET",
+                        "REPLY",
+                        "QUOTE"
+                      ]
                     },
                     "user": {
                       "type": "object",
@@ -1953,12 +2099,11 @@
                             "id": {
                               "type": "string",
                               "format": "uuid"
-                            },
-                            "keyName": {
-                              "type": "string"
                             }
                           },
-                          "required": ["id", "keyName"]
+                          "required": [
+                            "id"
+                          ]
                         },
                         "verified": {
                           "type": "boolean"
@@ -2000,7 +2145,9 @@
       "get": {
         "summary": "Get user's tweets",
         "description": "Returns all tweets authored by the specified user.",
-        "tags": ["Tweets"],
+        "tags": [
+          "Tweets"
+        ],
         "parameters": [
           {
             "schema": {
@@ -2087,7 +2234,11 @@
                       },
                       "tweetType": {
                         "type": "string",
-                        "enum": ["TWEET", "REPLY", "QUOTE"]
+                        "enum": [
+                          "TWEET",
+                          "REPLY",
+                          "QUOTE"
+                        ]
                       },
                       "user": {
                         "type": "object",
@@ -2111,12 +2262,11 @@
                               "id": {
                                 "type": "string",
                                 "format": "uuid"
-                              },
-                              "keyName": {
-                                "type": "string"
                               }
                             },
-                            "required": ["id", "keyName"]
+                            "required": [
+                              "id"
+                            ]
                           },
                           "verified": {
                             "type": "boolean"
@@ -2177,12 +2327,18 @@
       "get": {
         "summary": "Get tweets or trends by category",
         "description": "Fetch public tweets or trending content filtered by category (sports, news, or entertainment).",
-        "tags": ["Timeline and Explore"],
+        "tags": [
+          "Timeline and Explore"
+        ],
         "parameters": [
           {
             "schema": {
               "type": "string",
-              "enum": ["sports", "news", "entertainment"],
+              "enum": [
+                "sports",
+                "news",
+                "entertainment"
+              ],
               "description": "Tweet or Trend category"
             },
             "required": true,
@@ -2270,7 +2426,11 @@
                             },
                             "tweetType": {
                               "type": "string",
-                              "enum": ["TWEET", "REPLY", "QUOTE"]
+                              "enum": [
+                                "TWEET",
+                                "REPLY",
+                                "QUOTE"
+                              ]
                             },
                             "user": {
                               "type": "object",
@@ -2294,12 +2454,11 @@
                                     "id": {
                                       "type": "string",
                                       "format": "uuid"
-                                    },
-                                    "keyName": {
-                                      "type": "string"
                                     }
                                   },
-                                  "required": ["id", "keyName"]
+                                  "required": [
+                                    "id"
+                                  ]
                                 },
                                 "verified": {
                                   "type": "boolean"
@@ -2344,12 +2503,11 @@
                                           "id": {
                                             "type": "string",
                                             "format": "uuid"
-                                          },
-                                          "keyName": {
-                                            "type": "string"
                                           }
                                         },
-                                        "required": ["id", "keyName"]
+                                        "required": [
+                                          "id"
+                                        ]
                                       },
                                       "verified": {
                                         "type": "boolean"
@@ -2369,7 +2527,9 @@
                                   }
                                 }
                               },
-                              "required": ["users"]
+                              "required": [
+                                "users"
+                              ]
                             }
                           },
                           "required": [
@@ -2389,7 +2549,10 @@
                       }
                     }
                   },
-                  "required": ["category", "tweets"]
+                  "required": [
+                    "category",
+                    "tweets"
+                  ]
                 }
               }
             }
@@ -2419,7 +2582,9 @@
       "get": {
         "summary": "Get personalized recommended tweets",
         "description": "Fetch tweets recommended to the user based on interests, engagement history, and trending content. Requires authentication.",
-        "tags": ["Timeline and Explore"],
+        "tags": [
+          "Timeline and Explore"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -2505,7 +2670,11 @@
                           },
                           "tweetType": {
                             "type": "string",
-                            "enum": ["TWEET", "REPLY", "QUOTE"]
+                            "enum": [
+                              "TWEET",
+                              "REPLY",
+                              "QUOTE"
+                            ]
                           },
                           "user": {
                             "type": "object",
@@ -2529,12 +2698,11 @@
                                   "id": {
                                     "type": "string",
                                     "format": "uuid"
-                                  },
-                                  "keyName": {
-                                    "type": "string"
                                   }
                                 },
-                                "required": ["id", "keyName"]
+                                "required": [
+                                  "id"
+                                ]
                               },
                               "verified": {
                                 "type": "boolean"
@@ -2579,12 +2747,11 @@
                                         "id": {
                                           "type": "string",
                                           "format": "uuid"
-                                        },
-                                        "keyName": {
-                                          "type": "string"
                                         }
                                       },
-                                      "required": ["id", "keyName"]
+                                      "required": [
+                                        "id"
+                                      ]
                                     },
                                     "verified": {
                                       "type": "boolean"
@@ -2604,7 +2771,9 @@
                                 }
                               }
                             },
-                            "required": ["users"]
+                            "required": [
+                              "users"
+                            ]
                           }
                         },
                         "required": [
@@ -2623,7 +2792,10 @@
                       }
                     }
                   },
-                  "required": ["user", "recommendations"]
+                  "required": [
+                    "user",
+                    "recommendations"
+                  ]
                 }
               }
             }
@@ -2653,7 +2825,9 @@
       "get": {
         "summary": "Get timeline tweets",
         "description": "Fetches tweets from users the current user follows.",
-        "tags": ["Timeline and Explore"],
+        "tags": [
+          "Timeline and Explore"
+        ],
         "parameters": [
           {
             "schema": {
@@ -2730,7 +2904,11 @@
                           },
                           "tweetType": {
                             "type": "string",
-                            "enum": ["TWEET", "REPLY", "QUOTE"]
+                            "enum": [
+                              "TWEET",
+                              "REPLY",
+                              "QUOTE"
+                            ]
                           },
                           "user": {
                             "type": "object",
@@ -2754,12 +2932,11 @@
                                   "id": {
                                     "type": "string",
                                     "format": "uuid"
-                                  },
-                                  "keyName": {
-                                    "type": "string"
                                   }
                                 },
-                                "required": ["id", "keyName"]
+                                "required": [
+                                  "id"
+                                ]
                               },
                               "verified": {
                                 "type": "boolean"
@@ -2804,12 +2981,11 @@
                                         "id": {
                                           "type": "string",
                                           "format": "uuid"
-                                        },
-                                        "keyName": {
-                                          "type": "string"
                                         }
                                       },
-                                      "required": ["id", "keyName"]
+                                      "required": [
+                                        "id"
+                                      ]
                                     },
                                     "verified": {
                                       "type": "boolean"
@@ -2829,7 +3005,9 @@
                                 }
                               }
                             },
-                            "required": ["users"]
+                            "required": [
+                              "users"
+                            ]
                           }
                         },
                         "required": [
@@ -2853,7 +3031,10 @@
                       "description": "Cursor for next page"
                     }
                   },
-                  "required": ["data", "nextCursor"]
+                  "required": [
+                    "data",
+                    "nextCursor"
+                  ]
                 }
               }
             }
@@ -2882,7 +3063,9 @@
     "/api/followers/{username}": {
       "post": {
         "summary": "/Follow a user or send a follow request",
-        "tags": ["User Interactions"],
+        "tags": [
+          "User Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -2919,7 +3102,9 @@
       },
       "delete": {
         "summary": "Unfollow a user or cancel a pending follow request",
-        "tags": ["User Interactions"],
+        "tags": [
+          "User Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -2953,7 +3138,9 @@
       },
       "get": {
         "summary": "Get a list of followers for a user by their username",
-        "tags": ["User Interactions"],
+        "tags": [
+          "User Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3018,7 +3205,9 @@
     "/api/followings/{username}": {
       "patch": {
         "summary": "Accept a follow request",
-        "tags": ["User Interactions"],
+        "tags": [
+          "User Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3049,7 +3238,9 @@
       },
       "delete": {
         "summary": "Decline a follow request or remove a follower",
-        "tags": ["User Interactions"],
+        "tags": [
+          "User Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3080,7 +3271,9 @@
       },
       "get": {
         "summary": "Get a list of followings for a user by their username",
-        "tags": ["User Interactions"],
+        "tags": [
+          "User Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3145,7 +3338,9 @@
     "/api/followers/requests": {
       "get": {
         "summary": "Get a list of follow requests",
-        "tags": ["User Interactions"],
+        "tags": [
+          "User Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3193,7 +3388,9 @@
     "/api/blocks/{username}": {
       "post": {
         "summary": "Block a user",
-        "tags": ["User Interactions"],
+        "tags": [
+          "User Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3224,7 +3421,9 @@
       },
       "delete": {
         "summary": "Unblock a user",
-        "tags": ["User Interactions"],
+        "tags": [
+          "User Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3257,7 +3456,9 @@
     "/api/blocks": {
       "get": {
         "summary": "Get a list of blocked users",
-        "tags": ["User Interactions"],
+        "tags": [
+          "User Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3305,7 +3506,9 @@
     "/api/mutes/{username}": {
       "post": {
         "summary": "Mute a user",
-        "tags": ["User Interactions"],
+        "tags": [
+          "User Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3339,7 +3542,9 @@
       },
       "delete": {
         "summary": "Unmute a user",
-        "tags": ["User Interactions"],
+        "tags": [
+          "User Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3372,7 +3577,9 @@
     "/api/mutes": {
       "get": {
         "summary": "Get a list of muted users",
-        "tags": ["User Interactions"],
+        "tags": [
+          "User Interactions"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3420,7 +3627,9 @@
     "/api/notifications": {
       "get": {
         "summary": "Get list of notifications for the authenticated user",
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3473,7 +3682,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-17T22:01:00.781Z"
+                        "default": "2025-11-19T11:39:04.816Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3488,267 +3697,13 @@
                         "format": "uuid"
                       }
                     },
-                    "required": ["id", "title", "body", "userId"]
-                  }
-                },
-                "required": [
-                  "title",
-                  "body"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Notification created successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "title": {
-                      "type": "string",
-                      "enum": [
-                        "LIKE",
-                        "RETWEET",
-                        "REPLY",
-                        "QUOTE",
-                        "FOLLOW",
-                        "RequestToFollow",
-                        "AcceptedFollow",
-                        "MENTION"
-                      ]
-                    },
-                    "body": {
-                      "type": "string",
-                      "maxLength": 280
-                    },
-                    "isRead": {
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date",
-                      "default": "2025-11-02T14:48:10.098Z"
-                    },
-                    "userId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "tweetId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "actorId": {
-                      "type": "string",
-                      "format": "uuid"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "title",
-                    "body",
-                    "userId"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid notification data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Invalid notification data"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Unauthorized"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Internal Server Error"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Create a new notification for a user",
-        "tags": [
-          "Notifications"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "Bearer token for authentication"
-            },
-            "required": true,
-            "description": "Bearer token for authentication",
-            "name": "Authorization",
-            "in": "header"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "title": {
-                    "type": "string",
-                    "enum": [
-                      "LIKE",
-                      "RETWEET",
-                      "REPLY",
-                      "QUOTE",
-                      "FOLLOW",
-                      "RequestToFollow",
-                      "AcceptedFollow",
-                      "MENTION"
+                    "required": [
+                      "id",
+                      "title",
+                      "body",
+                      "userId"
                     ]
-                  },
-                  "body": {
-                    "type": "string",
-                    "maxLength": 280
-                  },
-                  "tweetId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "actorId": {
-                    "type": "string",
-                    "format": "uuid"
                   }
-                },
-                "required": [
-                  "title",
-                  "body"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Notification created successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "title": {
-                      "type": "string",
-                      "enum": [
-                        "LIKE",
-                        "RETWEET",
-                        "REPLY",
-                        "QUOTE",
-                        "FOLLOW",
-                        "RequestToFollow",
-                        "AcceptedFollow",
-                        "MENTION"
-                      ]
-                    },
-                    "body": {
-                      "type": "string",
-                      "maxLength": 280
-                    },
-                    "isRead": {
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date",
-                      "default": "2025-11-17T16:54:39.732Z"
-                    },
-                    "userId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "tweetId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "actorId": {
-                      "type": "string",
-                      "format": "uuid"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "title",
-                    "body",
-                    "userId"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid notification data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Invalid notification data"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
                 }
               }
             }
@@ -3797,7 +3752,9 @@
     "/api/notifications/unseen/count": {
       "get": {
         "summary": "Get count of unseen notifications for the authenticated user",
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3823,7 +3780,9 @@
                       "description": "Count of unseen notifications"
                     }
                   },
-                  "required": ["unseenCount"]
+                  "required": [
+                    "unseenCount"
+                  ]
                 }
               }
             }
@@ -3840,7 +3799,9 @@
                       "description": "Unauthorized"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -3857,7 +3818,9 @@
                       "description": "Internal Server Error"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -3868,7 +3831,9 @@
     "/api/notifications/unseen": {
       "get": {
         "summary": "Get unseen notifications for the authenticated user",
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "parameters": [
           {
             "schema": {
@@ -3924,7 +3889,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-17T22:01:00.781Z"
+                            "default": "2025-11-19T11:39:04.816Z"
                           },
                           "userId": {
                             "type": "string",
@@ -3939,11 +3904,18 @@
                             "format": "uuid"
                           }
                         },
-                        "required": ["id", "title", "body", "userId"]
+                        "required": [
+                          "id",
+                          "title",
+                          "body",
+                          "userId"
+                        ]
                       }
                     }
                   },
-                  "required": ["notifications"]
+                  "required": [
+                    "notifications"
+                  ]
                 }
               }
             }
@@ -3960,7 +3932,9 @@
                       "description": "Unauthorized"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -3977,143 +3951,9 @@
                       "description": "Internal Server Error"
                     }
                   },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/mark-as-read/{NotificationId}": {
-      "patch": {
-        "summary": "Update a notification status to read",
-        "tags": ["Notifications"],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "ID of the notification to update"
-            },
-            "required": true,
-            "description": "ID of the notification to update",
-            "name": "NotificationId",
-            "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "description": "Bearer token for authentication"
-            },
-            "required": true,
-            "description": "Bearer token for authentication",
-            "name": "Authorization",
-            "in": "header"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Notification updated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "title": {
-                      "type": "string",
-                      "enum": [
-                        "LIKE",
-                        "RETWEET",
-                        "REPLY",
-                        "QUOTE",
-                        "FOLLOW",
-                        "RequestToFollow",
-                        "AcceptedFollow",
-                        "MENTION"
-                      ]
-                    },
-                    "body": {
-                      "type": "string",
-                      "maxLength": 280
-                    },
-                    "isRead": {
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date",
-                      "default": "2025-11-02T14:48:10.098Z"
-                    },
-                    "userId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "tweetId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "actorId": {
-                      "type": "string",
-                      "format": "uuid"
-                    }
-                  },
-                  "required": ["id", "title", "body", "userId"]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Unauthorized"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Notification not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Notification not found"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "description": "Internal Server Error"
-                    }
-                  },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -5234,7 +5074,9 @@
     "/api/hashtags/search": {
       "get": {
         "summary": "Search hashtags",
-        "tags": ["Hashtags"],
+        "tags": [
+          "Hashtags"
+        ],
         "parameters": [
           {
             "schema": {
@@ -5290,10 +5132,15 @@
                             "minLength": 1
                           }
                         },
-                        "required": ["id", "tag_text"]
+                        "required": [
+                          "id",
+                          "tag_text"
+                        ]
                       }
                     },
-                    "required": ["hash"]
+                    "required": [
+                      "hash"
+                    ]
                   }
                 }
               }
@@ -5324,7 +5171,9 @@
       "get": {
         "summary": "Get a list of available trends",
         "description": "Returns the currently trending hashtags or topics in the last 24 hours.",
-        "tags": ["Trends"],
+        "tags": [
+          "Trends"
+        ],
         "responses": {
           "200": {
             "description": "List of trending topics returned successfully.",
@@ -5347,10 +5196,15 @@
                             "minLength": 1
                           }
                         },
-                        "required": ["id", "tag_text"]
+                        "required": [
+                          "id",
+                          "tag_text"
+                        ]
                       }
                     },
-                    "required": ["hash"]
+                    "required": [
+                      "hash"
+                    ]
                   }
                 }
               }
@@ -5381,7 +5235,9 @@
       "get": {
         "summary": "Get tweets for a specific trend",
         "description": "Fetches all tweets related to the specified trending hashtag or keyword.",
-        "tags": ["Trends"],
+        "tags": [
+          "Trends"
+        ],
         "parameters": [
           {
             "schema": {
@@ -5444,7 +5300,11 @@
                       },
                       "tweetType": {
                         "type": "string",
-                        "enum": ["TWEET", "REPLY", "QUOTE"]
+                        "enum": [
+                          "TWEET",
+                          "REPLY",
+                          "QUOTE"
+                        ]
                       },
                       "user": {
                         "type": "object",
@@ -5468,12 +5328,11 @@
                               "id": {
                                 "type": "string",
                                 "format": "uuid"
-                              },
-                              "keyName": {
-                                "type": "string"
                               }
                             },
-                            "required": ["id", "keyName"]
+                            "required": [
+                              "id"
+                            ]
                           },
                           "verified": {
                             "type": "boolean"
@@ -5534,7 +5393,9 @@
       "get": {
         "summary": "Get chat information",
         "description": "Retrieve detailed information about a specific chat including messages, participants, and group details",
-        "tags": ["Chats"],
+        "tags": [
+          "Chats"
+        ],
         "parameters": [
           {
             "schema": {
@@ -5698,7 +5559,9 @@
       "get": {
         "summary": "Get chat messages",
         "description": "Retrieve messages from a specific chat",
-        "tags": ["Chats"],
+        "tags": [
+          "Chats"
+        ],
         "parameters": [
           {
             "schema": {
@@ -5816,7 +5679,9 @@
       "get": {
         "summary": "Retrieve all chats that a specific user is participating in",
         "description": "Fetch a list of all chats that a user is involved in, including both direct messages and group chats",
-        "tags": ["Chats"],
+        "tags": [
+          "Chats"
+        ],
         "responses": {
           "200": {
             "description": "List of chats retrieved successfully",
@@ -5881,7 +5746,9 @@
     "api/dm/chat/{chatId}/unseen-messages-count": {
       "get": {
         "summary": "get unseen messages count",
-        "tags": ["Chats"],
+        "tags": [
+          "Chats"
+        ],
         "parameters": [
           {
             "schema": {
@@ -5908,7 +5775,9 @@
                       "description": "Count of unseen messages"
                     }
                   },
-                  "required": ["unseenMessagesCount"]
+                  "required": [
+                    "unseenMessagesCount"
+                  ]
                 }
               }
             }
@@ -5925,7 +5794,9 @@
                       "description": "Chat ID is required"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -5942,7 +5813,9 @@
                       "description": "Internal server error"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -5953,7 +5826,9 @@
     "api/dm/chat/create-chat": {
       "post": {
         "summary": "Create a new chat",
-        "tags": ["Chats"],
+        "tags": [
+          "Chats"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5987,7 +5862,9 @@
                       "description": "Missing chat type or participants id"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6004,7 +5881,9 @@
                       "description": "User not found"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6021,7 +5900,9 @@
                       "description": "Internal server error"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6032,7 +5913,9 @@
     "api/dm/chat/{chatId}/group": {
       "put": {
         "summary": "Update group chat details",
-        "tags": ["Chats"],
+        "tags": [
+          "Chats"
+        ],
         "parameters": [
           {
             "schema": {
@@ -6079,7 +5962,9 @@
                       "description": "Chat ID is required"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6096,7 +5981,9 @@
                       "description": "invalid chatId"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6113,7 +6000,9 @@
                       "description": "Internal server error"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6172,7 +6061,9 @@
     "api/media/add-media-to-tweet": {
       "post": {
         "summary": "Add media to a tweet",
-        "tags": ["Media"],
+        "tags": [
+          "Media"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -6192,7 +6083,10 @@
                     "format": "uuid"
                   }
                 },
-                "required": ["mediaId", "tweetId"]
+                "required": [
+                  "mediaId",
+                  "tweetId"
+                ]
               }
             }
           }
@@ -6209,7 +6103,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["message"]
+                  "required": [
+                    "message"
+                  ]
                 }
               }
             }
@@ -6225,7 +6121,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6241,7 +6139,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6252,7 +6152,9 @@
     "api/media/add-media-to-message": {
       "post": {
         "summary": "Add media to a message",
-        "tags": ["Media"],
+        "tags": [
+          "Media"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -6269,7 +6171,10 @@
                     "format": "uuid"
                   }
                 },
-                "required": ["messageId", "mediaId"]
+                "required": [
+                  "messageId",
+                  "mediaId"
+                ]
               }
             }
           }
@@ -6286,7 +6191,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["message"]
+                  "required": [
+                    "message"
+                  ]
                 }
               }
             }
@@ -6302,7 +6209,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6318,7 +6227,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6329,7 +6240,9 @@
     "api/media/tweet-media/{tweetId}": {
       "get": {
         "summary": "Get media for a tweet",
-        "tags": ["Media"],
+        "tags": [
+          "Media"
+        ],
         "parameters": [
           {
             "schema": {
@@ -6365,18 +6278,29 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": ["IMAGE", "VIDEO", "GIF"]
+                            "enum": [
+                              "IMAGE",
+                              "VIDEO",
+                              "GIF"
+                            ]
                           },
                           "size": {
                             "type": "number",
                             "nullable": true
                           }
                         },
-                        "required": ["name", "keyName", "type", "size"]
+                        "required": [
+                          "name",
+                          "keyName",
+                          "type",
+                          "size"
+                        ]
                       }
                     }
                   },
-                  "required": ["media"]
+                  "required": [
+                    "media"
+                  ]
                 }
               }
             }
@@ -6392,7 +6316,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6408,7 +6334,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6424,7 +6352,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6435,7 +6365,9 @@
     "api/media/message-media/{messageId}": {
       "get": {
         "summary": "Get media for a message",
-        "tags": ["Media"],
+        "tags": [
+          "Media"
+        ],
         "parameters": [
           {
             "schema": {
@@ -6471,18 +6403,29 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": ["IMAGE", "VIDEO", "GIF"]
+                            "enum": [
+                              "IMAGE",
+                              "VIDEO",
+                              "GIF"
+                            ]
                           },
                           "size": {
                             "type": "number",
                             "nullable": true
                           }
                         },
-                        "required": ["name", "keyName", "type", "size"]
+                        "required": [
+                          "name",
+                          "keyName",
+                          "type",
+                          "size"
+                        ]
                       }
                     }
                   },
-                  "required": ["media"]
+                  "required": [
+                    "media"
+                  ]
                 }
               }
             }
@@ -6498,7 +6441,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6514,7 +6459,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6530,7 +6477,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6541,7 +6490,9 @@
     "api/media/upload-request": {
       "post": {
         "summary": "Request to upload media",
-        "tags": ["Media"],
+        "tags": [
+          "Media"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -6554,10 +6505,17 @@
                   },
                   "fileType": {
                     "type": "string",
-                    "enum": ["IMAGE", "VIDEO", "GIF"]
+                    "enum": [
+                      "IMAGE",
+                      "VIDEO",
+                      "GIF"
+                    ]
                   }
                 },
-                "required": ["fileName", "fileType"]
+                "required": [
+                  "fileName",
+                  "fileType"
+                ]
               }
             }
           }
@@ -6578,7 +6536,10 @@
                       "type": "string"
                     }
                   },
-                  "required": ["url", "keyName"]
+                  "required": [
+                    "url",
+                    "keyName"
+                  ]
                 }
               }
             }
@@ -6594,7 +6555,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6610,7 +6573,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6621,7 +6586,9 @@
     "api/media/download-request/{mediaId}": {
       "get": {
         "summary": "Request to download media",
-        "tags": ["Media"],
+        "tags": [
+          "Media"
+        ],
         "parameters": [
           {
             "schema": {
@@ -6649,7 +6616,10 @@
                       "type": "string"
                     }
                   },
-                  "required": ["url", "keyName"]
+                  "required": [
+                    "url",
+                    "keyName"
+                  ]
                 }
               }
             }
@@ -6665,7 +6635,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6681,7 +6653,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6697,7 +6671,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6708,7 +6684,9 @@
     "api/media/confirm-upload/{keyName}": {
       "post": {
         "summary": "Confirm media upload",
-        "tags": ["Media"],
+        "tags": [
+          "Media"
+        ],
         "parameters": [
           {
             "schema": {
@@ -6741,17 +6719,28 @@
                         },
                         "type": {
                           "type": "string",
-                          "enum": ["IMAGE", "VIDEO", "GIF"]
+                          "enum": [
+                            "IMAGE",
+                            "VIDEO",
+                            "GIF"
+                          ]
                         },
                         "size": {
                           "type": "number",
                           "nullable": true
                         }
                       },
-                      "required": ["name", "keyName", "type", "size"]
+                      "required": [
+                        "name",
+                        "keyName",
+                        "type",
+                        "size"
+                      ]
                     }
                   },
-                  "required": ["newMedia"]
+                  "required": [
+                    "newMedia"
+                  ]
                 }
               }
             }
@@ -6767,7 +6756,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6783,7 +6774,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6793,7 +6786,9 @@
     },
     "/users": {
       "get": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Get all users",
         "responses": {
           "200": {
@@ -6806,7 +6801,9 @@
       "post": {
         "summary": "Register a new user",
         "description": "Creates a new user account, validates Captcha for web clients, and sends a verification email containing a 6-digit code that expires in 15 minutes.",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "parameters": [
           {
             "in": "header",
@@ -6825,7 +6822,11 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["name", "email", "dateOfBirth"],
+                "required": [
+                  "name",
+                  "email",
+                  "dateOfBirth"
+                ],
                 "properties": {
                   "name": {
                     "type": "string",
@@ -6957,14 +6958,19 @@
       "post": {
         "summary": "Finalize user signup by setting a password",
         "description": "Completes the signup process after successful email verification.  \nAccepts the user's verified email and chosen password, creates the user in the database,  \nsends a welcome email, generates access/refresh tokens, and deletes temporary Redis data.\n",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email", "password"],
+                "required": [
+                  "email",
+                  "password"
+                ],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -7124,14 +7130,19 @@
       "post": {
         "summary": "Verify signup email with a 6-digit code",
         "description": "Verifies the user's email address using the 6-digit code sent to their inbox during signup. After successful verification, the user can finalize their signup by setting a password via finalize_signup**.\n",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email", "code"],
+                "required": [
+                  "email",
+                  "code"
+                ],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -7239,14 +7250,19 @@
       "post": {
         "summary": "User login with credentials",
         "description": "Authenticates a user using their **email** and **password**.   Returns both access and refresh tokens, sets a secure cookie for the refresh token,   and sends login notifications (email & in-app).   Rate-limited and device-tracked for enhanced security.\n",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email", "password"],
+                "required": [
+                  "email",
+                  "password"
+                ],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -7337,7 +7353,9 @@
     },
     "/forget-password": {
       "post": {
-        "tags": ["Password Management"],
+        "tags": [
+          "Password Management"
+        ],
         "summary": "Request password reset",
         "description": "Sends a password reset code or link to the user's email for account recovery.",
         "requestBody": {
@@ -7346,7 +7364,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email"],
+                "required": [
+                  "email"
+                ],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -7389,7 +7409,9 @@
     },
     "/verify-reset-code": {
       "post": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Verify password reset code",
         "description": "Verifies the reset code sent to the user's email. Once verified, the user can proceed to reset the password.",
         "requestBody": {
@@ -7398,7 +7420,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email", "code"],
+                "required": [
+                  "email",
+                  "code"
+                ],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -7466,7 +7491,9 @@
     },
     "/reset-password": {
       "post": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Reset user password",
         "description": "Allows a user to reset their password after verifying the reset code. Requires email and new password.",
         "security": [
@@ -7480,7 +7507,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email", "password"],
+                "required": [
+                  "email",
+                  "password"
+                ],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -7559,7 +7589,9 @@
     },
     "/refresh": {
       "post": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Refresh access token",
         "description": "Generates a new short-lived access token using a valid refresh token provided in the request body.",
         "requestBody": {
@@ -7606,7 +7638,9 @@
     },
     "/logout": {
       "post": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Logout current user",
         "description": "Ends the current user session and invalidates both access and refresh tokens.",
         "security": [
@@ -7644,7 +7678,9 @@
       "post": {
         "summary": "Logout from all active sessions",
         "description": "Logs the user out from all devices and deactivates their account if required.",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -7664,7 +7700,9 @@
       "get": {
         "summary": "Get a CAPTCHA challenge",
         "description": "Returns a CAPTCHA image or token for verifying user signup or login actions.",
-        "tags": ["Captcha"],
+        "tags": [
+          "Captcha"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -7684,7 +7722,9 @@
       "get": {
         "summary": "Signup CAPTCHA verification",
         "description": "Marks CAPTCHA as passed for the given email. No body required; email is passed as query parameter. Returns a message confirming CAPTCHA verification.",
-        "tags": ["Captcha"],
+        "tags": [
+          "Captcha"
+        ],
         "parameters": [
           {
             "in": "query",
@@ -7724,7 +7764,9 @@
       "post": {
         "summary": "Reauthenticate using password",
         "description": "Confirms the user's identity by verifying their password before sensitive actions.",
-        "tags": ["Reauthentication"],
+        "tags": [
+          "Reauthentication"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -7736,7 +7778,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["password"],
+                "required": [
+                  "password"
+                ],
                 "properties": {
                   "password": {
                     "type": "string",
@@ -7852,7 +7896,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["newEmail"],
+                "required": [
+                  "newEmail"
+                ],
                 "properties": {
                   "newEmail": {
                     "type": "string",
@@ -7966,7 +8012,9 @@
       "get": {
         "summary": "Get current user information",
         "description": "Retrieves information about the authenticated user.",
-        "tags": ["User"],
+        "tags": [
+          "User"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -7986,7 +8034,9 @@
       "get": {
         "summary": "Get user active sessions",
         "description": "Returns all currently active sessions for the authenticated user.",
-        "tags": ["Session"],
+        "tags": [
+          "Session"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -8006,7 +8056,9 @@
       "delete": {
         "summary": "Logout specific session",
         "description": "Deletes a specific active session using its session ID.",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -8051,7 +8103,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["username"],
+                "required": [
+                  "username"
+                ],
                 "properties": {
                   "username": {
                     "type": "string",
@@ -8128,14 +8182,18 @@
       "post": {
         "summary": "Check if a user email exists",
         "description": "Verifies whether a given email address is already registered in the database.",
-        "tags": ["User"],
+        "tags": [
+          "User"
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email"],
+                "required": [
+                  "email"
+                ],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -8203,7 +8261,9 @@
     "/user/{id}/email": {
       "get": {
         "summary": "Get user's email by ID",
-        "tags": ["User"],
+        "tags": [
+          "User"
+        ],
         "parameters": [
           {
             "in": "path",
@@ -8259,7 +8319,10 @@
             "description": "The OAuth provider to authenticate with.",
             "schema": {
               "type": "string",
-              "enum": ["google", "github"]
+              "enum": [
+                "google",
+                "github"
+              ]
             }
           }
         ],
@@ -8278,7 +8341,9 @@
     },
     "/callback/google": {
       "get": {
-        "tags": ["OAuth"],
+        "tags": [
+          "OAuth"
+        ],
         "summary": "Handle Google OAuth callback",
         "description": "This endpoint handles the callback from **Google OAuth** after user authorization. It exchanges the received authorization code for an ID token, retrieves the user's profile and email, creates or updates the user in the database, issues access and refresh tokens, stores session info, and sends a login notification email.\n",
         "parameters": [
@@ -8359,7 +8424,9 @@
     },
     "/callback/github": {
       "get": {
-        "tags": ["OAuth"],
+        "tags": [
+          "OAuth"
+        ],
         "summary": "Handle GitHub OAuth callback",
         "description": "This endpoint handles the callback from **GitHub OAuth** after the user grants access. It exchanges the authorization code for an access token, retrieves the user’s primary verified email, fetches GitHub profile data, creates or links the user in the system, issues JWT tokens, logs the device info, and sends a login alert email.\n",
         "parameters": [
