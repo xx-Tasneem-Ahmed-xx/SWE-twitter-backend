@@ -152,7 +152,8 @@ export const getChatInfo = async (req: Request, res: Response, next: NextFunctio
 export const getChatMessages = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const chatId = req.params.chatId;
-        const { lastMessageTimestamp } = req.body;
+        
+        const { lastMessageTimestamp } = req.query as { lastMessageTimestamp?: string };
         if (!chatId || !lastMessageTimestamp) {
             throw new AppError('Chat ID and lastMessage timestamp are required', 400);
         }
@@ -420,51 +421,48 @@ export const addMessageToChat = async (messageInput: newMessageInput, userId: st
         else{
             throw new AppError('missing chatId or recipientId', 400);
         }
-        const newMessage = await prisma.message.create({
+        let newMessage = await prisma.message.create({
             data: {
                 chatId: chat.id,
                 userId: userId,
                 content: messageInput.data.content,
-                status: 'PENDING',
+                status: 'SENT',
             }
         });
         if(messageInput.data.messageMedia && messageInput.data.messageMedia.length > 0){
             for(const mediaRaw of messageInput.data.messageMedia){
                 // If mediaRaw is a Zod schema, parse it first
                 let mediaObj: any;
-                if (typeof mediaRaw.safeParse === 'function') {
-                    const result = mediaRaw.safeParse(mediaRaw);
+                if (mediaRaw && typeof (mediaRaw as any).safeParse === 'function') {
+                    const result = (mediaRaw as any).safeParse(mediaRaw);
                     mediaObj = result.success ? result.data : {};
                 } else {
                     mediaObj = mediaRaw;
                 }
                 
-                const createdMedia = await prisma.media.create({
-                    data: {
-                        keyName: mediaObj.keyName || '',
-                        type: mediaObj.type as MediaType || 'IMAGE' as MediaType,
-                        name: mediaObj.name || '',
-                        size: mediaObj.size || 0
-                    }
-                });
+                
                 await prisma.messageMedia.create({
                     data: {
                         messageId: newMessage.id,
-                        mediaId: createdMedia.id
+                        mediaId: mediaObj.mediaId,
                     }
                 });
             }
         }
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: {
-                username: true,
-            }
-        });
-        await prisma.user.update({
-            where: { id: userId },
-            data: {
-                unseenChatCount: { increment: 1 }
+        const createdMessage = await prisma.message.findUniqueOrThrow({
+            where: { id: newMessage.id },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
+                messageMedia: {
+                    include: {
+                        media: true
+                    }
+                }
             }
         });
         for(const recipient of recipientId){
@@ -476,7 +474,7 @@ export const addMessageToChat = async (messageInput: newMessageInput, userId: st
             });
             //to handle website socket message sending
             if(socketService.checkSocketStatus(recipient)){
-                socketService.sendMessageToChat(recipient, newMessage);
+                socketService.sendMessageToChat(recipient, createdMessage);
             }
             //handle offline user notification
             const userFCMTokens = await prisma.fcmToken.findMany({
@@ -485,12 +483,12 @@ export const addMessageToChat = async (messageInput: newMessageInput, userId: st
             const fcmTokens = userFCMTokens.length > 0 ? userFCMTokens.map(t => t.token).flat() : [];
             if (fcmTokens && fcmTokens.length > 0) {
                 const notificationPayload = {
-                    title: `New message from ${user?.username}`,
+                    title: `New message from ${createdMessage.user?.name || 'Someone'}`,
                     body: messageInput.data.content,
                 };
                 const dataPayload = {
-                    chatId: newMessage.chatId,
-                    messageId: newMessage.id,
+                    chatId: createdMessage.chatId,
+                    messageId: createdMessage.id,
                     content: messageInput.data.content,
                     senderId: userId,
                 } as Record<string, string>;
