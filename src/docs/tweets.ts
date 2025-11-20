@@ -25,7 +25,7 @@ function registerSubList(
     path: `/api/tweets/{id}/${name}`,
     summary: `Get tweet ${name}`,
     tags: [tag],
-    request: { params: TweetIdParams },
+    request: { params: TweetIdParams, query: CursorDTOSchema },
     responses: {
       200: {
         description,
@@ -131,6 +131,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     tags: ["Tweets"],
     request: {
       params: TweetIdParams,
+      query: CursorDTOSchema,
     },
     responses: {
       200: {

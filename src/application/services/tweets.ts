@@ -22,6 +22,7 @@ import { SearchParams } from "@/types/types";
 import { encoderService } from "@/application/services/encoder";
 import { enqueueHashtagJob } from "@/background/jobs/hashtags";
 import { Prisma } from "@prisma/client";
+import { BaseInteractionRecord } from "@/types/interfaces";
 
 class TweetService {
   private validateId(id: string) {
@@ -77,6 +78,23 @@ class TweetService {
     }));
 
     await tx.tweetMedia.createMany({ data });
+  }
+
+  private updateCursor<T>(
+    records: T[],
+    limit: number,
+    getCursorFn: (record: T) => Record<string, any>
+  ) {
+    const hasNextPage = records.length > limit;
+    const paginatedRecords = hasNextPage ? records.slice(0, -1) : records;
+
+    const lastRecord = paginatedRecords[paginatedRecords.length - 1];
+    const cursor = lastRecord ? getCursorFn(lastRecord) : null;
+
+    return {
+      paginatedRecords,
+      cursor: hasNextPage ? encoderService.encode(cursor) : null,
+    };
   }
 
   private checkUserInteractions(tweets: any[]) {
@@ -206,7 +224,7 @@ class TweetService {
       }),
       prisma.tweet.update({
         where: { id: dto.parentId },
-        data: { retweetCount: { increment: 1 }, lastActivityAt: new Date() },
+        data: { retweetCount: { increment: 1 } },
       }),
     ]);
   }
@@ -235,19 +253,16 @@ class TweetService {
       }),
     });
 
-    const hasNextPage = retweeters.length > dto.limit;
-    const paginatedRetweets = hasNextPage
-      ? retweeters.slice(0, -1)
-      : retweeters;
-
-    const lastReTweet = paginatedRetweets[paginatedRetweets.length - 1];
-    const cursor = lastReTweet
-      ? { userId: lastReTweet.user.id, createdAt: lastReTweet.createdAt }
-      : null;
+    const { cursor, paginatedRecords } = this.updateCursor(
+      retweeters,
+      dto.limit,
+      (record) => ({ userId: record.userId, createdAt: record.createdAt })
+    );
+    const data = paginatedRecords.map((retweet) => ({ ...retweet.user }));
 
     return {
-      data: paginatedRetweets,
-      nextCursor: hasNextPage ? encoderService.encode(cursor) : null,
+      data,
+      cursor,
     };
   }
 
@@ -354,22 +369,17 @@ class TweetService {
       }),
     });
 
-    const hasNextPage = tweetLikes.length > dto.limit;
-    const sliced = hasNextPage ? tweetLikes.slice(0, -1) : tweetLikes;
+    const { cursor, paginatedRecords } = this.updateCursor(
+      tweetLikes,
+      dto.limit,
+      (record) => ({ userId: record.userId, createdAt: record.createdAt })
+    );
+    const rawTweets = paginatedRecords.map((t) => t.tweet);
+    const data = this.checkUserInteractions(rawTweets);
 
-    const rawTweets = sliced.map((t) => t.tweet);
-    const tweets = await this.checkUserInteractions(rawTweets);
-
-    const lastLike = sliced[sliced.length - 1];
-    const cursor = lastLike
-      ? {
-          userId: dto.userId,
-          createdAt: lastLike.createdAt,
-        }
-      : null;
     return {
-      data: tweets,
-      nextCursor: hasNextPage ? encoderService.encode(cursor) : null,
+      data,
+      cursor,
     };
   }
 
@@ -429,17 +439,40 @@ class TweetService {
     ]);
   }
 
-  //TODO: paginate
-  async getLikers(tweetId: string) {
+  async getLikers(tweetId: string, dto: InteractionsCursorServiceDTO) {
     this.validateId(tweetId);
-    return prisma.tweetLike.findMany({
+    const records = await prisma.tweetLike.findMany({
       where: { tweetId },
       select: {
         user: {
           select: this.userSelectFields(),
         },
+        createdAt: true,
+        userId: true,
       },
+      orderBy: [{ createdAt: "desc" }, { userId: "desc" }],
+      take: dto.limit + 1,
+      ...(dto.cursor && {
+        cursor: {
+          userId_createdAt: {
+            userId: dto.cursor.userId,
+            createdAt: dto.cursor.createdAt,
+          },
+        },
+        skip: 1,
+      }),
     });
+
+    const { cursor, paginatedRecords } = this.updateCursor(
+      records,
+      dto.limit,
+      (record) => ({ userId: record.userId, createdAt: record.createdAt })
+    );
+
+    return {
+      data: paginatedRecords.map((record) => ({ ...record.user })),
+      cursor,
+    };
   }
 
   async getTweetSummary(tweetId: string) {
@@ -474,22 +507,20 @@ class TweetService {
       select: {
         ...this.tweetSelectFields(dto.userId),
       },
-      orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
       ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
     });
 
-    const hasNextPage = tweets.length > dto.limit;
-    const paginatedTweets = hasNextPage ? tweets.slice(0, -1) : tweets;
-    const cursor = {
-      id: paginatedTweets[paginatedTweets.length - 1]?.id,
-      lastActivityAt:
-        paginatedTweets[paginatedTweets.length - 1]?.lastActivityAt,
-    };
-    const data = this.checkUserInteractions(paginatedTweets);
+    const { cursor, paginatedRecords } = this.updateCursor(
+      tweets,
+      dto.limit,
+      (record) => ({ id: record.id, createdAt: record.createdAt })
+    );
+    const data = this.checkUserInteractions(paginatedRecords);
     return {
       data,
-      nextCursor: hasNextPage ? encoderService.encode(cursor) : null,
+      cursor,
     };
   }
 
@@ -501,22 +532,20 @@ class TweetService {
         },
       },
       select: this.tweetSelectFields(dto.userId),
-      orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
       ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
     });
 
-    const hasNextPage = tweets.length > dto.limit;
-    const paginatedTweets = hasNextPage ? tweets.slice(0, -1) : tweets;
-    const cursor = {
-      id: paginatedTweets[paginatedTweets.length - 1]?.id,
-      lastActivityAt:
-        paginatedTweets[paginatedTweets.length - 1]?.lastActivityAt,
-    };
-    const hashedCursor = encoderService.encode(cursor);
+    const { cursor, paginatedRecords } = this.updateCursor(
+      tweets,
+      dto.limit,
+      (record) => ({ id: record.id, createdAt: record.createdAt })
+    );
+    const data = this.checkUserInteractions(paginatedRecords);
     return {
-      data: this.checkUserInteractions(paginatedTweets),
-      nextCursor: hasNextPage ? hashedCursor : null,
+      data,
+      cursor,
     };
   }
 
@@ -620,7 +649,6 @@ class TweetService {
       id: true,
       content: true,
       createdAt: true,
-      lastActivityAt: true,
       likesCount: true,
       repliesCount: true,
       quotesCount: true,

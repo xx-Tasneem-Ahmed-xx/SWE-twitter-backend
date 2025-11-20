@@ -175,7 +175,18 @@ export class TweetController {
   async getLikers(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const likers = await tweetService.getLikers(id);
+      const query = req.query;
+      const decodedCursor = encoderService.decode<{
+        userId: string;
+        createdAt: string;
+      }>(query.cursor as string);
+
+      const parsedDTO = InteractionsCursorServiceSchema.parse({
+        userId: (req as any).user.id,
+        limit: query.limit,
+        cursor: decodedCursor ?? undefined,
+      });
+      const likers = await tweetService.getLikers(id,parsedDTO);
       res.status(200).json(likers);
     } catch (error) {
       next(error);
