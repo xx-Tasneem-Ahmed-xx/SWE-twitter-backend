@@ -31,9 +31,7 @@ const CursorServiceSchema = z.object({
 });
 
 export const TweetCursorServiceSchema = CursorServiceSchema.extend({
-  cursor: z
-    .object({ lastActivityAt: z.coerce.date(), id: z.uuid() })
-    .optional(),
+  cursor: z.object({ createdAt: z.coerce.date(), id: z.uuid() }).optional(),
 });
 
 export const InteractionsCursorServiceSchema = CursorServiceSchema.extend({
