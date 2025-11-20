@@ -2,27 +2,38 @@
 // TYPES & INTERFACES
 // ===========================
 
-interface CrawledData {
-  url: string;
+interface CrawledTweet {
+  id: string;
   content: string;
-  title: string;
-  timestamp: number;
+  userId: string;
+  username: string;
+  createdAt: Date;
+  likesCount: number;
+  retweetCount: number;
+  hashtags: string[];
+}
+
+interface CrawledUser {
+  id: string;
+  username: string;
+  name: string | null;
+  bio: string | null;
+  verified: boolean;
+  followersCount?: number;
+  followingsCount?: number;
+}
+
+interface CrawledHashtag {
+  id: string;
+  tag: string;
+  tweetCount: number;
 }
 
 interface ParsedDocument {
   id: string;
-  url: string;
-  title: string;
-  content: string;
+  type: 'tweet' | 'user' | 'hashtag';
   tokens: string[];
-  timestamp: number;
-}
-
-interface IndexedDocument {
-  id: string;
-  url: string;
-  title: string;
-  content: string;
+  data: any;
   timestamp: number;
 }
 
@@ -32,75 +43,186 @@ interface InvertedIndex {
 
 interface SearchResult {
   id: string;
-  url: string;
-  title: string;
-  snippet: string;
+  type: 'tweet' | 'user' | 'hashtag';
   score: number;
+  data: any;
 }
 
 // ===========================
-// CRAWLER
+// DATABASE CRAWLER
 // ===========================
 
-class Crawler {
-  private crawledUrls: Set<string> = new Set();
-  private crawlData: CrawledData[] = [];
+import { PrismaClient } from '@prisma/client';
 
-  async crawl(url: string): Promise<CrawledData | null> {
-    if (this.crawledUrls.has(url)) {
-      console.log(`Already crawled: ${url}`);
-      return null;
-    }
+export class Crawler {
+  private prisma: PrismaClient;
 
-    try {
-      console.log(`Crawling: ${url}`);
-      
-      // Simulate HTTP request (in production, use axios or fetch)
-      const response = await this.fetchUrl(url);
-      
-      const crawledData: CrawledData = {
-        url,
-        content: response.content,
-        title: response.title,
-        timestamp: Date.now()
-      };
-
-      this.crawledUrls.add(url);
-      this.crawlData.push(crawledData);
-      
-      return crawledData;
-    } catch (error) {
-      console.error(`Failed to crawl ${url}:`, error);
-      return null;
-    }
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma;
   }
 
-  async crawlMultiple(urls: string[]): Promise<CrawledData[]> {
-    const results: CrawledData[] = [];
+  async crawlTweets(limit: number = 1000, offset: number = 0): Promise<CrawledTweet[]> {
+    console.log(`Crawling tweets: limit=${limit}, offset=${offset}`);
     
-    for (const url of urls) {
-      const data = await this.crawl(url);
-      if (data) results.push(data);
-    }
-    
-    return results;
+    const tweets = await this.prisma.tweet.findMany({
+      take: limit,
+      skip: offset,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            username: true
+          }
+        },
+        hashtags: {
+          include: {
+            hash: true
+          }
+        }
+      }
+    });
+
+    return tweets.map(tweet => ({
+      id: tweet.id,
+      content: tweet.content,
+      userId: tweet.userId,
+      username: tweet.user.username,
+      createdAt: tweet.createdAt,
+      likesCount: tweet.likesCount,
+      retweetCount: tweet.retweetCount,
+      hashtags: tweet.hashtags.map(h => h.hash.tag_text)
+    }));
   }
 
-  private async fetchUrl(url: string): Promise<{ content: string; title: string }> {
-    // Simulate fetching (replace with real HTTP client in production)
-    // For demo purposes, returning mock data
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          title: `Page Title for ${url}`,
-          content: `This is sample content from ${url}. It contains various information about topics like technology, programming, and web development.`
-        });
-      }, 100);
+  async crawlUsers(limit: number = 1000, offset: number = 0): Promise<CrawledUser[]> {
+    console.log(`Crawling users: limit=${limit}, offset=${offset}`);
+    
+    const users = await this.prisma.user.findMany({
+      take: limit,
+      skip: offset,
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        bio: true,
+        verified: true,
+        _count: {
+          select: {
+            followers: true,
+            followings: true
+          }
+        }
+      }
+    });
+
+    return users.map(user => ({
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      bio: user.bio,
+      verified: user.verified,
+      followersCount: user._count.followers,
+      followingsCount: user._count.followings
+    }));
+  }
+
+  async crawlHashtags(limit: number = 1000, offset: number = 0): Promise<CrawledHashtag[]> {
+    console.log(`Crawling hashtags: limit=${limit}, offset=${offset}`);
+    
+    const hashtags = await this.prisma.hash.findMany({
+      take: limit,
+      skip: offset,
+      include: {
+        _count: {
+          select: {
+            tweets: true
+          }
+        }
+      }
+    });
+
+    return hashtags.map(hash => ({
+      id: hash.id,
+      tag: hash.tag_text,
+      tweetCount: hash._count.tweets
+    }));
+  }
+
+  async crawlAll() {
+    const [tweets, users, hashtags] = await Promise.all([
+      this.crawlTweets(),
+      this.crawlUsers(),
+      this.crawlHashtags()
+    ]);
+
+    return { tweets, users, hashtags };
+  }
+
+  async searchTweetsByContent(query: string, limit: number = 20) {
+    return await this.prisma.tweet.findMany({
+      where: {
+        content: {
+          contains: query,
+          mode: 'insensitive'
+        }
+      },
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            verified: true
+          }
+        }
+      }
     });
   }
 
-  getCrawledData(): CrawledData[] {
-    return this.crawlData;
+  async searchUsersByUsername(query: string, limit: number = 20) {
+    return await this.prisma.user.findMany({
+      where: {
+        OR: [
+          { username: { contains: query, mode: 'insensitive' } },
+          { name: { contains: query, mode: 'insensitive' } }
+        ]
+      },
+      take: limit,
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        bio: true,
+        verified: true,
+        _count: {
+          select: {
+            followers: true,
+            followings: true
+          }
+        }
+      }
+    });
+  }
+
+  async searchHashtags(query: string, limit: number = 20) {
+    return await this.prisma.hash.findMany({
+      where: {
+        tag_text: {
+          contains: query,
+          mode: 'insensitive'
+        }
+      },
+      take: limit,
+      include: {
+        _count: {
+          select: {
+            tweets: true
+          }
+        }
+      }
+    });
   }
 }
 
@@ -108,53 +230,78 @@ class Crawler {
 // PARSER
 // ===========================
 
-class Parser {
+export class Parser {
   private stopWords = new Set([
     'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
     'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
-    'to', 'was', 'will', 'with', 'this', 'but', 'they', 'have', 'had'
+    'to', 'was', 'will', 'with', 'this', 'but', 'they', 'have', 'had',
+    'or', 'not', 'been', 'being', 'can', 'could', 'would', 'should'
   ]);
 
-  parse(crawledData: CrawledData): ParsedDocument {
-    const id = this.generateId(crawledData.url);
-    const tokens = this.tokenize(crawledData.content);
+  parseTweet(tweet: CrawledTweet): ParsedDocument {
+    const tokens = this.tokenize(tweet.content);
     
     return {
-      id,
-      url: crawledData.url,
-      title: crawledData.title,
-      content: crawledData.content,
+      id: tweet.id,
+      type: 'tweet',
       tokens,
-      timestamp: crawledData.timestamp
+      data: tweet,
+      timestamp: tweet.createdAt.getTime()
     };
   }
 
-  parseMultiple(crawledDataArray: CrawledData[]): ParsedDocument[] {
-    return crawledDataArray.map(data => this.parse(data));
+  parseUser(user: CrawledUser): ParsedDocument {
+    const text = [
+      user.username,
+      user.name || '',
+      user.bio || ''
+    ].join(' ');
+    
+    const tokens = this.tokenize(text);
+    
+    return {
+      id: user.id,
+      type: 'user',
+      tokens,
+      data: user,
+      timestamp: Date.now()
+    };
+  }
+
+  parseHashtag(hashtag: CrawledHashtag): ParsedDocument {
+    const tokens = this.tokenize(hashtag.tag);
+    
+    return {
+      id: hashtag.id,
+      type: 'hashtag',
+      tokens,
+      data: hashtag,
+      timestamp: Date.now()
+    };
+  }
+
+  parseMultiple(items: any[], type: 'tweet' | 'user' | 'hashtag'): ParsedDocument[] {
+    switch (type) {
+      case 'tweet':
+        return items.map(item => this.parseTweet(item));
+      case 'user':
+        return items.map(item => this.parseUser(item));
+      case 'hashtag':
+        return items.map(item => this.parseHashtag(item));
+      default:
+        return [];
+    }
   }
 
   private tokenize(text: string): string[] {
-    // Convert to lowercase and split into words
     const words = text.toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
+      .replace(/[^\w\s#@]/g, ' ')
       .split(/\s+/)
-      .filter(word => word.length > 2);
+      .filter(word => word.length > 1);
 
-    // Remove stop words
     const filtered = words.filter(word => !this.stopWords.has(word));
     
     return filtered;
-  }
-
-  private generateId(url: string): string {
-    // Simple hash function for ID generation
-    let hash = 0;
-    for (let i = 0; i < url.length; i++) {
-      const char = url.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(36);
   }
 }
 
@@ -162,19 +309,21 @@ class Parser {
 // INDEXER
 // ===========================
 
-class Indexer {
+export class Indexer {
   private invertedIndex: InvertedIndex = {};
-  private documents: Map<string, IndexedDocument> = new Map();
+  private documents: Map<string, ParsedDocument> = new Map();
+  private typeIndex: Map<string, Set<string>> = new Map([
+    ['tweet', new Set()],
+    ['user', new Set()],
+    ['hashtag', new Set()]
+  ]);
 
   index(parsedDoc: ParsedDocument): void {
     // Store document
-    this.documents.set(parsedDoc.id, {
-      id: parsedDoc.id,
-      url: parsedDoc.url,
-      title: parsedDoc.title,
-      content: parsedDoc.content,
-      timestamp: parsedDoc.timestamp
-    });
+    this.documents.set(parsedDoc.id, parsedDoc);
+    
+    // Add to type index
+    this.typeIndex.get(parsedDoc.type)?.add(parsedDoc.id);
 
     // Build inverted index
     parsedDoc.tokens.forEach(token => {
@@ -184,7 +333,7 @@ class Indexer {
       this.invertedIndex[token].add(parsedDoc.id);
     });
 
-    console.log(`Indexed document: ${parsedDoc.title} (${parsedDoc.id})`);
+    console.log(`Indexed ${parsedDoc.type}: ${parsedDoc.id}`);
   }
 
   indexMultiple(parsedDocs: ParsedDocument[]): void {
@@ -195,18 +344,35 @@ class Indexer {
     return this.invertedIndex;
   }
 
-  getDocuments(): Map<string, IndexedDocument> {
+  getDocuments(): Map<string, ParsedDocument> {
     return this.documents;
+  }
+
+  getDocumentsByType(type: 'tweet' | 'user' | 'hashtag'): ParsedDocument[] {
+    const docIds = this.typeIndex.get(type) || new Set();
+    return Array.from(docIds)
+      .map(id => this.documents.get(id))
+      .filter((doc): doc is ParsedDocument => doc !== undefined);
   }
 
   getIndexStats() {
     return {
       totalDocuments: this.documents.size,
       totalTerms: Object.keys(this.invertedIndex).length,
-      averageTermsPerDoc: this.documents.size > 0 
-        ? Object.keys(this.invertedIndex).length / this.documents.size 
-        : 0
+      tweets: this.typeIndex.get('tweet')?.size || 0,
+      users: this.typeIndex.get('user')?.size || 0,
+      hashtags: this.typeIndex.get('hashtag')?.size || 0
     };
+  }
+
+  clear(): void {
+    this.invertedIndex = {};
+    this.documents.clear();
+    this.typeIndex = new Map([
+      ['tweet', new Set()],
+      ['user', new Set()],
+      ['hashtag', new Set()]
+    ]);
   }
 }
 
@@ -214,7 +380,7 @@ class Indexer {
 // SEARCH ENGINE
 // ===========================
 
-class SearchEngine {
+export class SearchEngine {
   private indexer: Indexer;
   private parser: Parser;
 
@@ -223,18 +389,25 @@ class SearchEngine {
     this.parser = new Parser();
   }
 
-  search(query: string, limit: number = 10): SearchResult[] {
-    // Tokenize query
+  search(
+    query: string,
+    options: {
+      limit?: number;
+      type?: 'tweet' | 'user' | 'hashtag' | 'all';
+    } = {}
+  ): SearchResult[] {
+    const { limit = 20, type = 'all' } = options;
+
     const queryTokens = this.parser['tokenize'](query);
     
     if (queryTokens.length === 0) {
       return [];
     }
 
-    // Find matching documents
     const docScores = new Map<string, number>();
     const invertedIndex = this.indexer.getInvertedIndex();
 
+    // Calculate scores based on token matches
     queryTokens.forEach(token => {
       const docIds = invertedIndex[token];
       if (docIds) {
@@ -245,47 +418,39 @@ class SearchEngine {
       }
     });
 
-    // Sort by score and convert to results
     const documents = this.indexer.getDocuments();
     const results: SearchResult[] = [];
 
     docScores.forEach((score, docId) => {
       const doc = documents.get(docId);
-      if (doc) {
+      if (doc && (type === 'all' || doc.type === type)) {
+        // Boost score for verified users
+        if (doc.type === 'user' && doc.data.verified) {
+          score *= 1.5;
+        }
+        
+        // Boost score for popular tweets
+        if (doc.type === 'tweet') {
+          score += (doc.data.likesCount * 0.01);
+          score += (doc.data.retweetCount * 0.02);
+        }
+
         results.push({
           id: doc.id,
-          url: doc.url,
-          title: doc.title,
-          snippet: this.generateSnippet(doc.content, queryTokens),
-          score
+          type: doc.type,
+          score,
+          data: doc.data
         });
       }
     });
 
-    // Sort by score (descending) and limit results
     return results
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
   }
 
-  private generateSnippet(content: string, queryTokens: string[]): string {
-    const words = content.split(' ');
-    const snippetLength = 150;
-
-    // Find first occurrence of any query token
-    let startIndex = 0;
-    for (let i = 0; i < words.length; i++) {
-      const word = words[i].toLowerCase();
-      if (queryTokens.some(token => word.includes(token))) {
-        startIndex = Math.max(0, i - 10);
-        break;
-      }
-    }
-
-    const snippet = words.slice(startIndex, startIndex + 30).join(' ');
-    return snippet.length > snippetLength 
-      ? snippet.substring(0, snippetLength) + '...'
-      : snippet;
+  searchByType(query: string, type: 'tweet' | 'user' | 'hashtag', limit: number = 20) {
+    return this.search(query, { type, limit });
   }
 }
 
@@ -293,113 +458,13 @@ class SearchEngine {
 // EXPRESS API
 // ===========================
 
-import express, { Request, Response } from 'express';
 
-const app = express();
-app.use(express.json());
 
-// Initialize components
-const crawler = new Crawler();
-const parser = new Parser();
-const indexer = new Indexer();
-const searchEngine = new SearchEngine(indexer);
+// Initialize Prisma and components
+
 
 // ===========================
 // API ENDPOINTS
 // ===========================
 
 // Health check
-app.get('/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Crawl and index a URL
-app.post('/crawl', async (req: Request, res: Response) => {
-  const { url } = req.body;
-
-  if (!url) {
-    return res.status(400).json({ error: 'URL is required' });
-  }
-
-  try {
-    const crawledData = await crawler.crawl(url);
-    
-    if (!crawledData) {
-      return res.status(400).json({ error: 'URL already crawled or failed' });
-    }
-
-    const parsedDoc = parser.parse(crawledData);
-    indexer.index(parsedDoc);
-
-    res.json({
-      message: 'URL crawled and indexed successfully',
-      documentId: parsedDoc.id,
-      url: parsedDoc.url,
-      title: parsedDoc.title
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to crawl and index URL' });
-  }
-});
-
-// Crawl and index multiple URLs
-app.post('/crawl/batch', async (req: Request, res: Response) => {
-  const { urls } = req.body;
-
-  if (!urls || !Array.isArray(urls)) {
-    return res.status(400).json({ error: 'URLs array is required' });
-  }
-
-  try {
-    const crawledData = await crawler.crawlMultiple(urls);
-    const parsedDocs = parser.parseMultiple(crawledData);
-    indexer.indexMultiple(parsedDocs);
-
-    res.json({
-      message: 'URLs crawled and indexed successfully',
-      count: parsedDocs.length,
-      documents: parsedDocs.map(doc => ({
-        id: doc.id,
-        url: doc.url,
-        title: doc.title
-      }))
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to crawl and index URLs' });
-  }
-});
-
-// Search endpoint
-app.get('/search', (req: Request, res: Response) => {
-  const { q, limit } = req.query;
-
-  if (!q || typeof q !== 'string') {
-    return res.status(400).json({ error: 'Query parameter "q" is required' });
-  }
-
-  const searchLimit = limit ? parseInt(limit as string) : 10;
-  const results = searchEngine.search(q, searchLimit);
-
-  res.json({
-    query: q,
-    results,
-    total: results.length,
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Get index statistics
-app.get('/stats', (req: Request, res: Response) => {
-  const stats = indexer.getIndexStats();
-  res.json(stats);
-});
-
-// Get all indexed documents
-app.get('/documents', (req: Request, res: Response) => {
-  const documents = Array.from(indexer.getDocuments().values());
-  res.json({
-    total: documents.length,
-    documents
-  });
-});
-

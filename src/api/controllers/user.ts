@@ -419,10 +419,8 @@ export async function Login(req: Request, res: Response, next: NextFunction): Pr
 
     res.cookie("refresh_token", refreshObj.token, {
       maxAge: 30 * 24 * 60 * 60 * 1000,
-      httpOnly: true,
-      secure: process.env.COOKIE_SECURE === "true",
-      sameSite: "lax",
-      domain: CLIENT_DOMAIN,
+    
+     
     });
 
     await utils.SetSession(req, user.id, refreshObj.jti);
@@ -475,13 +473,13 @@ If this was not you, immediately change your password!
 export async function Refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const refreshToken: string | undefined = req.body?.refresh_token;
-
+console.log(refreshToken);
     if (!refreshToken) {
       throw new AppError("No refresh token provided in body, cannot renew session", 401);
     }
 
     const validated = validateJwt(refreshToken);
-
+console.log(validated);
     if (!validated.ok) {
       throw new AppError("Invalid refresh token, cannot renew session", 401);
     }
@@ -517,14 +515,14 @@ export async function Refresh(req: Request, res: Response, next: NextFunction): 
 
 export async function Logout(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const refreshToken: string | undefined = req.cookies?.refresh_token;
-    
+ const refreshToken: string | undefined = req.body?.refresh_token;
+    console.log(refreshToken);
     if (!refreshToken) {
       throw new AppError("Refresh token expired, you are already logged out", 401);
     }
 
-    const validated = validateJwt(refreshToken);
-    
+    const validated = utils.ValidateToken(refreshToken);
+    console.log(validated);
     if (!validated.ok) {
       throw new AppError("Invalid refresh token", 401);
     }
@@ -543,7 +541,7 @@ export async function Logout(req: Request, res: Response, next: NextFunction): P
     
     tokenString = tokenString.replace(/^&\{/, "");
 
-    const accessVal = validateJwt(tokenString);
+    const accessVal = utils.ValidateToken(tokenString);
     
     if (!accessVal.ok) {
       throw new AppError("Invalid token signature", 401);
@@ -561,7 +559,7 @@ export async function Logout(req: Request, res: Response, next: NextFunction): P
       await redisClient.del(`session:${userId}:${jti}`);
     }
 
-    res.clearCookie("refresh_token", { domain: DOMAIN, path: "/" });
+    res.clearCookie("refresh_token", { path: "/" });
     return utils.SendRes(res, { message: "Logged out successfully" });
   } catch (err) {
     next(err);
@@ -729,10 +727,8 @@ If this wasn't you, secure your account immediately!
 
     res.cookie("refresh_token", refreshObj.token, {
       maxAge: 30 * 24 * 60 * 60 * 1000,
-      httpOnly: true,
-      secure: process.env.COOKIE_SECURE === "true",
-      sameSite: "lax",
-      domain: CLIENT_DOMAIN,
+
+   
     });
 
     
@@ -762,7 +758,7 @@ export async function ReauthPassword(req: Request, res: Response, next: NextFunc
     const { email, password } = req.body;
     
     if (!email || !password) {
-      throw new AppError("Email and password are required", 400);
+      throw new AppError("password are required", 400);
     }
     
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -772,13 +768,13 @@ export async function ReauthPassword(req: Request, res: Response, next: NextFunc
     const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser | null;
     
     if (!user) {
-      throw new AppError("Enter email or password correctly", 401);
+      throw new AppError("Enter password correctly", 401);
     }
     
     const ok: boolean = await utils.CheckPass(password , user.password,user.saltPassword);
     
     if (!ok) {
-      throw new AppError("Enter email or password correctly", 401);
+      throw new AppError("Enter  password correctly", 401);
     }
     
     await redisClient.set(`Reauth:${email}`, "1", { EX: 5 * 60 });
@@ -950,7 +946,8 @@ export async function ChangeEmail(req: Request, res: Response, next: NextFunctio
   try {
     const { email: newEmail } = req.body;
     const currentEmail: string | undefined = (req as any).user?.email || req.body?.currentEmail;
-
+console.log("email",currentEmail);
+console.log("newEmail",newEmail);
     if (!newEmail) throw new AppError("Email is required", 400);
     if (!currentEmail) throw new AppError("Must provide your current email", 401);
     if (newEmail === currentEmail) throw new AppError("New email must be different than the old one", 401);
@@ -1035,10 +1032,7 @@ export async function VerifyNewEmail(req: Request, res: Response, next: NextFunc
     // Set new refresh token cookie
     res.cookie("refresh_token", refreshObj.token, {
       maxAge: 30 * 24 * 60 * 60 * 1000,
-      httpOnly: true,
-      secure: process.env.COOKIE_SECURE === "true",
-      sameSite: "lax",
-      domain: CLIENT_DOMAIN,
+ 
     });
 
     // ✅ Optional: delete old Redis codes
@@ -1086,7 +1080,7 @@ export async function GetUser(req: Request, res: Response, next: NextFunction): 
         isEmailVerified: user.isEmailVerified,
         bio: user.bio,
         protectedAcc: user.protectedAccount,
-        
+
       },
       DeviceRecords: deviceRecord,
       message: "User info returned with device history"
@@ -1593,7 +1587,7 @@ If this wasn’t you, please secure your account immediately.
 
     await utils.SendEmailSmtp(res,email,emailMsg );
 
-    // ✅ Final Response
+   
   const redirectUrl = `${process.env.FRONTEND_URL}/login/success?token=${encodeURIComponent(token.token)}&refresh-token=${encodeURIComponent(refreshToken.token)}&user=${encodeURIComponent(JSON.stringify({
   id: user.id,
   username: user.username,
@@ -1708,10 +1702,7 @@ export const UpdateUsername = async (
     // 🍪 Set refresh token cookie
     res.cookie("refresh_token", refreshObj.token, {
       maxAge: 30 * 24 * 60 * 60 * 1000,
-      httpOnly: true,
-      secure: process.env.COOKIE_SECURE === "true",
-      sameSite: "lax",
-      domain: CLIENT_DOMAIN,
+ 
     });
 
     // ✅ Optional: reset session if you’re tracking sessions in Redis

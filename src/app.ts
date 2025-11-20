@@ -33,9 +33,10 @@ import { ParsedQs } from "qs";
 import cookieParser from "cookie-parser";
 
 import { no } from "zod/v4/locales";
-
+import { Crawler, Parser, Indexer, SearchEngine } from './api/controllers/SearchEngine';
 // Type assertion for GeoGurd
-
+import apiRoutes from './api/routes/searchRoutes';
+import { PrismaClient } from "@prisma/client";
 const app = express();
 app.use(cors());
 app.use(helmet());
@@ -60,7 +61,12 @@ export { storageService };
 
 const socketService = new SocketService(io);
 export { socketService };
-
+const prisma = new PrismaClient();
+const crawler = new Crawler(prisma);
+const parser = new Parser();
+const indexer = new Indexer();
+const searchEngine = new SearchEngine(indexer);
+app.use('/api', apiRoutes(crawler, parser, indexer, searchEngine));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use("/api/auth", authRoutes);
 app.use("/oauth2", oauthRoutes);
