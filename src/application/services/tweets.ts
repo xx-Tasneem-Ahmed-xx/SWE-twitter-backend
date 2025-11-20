@@ -246,7 +246,7 @@ class TweetService {
       : null;
 
     return {
-      data: paginatedRetweets,
+      data: paginatedRetweets.map((retweet) => ({ ...retweet.user })),
       nextCursor: hasNextPage ? encoderService.encode(cursor) : null,
     };
   }
@@ -358,7 +358,7 @@ class TweetService {
     const sliced = hasNextPage ? tweetLikes.slice(0, -1) : tweetLikes;
 
     const rawTweets = sliced.map((t) => t.tweet);
-    const tweets = await this.checkUserInteractions(rawTweets);
+    const tweets = this.checkUserInteractions(rawTweets);
 
     const lastLike = sliced[sliced.length - 1];
     const cursor = lastLike
@@ -432,7 +432,7 @@ class TweetService {
   //TODO: paginate
   async getLikers(tweetId: string) {
     this.validateId(tweetId);
-    return prisma.tweetLike.findMany({
+    const records = await prisma.tweetLike.findMany({
       where: { tweetId },
       select: {
         user: {
@@ -440,6 +440,7 @@ class TweetService {
         },
       },
     });
+    return records.map((record) => ({ ...record.user }));
   }
 
   async getTweetSummary(tweetId: string) {
