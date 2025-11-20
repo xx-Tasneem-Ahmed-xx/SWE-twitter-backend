@@ -53,7 +53,31 @@ const CreateChatFun = async (DMChat: boolean, participant_ids: string[]) => {
                 }
             })
         }
-        return newChat;
+        return await prisma.chat.findUnique({
+            where: { id: newChat.id },
+            include: {
+                chatUsers: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                username: true,
+                                name: true,
+                                profileMediaId: true,
+                                coverMediaId: true
+                            }
+                        }
+                    }
+                },
+                chatGroup: {
+                    select: {
+                        name: true,
+                        photo: true,
+                        description: true
+                    }
+                },
+            }
+        });
     }catch(error){
             return error;
     }
