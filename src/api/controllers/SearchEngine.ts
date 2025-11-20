@@ -1,6 +1,7 @@
 // ===========================
 // TYPES & INTERFACES
 // ===========================
+import { parse as parseHtml } from 'node-html-parser';
 
 interface CrawledTweet {
   id: string;
@@ -31,10 +32,12 @@ interface CrawledHashtag {
 
 interface ParsedDocument {
   id: string;
-  type: 'tweet' | 'user' | 'hashtag';
+  type: 'tweet' | 'user' | 'hashtag' | 'url';
   tokens: string[];
   data: any;
   timestamp: number;
+  url?: string;
+  title?: string;
 }
 
 interface InvertedIndex {
@@ -43,7 +46,7 @@ interface InvertedIndex {
 
 interface SearchResult {
   id: string;
-  type: 'tweet' | 'user' | 'hashtag';
+  type: 'tweet' | 'user' | 'hashtag' | 'url';
   score: number;
   data: any;
 }
@@ -147,6 +150,32 @@ export class Crawler {
       tweetCount: hash._count.tweets
     }));
   }
+async crawlUrl(url: string) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const html = await response.text();
+    return { url, html };
+  } catch {
+    return null;
+  }
+}
+async crawlMultiple(urls: string[]) {
+  const results = await Promise.all(
+    urls.map(async url => {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) return null;
+        const html = await response.text();
+        return { url, html };
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  return results.filter(r => r !== null);
+}
 
   async crawlAll() {
     const [tweets, users, hashtags] = await Promise.all([
@@ -280,18 +309,53 @@ export class Parser {
     };
   }
 
-  parseMultiple(items: any[], type: 'tweet' | 'user' | 'hashtag'): ParsedDocument[] {
-    switch (type) {
-      case 'tweet':
-        return items.map(item => this.parseTweet(item));
-      case 'user':
-        return items.map(item => this.parseUser(item));
-      case 'hashtag':
-        return items.map(item => this.parseHashtag(item));
-      default:
-        return [];
+  // parseMultiple(items: any[], type: 'tweet' | 'user' | 'hashtag'): ParsedDocument[] {
+  //   switch (type) {
+  //     case 'tweet':
+  //       return items.map(item => this.parseTweet(item));
+  //     case 'user':
+  //       return items.map(item => this.parseUser(item));
+  //     case 'hashtag':
+  //       return items.map(item => this.parseHashtag(item));
+  //     default:
+  //       return [];
+  //   }
+  // }
+  parseMultiple(items: any[]) {
+  const docs = [];
+  for (const item of items) {
+    if (item.html && item.url) {
+      docs.push(this.parse(item));
+    } else if (item.content && item.username) {
+      docs.push(this.parseTweet(item));
+    } else if (item.bio !== undefined && item.username) {
+      docs.push(this.parseUser(item));
+    } else if (item.tag) {
+      docs.push(this.parseHashtag(item));
     }
   }
+  return docs;
+}
+
+parse(page: { url: string; html: string }): ParsedDocument {
+  const root = parseHtml(page.html);
+  const title = root.querySelector('title')?.text || '';
+  const body = (root as any).text || '';
+  const text = title + ' ' + body;
+  const tokens = this.tokenize(text);
+
+  return {
+    id: page.url,
+    type: 'url',
+    tokens,
+    data: {
+      url: page.url,
+      title,
+      text
+    },
+    timestamp: Date.now()
+  };
+}
 
   private tokenize(text: string): string[] {
     const words = text.toLowerCase()
@@ -315,25 +379,19 @@ export class Indexer {
   private typeIndex: Map<string, Set<string>> = new Map([
     ['tweet', new Set()],
     ['user', new Set()],
-    ['hashtag', new Set()]
+    ['hashtag', new Set()],
+    ['url', new Set()]
   ]);
 
   index(parsedDoc: ParsedDocument): void {
-    // Store document
     this.documents.set(parsedDoc.id, parsedDoc);
-    
-    // Add to type index
     this.typeIndex.get(parsedDoc.type)?.add(parsedDoc.id);
-
-    // Build inverted index
     parsedDoc.tokens.forEach(token => {
       if (!this.invertedIndex[token]) {
         this.invertedIndex[token] = new Set();
       }
       this.invertedIndex[token].add(parsedDoc.id);
     });
-
-    console.log(`Indexed ${parsedDoc.type}: ${parsedDoc.id}`);
   }
 
   indexMultiple(parsedDocs: ParsedDocument[]): void {
@@ -348,7 +406,7 @@ export class Indexer {
     return this.documents;
   }
 
-  getDocumentsByType(type: 'tweet' | 'user' | 'hashtag'): ParsedDocument[] {
+  getDocumentsByType(type: 'tweet' | 'user' | 'hashtag' | 'url'): ParsedDocument[] {
     const docIds = this.typeIndex.get(type) || new Set();
     return Array.from(docIds)
       .map(id => this.documents.get(id))
@@ -361,7 +419,8 @@ export class Indexer {
       totalTerms: Object.keys(this.invertedIndex).length,
       tweets: this.typeIndex.get('tweet')?.size || 0,
       users: this.typeIndex.get('user')?.size || 0,
-      hashtags: this.typeIndex.get('hashtag')?.size || 0
+      hashtags: this.typeIndex.get('hashtag')?.size || 0,
+      urls: this.typeIndex.get('url')?.size || 0
     };
   }
 
@@ -371,10 +430,12 @@ export class Indexer {
     this.typeIndex = new Map([
       ['tweet', new Set()],
       ['user', new Set()],
-      ['hashtag', new Set()]
+      ['hashtag', new Set()],
+      ['url', new Set()]
     ]);
   }
 }
+
 
 // ===========================
 // SEARCH ENGINE

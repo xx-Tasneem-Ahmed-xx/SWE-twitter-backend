@@ -22,7 +22,7 @@ export default function apiRoutes(
     }
 
     try {
-      const crawledData = await crawler.crawlAll();
+      const crawledData = await crawler.crawlUrl(url);
       if (!crawledData) {
         return res.status(400).json({ error: 'URL already crawled or failed' });
       }
@@ -74,8 +74,8 @@ export default function apiRoutes(
       return res.status(400).json({ error: 'Query parameter "q" is required' });
     }
 
-    const searchLimit = limit ? parseInt(limit as string) : 10;
-    const results = searchEngine.search(q, searchLimit);
+    const searchLimit = limit ? (parseInt(limit as string, 10) || 10) : 10;
+    const results = searchEngine.search(q, { limit: searchLimit });
 
     res.json({
       query: q,

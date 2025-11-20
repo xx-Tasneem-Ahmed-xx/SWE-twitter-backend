@@ -516,6 +516,7 @@ console.log(validated);
 export async function Logout(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
  const refreshToken: string | undefined = req.body?.refresh_token;
+ const email: string | undefined = (req as any).user.email;
     console.log(refreshToken);
     if (!refreshToken) {
       throw new AppError("Refresh token expired, you are already logged out", 401);
@@ -558,7 +559,7 @@ export async function Logout(req: Request, res: Response, next: NextFunction): P
     if (userId && jti) {
       await redisClient.del(`session:${userId}:${jti}`);
     }
-
+ await redisClient.del(`getUser:${email}`);
     res.clearCookie("refresh_token", { path: "/" });
     return utils.SendRes(res, { message: "Logged out successfully" });
   } catch (err) {
@@ -776,7 +777,7 @@ export async function ReauthPassword(req: Request, res: Response, next: NextFunc
     if (!ok) {
       throw new AppError("Enter  password correctly", 401);
     }
-    
+    await redisClient.set(`getUser:${email}`, "1", { EX: 15 * 60 });
     await redisClient.set(`Reauth:${email}`, "1", { EX: 5 * 60 });
     return utils.SendRes(res, { message: "You can change your credentials now" });
   } catch (err) {
@@ -812,7 +813,7 @@ export async function ReauthTFA(req: Request, res: Response, next: NextFunction)
     if (!ok) {
       throw new AppError("Code is not correct, try again", 401);
     }
-    
+     await redisClient.set(`getUser:${email}`, "1", { EX: 5 * 60 });
     await redisClient.set(`Reauth:${email}`, "1", { EX: 5 * 60 });
     return utils.SendRes(res, { message: "You can change your credentials now" });
   } catch (err) {
@@ -1052,6 +1053,47 @@ export async function VerifyNewEmail(req: Request, res: Response, next: NextFunc
 
 
 
+export async function GetUserz(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const email: string | undefined =
+      (req as any).user?.email ||
+      (req.query?.email as string) ||
+      (req.body?.email as string);
+
+    if (!email) {
+      throw new AppError("User is not authorized for this route", 401);
+    }
+  const exists = await redisClient.exists(`getUser:${email}`);
+  if (!exists){
+    throw new AppError("Reauthentication required to access user info", 401);
+  }
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    // ⬇️ Fetch existing device info instead of setting it
+      const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
+    return utils.SendRes(res, {
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+        isEmailVerified: user.isEmailVerified,
+        bio: user.bio,
+        protectedAcc: user.protectedAccount,
+
+      },
+      DeviceRecords: deviceRecord,
+      message: "User info returned with device history"
+    });
+
+  } catch (err) {
+    next(err);
+  }
+}
 export async function GetUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const email: string | undefined =
@@ -1097,7 +1139,8 @@ export async function LogoutALL(req: Request, res: Response, next: NextFunction)
     console.log("req",req);
     
    const id: number | undefined = (req as any).user.id || req.body?.id || (req.query?.id as string);
-    
+    const email: string | undefined =(req as any).user.email;
+    console.log("id",id);
     if (!id) {
       throw new AppError("Unauthorized", 401);
     }
@@ -1125,7 +1168,7 @@ export async function LogoutALL(req: Request, res: Response, next: NextFunction)
         await redisClient.del(keys);
       }
     } while (cursor !== "0");
-    
+     await redisClient.del(`getUser:${email}`);
     return utils.SendRes(res, { message: "You logged out all sessions successfully" });
   } catch (err) {
     next(err);
@@ -1620,6 +1663,93 @@ export async function CheckEmail(req: Request, res: Response,next:NextFunction):
     return next(err);
   }
 }
+export async function LoginGoogleAndroid(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) throw new AppError("idToken is required", 400);
+
+    const parts = idToken.split(".");
+    if (parts.length < 2) throw new AppError("Invalid ID token", 401);
+
+    const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
+    const email = payload.email;
+    const name = payload.given_name || payload.name || "unknown";
+    const providerId = payload.sub;
+
+    let oauth = await prisma.oAuthAccount.findFirst({
+      where: { provider: "google", providerId },
+      include: { user: true },
+    });
+
+    let user;
+    if (oauth) {
+      user = oauth.user;
+    } else {
+      user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        const username = await utils.generateUsername(name);
+        user = await prisma.user.create({
+          data: {
+            email,
+            username,
+            name,
+            password: "",
+            saltPassword: "",
+            dateOfBirth: "2001-11-03T00:00:00.000Z",
+            oAuthAccount: {
+              create: { provider: "google", providerId },
+            },
+          },
+        });
+      } else {
+        await prisma.oAuthAccount.create({
+          data: { provider: "google", providerId, userId: user.id },
+        });
+      }
+    }
+
+    const { devid } = await utils.SetDeviceInfo(req, res, email);
+
+    const accessPayload = {
+      username: user.username,
+      email: user.email,
+      id: user.id,
+      role: "user",
+      expiresInSeconds: 3600,
+    };
+
+    const refreshPayload = {
+      ...accessPayload,
+      expiresInSeconds: 60 * 60 * 24 * 30,
+    };
+
+    const token = await utils.GenerateJwt(accessPayload);
+    const refreshToken = await utils.GenerateJwt(refreshPayload);
+
+    await redisClient.set(
+      `refresh-token:${user.email}:${devid}`,
+      refreshToken.token,
+      { EX: 60 * 60 * 24 * 30 }
+    );
+
+    return res.json({
+      token: token.token,
+      refreshToken: refreshToken.token,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+      },
+    });
+
+  } catch (err) {
+    console.error("LoginGoogleAndroid err:", err);
+    next(err);
+  }
+}
+
 // export const UpdateUsername = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
 //    const userId = (req as any).user.id;
@@ -1749,6 +1879,7 @@ const authController = {
   ChangeEmail,
   VerifyNewEmail,
   GetUser,
+  GetUserz,
   LogoutALL,
   GetSession,
   LogoutSession,
