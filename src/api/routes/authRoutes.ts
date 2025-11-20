@@ -1472,6 +1472,326 @@ router.post("/getUser",typedAuthController.CheckEmail);
  *         description: Internal server error
  */
 router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
+//temp routes for searchEngine
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     description: Returns API status and timestamp.
+ *     tags:
+ *       - Health
+ *     responses:
+ *       200:
+ *         description: API is running
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ */
+
+/**
+ * @swagger
+ * /crawl:
+ *   post:
+ *     summary: Crawl a single webpage URL and index it
+ *     tags:
+ *       - Crawl
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - url
+ *             properties:
+ *               url:
+ *                 type: string
+ *                 example: "https://example.com"
+ *     responses:
+ *       200:
+ *         description: URL crawled and indexed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 documentId:
+ *                   type: string
+ *                 url:
+ *                   type: string
+ *                 title:
+ *                   type: string
+ *       400:
+ *         description: Missing URL or already crawled
+ *       500:
+ *         description: Failed to crawl
+ */
+
+/**
+ * @swagger
+ * /crawl/batch:
+ *   post:
+ *     summary: Crawl multiple webpage URLs and index them
+ *     tags:
+ *       - Crawl
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - urls
+ *             properties:
+ *               urls:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: URLs crawled and indexed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 count:
+ *                   type: number
+ *                 documents:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       url:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *       400:
+ *         description: Invalid URL list
+ *       500:
+ *         description: Indexing failed
+ */
+
+/**
+ * @swagger
+ * /search:
+ *   get:
+ *     summary: Search across tweets, users, hashtags, and URLs
+ *     tags:
+ *       - Search
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Search results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 query:
+ *                   type: string
+ *                 total:
+ *                   type: integer
+ *                 timestamp:
+ *                   type: string
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     $ref: "#/components/schemas/SearchResult"
+ *       400:
+ *         description: Query missing
+ */
+
+/**
+ * @swagger
+ * /stats:
+ *   get:
+ *     summary: Get index statistics
+ *     tags:
+ *       - Stats
+ *     responses:
+ *       200:
+ *         description: Index statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalDocuments:
+ *                   type: integer
+ *                 totalTerms:
+ *                   type: integer
+ *                 tweets:
+ *                   type: integer
+ *                 users:
+ *                   type: integer
+ *                 hashtags:
+ *                   type: integer
+ *                 urls:
+ *                   type: integer
+ */
+
+/**
+ * @swagger
+ * /documents:
+ *   get:
+ *     summary: Get all indexed documents
+ *     tags:
+ *       - Documents
+ *     responses:
+ *       200:
+ *         description: All documents
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total:
+ *                   type: number
+ *                 documents:
+ *                   type: array
+ *                   items:
+ *                     $ref: "#/components/schemas/ParsedDocument"
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ParsedDocument:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "doc_12345"
+ *         type:
+ *           type: string
+ *           enum: [tweet, user, hashtag, url]
+ *           example: "tweet"
+ *         tokens:
+ *           type: array
+ *           items:
+ *             type: string
+ *             example: ["openai", "chatgpt"]
+ *         timestamp:
+ *           type: number
+ *           example: 1700000000
+ *         data:
+ *           type: object
+ *           example: {}
+ * 
+ *     SearchResult:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "tweet_98765"
+ *         type:
+ *           type: string
+ *           enum: [tweet, user, hashtag, url]
+ *           example: "user"
+ *         score:
+ *           type: number
+ *           example: 0.92
+ *         data:
+ *           type: object
+ *           example: {}
+ *
+ *     CrawledTweet:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "tweet_12345"
+ *         content:
+ *           type: string
+ *           example: "Hello world! #example"
+ *         userId:
+ *           type: string
+ *           example: "user_56789"
+ *         username:
+ *           type: string
+ *           example: "johndoe"
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2025-11-20T20:00:00Z"
+ *         likesCount:
+ *           type: number
+ *           example: 123
+ *         retweetCount:
+ *           type: number
+ *           example: 45
+ *         hashtags:
+ *           type: array
+ *           items:
+ *             type: string
+ *             example: ["example", "hello"]
+ *
+ *     CrawledUser:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "user_56789"
+ *         username:
+ *           type: string
+ *           example: "johndoe"
+ *         name:
+ *           type: string
+ *           example: "John Doe"
+ *         bio:
+ *           type: string
+ *           example: "Tech enthusiast and developer."
+ *         verified:
+ *           type: boolean
+ *           example: true
+ *         followersCount:
+ *           type: number
+ *           example: 1000
+ *         followingsCount:
+ *           type: number
+ *           example: 150
+ *
+ *     CrawledHashtag:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "hashtag_123"
+ *         tag:
+ *           type: string
+ *           example: "example"
+ *         tweetCount:
+ *           type: number
+ *           example: 250
+ */
+
+
 router.use(AfterChange());
 router.use(GeoGurd());
 export default router;
