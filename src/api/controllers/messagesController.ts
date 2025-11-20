@@ -502,6 +502,7 @@ export const addMessageToChat = async (messageInput: newMessageInput, userId: st
                 }
             }
         }
+        return newMessage.id;
     }catch(error){
         console.error('Error adding message to chat:', error);
         return error;

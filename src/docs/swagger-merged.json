@@ -141,7 +141,8 @@
                 },
                 "content": {
                   "type": "string",
-                  "minLength": 1
+                  "minLength": 1,
+                  "maxLength": 445
                 },
                 "createdAt": {
                   "type": "string",
@@ -195,7 +196,8 @@
                     },
                     "username": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 445
                     },
                     "profileMedia": {
                       "type": "object",
@@ -263,7 +265,8 @@
         "properties": {
           "content": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 445
           },
           "replyControl": {
             "type": "string",
@@ -273,6 +276,14 @@
               "VERIFIED",
               "MENTIONED"
             ]
+          },
+          "mediaIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 4
           }
         },
         "required": [
@@ -774,7 +785,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -921,7 +933,8 @@
                       },
                       "content": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "maxLength": 445
                       },
                       "createdAt": {
                         "type": "string",
@@ -975,7 +988,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -1131,7 +1145,8 @@
                       },
                       "content": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "maxLength": 445
                       },
                       "createdAt": {
                         "type": "string",
@@ -1185,7 +1200,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -1269,7 +1285,8 @@
                     },
                     "content": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 445
                     },
                     "createdAt": {
                       "type": "string",
@@ -1323,7 +1340,8 @@
                         },
                         "username": {
                           "type": "string",
-                          "minLength": 1
+                          "minLength": 1,
+                          "maxLength": 445
                         },
                         "profileMedia": {
                           "type": "object",
@@ -1418,7 +1436,8 @@
                 "properties": {
                   "content": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 445
                   }
                 },
                 "required": [
@@ -1554,7 +1573,8 @@
                       },
                       "content": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "maxLength": 445
                       },
                       "createdAt": {
                         "type": "string",
@@ -1608,7 +1628,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -1806,7 +1827,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -1888,7 +1910,8 @@
                       },
                       "content": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "maxLength": 445
                       },
                       "createdAt": {
                         "type": "string",
@@ -1942,7 +1965,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -2137,7 +2161,8 @@
                     },
                     "summary": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 445
                     }
                   },
                   "required": [
@@ -2181,7 +2206,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 445
             },
             "required": true,
             "name": "query",
@@ -2269,7 +2295,8 @@
                     },
                     "content": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 445
                     },
                     "createdAt": {
                       "type": "string",
@@ -2323,7 +2350,8 @@
                         },
                         "username": {
                           "type": "string",
-                          "minLength": 1
+                          "minLength": 1,
+                          "maxLength": 445
                         },
                         "profileMedia": {
                           "type": "object",
@@ -2432,7 +2460,8 @@
                       },
                       "content": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "maxLength": 445
                       },
                       "createdAt": {
                         "type": "string",
@@ -2486,7 +2515,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -2624,7 +2654,8 @@
                             },
                             "content": {
                               "type": "string",
-                              "minLength": 1
+                              "minLength": 1,
+                              "maxLength": 445
                             },
                             "createdAt": {
                               "type": "string",
@@ -2678,7 +2709,8 @@
                                 },
                                 "username": {
                                   "type": "string",
-                                  "minLength": 1
+                                  "minLength": 1,
+                                  "maxLength": 445
                                 },
                                 "profileMedia": {
                                   "type": "object",
@@ -2727,7 +2759,8 @@
                                       },
                                       "username": {
                                         "type": "string",
-                                        "minLength": 1
+                                        "minLength": 1,
+                                        "maxLength": 445
                                       },
                                       "profileMedia": {
                                         "type": "object",
@@ -2868,7 +2901,8 @@
                           },
                           "content": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "createdAt": {
                             "type": "string",
@@ -2922,7 +2956,8 @@
                               },
                               "username": {
                                 "type": "string",
-                                "minLength": 1
+                                "minLength": 1,
+                                "maxLength": 445
                               },
                               "profileMedia": {
                                 "type": "object",
@@ -2971,7 +3006,8 @@
                                     },
                                     "username": {
                                       "type": "string",
-                                      "minLength": 1
+                                      "minLength": 1,
+                                      "maxLength": 445
                                     },
                                     "profileMedia": {
                                       "type": "object",
@@ -3102,7 +3138,8 @@
                           },
                           "content": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "createdAt": {
                             "type": "string",
@@ -3156,7 +3193,8 @@
                               },
                               "username": {
                                 "type": "string",
-                                "minLength": 1
+                                "minLength": 1,
+                                "maxLength": 445
                               },
                               "profileMedia": {
                                 "type": "object",
@@ -3205,7 +3243,8 @@
                                     },
                                     "username": {
                                       "type": "string",
-                                      "minLength": 1
+                                      "minLength": 1,
+                                      "maxLength": 445
                                     },
                                     "profileMedia": {
                                       "type": "object",
@@ -3961,7 +4000,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-20T11:24:36.060Z"
+                        "default": "2025-11-20T18:21:40.013Z"
                       },
                       "userId": {
                         "type": "string",
@@ -4186,7 +4225,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-20T11:24:36.060Z"
+                            "default": "2025-11-20T18:21:40.013Z"
                           },
                           "userId": {
                             "type": "string",
@@ -5566,29 +5605,23 @@
               "format": "uuid",
               "description": "Chat ID"
             },
-            "required": true,
+            "required": false,
             "description": "Chat ID",
             "name": "chatId",
-            "in": "path"
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Timestamp of the last message received (for pagination)"
+            },
+            "required": false,
+            "description": "Timestamp of the last message received (for pagination)",
+            "name": "lastMessageTimestamp",
+            "in": "query"
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "lastMessageTimestamp": {
-                    "type": "string",
-                    "format": "date-time",
-                    "description": "Timestamp of the last message received (for pagination)"
-                  }
-                }
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Chat information retrieved successfully",
