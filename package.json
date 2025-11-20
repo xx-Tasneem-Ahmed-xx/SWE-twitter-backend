@@ -1,7 +1,6 @@
 {
   "name": "swe-twitter-backend",
   "version": "1.0.0",
-  "type": "module",
   "description": "",
   "main": "dist/src/index.js",
   "_moduleAliases": {
