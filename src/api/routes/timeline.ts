@@ -1,15 +1,15 @@
+// src/api/routes/timeline.ts
 import { Router } from "express";
-import TimelineController from "@/api/controllers/timeline";
+import { timelineController } from "@/api/controllers/timeline";
 
 const router = Router();
-
 router.get(
   "/timeline",
-  TimelineController.getTimeline.bind(TimelineController)
+  timelineController.getTimeline.bind(timelineController)
 );
 router.get(
   "/for-you",
-  TimelineController.getForYou.bind(TimelineController)
+  timelineController.getForYou.bind(timelineController)
 );
 
 export default router;

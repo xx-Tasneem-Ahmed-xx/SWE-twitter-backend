@@ -1,414 +1,465 @@
+// src/application/services/timeline.ts
 import { prisma } from "@/prisma/client";
+import { Prisma } from "@prisma/client";
+import { z } from "zod";
+
+// Local DTO definitions (fallback if shared DTO file is missing)
+type CursorDTO = { cursor?: string | null };
+
+// src/infra/redis/cache.ts
 import Redis from "ioredis";
-import {
-  TimelineServiceDTO,
-  ForYouServiceDTO,
-} from "@/application/dtos/timeline/timeline.dto";
+
+const redisUrl = process.env.REDIS_URL ?? "redis://127.0.0.1:6379";
+export const redis = new Redis(redisUrl);
+
+// util: JSON get/set helpers
+export async function cacheGet<T>(key: string): Promise<T | null> {
+  const v = await redis.get(key);
+  return v ? (JSON.parse(v) as T) : null;
+}
+export async function cacheSet(key: string, value: any, ttlSeconds = 60) {
+  await redis.set(key, JSON.stringify(value), "EX", ttlSeconds);
+}
+
+interface TimelineItemDTO {
+  id: string;
+  content: string | null;
+  userId: string;
+  username: string;
+  name: string | null;
+  profileMediaKey: string | null;
+  createdAt: string;
+  likesCount: number;
+  retweetCount: number;
+  repliesCount: number;
+  score: number;
+  reasons: string[];
+}
+
+interface ForYouResponseDTO {
+  user: string;
+  recommendations: TimelineItemDTO[];
+  nextCursor: string | null;
+  generatedAt: string;
+}
 
 /**
- * Simple Redis client. Configure via REDIS_URL env var.
- * For small deployments change settings accordingly. In production prefer a managed redis.
+ * Configurable weights — tune as needed
  */
-const redis = new Redis(process.env.REDIS_URL || "redis://127.0.0.1:6379");
-
-type ScoredTweet = {
-  id: string;
-  createdAt: Date | string;
-  userId: string;
-  content: string;
-  score: number;
-  _meta?: any;
+const WEIGHTS = {
+  like: 1.0,
+  retweet: 2.0,
+  reply: 0.5,
+  recencyHalfLifeHours: 24, // recency decay
+  followBoost: 2.0, // tweets from direct followings boost
+  followingLikedBoost: 1.6, // tweets liked/retweeted by followings
+  topicMatchBoost: 1.7,
+  verifiedBoost: 1.1,
 };
 
-export class TimelineService {
-  constructor(private cache = redis) {}
+function recencyScore(createdAt: Date) {
+  // exponential decay: score = 2^(-age / halfLife)
+  const ageHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+  const half = WEIGHTS.recencyHalfLifeHours;
+  return Math.pow(2, -ageHours / half);
+}
 
-  /**************************************************************************
-   * Simple Get timeline — tweets from followings + self (existing behavior)
-   **************************************************************************/
-  async getTimeline(dto: TimelineServiceDTO) {
-    const followers = await prisma.follow.findMany({
-      where: { followerId: dto.userId, status: "ACCEPTED" },
+function baseEngagementScore(tweet: {
+  likesCount: number;
+  retweetCount: number;
+  repliesCount?: number;
+}) {
+  const { likesCount, retweetCount, repliesCount = 0 } = tweet;
+  return (
+    likesCount * WEIGHTS.like +
+    retweetCount * WEIGHTS.retweet +
+    repliesCount * WEIGHTS.reply
+  );
+}
+
+/**
+ * helper to map DB tweet rows -> TimelineItemDTO
+ */
+function mapTweetRowToDTO(row: any): TimelineItemDTO {
+  return {
+    id: row.id,
+    content: row.content,
+    userId: row.userId,
+    username: row.username,
+    name: row.name ?? null,
+    // Use keyName from the related Media table, which is accessed via profileMedia relation on User
+    profileMediaKey: row.profileMediaKey ?? row.profileMedia?.keyName ?? null,
+    createdAt: row.createdAt.toISOString(),
+    likesCount: Number(row.likesCount ?? 0),
+    retweetCount: Number(row.retweetCount ?? 0),
+    repliesCount: Number(row.repliesCount ?? 0),
+    score: Number(row._score ?? 0),
+    reasons: row._reasons ?? [],
+  };
+}
+
+export class TimelineService {
+  /**
+   * Returns timeline (followings + own posts) - basic timeline
+   */
+  async getTimeline(params: {
+    userId: string;
+    limit?: number;
+    cursor?: string;
+  }) {
+    const limit = params.limit ?? 20;
+
+    // Get followings
+    const followRows = await prisma.follow.findMany({
+      where: { followerId: params.userId, status: "ACCEPTED" },
       select: { followingId: true },
     });
+    const followingIds = followRows.map((r) => r.followingId);
 
-    const followingIds = followers.map((f) => f.followingId);
-
-    const muted = await prisma.mute.findMany({
-      where: { muterId: dto.userId },
+    // Get muted users
+    const mutedRows = await prisma.mute.findMany({
+      where: { muterId: params.userId },
       select: { mutedId: true },
     });
-    const mutedIds = muted.map((m) => m.mutedId);
+    const mutedIds = mutedRows.map((r) => r.mutedId);
 
+    // Build where clause: tweets by followings OR the user (exclude muted)
+    const whereClause = {
+      AND: [
+        { userId: { in: [...followingIds, params.userId] } },
+        { userId: { notIn: mutedIds } },
+      ],
+    };
+
+    // Cursor support: cursor is tweet.id; but better is createdAt+id; for simplicity use id with skip
     const tweets = await prisma.tweet.findMany({
-      where: {
-        AND: [
-          { userId: { in: [...followingIds, dto.userId] } },
-          { userId: { notIn: mutedIds } },
-        ],
-      },
+      where: whereClause,
       include: {
         user: {
           select: {
-            id: true,
             username: true,
             name: true,
-            profileMedia: { select: { id: true, keyName: true } },
+            profileMedia: { select: { keyName: true } },
             verified: true,
-            protectedAccount: true,
           },
         },
-        _count: { select: { tweetLikes: true, retweets: true } },
-        tweetMedia: { select: { mediaId: true } },
       },
       orderBy: { createdAt: "desc" },
-      take: dto.limit + 1,
-      ...(dto.cursor && { cursor: { id: dto.cursor }, skip: 1 }),
+      take: limit + 1,
+      ...(params.cursor && { cursor: { id: params.cursor }, skip: 1 }),
     });
 
-    const hasNext = tweets.length > dto.limit;
-    const data = hasNext ? tweets.slice(0, -1) : tweets;
+    const hasNextPage = tweets.length > limit;
+    const page = hasNextPage ? tweets.slice(0, -1) : tweets;
 
-    // convert dates to ISO for consistent DTOs
+    const mapped = page.map((t) =>
+      mapTweetRowToDTO({
+        id: t.id,
+        content: t.content,
+        userId: t.userId,
+        username: t.user.username,
+        name: t.user.name,
+        profileMediaKey: t.user.profileMedia?.keyName ?? null,
+        createdAt: t.createdAt,
+        likesCount: t.likesCount,
+        retweetCount: t.retweetCount,
+        repliesCount: t.repliesCount,
+      })
+    );
+
     return {
-      data: data.map((t) => ({ ...t, createdAt: t.createdAt.toISOString() })),
-      nextCursor: hasNext ? data[data.length - 1].id : null,
+      data: mapped,
+      nextCursor: hasNextPage ? page[page.length - 1].id : null,
     };
   }
 
-  /**************************************************************************
-   * For You: Candidate generation + scoring + caching
+  /**
+   * For You — personalized feed
    *
-   * Approach:
-   * 1) Gather lists (following, muted, blocked).
-   * 2) Candidate sets:
-   *    - inNetwork: recent tweets from followings
-   *    - outNetwork: popular/relevant tweets (hashtags liked by user's network, popular recent tweets)
-   * 3) Score tweets with a heuristic combining engagement, relevance, author score, freshness.
-   * 4) Sort, slice, return. Cache results for short TTL.
-   **************************************************************************/
-  async getForYou(dto: ForYouServiceDTO) {
-    const cacheKey = `foryou:${dto.userId}:l${dto.limit}:c:${
-      dto.cursor ?? "null"
+   * Steps:
+   * 1. Check cache key `for-you:${userId}:${limit}:${cursor}`
+   * 2. Candidate generation:
+   * - recent tweets from followings and 2-hop followings
+   * - tweets liked/retweeted by followings
+   * - trending (global high-engagement tweets in last 48h)
+   * - tweets matching user's top hashtags/topics (derived from their likes/posts)
+   * 3. Score & rank candidates
+   * 4. Return top N paginated
+   *
+   * The algorithm is simplified but follows key X signals.
+   */
+  async getForYou(params: {
+    userId: string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<ForYouResponseDTO> {
+    const limit = params.limit ?? 20;
+    const cacheKey = `for-you:${params.userId}:l${limit}:c${
+      params.cursor ?? "none"
     }`;
+    // Try redis cache first
+    const cached = await cacheGet<ForYouResponseDTO>(cacheKey);
+    if (cached) return cached;
 
-    // try cache (short TTL). Store a small page of results.
-    const cached = await this.cache.get(cacheKey);
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch (e) {
-        // continue if parse fails
-      }
-    }
-
-    // 1) lists
-    const followingRows = await prisma.follow.findMany({
-      where: { followerId: dto.userId, status: "ACCEPTED" },
+    // 1) get direct followings
+    const followRows = await prisma.follow.findMany({
+      where: { followerId: params.userId, status: "ACCEPTED" },
       select: { followingId: true },
     });
-    const followingIds = followingRows.map((r) => r.followingId);
+    const followingIds = followRows.map((r) => r.followingId);
 
+    // 2) 2-hop followings (people followed by your followings) up to 100
+    // NOTE: 'Follow' is the model name, used in the raw query (this should be fine, but sometimes needs 'follows')
+    const twoHopRows = await prisma.$queryRaw<
+      { followingId: string }[]
+    >`SELECT DISTINCT f2."followingId" FROM "Follow" f1 JOIN "Follow" f2 ON f1."followingId" = f2."followerId" WHERE f1."followerId" = ${params.userId} LIMIT 100`;
+    const twoHopIds = twoHopRows
+      .map((r) => r.followingId)
+      .filter((id) => id !== params.userId && !followingIds.includes(id));
+
+    // 3) muted and blocked filter
     const mutedRows = await prisma.mute.findMany({
-      where: { muterId: dto.userId },
+      where: { muterId: params.userId },
       select: { mutedId: true },
     });
-    const mutedIds = new Set(mutedRows.map((r) => r.mutedId));
+    const mutedIds = mutedRows.map((r) => r.mutedId);
 
-    const blockedRows = await prisma.block.findMany({
-      where: { blockerId: dto.userId },
-      select: { blockedId: true },
-    });
-    const blockedIds = new Set(blockedRows.map((r) => r.blockedId));
+    // 4) derive user's top hashtags from their liked tweets / own tweets
+    // REPLACEMENT: "TweetHash" -> "tweetHashes", "Tweet" -> "tweets", "Hash" -> "hashes"
+    const userTopHashtags = await prisma.$queryRaw<
+      { tag_text: string; cnt: string }[]
+    >`
+      SELECT h.tag_text, COUNT(*) as cnt
+      FROM "tweetHashes" th
+      JOIN "tweets" t ON t.id = th."tweetId"
+      JOIN "hashes" h ON h.id = th."hashId"
+      WHERE t."userId" = ${params.userId}
+      OR t.id IN (
+        SELECT "tweetId" FROM "TweetLike" WHERE "userId" = ${params.userId}
+      )
+      GROUP BY h.tag_text ORDER BY cnt DESC LIMIT 10
+    `;
+    const userHashtags = userTopHashtags.map((r) => r.tag_text);
 
-    // 2) Candidate generation - use Prisma queries (parallel)
-    // a) in-network candidates (recent)
-    const inNetworkPromise = prisma.tweet.findMany({
-      where: {
-        AND: [
-          { userId: { in: followingIds } },
-          { userId: { notIn: Array.from(mutedIds) } },
-        ],
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            name: true,
-            verified: true,
-            profileMedia: { select: { id: true, keyName: true } },
+    // 5) Candidate generation query (raw SQL for speed)
+    // REPLACEMENT: "Tweet" -> "tweets", "User" -> "users", "Media" -> "medias", "TweetHash" -> "tweetHashes", "Hash" -> "hashes"
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const candidates = await prisma.$queryRaw<any[]>`
+      WITH base AS (
+        SELECT t.*,
+          u.username,
+          u.name,
+          u."profileMediaId",
+          u.verified,
+          m."keyName" as "profileMediaKey",
+          COALESCE(t."likesCount",0) as likes,
+          COALESCE(t."retweetCount",0) as rts,
+          COALESCE(t."repliesCount",0) as replies,
+          (
+            SELECT ARRAY_AGG(h."tag_text")
+            FROM "tweetHashes" th
+            JOIN "hashes" h ON th."hashId" = h.id
+            WHERE th."tweetId" = t.id
+          ) AS tags
+        FROM "tweets" t
+        JOIN "users" u ON u.id = t."userId"
+        LEFT JOIN "medias" m ON m.id = u."profileMediaId"
+        WHERE t."createdAt" >= ${sevenDaysAgo}
+          AND t."userId" NOT IN (${Prisma.join(
+            mutedIds.length
+              ? mutedIds.map((id) => Prisma.sql`${id}`)
+              : [Prisma.sql`'__null_placeholder__'`],
+            ","
+          )})
+          AND t."userId" != ${params.userId} -- Exclude own tweets initially
+      ),
+      -- candidates from followings
+      from_followings AS (
+        SELECT *, 'from_following' as reason FROM base WHERE "userId" IN (${Prisma.join(
+          followingIds.length
+            ? followingIds.map((id) => Prisma.sql`${id}`)
+            : [Prisma.sql`'__null_placeholder__'`],
+          ","
+        )})
+      ),
+      from_2hop AS (
+        SELECT *, 'from_2hop' as reason FROM base WHERE "userId" IN (${Prisma.join(
+          twoHopIds.length
+            ? twoHopIds.map((id) => Prisma.sql`${id}`)
+            : [Prisma.sql`'__null_placeholder__'`],
+          ","
+        )})
+      ),
+      liked_by_followings AS (
+        SELECT b.*, 'liked_by_following' as reason
+        FROM base b
+        JOIN "TweetLike" tl on tl."tweetId" = b.id
+        WHERE tl."userId" IN (${Prisma.join(
+          followingIds.length
+            ? followingIds.map((id) => Prisma.sql`${id}`)
+            : [Prisma.sql`'__null_placeholder__'`],
+          ","
+        )})
+      ),
+      trending AS (
+        SELECT *, 'trending' as reason
+        FROM base
+        ORDER BY (likes * 1.0 + rts * 2.0) DESC
+        LIMIT 200
+      ),
+      topic_match AS (
+        SELECT b.*, 'topic' as reason FROM base b
+        WHERE b.tags && ARRAY[${Prisma.join(
+          userHashtags.length
+            ? userHashtags.map((h) => Prisma.sql`${h}`)
+            : [Prisma.sql`'__null_placeholder__'`],
+          ","
+        )}]::text[]
+      )
+      SELECT DISTINCT ON (id) *
+      FROM (
+        SELECT * FROM from_followings
+        UNION ALL
+        SELECT * FROM liked_by_followings
+        UNION ALL
+        SELECT * FROM trending
+        UNION ALL
+        SELECT * FROM from_2hop
+        UNION ALL
+        SELECT * FROM topic_match
+        UNION ALL
+        SELECT *, 'self' as reason FROM base WHERE "userId" = ${
+          params.userId
+        } -- Include own tweets in scoring/ranking pool
+      ) x
+      ORDER BY id, (likes + rts * 2) DESC -- Deduplication by ID, keeping the one with higher engagement for the case where a tweet appears in multiple sets
+      LIMIT 1000
+    `;
+
+    // If no candidates found, fallback to global trending
+    let finalCandidates = candidates;
+    if (!finalCandidates || finalCandidates.length === 0) {
+      const trending = await prisma.tweet.findMany({
+        where: { createdAt: { gte: sevenDaysAgo } },
+        orderBy: [{ retweetCount: "desc" }, { likesCount: "desc" }],
+        take: 200,
+        include: {
+          user: {
+            select: {
+              username: true,
+              name: true,
+              profileMedia: { select: { keyName: true } },
+              verified: true,
+            },
           },
         },
-        _count: {
-          select: { tweetLikes: true, retweets: true, tweetBookmark: true },
-        },
-        tweetMedia: { select: { mediaId: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
-
-    // b) out-network candidates:
-    //    - tweets liked by people user follows (social proof)
-    //    - popular recent tweets globally (top N)
-    const likedByFollowingPromise = prisma.tweet.findMany({
-      where: {
-        tweetLikes: { some: { userId: { in: followingIds } } },
-        userId: { notIn: [...followingIds, dto.userId] },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            verified: true,
-            profileMedia: { select: { id: true, keyName: true } },
-          },
-        },
-        _count: {
-          select: { tweetLikes: true, retweets: true, tweetBookmark: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 300,
-    });
-
-    const popularRecentPromise = prisma.tweet.findMany({
-      where: {
-        createdAt: { gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3) },
-      }, // last 3 days
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            verified: true,
-            profileMedia: { select: { id: true, keyName: true } },
-          },
-        },
-        _count: {
-          select: { tweetLikes: true, retweets: true, tweetBookmark: true },
-        },
-      },
-      orderBy: { likesCount: "desc" }, // heuristic
-      take: 500,
-    });
-
-    const [inNetwork, likedByFollowing, popularRecent] = await Promise.all([
-      inNetworkPromise,
-      likedByFollowingPromise,
-      popularRecentPromise,
-    ]);
-
-    // merge candidates and dedupe
-    const poolMap = new Map<string, any>();
-    const pushCandidate = (t: any) => {
-      if (!t || !t.id) return;
-      if (mutedIds.has(t.userId) || blockedIds.has(t.userId)) return;
-      if (!poolMap.has(t.id)) poolMap.set(t.id, t);
-    };
-
-    inNetwork.forEach(pushCandidate);
-    likedByFollowing.forEach(pushCandidate);
-    popularRecent.forEach(pushCandidate);
-
-    const pool = Array.from(poolMap.values());
-
-    // scoring function (heuristic)
-    const now = Date.now();
-    const userInteractions = await this._getUserInteractionSignals(dto.userId);
-
-    const scored: ScoredTweet[] = pool.map((t) => {
-      const likes = (t._count?.tweetLikes ?? 0) + (t.likesCount ?? 0);
-      const retweets = (t._count?.retweets ?? 0) + (t.retweetCount ?? 0);
-      const bookmarks = (t._count?.tweetBookmark ?? 0) || 0;
-      const replies = t.repliesCount ?? 0;
-
-      // engagement score
-      const engagement =
-        likes * 1.2 + retweets * 1.5 + replies * 0.8 + bookmarks * 3;
-
-      // author score
-      const authorBoost = (t.user?.verified ? 8 : 0) + 0; // you can add followers count if tracked
-
-      // relevance
-      let relevance = 0;
-      if (userInteractions.interactedAuthors.has(t.userId)) relevance += 4;
-      if (userInteractions.topHashtags.some((h) => t.content?.includes(h)))
-        relevance += 2;
-
-      // freshness penalty
-      const createdAtMs = new Date(t.createdAt).getTime();
-      const hoursOld = Math.max((now - createdAtMs) / (1000 * 60 * 60), 0);
-      const freshnessPenalty = hoursOld * 0.35;
-
-      const score =
-        engagement * 0.7 +
-        relevance * 1.6 +
-        authorBoost * 1.2 -
-        freshnessPenalty;
-
-      return {
-        id: t.id,
-        createdAt: t.createdAt,
-        userId: t.userId,
-        content: t.content,
-        score,
-        _meta: {
-          tweet: t,
-        },
-      };
-    });
-
-    // sort by score desc
-    scored.sort((a, b) => b.score - a.score);
-
-    // pagination using cursor = tweet.id (we used in-memory sorted list)
-    let startIndex = 0;
-    if (dto.cursor) {
-      const idx = scored.findIndex((s) => s.id === dto.cursor);
-      if (idx >= 0) startIndex = idx + 1;
+      });
+      finalCandidates = trending.map((t) => ({ ...t, reason: "trending" }));
     }
 
-    const page = scored.slice(startIndex, startIndex + dto.limit);
+    // 6) Score candidates
+    const scored = finalCandidates.map((r: any) => {
+      // Handle different casing/naming from raw SQL vs. Prisma findMany
+      const createdAt = new Date(r.createdAt ?? r.created_at ?? r["createdAt"]);
+      let score = baseEngagementScore({
+        likesCount: Number(r.likes ?? r.likesCount ?? 0),
+        retweetCount: Number(r.rts ?? r.retweetCount ?? 0),
+        repliesCount: Number(r.replies ?? r.repliesCount ?? 0),
+      });
+      score *= recencyScore(createdAt);
+
+      // boost if from direct following
+      if (followingIds.includes(r.userId)) score *= WEIGHTS.followBoost;
+      // boost if two-hop less
+      if (twoHopIds.includes(r.userId)) score *= 1.2;
+
+      // if liked by followings (reason property)
+      if ((r.reason ?? "").includes("liked_by_following"))
+        score *= WEIGHTS.followingLikedBoost;
+
+      // if tags overlap
+      // Tags might be an array or null/undefined from raw query
+      const tags: string[] = Array.isArray(r.tags) ? r.tags : [];
+      const tagOverlap = tags.filter((t: string) =>
+        userHashtags.includes(t)
+      ).length;
+      if (tagOverlap > 0)
+        score *= Math.pow(WEIGHTS.topicMatchBoost, Math.min(3, tagOverlap));
+
+      // r.verified might be a boolean or a 0/1 number or undefined depending on source
+      const isVerified = r.verified === true || r.verified === 1;
+      if (isVerified) score *= WEIGHTS.verifiedBoost;
+
+      // small diversity penalty by author frequency (not implemented fully here)
+      // The _reasons array will contain the original reason for candidate inclusion
+      return { row: r, _score: score, _reasons: [String(r.reason)] };
+    });
+
+    // 7) Sort by score desc and dedupe authors to improve diversity
+    scored.sort((a, b) => b._score - a._score);
+
+    const seenTweetIds = new Set<string>();
+    const seenAuthors = new Map<string, number>();
+    const results: any[] = [];
+    for (const s of scored) {
+      const id = s.row.id;
+      if (seenTweetIds.has(id)) continue;
+
+      // diversity: penalize same author repeats
+      const authorCount = seenAuthors.get(s.row.userId) ?? 0;
+      if (authorCount > 2) continue; // skip too many from same author
+      seenAuthors.set(s.row.userId, authorCount + 1);
+
+      results.push({ ...s.row, _score: s._score, _reasons: s._reasons });
+      seenTweetIds.add(id);
+      if (results.length >= limit * 2) break; // fetch up to 2 * limit to improve pagination accuracy
+    }
+
+    // 8) Final sort and paginate by score
+    // (Already sorted, but re-sort just in case diversity logic shifted things)
+    results.sort((a, b) => b._score - a._score);
+
+    // Cursor support: if cursor provided skip till that id
+    let startIndex = 0;
+    if (params.cursor) {
+      const idx = results.findIndex((r) => r.id === params.cursor);
+      if (idx >= 0) startIndex = idx + 1;
+    }
+    const page = results.slice(startIndex, startIndex + limit);
     const nextCursor =
-      startIndex + dto.limit < scored.length
-        ? scored[startIndex + dto.limit].id
+      startIndex + limit < results.length
+        ? results[startIndex + limit].id
         : null;
 
-    // build response (map back to smaller objects)
-    const response = {
-      user: dto.userId,
-      recommendations: page.map((s) => {
-        const t = s._meta.tweet;
-        return {
-          id: t.id,
-          createdAt:
-            t.createdAt instanceof Date
-              ? t.createdAt.toISOString()
-              : t.createdAt,
-          content: t.content,
-          author: t.user
-            ? {
-                id: t.user.id,
-                username: t.user.username,
-                name: t.user.name,
-                verified: t.user.verified,
-                profileMedia: t.user.profileMedia,
-              }
-            : null,
-          score: s.score,
-          counts: {
-            likes: t._count?.tweetLikes ?? t.likesCount ?? 0,
-            retweets: t._count?.retweets ?? t.retweetCount ?? 0,
-            bookmarks: t._count?.tweetBookmark ?? 0,
-          },
-        };
-      }),
+    // Map to DTO
+    const items = page.map((r) =>
+      mapTweetRowToDTO({
+        id: r.id,
+        content: r.content,
+        userId: r.userId,
+        username: r.username ?? r.user?.username,
+        name: r.name ?? r.user?.name,
+        profileMediaKey:
+          r.profileMediaKey ?? r.user?.profileMedia?.keyName ?? null,
+        createdAt: new Date(r.createdAt ?? r.created_at),
+        likesCount: r.likes ?? r.likesCount ?? 0,
+        retweetCount: r.rts ?? r.retweetCount ?? 0,
+        repliesCount: r.replies ?? r.repliesCount ?? 0,
+        _score: r._score,
+        _reasons: r._reasons,
+      })
+    );
+
+    const response: ForYouResponseDTO = {
+      user: params.userId,
+      recommendations: items,
       nextCursor,
       generatedAt: new Date().toISOString(),
     };
 
-    // cache short TTL
-    await this.cache.set(cacheKey, JSON.stringify(response), "EX", 12); // 12 seconds TTL
+    // Cache for short time (10s) — fast subsequent requests
+    await cacheSet(cacheKey, response, 10);
 
     return response;
-  }
-
-  /**
-   * Gather light-weight interaction signals for the user
-   * (authors interacted with, top hashtags)
-   */
-  private async _getUserInteractionSignals(userId: string) {
-    // users that this user interacted with (liked/retweet/replied)
-    const likedAuthors = await prisma.tweetLike.findMany({
-      where: { userId },
-      select: { tweet: { select: { userId: true } } },
-      take: 200,
-    });
-    const retweetedAuthors = await prisma.retweet.findMany({
-      where: { userId },
-      select: { tweet: { select: { userId: true } } },
-      take: 200,
-    });
-
-    const interactedAuthorsSet = new Set<string>();
-    likedAuthors.forEach(
-      (l) => l.tweet && interactedAuthorsSet.add(l.tweet.userId)
-    );
-    retweetedAuthors.forEach(
-      (r) => r.tweet && interactedAuthorsSet.add(r.tweet.userId)
-    );
-
-    // top hashtags used by this user (from their tweets)
-    const userTweets = await prisma.tweet.findMany({
-      where: { userId },
-      select: { content: true },
-      take: 200,
-    });
-
-    // simple hashtag extraction
-    const hashtagCounts = new Map<string, number>();
-    for (const t of userTweets) {
-      const matches = t.content?.match(/#\w+/g) ?? [];
-      for (const m of matches) {
-        const h = m.toLowerCase();
-        hashtagCounts.set(h, (hashtagCounts.get(h) ?? 0) + 1);
-      }
-    }
-
-    const topHashtags = Array.from(hashtagCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .map((x) => x[0].replace("#", ""));
-
-    return {
-      interactedAuthors: interactedAuthorsSet,
-      topHashtags,
-    };
-  }
-
-  /**************************************************************************
-   * Optional: raw SQL candidate query (optimized) — for large-scale systems
-   * This query is an advanced candidate generation SQL that picks:
-   *  - in-following recent tweets
-   *  - tweets liked by followings (social proof)
-   *  - popular tweets in last N days
-   *
-   * Keep for reference and for higher performance when you use prisma.$queryRaw
-   **************************************************************************/
-  async popularCandidatesRaw(userId: string, limit = 1000) {
-    const sql = `
-      WITH followings AS (
-        SELECT followingId FROM "Follow" WHERE "followerId" = $1 AND status='ACCEPTED'
-      ), mute AS (
-        SELECT mutedId FROM "Mute" WHERE "muterId" = $1
-      ), blocked AS (
-        SELECT blockedId FROM "Block" WHERE "blockerId" = $1
-      )
-      SELECT t.*,
-        u.username AS author_username,
-        u.name AS author_name,
-        u.verified as author_verified,
-        COALESCE(l.likes,0) AS likes,
-        COALESCE(r.retweets,0) AS retweets
-      FROM "tweets" t
-      JOIN "users" u ON u.id = t."userId"
-      LEFT JOIN LATERAL (
-        SELECT COUNT(*) AS likes FROM "TweetLike" tl WHERE tl."tweetId" = t.id
-      ) l ON true
-      LEFT JOIN LATERAL (
-        SELECT COUNT(*) AS retweets FROM "Retweet" rt WHERE rt."tweetId" = t.id
-      ) r ON true
-      WHERE t."createdAt" > NOW() - INTERVAL '7 days'
-        AND t."userId" NOT IN (SELECT mutedId FROM mute)
-        AND t."userId" NOT IN (SELECT blockedId FROM blocked)
-      ORDER BY (COALESCE(l.likes,0) * 1.2 + COALESCE(r.retweets,0) * 1.5) DESC
-      LIMIT $2;
-    `;
-
-    const rows = await prisma.$queryRawUnsafe(sql, userId, limit);
-    return rows;
   }
 }

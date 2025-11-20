@@ -1,49 +1,47 @@
-import { TimelineSchema } from "@/application/dtos/tweets/tweet.dto.schema";
+// src/api/controllers/timeline.controller.ts
+import { Request, Response, NextFunction } from "express";
 import { TimelineService } from "@/application/services/timeline";
-import { Response, Request, NextFunction } from "express";
-import {
-  TimelineQuerySchema,
-  ForYouQuerySchema,
-} from "@/application/dtos/timeline/timeline.dto.schema";
+import { CursorDTOSchema } from "../../application/dtos/timeline/timeline.dto.schema";
 
-const timelineService = new TimelineService();
+const svc = new TimelineService();
 
 export class TimelineController {
   async getTimeline(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user.id;
-      const parsedPayload = TimelineSchema.parse({
-        limit: req.query.limit ? Number(req.query.limit) : undefined,
+      //TODO: WHEN LOGIN WORKS
+      // const userId = (req as any).user?.id;
+      // if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const userId = "00505325-856b-4569-9529-210a1b255989"; // "Jerry Donnelly"
+      const parsed = CursorDTOSchema.parse({
         cursor: req.query.cursor,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
       });
 
-      const timeline = await timelineService.getTimeline({
-        userId,
-        ...parsedPayload,
-      });
-      res.status(200).json(timeline);
-    } catch (error) {
-      next(error);
+      const result = await svc.getTimeline({ userId, ...parsed });
+      return res.status(200).json(result);
+    } catch (err) {
+      next(err);
     }
   }
 
   async getForYou(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user.id;
-      const parsed = ForYouQuerySchema.parse({
-        limit: req.query.limit ? Number(req.query.limit) : undefined,
+      //TODO: WHEN LOGIN WORKS
+      // const userId = (req as any).user?.id;
+      // if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const userId = "00505325-856b-4569-9529-210a1b255989"; // "Jerry Donnelly"
+      
+      const parsed = CursorDTOSchema.parse({
         cursor: req.query.cursor,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
       });
 
-      const feed = await timelineService.getForYou({
-        userId,
-        ...parsed,
-      });
-
-      res.status(200).json(feed);
-    } catch (error) {
-      next(error);
+      const feed = await svc.getForYou({ userId, ...parsed });
+      return res.status(200).json(feed);
+    } catch (err) {
+      next(err);
     }
   }
 }
-export default new TimelineController();
+
+export const timelineController = new TimelineController();

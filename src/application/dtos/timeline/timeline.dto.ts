@@ -1,13 +1,13 @@
+// src/application/dtos/timeline.dto.ts
 import z from "zod";
-import { TimelineQuerySchema, ForYouQuerySchema } from "./timeline.dto.schema";
+import {
+  CursorDTOSchema,
+  TimelineItemSchema,
+  ForYouResponseSchema,
+  TimelineResponseSchema,
+} from "./timeline.dto.schema";
 
-export type TimelineQueryDTO = z.infer<typeof TimelineQuerySchema>;
-export type ForYouQueryDTO = z.infer<typeof ForYouQuerySchema>;
-
-export type TimelineServiceDTO = {
-  userId: string;
-} & TimelineQueryDTO;
-
-export type ForYouServiceDTO = {
-  userId: string;
-} & ForYouQueryDTO;
+export type CursorDTO = z.infer<typeof CursorDTOSchema>;
+export type TimelineItemDTO = z.infer<typeof TimelineItemSchema>;
+export type ForYouResponseDTO = z.infer<typeof ForYouResponseSchema>;
+export type TimelineResponseDTO = z.infer<typeof TimelineResponseSchema>;
