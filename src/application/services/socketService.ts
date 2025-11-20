@@ -174,6 +174,7 @@ export class SocketService {
     socket.on("add-message", async (data: { message: newMessageInput }) => {
       try {
         await addMessageToChat(data.message, userId);
+        this.io.to(userId).emit("message-added", { chatId: data.message.chatId });
       } catch (error) {
         console.error("Error adding message to chat via socket:", error);
       }

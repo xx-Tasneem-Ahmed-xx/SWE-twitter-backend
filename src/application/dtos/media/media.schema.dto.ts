@@ -10,3 +10,7 @@ export const mediaSchema = z.object({
     type: z.enum(MediaType),
     size: z.number().nullable()
 })
+
+export const messageMediaInput = z.object({
+    mediaId: z.string().uuid(),
+})
