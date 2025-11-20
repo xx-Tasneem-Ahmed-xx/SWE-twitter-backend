@@ -18,7 +18,9 @@ export enum SearchTab {
 
 export const StringSchema = z
   .string()
-  .min(1, { message: "Content must not be empty" });
+  .trim()
+  .min(1, { message: "Content must not be empty" })
+  .max(445);
 
 const UserSchema = z.object({
   id: z.uuid(),
@@ -37,6 +39,14 @@ export const CreateTweetDTOSchema = z
   .object({
     content: StringSchema,
     replyControl: z.enum(ReplyControl).optional(),
+    mediaIds: z
+      .array(z.uuid())
+      .max(4)
+      .optional()
+      .refine(
+        (arr) => !arr || new Set(arr).size === arr.length,
+        "Duplicate media IDs are not allowed"
+      ),
   })
   .openapi("CreateTweetDTO");
 

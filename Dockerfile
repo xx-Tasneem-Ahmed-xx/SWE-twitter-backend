@@ -21,5 +21,5 @@ COPY ecosystem.config.cjs ./ecosystem.config.cjs
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma generate && pm2 start ecosystem.config.js --only worker-hashtags && npm start"]
+CMD ["sh", "-c", "pm2 start ecosystem.config.js && npm start"]
 
