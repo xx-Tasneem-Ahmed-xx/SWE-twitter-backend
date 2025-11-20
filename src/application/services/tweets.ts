@@ -21,6 +21,7 @@ import {
 import { SearchParams } from "@/types/types";
 import encoderService from "@/application/services/encoder";
 import { enqueueHashtagJob } from "@/background/jobs/hashtags";
+import { Prisma } from "@prisma/client";
 
 class TweetService {
   private validateId(id: string) {
@@ -29,7 +30,8 @@ class TweetService {
     }
   }
 
-  private async saveMentionedUsers(
+  private async saveMentionedUsersTx(
+    tx: Prisma.TransactionClient,
     tweetId: string,
     content: string,
     mentionerId: string
@@ -38,31 +40,46 @@ class TweetService {
     const usernames =
       content.match(MENTION_REGEX)?.map((u) => u.slice(1)) || [];
 
-    if (usernames.length > 0) {
-      const mentionedUsers = await prisma.user.findMany({
-        where: {
-          AND: [
-            { username: { in: usernames } },
-            { blocked: { none: { blockerId: mentionerId } } },
-          ],
-        },
-        select: { id: true },
-      });
+    if (usernames.length === 0) return;
 
-      if (mentionedUsers.length > 0) {
-        await prisma.mention.createMany({
-          data: mentionedUsers.map((user) => ({
-            mentionerId,
-            mentionedId: user.id,
-            tweetId,
-          })),
-          skipDuplicates: true,
-        });
-      }
-    }
+    const mentionedUsers = await tx.user.findMany({
+      where: {
+        AND: [
+          { username: { in: usernames } },
+          { blocked: { none: { blockerId: mentionerId } } },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (mentionedUsers.length === 0) return;
+
+    await tx.mention.createMany({
+      data: mentionedUsers.map((user) => ({
+        mentionerId,
+        mentionedId: user.id,
+        tweetId,
+      })),
+      skipDuplicates: true,
+    });
   }
 
-  private async checkUserInteractions(tweets: any[]) {
+  private async saveTweetMediasTx(
+    tx: Prisma.TransactionClient,
+    tweetId: string,
+    mediaIds?: string[]
+  ) {
+    if (!mediaIds?.length) return;
+
+    const data = mediaIds.map((mediaId) => ({
+      mediaId,
+      tweetId,
+    }));
+
+    await tx.tweetMedia.createMany({ data });
+  }
+
+  private checkUserInteractions(tweets: any[]) {
     return tweets.map((t) => {
       const { tweetLikes, retweets, tweetBookmark, ...tweet } = t;
       return {
@@ -75,68 +92,107 @@ class TweetService {
   }
 
   async createTweet(dto: CreateTweetServiceDto) {
-    const tweet = await prisma.tweet.create({
-      data: { ...dto, tweetType: TweetType.TWEET },
+    return await prisma.$transaction(async (tx) => {
+      const tweet = await tx.tweet.create({
+        data: {
+          content: dto.content,
+          replyControl: dto.replyControl,
+          tweetType: TweetType.TWEET,
+          userId: dto.userId,
+        },
+      });
+
+      await this.saveTweetMediasTx(tx, tweet.id, dto.mediaIds);
+
+      await this.saveMentionedUsersTx(
+        tx,
+        tweet.id,
+        tweet.content,
+        tweet.userId
+      );
+
+      enqueueHashtagJob({ tweetId: tweet.id, content: tweet.content }).catch(
+        () => console.log("Failed to enqueue hashtag job for tweet")
+      );
+
+      return tweet;
     });
-
-    await this.saveMentionedUsers(tweet.id, tweet.content, tweet.userId);
-
-    try {
-      await enqueueHashtagJob({ tweetId: tweet.id, content: tweet.content });
-    } catch (err) {
-      console.log("Failed to enqueue hashtag job for tweet");
-    }
-    return tweet;
   }
 
   async createQuote(dto: CreateReplyOrQuoteServiceDTO) {
     const valid = await validToRetweetOrQuote(dto.parentId);
     if (!valid) throw new AppError("You cannot quote a protected tweet", 403);
 
-    const [quote] = await prisma.$transaction([
-      prisma.tweet.create({
-        data: { ...dto, tweetType: TweetType.QUOTE },
-      }),
+    return await prisma.$transaction(async (tx) => {
+      const quote = await tx.tweet.create({
+        data: {
+          content: dto.content,
+          replyControl: dto.replyControl,
+          tweetType: TweetType.QUOTE,
+          userId: dto.userId,
+          parentId: dto.parentId,
+        },
+      });
 
-      prisma.tweet.update({
+      await tx.tweet.update({
         where: { id: dto.parentId },
         data: { quotesCount: { increment: 1 } },
-      }),
-    ]);
+      });
 
-    await this.saveMentionedUsers(quote.id, quote.content, quote.userId);
+      await this.saveTweetMediasTx(tx, quote.id, dto.mediaIds);
 
-    try {
-      await enqueueHashtagJob({ tweetId: quote.id, content: quote.content });
-    } catch (err) {
-      console.log("Failed to enqueue hashtag job for quote");
-    }
-    return quote;
+      await this.saveMentionedUsersTx(
+        tx,
+        quote.id,
+        quote.content,
+        quote.userId
+      );
+
+      enqueueHashtagJob({
+        tweetId: quote.id,
+        content: quote.content,
+      }).catch(() => console.log("Failed to enqueue hashtag job for quote"));
+
+      return quote;
+    });
   }
 
   async createReply(dto: CreateReplyOrQuoteServiceDTO) {
     const valid = await validToReply(dto.parentId, dto.userId);
     if (!valid) throw new AppError("You cannot reply to this tweet", 403);
 
-    const [reply] = await prisma.$transaction([
-      prisma.tweet.create({
-        data: { ...dto, tweetType: TweetType.REPLY },
-      }),
+    return await prisma.$transaction(async (tx) => {
+      const reply = await tx.tweet.create({
+        data: {
+          content: dto.content,
+          replyControl: dto.replyControl,
+          tweetType: TweetType.REPLY,
+          userId: dto.userId,
+          parentId: dto.parentId,
+        },
+      });
 
-      prisma.tweet.update({
+      await tx.tweet.update({
         where: { id: dto.parentId },
         data: { repliesCount: { increment: 1 } },
-      }),
-    ]);
+      });
 
-    await this.saveMentionedUsers(reply.id, reply.content, reply.userId);
+      await this.saveTweetMediasTx(tx, reply.id, dto.mediaIds);
 
-    try {
-      await enqueueHashtagJob({ tweetId: reply.id, content: reply.content });
-    } catch (err) {
-      console.log("Failed to enqueue hashtag job for reply");
-    }
-    return reply;
+      await this.saveMentionedUsersTx(
+        tx,
+        reply.id,
+        reply.content,
+        reply.userId
+      );
+
+      enqueueHashtagJob({
+        tweetId: reply.id,
+        content: reply.content,
+      }).catch(() => console.log("Failed to enqueue hashtag job for reply"));
+
+      return reply;
+    });
   }
 
   async createRetweet(dto: CreateReTweetServiceDto) {
@@ -155,7 +211,6 @@ class TweetService {
     ]);
   }
 
-  //TODO: update docs
   async getRetweets(tweetId: string, dto: InteractionsCursorServiceDTO) {
     this.validateId(tweetId);
     const retweeters = await prisma.retweet.findMany({
@@ -198,10 +253,12 @@ class TweetService {
 
   async getTweet(id: string, userId: string) {
     this.validateId(id);
-    return prisma.tweet.findUnique({
+    const tweet = await prisma.tweet.findUnique({
       where: { id },
       select: this.tweetSelectFields(userId),
     });
+    if (!tweet) throw new AppError("Tweet not found", 404);
+    return this.checkUserInteractions([tweet])[0];
   }
 
   async updateTweet(id: string, content: string) {
@@ -316,15 +373,15 @@ class TweetService {
     };
   }
 
-  async getTweetReplies(tweetId: string) {
-    return prisma.tweet.findMany({
+  //TODO: paginate
+  async getTweetReplies(tweetId: string, userId: string) {
+    const replies = await prisma.tweet.findMany({
       where: { parentId: tweetId },
-      include: {
-        user: {
-          select: this.userSelectFields(),
-        },
+      select: {
+        ...this.tweetSelectFields(userId),
       },
     });
+    return this.checkUserInteractions(replies);
   }
 
   async likeTweet(userId: string, tweetId: string) {
@@ -372,6 +429,7 @@ class TweetService {
     ]);
   }
 
+  //TODO: paginate
   async getLikers(tweetId: string) {
     this.validateId(tweetId);
     return prisma.tweetLike.findMany({
@@ -428,7 +486,7 @@ class TweetService {
       lastActivityAt:
         paginatedTweets[paginatedTweets.length - 1]?.lastActivityAt,
     };
-    const data = await this.checkUserInteractions(paginatedTweets);
+    const data = this.checkUserInteractions(paginatedTweets);
     return {
       data,
       nextCursor: hasNextPage ? encoderService.encode(cursor) : null,
@@ -457,7 +515,7 @@ class TweetService {
     };
     const hashedCursor = encoderService.encode(cursor);
     return {
-      data: paginatedTweets,
+      data: this.checkUserInteractions(paginatedTweets),
       nextCursor: hasNextPage ? hashedCursor : null,
     };
   }
@@ -586,6 +644,7 @@ class TweetService {
         where: { userId },
         select: { userId: true },
       },
+      tweetMedia: { select: { mediaId: true } },
     };
   }
 }
