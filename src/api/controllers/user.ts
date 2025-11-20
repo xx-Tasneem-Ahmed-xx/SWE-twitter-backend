@@ -1886,12 +1886,14 @@ const authController = {
   SignupCaptcha,
   CheckEmail,
   GetUserEmailById,
+ 
 };
 
 const oauthController = {
   Authorize,
   CallbackGoogle,
   CallbackGithub,
+  CallbackAndroidGoogle,
 };
 
 export { authController, oauthController };

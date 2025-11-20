@@ -26,404 +26,163 @@
       }
     },
     "schemas": {
-      "CreateTweetDTO": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "string",
-            "minLength": 1
-          },
-          "replyControl": {
-            "type": "string",
-            "enum": [
-              "EVERYONE",
-              "FOLLOWINGS",
-              "VERIFIED",
-              "MENTIONED"
-            ]
-          }
-        },
-        "required": [
-          "content"
-        ]
-      },
-      "UserInteractionsListResponse": {
-        "type": "object",
-        "properties": {
-          "users": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "username": {
-                  "type": "string",
-                  "description": "Username"
-                },
-                "name": {
-                  "type": "string",
-                  "description": "Display name"
-                },
-                "photo": {
-                  "type": "string",
-                  "nullable": true,
-                  "format": "uri",
-                  "description": "Avatar URL"
-                },
-                "bio": {
-                  "type": "string",
-                  "nullable": true,
-                  "description": "User bio"
-                },
-                "verified": {
-                  "type": "boolean",
-                  "description": "Is the user verified"
-                },
-                "isFollowing": {
-                  "type": "boolean",
-                  "description": "Is the current user following this user"
-                },
-                "isFollower": {
-                  "type": "boolean",
-                  "description": "Is this user following the current user"
-                }
-              },
-              "required": [
-                "username",
-                "name",
-                "photo",
-                "bio",
-                "verified",
-                "isFollowing",
-                "isFollower"
-              ]
-            },
-            "description": "List of followers, followings, blocked or muted users"
-          }
-        },
-        "required": [
-          "users"
-        ]
-      },
-      "ChatUser": {
+      "ParsedDocument": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
-          },
-          "username": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string",
-            "nullable": true
-          },
-          "profilePhoto": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "id",
-          "username",
-          "name",
-          "profilePhoto"
-        ]
-      },
-      "Media": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "url": {
-            "type": "string",
-            "format": "uri"
+            "example": "doc_12345"
           },
           "type": {
             "type": "string",
             "enum": [
-              "IMAGE",
-              "VIDEO",
-              "GIF"
-            ]
+              "tweet",
+              "user",
+              "hashtag",
+              "url"
+            ],
+            "example": "tweet"
           },
-          "size": {
-            "type": "number",
-            "nullable": true
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "url",
-          "type",
-          "size"
-        ]
-      },
-      "MessageMedia": {
-        "type": "object",
-        "properties": {
-          "messageId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "mediaId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "media": {
-            "$ref": "#/components/schemas/Media"
-          }
-        },
-        "required": [
-          "messageId",
-          "mediaId",
-          "media"
-        ]
-      },
-      "Message": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "chatId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "content": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "PENDING",
-              "SENT",
-              "READ"
-            ]
-          },
-          "user": {
-            "$ref": "#/components/schemas/ChatUser"
-          },
-          "messageMedia": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MessageMedia"
-            }
-          }
-        },
-        "required": [
-          "id",
-          "chatId",
-          "userId",
-          "content",
-          "createdAt",
-          "status",
-          "user",
-          "messageMedia"
-        ]
-      },
-      "ChatUserRelation": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "chatId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "user": {
-            "$ref": "#/components/schemas/ChatUser"
-          }
-        },
-        "required": [
-          "id",
-          "chatId",
-          "userId",
-          "user"
-        ]
-      },
-      "ChatGroup": {
-        "type": "object",
-        "nullable": true,
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "photo": {
-            "type": "string",
-            "nullable": true
-          },
-          "description": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "name",
-          "photo",
-          "description"
-        ]
-      },
-      "ChatInfo": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "DMChat": {
-            "type": "boolean"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Message"
-            }
-          },
-          "chatUsers": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatUserRelation"
-            }
-          },
-          "chatGroup": {
-            "$ref": "#/components/schemas/ChatGroup"
-          }
-        },
-        "required": [
-          "id",
-          "DMChat",
-          "createdAt",
-          "updatedAt",
-          "messages",
-          "chatUsers",
-          "chatGroup"
-        ]
-      },
-      "ChatErrorResponse": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "string",
-            "description": "Chat ID is required"
-          }
-        },
-        "required": [
-          "error"
-        ]
-      },
-      "CreateChatInput": {
-        "type": "object",
-        "properties": {
-          "DMChat": {
-            "type": "boolean"
-          },
-          "participant_ids": {
+          "tokens": {
             "type": "array",
             "items": {
               "type": "string",
-              "format": "uuid"
+              "example": [
+                "openai",
+                "chatgpt"
+              ]
             }
-          }
-        },
-        "required": [
-          "participant_ids"
-        ]
-      },
-      "UpdateChatGroupInput": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "New name for the group chat"
           },
-          "description": {
-            "type": "string",
-            "description": "New description for the group chat"
+          "timestamp": {
+            "type": "number",
+            "example": 1700000000
           },
-          "photo": {
-            "type": "string",
-            "format": "uri",
-            "description": "New photo URL for the group chat"
+          "data": {
+            "type": "object",
+            "example": {}
           }
         }
       },
-      "newMessageInput": {
+      "SearchResult": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string",
+            "example": "tweet_98765"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "tweet",
+              "user",
+              "hashtag",
+              "url"
+            ],
+            "example": "user"
+          },
+          "score": {
+            "type": "number",
+            "example": 0.92
+          },
           "data": {
             "type": "object",
-            "properties": {
-              "messageMedia": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "name": {
-                      "type": "string"
-                    },
-                    "url": {
-                      "type": "string",
-                      "format": "uri"
-                    },
-                    "size": {
-                      "type": "number"
-                    },
-                    "type": {
-                      "type": "string"
-                    }
-                  }
-                }
-              },
-              "content": {
-                "type": "string"
-              }
-            }
+            "example": {}
+          }
+        }
+      },
+      "CrawledTweet": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "tweet_12345"
           },
-          "recipientId": {
+          "content": {
+            "type": "string",
+            "example": "Hello world! #example"
+          },
+          "userId": {
+            "type": "string",
+            "example": "user_56789"
+          },
+          "username": {
+            "type": "string",
+            "example": "johndoe"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2025-11-20T20:00:00Z"
+          },
+          "likesCount": {
+            "type": "number",
+            "example": 123
+          },
+          "retweetCount": {
+            "type": "number",
+            "example": 45
+          },
+          "hashtags": {
             "type": "array",
             "items": {
               "type": "string",
-              "format": "uuid"
+              "example": [
+                "example",
+                "hello"
+              ]
             }
-          },
-          "chatId": {
-            "type": "string",
-            "format": "uuid"
           }
-        },
-        "required": [
-          "data"
-        ]
+        }
+      },
+      "CrawledUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "user_56789"
+          },
+          "username": {
+            "type": "string",
+            "example": "johndoe"
+          },
+          "name": {
+            "type": "string",
+            "example": "John Doe"
+          },
+          "bio": {
+            "type": "string",
+            "example": "Tech enthusiast and developer."
+          },
+          "verified": {
+            "type": "boolean",
+            "example": true
+          },
+          "followersCount": {
+            "type": "number",
+            "example": 1000
+          },
+          "followingsCount": {
+            "type": "number",
+            "example": 150
+          }
+        }
+      },
+      "CrawledHashtag": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "hashtag_123"
+          },
+          "tag": {
+            "type": "string",
+            "example": "example"
+          },
+          "tweetCount": {
+            "type": "number",
+            "example": 250
+          }
+        }
       }
     },
     "parameters": {}
@@ -3558,7 +3317,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-20T18:53:11.543Z"
+                        "default": "2025-11-20T19:00:13.209Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3718,7 +3477,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-11-20T18:53:11.543Z"
+                      "default": "2025-11-20T19:00:13.209Z"
                     },
                     "userId": {
                       "type": "string",
@@ -3941,7 +3700,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-20T18:53:11.543Z"
+                            "default": "2025-11-20T19:00:13.209Z"
                           },
                           "userId": {
                             "type": "string",
@@ -4077,7 +3836,7 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date",
-                      "default": "2025-11-20T18:53:11.543Z"
+                      "default": "2025-11-20T19:00:13.209Z"
                     },
                     "userId": {
                       "type": "string",
@@ -8446,6 +8205,296 @@
           },
           "500": {
             "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "description": "Returns API status and timestamp.",
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "API is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/crawl": {
+      "post": {
+        "summary": "Crawl a single webpage URL and index it",
+        "tags": [
+          "Crawl"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "url"
+                ],
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "example": "https://example.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "URL crawled and indexed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "documentId": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing URL or already crawled"
+          },
+          "500": {
+            "description": "Failed to crawl"
+          }
+        }
+      }
+    },
+    "/crawl/batch": {
+      "post": {
+        "summary": "Crawl multiple webpage URLs and index them",
+        "tags": [
+          "Crawl"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "urls"
+                ],
+                "properties": {
+                  "urls": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "URLs crawled and indexed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "number"
+                    },
+                    "documents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid URL list"
+          },
+          "500": {
+            "description": "Indexing failed"
+          }
+        }
+      }
+    },
+    "/search": {
+      "get": {
+        "summary": "Search across tweets, users, hashtags, and URLs",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "query": {
+                      "type": "string"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SearchResult"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Query missing"
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "summary": "Get index statistics",
+        "tags": [
+          "Stats"
+        ],
+        "responses": {
+          "200": {
+            "description": "Index statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "totalDocuments": {
+                      "type": "integer"
+                    },
+                    "totalTerms": {
+                      "type": "integer"
+                    },
+                    "tweets": {
+                      "type": "integer"
+                    },
+                    "users": {
+                      "type": "integer"
+                    },
+                    "hashtags": {
+                      "type": "integer"
+                    },
+                    "urls": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents": {
+      "get": {
+        "summary": "Get all indexed documents",
+        "tags": [
+          "Documents"
+        ],
+        "responses": {
+          "200": {
+            "description": "All documents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "number"
+                    },
+                    "documents": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ParsedDocument"
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
