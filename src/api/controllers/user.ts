@@ -1663,7 +1663,7 @@ export async function CheckEmail(req: Request, res: Response,next:NextFunction):
     return next(err);
   }
 }
-export async function LoginGoogleAndroid(req: Request, res: Response, next: NextFunction) {
+export async function CallbackAndroidGoogle(req: Request, res: Response, next: NextFunction) {
   try {
     const { idToken } = req.body;
     if (!idToken) throw new AppError("idToken is required", 400);
