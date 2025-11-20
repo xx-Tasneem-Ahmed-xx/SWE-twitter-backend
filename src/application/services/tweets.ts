@@ -19,7 +19,7 @@ import {
   SearchTab,
 } from "@/application/dtos/tweets/tweet.dto.schema";
 import { SearchParams } from "@/types/types";
-import encoderService from "@/application/services/encoder";
+import { encoderService } from "@/application/services/encoder";
 import { enqueueHashtagJob } from "@/background/jobs/hashtags";
 import { Prisma } from "@prisma/client";
 

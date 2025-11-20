@@ -1,9 +1,19 @@
 import { RedisOptions } from "ioredis";
+import { getKey } from "@/application/services/secrets";
 
-export const bullRedisConfig: RedisOptions = {
-  // TODO: remove the default values
-  host: process.env.BULLMQ_REDIS_URL || "127.0.0.1",
-  port: Number(process.env.REDIS_PORT || 6379),
-  password: process.env.REDIS_PASSWORD || undefined,
-  maxRetriesPerRequest: null,
-};
+let bullRedisConfig: RedisOptions;
+
+export async function initBullRedisConfig(): Promise<void> {
+  const host = await getKey("BULLMQ_REDIS_URL");
+  const port = await getKey("REDIS_PORT");
+  const password = await getKey("REDIS_PASSWORD");
+
+  bullRedisConfig = {
+    host,
+    port: Number(port),
+    password: password || undefined,
+    maxRetriesPerRequest: null,
+  };
+}
+
+export { bullRedisConfig };
