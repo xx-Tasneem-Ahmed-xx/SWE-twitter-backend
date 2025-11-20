@@ -2,7 +2,10 @@ import {
   InteractionsCursorServiceSchema,
   TweetCursorServiceSchema,
 } from "@/application/dtos/tweets/service/tweets.dto.schema";
-import { SearchDTOSchema } from "@/application/dtos/tweets/tweet.dto.schema";
+import {
+  CreateTweetDTOSchema,
+  SearchDTOSchema,
+} from "@/application/dtos/tweets/tweet.dto.schema";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { Request, Response, NextFunction } from "express";
 import tweetService from "@/application/services/tweets";
@@ -11,9 +14,12 @@ import { encoderService } from "@/application/services/encoder";
 export class TweetController {
   async createTweet(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = req.body;
+      const parsedData = CreateTweetDTOSchema.parse(req.body);
       const userId = (req as any).user.id;
-      const tweet = await tweetService.createTweet({ ...data, userId: userId });
+      const tweet = await tweetService.createTweet({
+        ...parsedData,
+        userId: userId,
+      });
       res.status(201).json(tweet);
     } catch (error) {
       next(error);
@@ -36,11 +42,11 @@ export class TweetController {
 
   async createQuote(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = req.body;
+      const parsedData = CreateTweetDTOSchema.parse(req.body);
       const parentId = req.params.id;
       const userId = (req as any).user.id;
       const quote = await tweetService.createQuote({
-        ...data,
+        ...parsedData,
         userId: userId,
         parentId,
       });
@@ -52,11 +58,11 @@ export class TweetController {
 
   async createReply(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = req.body;
+      const parsedData = CreateTweetDTOSchema.parse(req.body);
       const parentId = req.params.id;
       const userId = (req as any).user.id;
       const reply = await tweetService.createReply({
-        ...data,
+        ...parsedData,
         userId: userId,
         parentId,
       });
@@ -134,7 +140,10 @@ export class TweetController {
   async getTweetReplies(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const replies = await tweetService.getTweetReplies(id);
+      const replies = await tweetService.getTweetReplies(
+        id,
+        (req as any).user.id
+      );
       res.status(200).json(replies);
     } catch (error) {
       next(error);
