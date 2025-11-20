@@ -1,10 +1,11 @@
 import crypto from "crypto";
 import { AppError } from "@/errors/AppError";
+import { getKey } from "./secrets";
 
 class EncoderService {
   private readonly secret: string;
 
-  constructor(secret = process.env.CURSOR_SECRET) {
+  constructor(secret: string | undefined) {
     if (!secret) throw new Error("Missing cursor secret environment variable");
     this.secret = secret;
   }
@@ -52,5 +53,11 @@ class EncoderService {
     }
   }
 }
-const encoderService = new EncoderService();
-export default encoderService;
+let encoderService: EncoderService;
+
+async function initEncoderService() {
+  const secret = await getKey("CURSOR_SECRET");
+  encoderService = new EncoderService(secret);
+}
+
+export { encoderService, initEncoderService };

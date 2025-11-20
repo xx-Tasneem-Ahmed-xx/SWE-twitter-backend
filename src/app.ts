@@ -23,19 +23,8 @@ import oauthRoutes from "./api/routes/oauthRoutes";
 import { S3Client } from "@aws-sdk/client-s3";
 import { StorageSystem } from "@/application/services/storeageSystem";
 import {admin, initializeFirebase} from './application/services/firebaseInitializer'
-import fs from "fs";
-import {
-  Request,
-  ParamsDictionary,
-  Response,
-  NextFunction,
-} from "express-serve-static-core";
-import { ParsedQs } from "qs";
 import cookieParser from "cookie-parser";
 
-import { no } from "zod/v4/locales";
-
-// Type assertion for GeoGurd
 
 const app = express();
 app.use(cors());

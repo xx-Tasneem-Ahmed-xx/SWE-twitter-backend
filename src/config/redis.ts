@@ -1,42 +1,41 @@
-// config/redis.ts
 import { createClient, RedisClientType } from "redis";
+import { getKey } from "@/application/services/secrets";
 
-// Equivalent to Go's: var Ctx = context.Background()
-const Ctx: {} = {}; // Placeholder context object if you want consistency with Go naming
+const Ctx: {} = {};
 
-// Create Redis client. Explicitly set the type to RedisClientType
-const redisClient: RedisClientType = createClient({
-  url: process.env.RED_URL,
-  // NOTE: The 'password' option is typically for connection security,
-  // but if it's intentionally empty, we keep it as is.
-  password: "", // same as Password:""
-  database: 0, // same as DB:0
-});
+let redisClient: RedisClientType;
 
-redisClient.on("error", (err: Error) => {
-  console.error("❌ Redis connection error:", err);
-  process.exit(1);
-});
+export async function initRedisClient(): Promise<void> {
+  const redisUrl = await getKey("RED_URL");
 
-redisClient.on("connect", () => {
-  console.log("🔌 Connected to Redis successfully");
-});
+  redisClient = createClient({
+    url: redisUrl,
+    password: "",
+    database: 0,
+  });
+
+  redisClient.on("error", (err: Error) => {
+    console.error("Redis connection error:", err);
+    process.exit(1);
+  });
+
+  redisClient.on("connect", () => {
+    console.log("Connected to Redis successfully");
+  });
+}
 
 export async function connectRedis(): Promise<void> {
   try {
-    // The client starts disconnected, so we call connect() first
-    await redisClient.connect();
+    if (!redisClient) {
+      await initRedisClient();
+    }
 
-    // Equivalent to Rdb.Ping(Ctx).Err()
+    await redisClient.connect();
     await redisClient.ping();
 
-    // Equivalent to Rdb.FlushAll(Ctx).Err()
-    // The original comment says "add at later", but the JS code included it, so we keep it.
-    // await redisClient.flushAll(); //added in Procution (LOOK AT ME)
-
-    console.log("🧹 Redis connected and cache cleared (FlushAll complete)");
+    console.log("Redis connected and cache cleared (FlushAll complete)");
   } catch (err) {
-    console.error("❌ Something went wrong during Redis connection:", err);
+    console.error("Something went wrong during Redis connection:", err);
     process.exit(1);
   }
 }
