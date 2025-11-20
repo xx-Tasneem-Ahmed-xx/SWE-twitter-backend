@@ -30,9 +30,10 @@ export const UpdateUserProfileDTOSchema = z
     dateOfBirth: z
       .string()
       .optional()
-      .refine((val) => val === "" || !!val, {
-        message: "Invalid date of birth",
-      }),
+      .refine(
+        (val) => val === undefined || val === "" || typeof val === "string",
+        { message: "Invalid date of birth" }
+      ),
     email: z.string().email().optional(),
     password: z
       .string()

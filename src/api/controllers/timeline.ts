@@ -29,8 +29,8 @@ export class TimelineController {
       //TODO: WHEN LOGIN WORKS
       // const userId = (req as any).user?.id;
       // if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const userId = "00505325-856b-4569-9529-210a1b255989"; // "Jerry Donnelly"
-      
+      const userId = "00505325-856b-4569-9529-210a1b255989"; // "Charlotte Kuvalis II"
+
       const parsed = CursorDTOSchema.parse({
         cursor: req.query.cursor,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
