@@ -5,36 +5,49 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 extendZodWithOpenApi(z);
 
 export enum PeopleFilter {
-  ANYONE,
-  FOLLOWINGS,
+  ANYONE = "ANYONE",
+  FOLLOWINGS = "FOLLOWINGS",
 }
 
 export enum SearchTab {
-  TOP,
-  LATEST,
+  TOP = "TOP",
+  LATEST = "LATEST",
+  PEOPLE = "PEOPLE",
+  MEDIA = "MEDIA",
 }
 
 export const StringSchema = z
   .string()
-  .min(1, { message: "Content must not be empty" });
+  .trim()
+  .min(1, { message: "Content must not be empty" })
+  .max(445);
 
 const UserSchema = z.object({
   id: z.uuid(),
   name: z.string().min(1, { message: "Content must not be empty" }).nullable(),
   username: StringSchema,
-  profileMedia: z.object({ id: z.uuid(), keyName: z.string() }),
+  profileMedia: z.object({ id: z.uuid() }),
   verified: z.boolean(),
   protectedAccount: z.boolean(),
 });
 
 export const UsersResponseSchema = z.object({
-  users: z.array(UserSchema),
+  data: z.array(UserSchema),
+  nextCursor: z.string().nullable(),
 });
 
 export const CreateTweetDTOSchema = z
   .object({
     content: StringSchema,
     replyControl: z.enum(ReplyControl).optional(),
+    mediaIds: z
+      .array(z.uuid())
+      .max(4)
+      .optional()
+      .refine(
+        (arr) => !arr || new Set(arr).size === arr.length,
+        "Duplicate media IDs are not allowed"
+      ),
   })
   .openapi("CreateTweetDTO");
 
@@ -50,6 +63,17 @@ export const TweetResponsesSchema = z.object({
   parentId: z.uuid().nullable().optional(),
   tweetType: z.enum(TweetType),
   user: UserSchema,
+  mediaIds: z
+    .array(z.uuid())
+    .max(4)
+    .optional()
+    .refine(
+      (arr) => !arr || new Set(arr).size === arr.length,
+      "Duplicate media IDs are not allowed"
+    ),
+  isLiked: z.boolean(),
+  isRetweeted: z.boolean(),
+  isBookmarked: z.boolean(),
 });
 
 export const timelineResponeSchema = TweetResponsesSchema.extend({
@@ -68,13 +92,20 @@ export const HashTagResponseSchema = z.array(
   })
 );
 
+export const CursorDTOSchema = z.object({
+  limit: z.coerce.number().min(1).max(40).default(20),
+  cursor: z.string().optional().describe("The cursor for pagination"),
+});
+
 export const TimelineSchema = z.object({
   limit: z.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
 });
 
-export const SearchDTOSchema = TimelineSchema.extend({
-  query: StringSchema,
-  peopleFilter: z.enum(PeopleFilter).default(PeopleFilter.ANYONE),
-  searchTab: z.enum(SearchTab).default(SearchTab.TOP),
-});
+export const SearchDTOSchema = z
+  .object({
+    query: StringSchema,
+    peopleFilter: z.enum(PeopleFilter).default(PeopleFilter.ANYONE),
+    searchTab: z.enum(SearchTab).default(SearchTab.TOP),
+  })
+  .extend(CursorDTOSchema.shape);

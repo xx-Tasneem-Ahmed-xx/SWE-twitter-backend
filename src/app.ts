@@ -15,6 +15,7 @@ import tweetRoutes from "@/api/routes/tweets";
 import timelineRoutes from "@/api/routes/timeline";
 import userInteractionsRoutes from "@/api/routes/userInteractions";
 import userRouter from "@/api/routes/user.routes";
+import hashtagsRoutes from "@/api/routes/hashtags";
 import { errorHandler } from "@/api/middlewares/errorHandler";
 import authRoutes from "@/api/routes/authRoutes";
 import Auth from "@/api/middlewares/Auth";
@@ -22,14 +23,6 @@ import oauthRoutes from "./api/routes/oauthRoutes";
 import { S3Client } from "@aws-sdk/client-s3";
 import { StorageSystem } from "@/application/services/storeageSystem";
 import {admin, initializeFirebase} from './application/services/firebaseInitializer'
-import fs from "fs";
-import {
-  Request,
-  ParamsDictionary,
-  Response,
-  NextFunction,
-} from "express-serve-static-core";
-import { ParsedQs } from "qs";
 import cookieParser from "cookie-parser";
 
 import { no } from "zod/v4/locales";
@@ -79,6 +72,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/tweets", tweetRoutes);
 app.use("/api/home", timelineRoutes);
 app.use("/api/users", userRouter);
+app.use("/api/hashtags", hashtagsRoutes);
 app.use("/api", userInteractionsRoutes);
 
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));

@@ -7,6 +7,7 @@ import {
   deleteUserProfilePicture,
   updateUserBanner,
   deleteUserBanner,
+  addFcmToken,
 } from "../controllers/user.controller";
 import { ensureOwner } from "../middlewares/ensureOwner.middleware";
 import { updateUserValidator } from "../validators/user.validator";
@@ -21,29 +22,30 @@ router.patch(
   "/:id",
   updateUserValidator,
   validateRequest,
-  // ensureOwner("id"),       // TODO WHEN AUTH WORKS
+  ensureOwner("id"),       // TODO WHEN AUTH WORKS
   updateUserProfile
 );
 
 router.patch(
-  "/profile-picture/:mediaId",
-  // ensureOwner("id"),       // TODO WHEN AUTH WORKS
+  "/profile-picture/:userId/:mediaId",
+  ensureOwner("userId"), // TODO WHEN AUTH WORKS
   updateUserProfilePicture
 );
 router.delete(
-  "/profile-picture",
-  // ensureOwner("id"), // TODO WHEN AUTH WORKS
+  "/profile-picture/:userId",
+  ensureOwner("userId"), // TODO WHEN AUTH WORKS
   deleteUserProfilePicture
 );
 router.patch(
-  "/banner/:mediaId",
-  // ensureOwner("id"), // TODO WHEN AUTH WORKS
+  "/banner/:userId/:mediaId",
+  ensureOwner("userId"), // TODO WHEN AUTH WORKS
   updateUserBanner
 );
 router.delete(
-  "/banner",
-  // ensureOwner("id"), // TODO WHEN AUTH WORKS
+  "/banner/:userId",
+  ensureOwner("userId"), // TODO WHEN AUTH WORKS
   deleteUserBanner
 );
+router.post("/fcm-token",addFcmToken);
 
 export default router;

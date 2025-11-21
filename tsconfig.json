@@ -4,15 +4,20 @@
     "module": "commonjs",
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "rootDirs": ["./src", "./prisma"],
+    "rootDir": "src",
     "outDir": "dist",
     "strict": true,
     "skipLibCheck": true,
     "baseUrl": "./src",
     "paths": { "@/*": ["*"] },
-    "types": ["node", "express", "jest"], 
+    "types": ["node", "express"],
     "typeRoots": ["./node_modules/@types", "./src/types"]
   },
-  "include": ["src/**/*","src","src/types/express.d.ts","src/types/**/*.d.ts"],
+  "include": [
+    "src/**/*",
+    "src",
+    "src/types/express.d.ts",
+    "src/types/**/*.d.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

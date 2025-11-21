@@ -1,42 +1,46 @@
 import dotenv from "dotenv";
+dotenv.config();
+
 import httpServer from "@/app";
 import { connectToDatabase, disconnectFromDatabase } from "@/database";
 import "module-alias/register";
-// Ensure global Express.Request augmentation (req.user) is loaded for ts-node
-//import "./types/express";
 import { connectRedis } from "./config/redis";
-
-
-dotenv.config();
-
-const PORT = process.env.PORT;
+import { getKey } from "./application/services/secrets";
+import { initEncoderService } from "./application/services/encoder";
 
 async function start() {
   try {
-    console.log("🚀 Starting server...");
+    console.log("Starting server...");
+
+    const portValue = await getKey("PORT");
+    const PORT = portValue ? Number(portValue) : 3000;
+
     await connectToDatabase();
+    console.log("Database connected");
+
     await connectRedis();
+    console.log("Redis connected");
+
+    await initEncoderService();
+
     httpServer.listen(PORT, () => {
-      console.log(`🌟 Server running on port ${PORT}`);
-      console.log(`📡 API available at http://localhost:${PORT}`);
-      console.log(`🔌 Socket.IO server ready for connections`);
+      console.log(`Server running on port ${PORT}`);
+      console.log(`API available at http://localhost:${PORT}`);
+      console.log(`Socket.IO server ready for connections`);
     });
   } catch (error) {
-    console.error("💥 Failed to start server:", error);
+    console.error("Failed to start server:", error);
     process.exit(1);
   }
 }
 
-process.on("SIGINT", async () => {
-  console.log("\n🛑 Shutting down gracefully...");
+async function shutdown(signal: string) {
+  console.log(`\nShutting down gracefully (${signal})...`);
   await disconnectFromDatabase();
   process.exit(0);
-});
+}
 
-process.on("SIGTERM", async () => {
-  console.log("\n🛑 Shutting down gracefully...");
-  await disconnectFromDatabase();
-  process.exit(0);
-});
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
 
 start();

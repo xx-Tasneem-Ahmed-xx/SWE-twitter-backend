@@ -3,6 +3,25 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
 extendZodWithOpenApi(z);
 
+export const UserInteractionQuerySchema = z
+  .object({
+    // cursor may be omitted from the query string; make it optional and default to null
+    cursor: z
+      .string()
+      .nullable()
+      .optional()
+      .default(null)
+      .describe("Opaque cursor for pagination."),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .default(30)
+      .describe("Number of results per page (default: 30)"),
+  })
+  .openapi("UserInteractionQuery");
+
 export const UserInteractionParamsSchema = z
   .object({
     username: z
@@ -28,8 +47,29 @@ export const FollowsListResponseSchema = z
           isFollower: z
             .boolean()
             .describe("Is this user following the current user"),
+          youRequested: z
+            .boolean()
+            .describe(
+              "Has the current user sent a follow request to this user"
+            ),
+          followStatus: z
+            .enum(["NONE", "PENDING", "ACCEPTED"])
+            .describe(
+              "Follow status between result user and target (param) user"
+            ),
         })
       )
       .describe("List of followers, followings, blocked or muted users"),
+    nextCursor: z
+      .string()
+      .nullable()
+      .describe(
+        "Opaque cursor for pagination; pass as 'cursor' in the next request. Null if no more data."
+      ),
+    hasMore: z
+      .boolean()
+      .describe(
+        "True if more data is available; false if this is the last page."
+      ),
   })
   .openapi("UserInteractionsListResponse");

@@ -13,6 +13,10 @@ export const NotificationSchema = z.object({
     userId: z.string().uuid(),
     tweetId: z.string().uuid().optional(),
     actorId: z.string().uuid().optional(),
+    actor: z.object({
+        name: z.string(),
+        profileMediaId: z.string().uuid().nullable(),
+    })
 })
 
 

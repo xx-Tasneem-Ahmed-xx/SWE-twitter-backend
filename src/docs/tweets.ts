@@ -1,5 +1,7 @@
 import {
   CreateTweetDTOSchema,
+  CursorDTOSchema,
+  SearchDTOSchema,
   StringSchema,
   TweetResponsesSchema,
   TweetSummaryResponse,
@@ -8,11 +10,7 @@ import {
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 import { listErrors } from "@/docs/errors";
-import {
-  TweetIdParams,
-  UsernameParams,
-  SearchQuery,
-} from "@/docs/utils/utils";
+import { TweetIdParams, UsernameParams } from "@/docs/utils/utils";
 const errors = listErrors();
 
 function registerSubList(
@@ -27,7 +25,7 @@ function registerSubList(
     path: `/api/tweets/{id}/${name}`,
     summary: `Get tweet ${name}`,
     tags: [tag],
-    request: { params: TweetIdParams },
+    request: { params: TweetIdParams, query: CursorDTOSchema },
     responses: {
       200: {
         description,
@@ -133,6 +131,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     tags: ["Tweets"],
     request: {
       params: TweetIdParams,
+      query: CursorDTOSchema,
     },
     responses: {
       200: {
@@ -220,10 +219,13 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: "get",
-    path: "/api/tweets/user/{username}/mentioned",
+    path: "/api/tweets/users/{username}/mentioned",
     summary: "Get tweets that the user is mentioned in",
     tags: ["Tweets Interactions"],
-    request: { params: UsernameParams },
+    request: {
+      params: UsernameParams,
+      query: CursorDTOSchema,
+    },
     responses: {
       200: {
         description: "Mentioned tweets fetched successfully",
@@ -339,7 +341,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     description: "Search tweets by content, hashtag, or users.",
     tags: ["Tweets"],
     request: {
-      query: SearchQuery,
+      query: SearchDTOSchema,
     },
     responses: {
       200: {
@@ -360,7 +362,10 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     summary: "Get user's tweets",
     description: "Returns all tweets authored by the specified user.",
     tags: ["Tweets"],
-    request: { params: UsernameParams },
+    request: {
+      params: UsernameParams,
+      query: CursorDTOSchema,
+    },
     responses: {
       200: {
         description: "Tweets retrieved successfully",

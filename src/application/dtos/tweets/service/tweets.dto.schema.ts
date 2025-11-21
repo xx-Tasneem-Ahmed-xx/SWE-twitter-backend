@@ -24,3 +24,16 @@ export const TimelineServiceSchema = TimelineSchema.extend({
 });
 
 export const SearchServiceSchema = SearchDTOSchema.extend({ userId: z.uuid() });
+
+const CursorServiceSchema = z.object({
+  userId: z.uuid(),
+  limit: z.coerce.number().min(1).max(40).default(20),
+});
+
+export const TweetCursorServiceSchema = CursorServiceSchema.extend({
+  cursor: z.object({ createdAt: z.coerce.date(), id: z.uuid() }).optional(),
+});
+
+export const InteractionsCursorServiceSchema = CursorServiceSchema.extend({
+  cursor: z.object({ createdAt: z.coerce.date(), userId: z.uuid() }).optional(),
+});

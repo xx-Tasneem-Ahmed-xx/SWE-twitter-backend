@@ -3,25 +3,20 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 
-
-
 //import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import fetch, { Response as FetchResponse } from "node-fetch";
 import zxcvbn from "zxcvbn";
-import { promisify } from "util";
-// The following imports assume you have 'prisma' and 'redisClient' configured
-
-// import { redisClient } from "../../../config/redis.js";
 import { redisClient } from "@/config/redis";
-// import { sendEmailSMTP as _sendEmailSMTP } from "./email-helper.js"; // optional: separate email helper
-import { performance } from "perf_hooks";
-// Use appropriate types for Express Request and Response
 import { Request, Response } from "express";
+import { AppError } from "@/errors/AppError";
+import { getKey } from "@/application/services/secrets";
+
 const uuidv4 = async () => {
   const { v4 } = await import("uuid");
   return v4();
 };
+
 export const validToRetweetOrQuote = async (parentTweetId: string) => {
   const rightToTweet = await prisma.tweet.findUnique({
     where: { id: parentTweetId },
@@ -46,7 +41,7 @@ export const resolveUsernameToId = async (username: string) => {
     where: { username },
     select: { id: true, protectedAccount: true },
   });
-  if (!user?.id) throw new Error("User not found");
+  if (!user?.id) throw new AppError("User not found", 404);
   return user;
 };
 
@@ -166,8 +161,6 @@ export interface UserSession {
 }
 
 // --- Environment Variables (type assertions) ---
-console.log("JWT_SECRET used here:", process.env.JWT_SECRET);
-
 const JWT_SECRET: string = process.env.JWT_SECRET as string;
 const PEPPER: string = process.env.PEPPER || "";
 const COOKIE_DOMAIN: string = process.env.DOMAIN || "localhost";
@@ -284,17 +277,14 @@ export async function HashPassword(
 export async function CheckPass(
   password: string,
   hashed: string,
-  salt:string
-
+  salt: string
 ): Promise<boolean> {
   try {
-    return await bcrypt.compare(password + PEPPER+salt, hashed);
+    return await bcrypt.compare(password + PEPPER + salt, hashed);
   } catch {
     return false;
   }
 }
-
-
 
 /* ------------------------------ Username generator ------------------------------ */
 export async function isTaken(username: string): Promise<boolean> {
@@ -359,11 +349,19 @@ async function _getTTL(key: string): Promise<number> {
   return ttl; // -2 - key missing, -1 - no expiry, >=0 seconds
 }
 
-export async function Attempts(res: Response, email: string, clientType: string|string[]): Promise<boolean> {
+export async function Attempts(
+  res: Response,
+  email: string,
+  clientType: string | string[]
+): Promise<boolean> {
   try {
     const blockedVal = await redisClient.get(`Login:block:${email}`);
     if (blockedVal === "1") {
-      SendError(res, 429, "You are blocked. Wait 15 minutes before trying again.");
+      SendError(
+        res,
+        429,
+        "You are blocked. Wait 15 minutes before trying again."
+      );
       return true;
     }
 
@@ -387,13 +385,17 @@ export async function Attempts(res: Response, email: string, clientType: string|
     // 🧱 Web CAPTCHA logic
     if (clientType === "web") {
       if (num === 3) {
-        await redisClient.set(`Login:fail:${email}`, String(num + 1), { EX: ttl > 0 ? ttl : 300 });
+        await redisClient.set(`Login:fail:${email}`, String(num + 1), {
+          EX: ttl > 0 ? ttl : 300,
+        });
         SendError(res, 401, "Solve CAPTCHA first");
         return true;
       }
 
       if (num > 3 && num < 5) {
-        const captchaPassed = await redisClient.exists(`captcha:passed:${email}`);
+        const captchaPassed = await redisClient.exists(
+          `captcha:passed:${email}`
+        );
         if (!captchaPassed) {
           SendError(res, 401, "You must solve CAPTCHA first");
           return true;
@@ -405,7 +407,11 @@ export async function Attempts(res: Response, email: string, clientType: string|
     if (num >= 5) {
       await SendEmail_FAILED_LOGIN(res, email).catch(console.error);
       await redisClient.set(`Login:block:${email}`, "1", { EX: 15 * 60 });
-      SendError(res, 401, `You exceeded the number of attempts. Wait 15 minutes.`);
+      SendError(
+        res,
+        401,
+        `You exceeded the number of attempts. Wait 15 minutes.`
+      );
       return true;
     }
 
@@ -416,7 +422,6 @@ export async function Attempts(res: Response, email: string, clientType: string|
     return true;
   }
 }
-
 
 export async function RestAttempts(email: string): Promise<void> {
   try {
@@ -663,12 +668,12 @@ export async function Sendlocation(
     }
     const target: string =
       ip.includes("127.0.0.1") || ip.includes("::1") ? "8.8.8.8" : ip;
-    console.log("🌍 Sending location request for:", target);
+    // console.log("🌍 Sending location request for:", target);
     const resp: FetchResponse = await fetch(`http://ip-api.com/json/${target}`);
-    console.log("🌎 Geo API status:", resp.status);
+    // console.log("🌎 Geo API status:", resp.status);
     if (!resp.ok) throw new Error("failed to fetch geo info");
     const data: any = await resp.json();
-    console.log("🌎 Geo API raw data:", data);
+    // console.log("🌎 Geo API raw data:", data);
     if (!data || data.status !== "success")
       throw new Error("failed to get geo info");
     // normalize to GeoData fields used previously
@@ -796,7 +801,7 @@ export async function SetDeviceInfo(
     } catch (err) {
       throw new Error("something went wrong");
     }
-    console.log("Inside SetDeviceInfo received user:", user);
+    // console.log("Inside SetDeviceInfo received user:", user);
 
     // Upsert device record: find existing by userID, then update or create
     const existing = await prisma.deviceRecord.findFirst({
@@ -968,7 +973,7 @@ export async function SetSession(
       console.error("SetSession: missing user id");
       return false;
     }
-    console.log("setsessions been called");
+    // console.log("setsessions been called");
     const devid: string | null =
       (req as any).devid || (req.body as any)?.devid || null;
 
@@ -982,7 +987,7 @@ export async function SetSession(
     };
 
     const key: string = `User:sessions:${userId}:${jti}`;
-    console.log("Storing session in Redis key:", key, "session:", session);
+    // console.log("Storing session in Redis key:", key, "session:", session);
     // Push new session into Redis list (acts like array)
     await redisClient.rPush(key, JSON.stringify(session));
 
@@ -998,4 +1003,3 @@ export async function SetSession(
     return false;
   }
 }
-//////HOSSAM//////////////////

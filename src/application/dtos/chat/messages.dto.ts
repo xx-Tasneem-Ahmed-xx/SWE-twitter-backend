@@ -1,5 +1,5 @@
 import {z} from "zod";
-import type { mediaSchema } from "../media/media.schema.dto";
+import type { mediaSchema, messageMediaInput } from "../media/media.schema.dto";
 
 
 export class CreateChatInput {
@@ -15,7 +15,7 @@ export class CreateChatInput {
 // }
 
 export class MessageData {
-  messageMedia?: typeof mediaSchema[];
+  messageMedia?: typeof messageMediaInput[];
   content?: string;
 }
 

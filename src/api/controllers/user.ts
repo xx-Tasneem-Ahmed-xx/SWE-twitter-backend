@@ -14,8 +14,8 @@ import fetch from "node-fetch";
 import crypto from "crypto";
 import { Request, Response, NextFunction } from "express";
 import { AppError } from "@/errors/AppError";
-import axios from 'axios';
-import qs from 'querystring';
+import axios from "axios";
+import qs from "querystring";
 
 // --- Custom Type Definitions ---
 interface LocalJwtPayload extends JwtPayload {
@@ -67,10 +67,19 @@ function timingSafeEqual(a: string | Buffer | number | object, b: string | Buffe
 }
 
 function gen6(): string {
-  return Math.floor(Math.random() * 1000000).toString().padStart(6, "0");
+  return Math.floor(Math.random() * 1000000)
+    .toString()
+    .padStart(6, "0");
 }
 
-function generateJwt({ username, email, id, expiresInSeconds, version, devid }: {
+function generateJwt({
+  username,
+  email,
+  id,
+  expiresInSeconds,
+  version,
+  devid,
+}: {
   username: string;
   email: string;
   id: string;
@@ -94,9 +103,16 @@ function generateJwt({ username, email, id, expiresInSeconds, version, devid }: 
   return { token, jti, payload };
 }
 
-function validateJwt(token: string): { ok: boolean; payload?: LocalJwtPayload; err?: Error } {
+function validateJwt(token: string): {
+  ok: boolean;
+  payload?: LocalJwtPayload;
+  err?: Error;
+} {
   try {
-    const payload: LocalJwtPayload = jwt.verify(token, JWT_SECRET) as LocalJwtPayload;
+    const payload: LocalJwtPayload = jwt.verify(
+      token,
+      JWT_SECRET
+    ) as LocalJwtPayload;
     return { ok: true, payload };
   } catch (err) {
     return { ok: false, err: err as Error };
@@ -105,7 +121,11 @@ function validateJwt(token: string): { ok: boolean; payload?: LocalJwtPayload; e
 
 
 
-export async function Create(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function Create(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const input: any = req.body;
 
@@ -123,8 +143,10 @@ export async function Create(req: Request, res: Response, next: NextFunction): P
     }
 
     const isWebClient = req.headers["x-client-type"] === "web";
-    const exist: number = await redisClient.exists(`signup_captcha:passed:${input.email}`);
-    
+    const exist: number = await redisClient.exists(
+      `signup_captcha:passed:${input.email}`
+    );
+
     if (!exist && isWebClient) {
       throw new AppError("You must solve Captcha first", 401);
     } else {
@@ -154,51 +176,67 @@ If you didn't sign up for this account, you can safely ignore this message.
 Welcome aboard,  
 — The Artemisa Team 🛡️
 `;
-    
+
     utils.SendEmailSmtp(res, input.email, message).catch((err) => {
       throw new AppError("Failed to send verification email", 500);
     });
 
     await redisClient.set(`Signup:user:${input.email}`, JSON.stringify(input), { EX: 60 * 60 });
 
-    const exists: number = await prisma.user.count({ 
-      where: { email: input.email, isEmailVerified: true } 
+    const exists: number = await prisma.user.count({
+      where: { email: input.email, isEmailVerified: true },
     });
-    
+
     if (exists === 0) {
-      return utils.SendRes(res, { 
-        message: "User registered successfully. Please verify your email to continue." 
+      return utils.SendRes(res, {
+        message:
+          "User registered successfully. Please verify your email to continue.",
       });
     }
-    
+
     return utils.SendRes(res, { message: "Email already verified" });
   } catch (err) {
     next(err);
   }
 }
 
-export async function SignupCaptcha(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function SignupCaptcha(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     let email: string | undefined;
     const emailQuery = req.query.email;
-    
+
     if (typeof emailQuery === "string") {
       email = emailQuery;
     } else if (Array.isArray(emailQuery) && typeof emailQuery[0] === "string") {
       email = emailQuery[0];
     }
 
-    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (
+      typeof email !== "string" ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
       throw new AppError("Valid email is required", 400);
     }
 
-    await redisClient.set(`signup_captcha:passed:${email}`, "1", { EX: 15 * 60 });
-    return utils.SendRes(res, { Message: "You passed the Captcha, you can register now" });
+    await redisClient.set(`signup_captcha:passed:${email}`, "1", {
+      EX: 15 * 60,
+    });
+    return utils.SendRes(res, {
+      Message: "You passed the Captcha, you can register now",
+    });
   } catch (err) {
     next(err);
   }
 }
-export async function GetUserEmailById(req: Request, res: Response, next: NextFunction) {
+export async function GetUserEmailById(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   try {
     const userId = req.params.id;
 
@@ -220,52 +258,69 @@ export async function GetUserEmailById(req: Request, res: Response, next: NextFu
     next(err);
   }
 }
-export async function Verify_signup_email(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function Verify_signup_email(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const { email, code } = req.body;
-    
+
     if (!email || !code) {
       throw new AppError("Email and code are required", 400);
     }
 
     const stored: string | null = await redisClient.get(`Signup:code:${email}`);
-    
+
     if (!stored) {
-      throw new AppError("Verification session expired, please sign up again", 400);
+      throw new AppError(
+        "Verification session expired, please sign up again",
+        400
+      );
     }
 
     if (stored !== code) {
       throw new AppError("Verification code is incorrect", 401);
     }
 
-    const userJson: string | null = await redisClient.get(`Signup:user:${email}`);
-    
+    const userJson: string | null = await redisClient.get(
+      `Signup:user:${email}`
+    );
+
     if (!userJson) {
       throw new AppError("User data not found, please sign up again", 400);
     }
 
     const input: any = JSON.parse(userJson);
-    await redisClient.set(`Signup:verified:${email}`, JSON.stringify(input), { EX: 15 * 60 });
+    await redisClient.set(`Signup:verified:${email}`, JSON.stringify(input), {
+      EX: 15 * 60,
+    });
     await redisClient.del(`Signup:code:${email}`);
 
-    return utils.SendRes(res, { 
-      message: "Email verified successfully, please set your password." 
+    return utils.SendRes(res, {
+      message: "Email verified successfully, please set your password.",
     });
   } catch (err) {
     next(err);
   }
 }
 
-export async function FinalizeSignup(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function FinalizeSignup(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const { email, password } = req.body;
-    
+
     if (!email || !password) {
       throw new AppError("Email and password are required", 400);
     }
 
-    const userJson: string | null = await redisClient.get(`Signup:verified:${email}`);
-    
+    const userJson: string | null = await redisClient.get(
+      `Signup:verified:${email}`
+    );
+
     if (!userJson) {
       throw new AppError("You must verify your email first", 400);
     }
@@ -284,7 +339,7 @@ console.log(username);
       parsedDate = new Date("2001-11-03T00:00:00.000Z");
     }
 
-    const created: PrismaUser = await prisma.user.create({
+    const created: PrismaUser = (await prisma.user.create({
       data: {
         username,
         name: input.name,
@@ -294,7 +349,7 @@ console.log(username);
         isEmailVerified: true,
         dateOfBirth: parsedDate,
       },
-    }) as unknown as PrismaUser;
+    })) as unknown as PrismaUser;
 
     await utils.AddPasswordHistory(hashed, created.id);
     await redisClient.del(`Signup:verified:${email}`);
@@ -321,7 +376,9 @@ console.log(username);
       devid,
     });
 
-    await redisClient.set(`refreshToken:${created.id}`, refreshToken, { EX: 60 * 60 * 24 * 30 });
+    await redisClient.set(`refreshToken:${created.id}`, refreshToken, {
+      EX: 60 * 60 * 24 * 30,
+    });
     await utils.SetSession(req, created.id, jti);
 
     const completeMsg = `Subject: Welcome to Artimesa 🎉
@@ -337,7 +394,7 @@ If you didn't create this account, please contact our support team immediately.
 
 — The Artimesa Team 🛡️
 `;
-    
+
     utils.SendEmailSmtp(res, created.email, completeMsg).catch((err) => {
       throw new AppError("Failed to send welcome email", 500);
     });
@@ -363,14 +420,18 @@ If you didn't create this account, please contact our support team immediately.
   }
 }
 
-export async function Login(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function Login(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const { email, password } = req.body;
-    
+
     if (!email || !password) {
       throw new AppError("Email and password are required", 400);
     }
-    
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new AppError("Enter valid email", 403);
     }
@@ -379,8 +440,10 @@ export async function Login(req: Request, res: Response, next: NextFunction): Pr
     const stop = await utils.Attempts(res, email, clientType);
     if (stop) return;
 
-    const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser | null;
-    
+    const user = (await prisma.user.findUnique({
+      where: { email },
+    })) as PrismaUser | null;
+
     if (!user) {
       await utils.IncrAttempts(res, email);
       throw new AppError("Try again and enter your info correctly", 401);
@@ -427,7 +490,7 @@ export async function Login(req: Request, res: Response, next: NextFunction): Pr
 
     const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
     const location = await utils.Sendlocation(ip as string);
-    
+
     const emailMessage = `Hello ${user.username},
 
 🚀 Your account was just accessed!
@@ -463,19 +526,26 @@ If this was not you, immediately change your password!
       DeviceRecord: deviceRecord,
       Token: accessObj.token,
       Refresh_token: refreshObj.token,
-      message: "Login successful, email & in-app notification sent"
+      message: "Login successful, email & in-app notification sent",
     });
   } catch (err) {
     next(err);
   }
 }
 
-export async function Refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function Refresh(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const refreshToken: string | undefined = req.body?.refresh_token;
 console.log(refreshToken);
     if (!refreshToken) {
-      throw new AppError("No refresh token provided in body, cannot renew session", 401);
+      throw new AppError(
+        "No refresh token provided in body, cannot renew session",
+        401
+      );
     }
 
     const validated = validateJwt(refreshToken);
@@ -506,20 +576,26 @@ console.log(validated);
     await utils.SetSession(req, id, jti);
 
     // Send access token in response body instead of cookie
-    return utils.SendRes(res, { access_token: newAccess.token});
-
+    return utils.SendRes(res, { access_token: newAccess.token });
   } catch (err) {
     next(err);
   }
 }
 
-export async function Logout(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function Logout(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
  const refreshToken: string | undefined = req.body?.refresh_token;
  const email: string | undefined = (req as any).user.email;
     console.log(refreshToken);
     if (!refreshToken) {
-      throw new AppError("Refresh token expired, you are already logged out", 401);
+      throw new AppError(
+        "Refresh token expired, you are already logged out",
+        401
+      );
     }
 
     const validated = utils.ValidateToken(refreshToken);
@@ -529,17 +605,19 @@ export async function Logout(req: Request, res: Response, next: NextFunction): P
     }
 
     const header: string | undefined = req.get("Authorization");
-    
+
     if (!header) {
       throw new AppError("No Authorization header provided", 401);
     }
-    
-    let tokenString: string | null = header.startsWith("Bearer") ? header.slice(6).trim() : null;
-    
+
+    let tokenString: string | null = header.startsWith("Bearer")
+      ? header.slice(6).trim()
+      : null;
+
     if (!tokenString) {
       throw new AppError("Token must start with Bearer", 401);
     }
-    
+
     tokenString = tokenString.replace(/^&\{/, "");
 
     const accessVal = utils.ValidateToken(tokenString);
@@ -553,9 +631,10 @@ export async function Logout(req: Request, res: Response, next: NextFunction): P
     }
 
     const accessPayload: LocalJwtPayload = accessVal.payload as LocalJwtPayload;
-    const userId: string | undefined = accessPayload.id || (req as any).user?.id;
+    const userId: string | undefined =
+      accessPayload.id || (req as any).user?.id;
     const jti: string | null = accessPayload.jti || req.body?.jti || null;
-    
+
     if (userId && jti) {
       await redisClient.del(`session:${userId}:${jti}`);
     }
@@ -567,32 +646,45 @@ export async function Logout(req: Request, res: Response, next: NextFunction): P
   }
 }
 
-export async function Captcha(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function Captcha(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const emailQuery = req.query.email;
     let email: string | undefined;
-    
+
     if (Array.isArray(emailQuery)) {
       email = typeof emailQuery[0] === "string" ? emailQuery[0] : undefined;
     } else if (typeof emailQuery === "string") {
       email = emailQuery;
     }
 
-    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (
+      typeof email !== "string" ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
       throw new AppError("Valid email is required", 400);
     }
-    
+
     await redisClient.set(`captcha:passed:${email}`, "1", { EX: 15 * 60 });
-    return utils.SendRes(res, { Message: "You passed the Captcha, you can login now" });
+    return utils.SendRes(res, {
+      Message: "You passed the Captcha, you can login now",
+    });
   } catch (err) {
     next(err);
   }
 }
 
-export async function ForgetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function ForgetPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const { email } = req.body;
-    
+
     if (!email) {
       throw new AppError("Email is required", 400);
     }
@@ -600,7 +692,7 @@ export async function ForgetPassword(req: Request, res: Response, next: NextFunc
     if (await utils.ResetAttempts(res, email)) return;
 
     const user = await prisma.user.findUnique({ where: { email } });
-    
+
     if (!user) {
       await utils.IncrResetAttempts(res, email);
       throw new AppError("User not found", 404);
@@ -623,35 +715,49 @@ If you didn't request this change, please ignore this email or contact Artemisa 
 `;
 
     await redisClient.set(`Reset:code:${email}`, code, { EX: 15 * 60 });
-    
+
     utils.SendEmailSmtp(res, email, message).catch((err) => {
       throw new AppError("Failed to send reset code email", 500);
     });
 
-    return utils.SendRes(res, { message: "Reset code sent via email. Check your inbox!" });
+    return utils.SendRes(res, {
+      message: "Reset code sent via email. Check your inbox!",
+    });
   } catch (err) {
     next(err);
   }
 }
-export async function VerifyResetCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function VerifyResetCode(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const { email, code } = req.body;
-    if (!email || !code) throw new AppError("Email and reset code are required", 400);
+    if (!email || !code)
+      throw new AppError("Email and reset code are required", 400);
 
     const storedCode = await redisClient.get(`Reset:code:${email}`);
     if (!storedCode) throw new AppError("Reset code expired or not found", 400);
     if (storedCode !== code) throw new AppError("Invalid reset code", 401);
 
-    return utils.SendRes(res, { message: "Reset code verified, you can now enter a new password" });
+    return utils.SendRes(res, {
+      message: "Reset code verified, you can now enter a new password",
+    });
   } catch (err) {
     next(err);
   }
 }
 
-export async function ResetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function ResetPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const { email, password } = req.body;
-    if (!email || !password) throw new AppError("Email and new password are required", 400);
+    if (!email || !password)
+      throw new AppError("Email and new password are required", 400);
 
     const passValidation = await utils.ValidatePassword(password);
     if (passValidation !== "0") throw new AppError(passValidation, 400);
@@ -659,7 +765,10 @@ export async function ResetPassword(req: Request, res: Response, next: NextFunct
     const salt = crypto.randomBytes(16).toString("hex");
     const hashed = await utils.HashPassword(password, salt);
 
-    await prisma.user.updateMany({ where: { email }, data: { password: hashed, saltPassword: salt } });
+    await prisma.user.updateMany({
+      where: { email },
+      data: { password: hashed, saltPassword: salt },
+    });
     await redisClient.del(`Reset:code:${email}`);
     await utils.RsetResetAttempts(email);
 
@@ -757,17 +866,19 @@ If this wasn't you, secure your account immediately!
 export async function ReauthPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { email, password } = req.body;
-    
+
     if (!email || !password) {
       throw new AppError("password are required", 400);
     }
-    
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new AppError("Invalid email format", 401);
     }
-    
-    const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser | null;
-    
+
+    const user = (await prisma.user.findUnique({
+      where: { email },
+    })) as PrismaUser | null;
+
     if (!user) {
       throw new AppError("Enter password correctly", 401);
     }
@@ -779,70 +890,92 @@ export async function ReauthPassword(req: Request, res: Response, next: NextFunc
     }
     await redisClient.set(`getUser:${email}`, "1", { EX: 15 * 60 });
     await redisClient.set(`Reauth:${email}`, "1", { EX: 5 * 60 });
-    return utils.SendRes(res, { message: "You can change your credentials now" });
+    return utils.SendRes(res, {
+      message: "You can change your credentials now",
+    });
   } catch (err) {
     next(err);
   }
 }
 
-export async function ReauthTFA(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function ReauthTFA(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const { email, code } = req.body;
-    
+
     if (!email || !code) {
       throw new AppError("Email and code are required", 400);
     }
-    
-    const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser | null;
-    
+
+    const user = (await prisma.user.findUnique({
+      where: { email },
+    })) as PrismaUser | null;
+
     if (!user) {
       throw new AppError("Email is not in system", 401);
     }
-    
+
     if (!user.tfaVerifed || !user.otp) {
-      throw new AppError("You cannot use 2FA method, it must be enabled first", 403);
+      throw new AppError(
+        "You cannot use 2FA method, it must be enabled first",
+        403
+      );
     }
-    
-    const ok: boolean = speakeasy.totp.verify({ 
-      secret: user.otp, 
-      encoding: "base32", 
-      token: code, 
-      window: 1 
+
+    const ok: boolean = speakeasy.totp.verify({
+      secret: user.otp,
+      encoding: "base32",
+      token: code,
+      window: 1,
     });
-    
+
     if (!ok) {
       throw new AppError("Code is not correct, try again", 401);
     }
      await redisClient.set(`getUser:${email}`, "1", { EX: 5 * 60 });
     await redisClient.set(`Reauth:${email}`, "1", { EX: 5 * 60 });
-    return utils.SendRes(res, { message: "You can change your credentials now" });
+    return utils.SendRes(res, {
+      message: "You can change your credentials now",
+    });
   } catch (err) {
     next(err);
   }
 }
 
-export async function ReauthCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function ReauthCode(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const { email, code } = req.body;
-    
+
     if (!email || !code) {
       throw new AppError("Email and code are required", 400);
     }
-    
-    const user = await prisma.user.findUnique({ where: { email } }) as PrismaUser | null;
-    
+
+    const user = (await prisma.user.findUnique({
+      where: { email },
+    })) as PrismaUser | null;
+
     if (!user) {
       throw new AppError("Email is not in system", 401);
     }
-    
+
     if (!user.loginCodesSet) {
-      throw new AppError("You cannot use this codes method, it must be enabled first", 403);
+      throw new AppError(
+        "You cannot use this codes method, it must be enabled first",
+        403
+      );
     }
-    
+
     const codes: string[] = (user.loginCodes || "").split(",").filter(Boolean);
     let found: boolean = false;
     const copy: string[] = [];
-    
+
     for (const c of codes) {
       if (c === code) {
         found = true;
@@ -850,24 +983,30 @@ export async function ReauthCode(req: Request, res: Response, next: NextFunction
       }
       copy.push(c);
     }
-    
+
     if (!found) {
       throw new AppError("Enter code correctly, try again", 401);
     }
-    
-    await prisma.user.updateMany({ 
-      where: { email }, 
-      data: { loginCodes: copy.join(",") } 
+
+    await prisma.user.updateMany({
+      where: { email },
+      data: { loginCodes: copy.join(",") },
     });
-    
+
     await redisClient.set(`Reauth:${email}`, "1", { EX: 5 * 60 });
-    return utils.SendRes(res, { message: "You can change your credentials now" });
+    return utils.SendRes(res, {
+      message: "You can change your credentials now",
+    });
   } catch (err) {
     next(err);
   }
 }
 
-export async function ChangePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function ChangePassword(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const { oldPassword, newPassword, confirmPassword } = req.body;
  const email: string | undefined=(req as any ).user?.email
@@ -943,7 +1082,11 @@ If you did NOT change your password, please secure your account immediately.
   }
 }
 
-export async function ChangeEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function ChangeEmail(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const { email: newEmail } = req.body;
     const currentEmail: string | undefined = (req as any).user?.email || req.body?.currentEmail;
@@ -1133,8 +1276,11 @@ export async function GetUser(req: Request, res: Response, next: NextFunction): 
   }
 }
 
-
-export async function LogoutALL(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function LogoutALL(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     console.log("req",req);
     
@@ -1144,19 +1290,20 @@ export async function LogoutALL(req: Request, res: Response, next: NextFunction)
     if (!id) {
       throw new AppError("Unauthorized", 401);
     }
-    
+
     let cursor: string = "0";
     const pattern: string = `session:${id}:*`;
-    
+
     do {
-      const scanRes: { cursor: string, keys: string[] } = await redisClient.scan(cursor, { 
-        MATCH: pattern, 
-        COUNT: 100 
-      }) as { cursor: string, keys: string[] };
-      
+      const scanRes: { cursor: string; keys: string[] } =
+        (await redisClient.scan(cursor, {
+          MATCH: pattern,
+          COUNT: 100,
+        })) as { cursor: string; keys: string[] };
+
       cursor = scanRes.cursor;
       const keys: string[] = scanRes.keys || [];
-      
+
       if (keys.length) {
         for (const key of keys) {
           const parts: string[] = key.split(":");
@@ -1175,38 +1322,42 @@ export async function LogoutALL(req: Request, res: Response, next: NextFunction)
   }
 }
 
-export async function GetSession(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function GetSession(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const id: string | undefined =
       (req as any).user?.id || (req.query?.id as string) || req.body?.id;
-    
+
     if (!id) {
       throw new AppError("Unauthorized", 401);
     }
-    
+
     let cursor: string = "0";
     const pattern: string = `User:sessions:${id}:*`;
     const sessions: any[] = [];
     const allKeys: string[] = [];
-    
+
     do {
-      const scanRes = await redisClient.scan(cursor, {
+      const scanRes = (await redisClient.scan(cursor, {
         MATCH: pattern,
-        COUNT: 100
-      }) as { cursor: number | string, keys: string[] };
-      
+        COUNT: 100,
+      })) as { cursor: number | string; keys: string[] };
+
       cursor = String(scanRes.cursor);
       const keys: string[] = scanRes.keys || [];
-      
+
       if (keys.length > 0) {
         allKeys.push(...keys);
       }
     } while (cursor !== "0");
-    
+
     for (const key of allKeys) {
       try {
         const listItems = await redisClient.lRange(key, 0, -1);
-        
+
         for (const val of listItems) {
           try {
             const session = JSON.parse(val);
@@ -1221,26 +1372,30 @@ export async function GetSession(req: Request, res: Response, next: NextFunction
         throw new AppError(`Error reading session key: ${key}`, 500);
       }
     }
-    
+
     return utils.SendRes(res, sessions);
   } catch (err) {
     next(err);
   }
 }
 
-export async function LogoutSession(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function LogoutSession(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const sessionid: string = req.params.sessionid;
     const userId: string | undefined =
       (req as any).user?.id || req.body?.id || (req.query?.id as string);
-    
+
     if (!sessionid || !userId) {
       throw new AppError("Session ID and User ID are required", 400);
     }
-    
+
     await redisClient.del(`session:${userId}:${sessionid}`);
     await redisClient.set(`Blocklist:${sessionid}`, "1", { EX: 15 * 60 });
-    
+
     return utils.SendRes(res, { message: "Session logged out successfully" });
   } catch (err) {
     next(err);
@@ -1257,13 +1412,13 @@ export async function exchangeGithubCode(code: string) {
       code,
       redirect_uri: process.env.GITHUB_RED_URL,
     };
-    
+
     const resp = await axios.post(
-      'https://github.com/login/oauth/access_token', 
-      qs.stringify(params), 
-      { headers: { 'Accept': 'application/json' } }
+      "https://github.com/login/oauth/access_token",
+      qs.stringify(params),
+      { headers: { Accept: "application/json" } }
     );
-    
+
     return resp.data;
   } catch (err) {
     throw new AppError("Failed to exchange GitHub code", 500);
@@ -1272,11 +1427,11 @@ export async function exchangeGithubCode(code: string) {
 
 export async function fetchGithubEmails(accessToken: string) {
   try {
-    const resp = await axios.get('https://api.github.com/user/emails', {
-      headers: { 
-        Authorization: `Bearer ${accessToken}`, 
-        Accept: 'application/json' 
-      }
+    const resp = await axios.get("https://api.github.com/user/emails", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
     });
     return resp.data;
   } catch (err) {
@@ -1286,11 +1441,11 @@ export async function fetchGithubEmails(accessToken: string) {
 
 export async function fetchGithubUser(accessToken: string) {
   try {
-    const resp = await axios.get('https://api.github.com/user', {
-      headers: { 
-        Authorization: `Bearer ${accessToken}`, 
-        Accept: 'application/json' 
-      }
+    const resp = await axios.get("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
     });
     return resp.data;
   } catch (err) {
@@ -1307,13 +1462,13 @@ export async function exchangeGoogleCode(code: string) {
       redirect_uri: process.env.RED_URL_PRD,
       grant_type: 'authorization_code'
     };
-    
+
     const resp = await axios.post(
-      'https://oauth2.googleapis.com/token', 
-      qs.stringify(params), 
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      "https://oauth2.googleapis.com/token",
+      qs.stringify(params),
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
     );
-    
+
     return resp.data;
   } catch (err) {
     throw new AppError("Failed to exchange Google code", 500);
@@ -1342,32 +1497,35 @@ export async function exchangeGoogleCode(code: string) {
 //   }
 // }
 
-// export async function fetchLinkedinProfile(accessToken: string) {
-//   try {
-//     const resp = await axios.get('https://api.linkedin.com/v2/me', {
-//       headers: { Authorization: `Bearer ${accessToken}` }
-//     });
-//     return resp.data;
-//   } catch (err) {
-//     throw new AppError("Failed to fetch LinkedIn profile", 500);
-//   }
-// }
+    // export async function fetchLinkedinProfile(accessToken: string) {
+    //   try {
+    //     const resp = await axios.get('https://api.linkedin.com/v2/me', {
+    //       headers: { Authorization: `Bearer ${accessToken}` }
+    //     });
+    //     return resp.data;
+    //   } catch (err) {
+    //     throw new AppError("Failed to fetch LinkedIn profile", 500);
+    //   }
+    // }
 
-// export async function fetchLinkedinEmail(accessToken: string) {
-//   try {
-//     const resp = await axios.get(
-//       'https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))', 
-//       { headers: { Authorization: `Bearer ${accessToken}` } }
-//     );
-//     return resp.data;
+    // export async function fetchLinkedinEmail(accessToken: string) {
+    //   try {
+    //     const resp = await axios.get(
+    //       'https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))',
+    //       { headers: { Authorization: `Bearer ${accessToken}` } }
+    //     );
+    //     return resp.data;
 //   } catch (err) {
 //     throw new AppError("Failed to fetch LinkedIn email", 500);
 //   }
 // }
-
 /* --------------------- OAuth Controllers --------------------- */
 
-export async function Authorize(req: Request, res: Response, next: NextFunction) {
+export async function Authorize(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   try {
     const provider = req.params?.provider;
     
@@ -1381,14 +1539,18 @@ export async function Authorize(req: Request, res: Response, next: NextFunction)
       const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.GITHUB_RED_URL!)}&scope=user%20user:email&state=${process.env.GITHUB_STATE}&prompt=select_account`;
       return res.redirect(url);
     }
-    
+
     throw new AppError("Unsupported provider", 400);
   } catch (err) {
     next(err);
   }
 }
 
-export async function CallbackGithub(req: Request, res: Response, next: NextFunction) {
+export async function CallbackGithub(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   try {
     const code = req.query.code as string;
     if (!code) throw new AppError("Authorization code is missing", 400);
@@ -1647,7 +1809,11 @@ return res.redirect(redirectUrl);
     next(err);
   }
 }
-export async function CheckEmail(req: Request, res: Response,next:NextFunction): Promise<Response | void> {
+export async function CheckEmail(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<Response | void> {
   try {
     const { email } = req.body;
     if (!email) return next(new AppError("email is required", 400));
@@ -1863,10 +2029,10 @@ export const UpdateUsername = async (
 const authController = {
   Create,
   Verify_signup_email,
-  VerifyResetCode,
   UpdateUsername,
   Login,
   ForgetPassword,
+  VerifyResetCode,
   ResetPassword,
   FinalizeSignup,
   Refresh,
