@@ -1993,7 +1993,10 @@ export const UpdateUsername = async (
     if (existingUser && existingUser.id !== userId) {
       throw new AppError("Username already taken. Please choose another one.", 400);
     }
-
+  const existingUserz = await prisma.user.findUnique({ where: { username } });
+    if (existingUserz && existingUserz.id == userId) {
+      throw new AppError("you Entered the same username you have", 400);
+    }
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, username: true, tokenVersion: true },
