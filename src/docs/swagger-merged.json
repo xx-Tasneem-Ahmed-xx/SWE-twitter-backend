@@ -3727,7 +3727,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-20T18:33:17.100Z"
+                        "default": "2025-11-21T09:03:42.893Z"
                       },
                       "userId": {
                         "type": "string",
@@ -3934,7 +3934,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-20T18:33:17.100Z"
+                            "default": "2025-11-21T09:03:42.893Z"
                           },
                           "userId": {
                             "type": "string",

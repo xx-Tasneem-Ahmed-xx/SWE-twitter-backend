@@ -521,6 +521,7 @@ const CONFIG = {
   followBoost: 2.6,
   twoHopBoost: 1.25,
   followingLikedBoost: 1.7,
+  bookmarkByFollowingBoost: 1.5, // NEW: Boost for tweets bookmarked by followings
   topicMatchBoost: 1.9,
   verifiedBoost: 1.12,
   authorReputationCap: 2.0, // multiply score by reputation (default 1)
@@ -816,7 +817,6 @@ export class TimelineService {
           (
             SELECT COUNT(*) FROM "Retweet" rt WHERE rt."tweetId" = t.id AND rt."createdAt" >= ${trendingWindow}
           ) as rts_recent,
-          -- Placeholder for the 'reason' column used in subsequent UNION queries
           NULL as reason 
         FROM "tweets" t
         JOIN "users" u ON u.id = t."userId"
@@ -837,6 +837,13 @@ export class TimelineService {
         JOIN "TweetLike" tl on tl."tweetId" = b.id
         WHERE tl."userId" IN (${followingPlaceholder})
       ),
+      -- NEW CANDIDATE SOURCE: Bookmarked by Followings
+      bookmarked_by_followings AS (
+        SELECT b.*, 'bookmarked_by_following' as reason
+        FROM base b
+        JOIN "tweetbookmarks" tb on tb."tweetId" = b.id -- Use mapped table name
+        WHERE tb."userId" IN (${followingPlaceholder})
+      ),
       trending AS (
         SELECT *, 'trending' as reason
         FROM base
@@ -853,16 +860,16 @@ export class TimelineService {
         UNION ALL
         SELECT * FROM liked_by_followings
         UNION ALL
+        SELECT * FROM bookmarked_by_followings 
+        UNION ALL
         SELECT * FROM trending
         UNION ALL
         SELECT * FROM from_2hop
         UNION ALL
         SELECT * FROM topic_match
         UNION ALL
-        -- FIX: Add 'self' as reason column to match other SELECTs
         SELECT *, 'self' as reason FROM base WHERE "userId" = ${params.userId}
         UNION ALL
-        -- FIX: Add 'global' as reason column to match other SELECTs
         SELECT *, 'global' as reason FROM base 
       ) x
       ORDER BY id, (likes + rts * 2) DESC
@@ -926,6 +933,10 @@ export class TimelineService {
       // liked by followings boost (we preserved reason)
       if ((r.reason ?? "").includes("liked_by_following"))
         score *= CONFIG.followingLikedBoost;
+      
+      // NEW: bookmarked by followings boost
+      if ((r.reason ?? "").includes("bookmarked_by_following"))
+        score *= CONFIG.bookmarkByFollowingBoost;
 
       // topic overlap
       const tags: string[] = Array.isArray(r.tags) ? r.tags : [];
@@ -969,7 +980,7 @@ export class TimelineService {
       if (rep < 0.3) continue;
       seenAuthors.set(auth, current + 1);
       results.push({ ...s.row, _score: s.score, _reasons: s.reasons });
-      if (results.length >= limit * 3) break; // collect some extra for accurate pagination
+      if (results.length >= limit * 3) break;
     }
 
     // 12) final sort & pagination
