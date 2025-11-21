@@ -1179,13 +1179,7 @@ console.log("newEmail",newEmail);
         -Artemsia team
       `;
     await utils.SendEmailSmtp(res, newEmail, msg);
- await addNotification(user.id as UUID, {
-      title: NotificationTitle.EMAIL_CHANGED,
-      body:`Email of this account has been changed`,
-      actorId: user.id as UUID,
-      tweetId:"32423",
-    }, (err) => { if (err) throw new AppError(err, 500) });
-   
+
 
     return utils.SendRes(res, { message: "Verification code sent successfully to your new email" });
   } catch (err) {
@@ -1740,25 +1734,7 @@ If this wasn’t you, please reset your password or contact support immediately.
   dateOfBirth: user.dateOfBirth,
   isEmailVerified: user.isEmailVerified
 }))}`;
-const deviceBrowser =
-  typeof deviceRecord === "object" && deviceRecord
-    ? (deviceRecord as any).browser || "unknown"
-    : typeof deviceRecord === "string"
-    ? deviceRecord
-    : "unknown";
 
-const country =
-  typeof location === "object" && location
-    ? (location as any).Country || (location as any).country || "unknown"
-    : typeof location === "string"
-    ? location
-    : "unknown";
-    await addNotification(user.id as UUID, {
-      title: NotificationTitle.GITHUBREGISTER,
-      body:`GITHUB REGISTER from ${deviceBrowser} at ${country}`,
-      actorId: user.id as UUID,
-      tweetId:"32423",
-    }, (err) => { if (err) throw new AppError(err, 500) });
 return res.redirect(redirectUrl);
 
   } catch (err) {
@@ -1887,25 +1863,6 @@ If this wasn’t you, please secure your account immediately.
   isEmailVerified: user.isEmailVerified
 }))}`; 
 
-const deviceBrowser =
-  typeof deviceRecord === "object" && deviceRecord
-    ? (deviceRecord as any).browser || "unknown"
-    : typeof deviceRecord === "string"
-    ? deviceRecord
-    : "unknown";
-
-const country =
-  typeof location === "object" && location
-    ? (location as any).Country || (location as any).country || "unknown"
-    : typeof location === "string"
-    ? location
-    : "unknown";
-    await addNotification(user.id as UUID, {
-      title: NotificationTitle.GOOGLEREGISTER,
-      body:`GOOGLE REGISTER from ${deviceBrowser} at ${country}`,
-      actorId: user.id as UUID,
-      tweetId:"32423",
-    }, (err) => { if (err) throw new AppError(err, 500) });
 return res.redirect(redirectUrl);
 
   } catch (err) {
