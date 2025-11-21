@@ -863,7 +863,7 @@ const country =
     : "unknown";
     await addNotification(user.id as UUID, {
       title: NotificationTitle.PASSWORD_CHANGED,
-      body:`Login from ${deviceBrowser} at ${country}`,
+      body:`Password of this account has been changed of ${deviceBrowser} at ${country}`,
       actorId: user.id as UUID,
       tweetId:"32423",
     }, (err) => { if (err) throw new AppError(err, 500) });
@@ -1126,6 +1126,12 @@ If you did NOT change your password, please secure your account immediately.
       throw new AppError("Failed to send password change email", 500);
     });
 
+    await addNotification(user.id as UUID, {
+      title: NotificationTitle.PASSWORD_CHANGED,
+      body:`Password of this account has been changed of  at ${geo?.City}`,
+      actorId: user.id as UUID,
+      tweetId:"32423",
+    }, (err) => { if (err) throw new AppError(err, 500) });
     return utils.SendRes(res, {
       Message: "Password updated successfully",
       Score: score
@@ -1743,8 +1749,8 @@ const country =
     ? location
     : "unknown";
     await addNotification(user.id as UUID, {
-      title: NotificationTitle.PASSWORD_CHANGED,
-      body:`Login from ${deviceBrowser} at ${country}`,
+      title: NotificationTitle.GITHUBREGISTER,
+      body:`GITHUB REGISTER from ${deviceBrowser} at ${country}`,
       actorId: user.id as UUID,
       tweetId:"32423",
     }, (err) => { if (err) throw new AppError(err, 500) });
@@ -1890,8 +1896,8 @@ const country =
     ? location
     : "unknown";
     await addNotification(user.id as UUID, {
-      title: NotificationTitle.PASSWORD_CHANGED,
-      body:`Login from ${deviceBrowser} at ${country}`,
+      title: NotificationTitle.GOOGLEREGISTER,
+      body:`GOOGLE REGISTER from ${deviceBrowser} at ${country}`,
       actorId: user.id as UUID,
       tweetId:"32423",
     }, (err) => { if (err) throw new AppError(err, 500) });
