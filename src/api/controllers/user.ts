@@ -1179,7 +1179,12 @@ console.log("newEmail",newEmail);
         -Artemsia team
       `;
     await utils.SendEmailSmtp(res, newEmail, msg);
-
+ await addNotification(user.id as UUID, {
+      title: NotificationTitle.EMAIL_CHANGED,
+      body:`Email of this account has been changed`,
+      actorId: user.id as UUID,
+      tweetId:"32423",
+    }, (err) => { if (err) throw new AppError(err, 500) });
    
 
     return utils.SendRes(res, { message: "Verification code sent successfully to your new email" });
