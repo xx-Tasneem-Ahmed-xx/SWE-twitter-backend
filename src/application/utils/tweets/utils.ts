@@ -161,9 +161,21 @@ export interface UserSession {
 }
 
 // --- Environment Variables (type assertions) ---
-const JWT_SECRET: string = process.env.JWT_SECRET as string;
-const PEPPER: string = process.env.PEPPER || "";
-const COOKIE_DOMAIN: string = process.env.DOMAIN || "localhost";
+// NOTE: getKey is async — avoid top-level await for compatibility with non-ESM/older TS targets.
+// Call initUtils() once during application startup to populate these values.
+let JWT_SECRET: string = "";
+let PEPPER: string = "";
+let COOKIE_DOMAIN: string = "localhost";
+
+/**
+ * initUtils() must be called once at app startup to load async secrets.
+ * Example: await initUtils(); before handling requests or creating tokens.
+ */
+export async function initUtils(): Promise<void> {
+  JWT_SECRET = (await getKey("JWT_SECRET")) as string;
+  PEPPER = (await getKey("PEPPER")) || "";
+  COOKIE_DOMAIN = (await getKey("DOMAIN")) || "localhost";
+}
 
 /* ------------------------------ Generic response helpers ------------------------------ */
 
@@ -617,13 +629,13 @@ export async function SendEmailSmtp(
       port: 587,
       secure: false, // TLS will be used automatically if false
       auth: {
-        user: process.env.Mail_email,
-        pass: process.env.Mail_password, // App password for Gmail
+        user: await getKey("Mail_email"),
+        pass: await getKey("Mail_password"), // App password for Gmail
       },
     });
 
     const mailOptions = {
-      from: process.env.Mail_email,
+      from:await getKey("Mail_email"),
       to: email,
       subject: "Notification", // You can customize the subject
       text: message,
