@@ -1275,7 +1275,7 @@ router.get("/user", Auth(),  typedAuthController.GetUser); //tested
  *       404:
  *         description: User not found
  */
-router.get("/userinfo",Auth(),Reauth(),typedAuthController.GetUserz); //tested
+router.get("/userinfo",Auth(),typedAuthController.GetUserz); //tested
 /**
  * @swagger
  * /sessions:
