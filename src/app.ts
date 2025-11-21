@@ -49,13 +49,11 @@ export const io: SocketIOServer = new SocketIOServer(httpServer, {
   },
 });
 
-let storageService: StorageSystem | null = null;
-const storageServicePromise = getKey("AWS_REGION").then((region) => {
-  const s3 = new S3Client({ region });
-  storageService = new StorageSystem(s3);
-  return storageService;
+const s3 = new S3Client({
+  region: async () => (await getKey("AWS_REGION")) ?? "us-east-1",
 });
-export { storageService, storageServicePromise };
+const storageService = new StorageSystem(s3);
+export { storageService };
 
 const socketService = new SocketService(io);
 export { socketService };
