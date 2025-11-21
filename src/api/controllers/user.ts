@@ -16,7 +16,7 @@ import { Request, Response, NextFunction } from "express";
 import { AppError } from "@/errors/AppError";
 import axios from "axios";
 import qs from "querystring";
-
+import { getKey } from "../../application/services/secrets";
 // --- Custom Type Definitions ---
 interface LocalJwtPayload extends JwtPayload {
   Username?: string;
@@ -47,10 +47,35 @@ interface PrismaUser {
 }
 
 
-const JWT_SECRET: string = process.env.JWT_SECRET || "changeme";
-const PEPPER: string = process.env.PEPPER || "";
-const DOMAIN: string = process.env.DOMAIN || "localhost";
-const CLIENT_DOMAIN: string = process.env.CLIENT_DOMAIN || "localhost";
+let JWT_SECRET: string = "changeme";
+let PEPPER: string = "";
+let DOMAIN: string = "localhost";
+let CLIENT_DOMAIN: string = "localhost";
+
+// populate async values (no top-level await)
+getKey("JWT_SECRET")
+  .then((v) => {
+    if (v) JWT_SECRET = v;
+  })
+  .catch(() => {});
+
+getKey("PEPPER")
+  .then((v) => {
+    if (v) PEPPER = v;
+  })
+  .catch(() => {});
+
+getKey("DOMAIN")
+  .then((v) => {
+    if (v) DOMAIN = v;
+  })
+  .catch(() => {});
+
+getKey("CLIENT_DOMAIN")
+  .then((v) => {
+    if (v) CLIENT_DOMAIN = v;
+  })
+  .catch(() => {});
 
 
 function timingSafeEqual(a: string | Buffer | number | object, b: string | Buffer | number | object): boolean {
@@ -1407,10 +1432,10 @@ export async function LogoutSession(
 export async function exchangeGithubCode(code: string) {
   try {
     const params = {
-      client_id: process.env.GITHUB_CLIENT_ID,
-      client_secret: process.env.GITHUB_CLIENT_SECRET,
+      client_id:await getKey("GITHUB_CLIENT_ID"),
+      client_secret:await getKey("GITHUB_CLIENT_ID"),
       code,
-      redirect_uri: process.env.GITHUB_RED_URL,
+      redirect_uri:await getKey("GITHUB_RED_URL"),
     };
 
     const resp = await axios.post(
@@ -1457,9 +1482,9 @@ export async function exchangeGoogleCode(code: string) {
   try {
     const params = {
       code,
-      client_id: process.env.CLIENT_ID,
-      client_secret: process.env.CLIENT_SECRET,
-      redirect_uri: process.env.RED_URL_PRD,
+      client_id:await getKey("CLIENT_ID"),
+      client_secret:await getKey("CLIENT_SECRET"),
+      redirect_uri:await getKey("RED_URL_PRD"),
       grant_type: 'authorization_code'
     };
 
@@ -1480,9 +1505,7 @@ export async function exchangeGoogleCode(code: string) {
 //     const params = {
 //       grant_type: 'authorization_code',
 //       code,
-//       redirect_uri: process.env.LINKDIN_RED_URL,
-//       client_id: process.env.LINKDIN_CLIENT_ID,
-//       client_secret: process.env.LINKDIN_CLIENT_SECRET,
+//     
 //     };
     
 //     const resp = await axios.post(
@@ -1531,12 +1554,16 @@ export async function Authorize(
     
     if (provider === 'google') {
       const scope = encodeURIComponent('openid email profile');
-      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.RED_URL_PRD!)}&response_type=code&scope=${scope}&state=${process.env.GOOGLE_STATE}`;
+      const redirectUri = await getKey("RED_URL_PRD") ?? "";
+      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${await getKey("CLIENT_ID")}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${await getKey("GOOGLE_STATE")}`;
       return res.redirect(url);
     }
     
     if (provider === 'github') {
-      const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.GITHUB_RED_URL!)}&scope=user%20user:email&state=${process.env.GITHUB_STATE}&prompt=select_account`;
+      const githubClientId = await getKey("GITHUB_CLIENT_ID") ?? "";
+      const githubRedirectUrl = await getKey("GITHUB_RED_URL") ?? "";
+      const githubState = await getKey("GITHUB_STATE") ?? "";
+      const url = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(githubRedirectUrl)}&scope=user%20user:email&state=${githubState}&prompt=select_account`;
       return res.redirect(url);
     }
 
@@ -1632,7 +1659,7 @@ export async function CallbackGithub(
       maxAge: 1000 * 60 * 60 * 24 * 30,
       httpOnly: true,
       secure: true,
-      domain: process.env.FRONTEND_HOST,
+   
     });
 
     await prisma.user.update({
@@ -1666,7 +1693,7 @@ If this wasn’t you, please reset your password or contact support immediately.
     await utils.SendEmailSmtp(res,email,emailMsg);
 
     // ✅ Final Response
-  const redirectUrl = `${process.env.FRONTEND_URL}/login/success?token=${encodeURIComponent(token.token)}&refresh-token=${encodeURIComponent(refreshToken.token)}&user=${encodeURIComponent(JSON.stringify({
+  const redirectUrl = `${await getKey("FRONTEND_URL")}/login/success?token=${encodeURIComponent(token.token)}&refresh-token=${encodeURIComponent(refreshToken.token)}&user=${encodeURIComponent(JSON.stringify({
   id: user.id,
   username: user.username,
   name: user.name,
@@ -1761,7 +1788,7 @@ export async function CallbackGoogle(req: Request, res: Response, next: NextFunc
       maxAge: 1000 * 60 * 60 * 24 * 30,
       httpOnly: true,
       secure: true,
-      domain: process.env.FRONTEND_HOST,
+     
     });
 
     await prisma.user.update({
@@ -1793,7 +1820,7 @@ If this wasn’t you, please secure your account immediately.
     await utils.SendEmailSmtp(res,email,emailMsg );
 
    
-  const redirectUrl = `${process.env.FRONTEND_URL}/login/success?token=${encodeURIComponent(token.token)}&refresh-token=${encodeURIComponent(refreshToken.token)}&user=${encodeURIComponent(JSON.stringify({
+  const redirectUrl = `${await getKey("FRONTEND_URL")}/login/success?token=${encodeURIComponent(token.token)}&refresh-token=${encodeURIComponent(refreshToken.token)}&user=${encodeURIComponent(JSON.stringify({
   id: user.id,
   username: user.username,
   name: user.name,

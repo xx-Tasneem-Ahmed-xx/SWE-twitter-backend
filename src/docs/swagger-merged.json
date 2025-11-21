@@ -26,239 +26,7 @@
       }
     },
     "schemas": {
-      "TrendsQuery": {
-        "type": "object",
-        "properties": {
-          "limit": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 30,
-            "default": 30,
-            "description": "Number of trends to return (max: 30)"
-          }
-        }
-      },
-      "HashtagTweetsQuery": {
-        "type": "object",
-        "properties": {
-          "cursor": {
-            "type": "string",
-            "nullable": true,
-            "default": null,
-            "description": "Opaque cursor for pagination."
-          },
-          "limit": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 50,
-            "default": 30,
-            "description": "Number of results per page (default: 30)"
-          }
-        }
-      },
-      "TrendsResponse": {
-        "type": "object",
-        "properties": {
-          "trends": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "description": "Encoded hashtag ID (use this for fetching tweets)",
-                  "example": "eyJoYXNoSWQiOiIxMjM0In0.signature"
-                },
-                "hashtag": {
-                  "type": "string",
-                  "description": "The hashtag text without # symbol",
-                  "example": "typescript"
-                },
-                "tweetCount": {
-                  "type": "integer",
-                  "description": "Number of tweets with this hashtag in the last 24 hours",
-                  "example": 1234
-                },
-                "rank": {
-                  "type": "integer",
-                  "description": "Position in trending list (1-30)",
-                  "example": 1
-                }
-              },
-              "required": [
-                "id",
-                "hashtag",
-                "tweetCount",
-                "rank"
-              ]
-            },
-            "description": "Array of trending hashtags, sorted by popularity (rank 1-30)",
-            "example": [
-              {
-                "id": "abc123.sig",
-                "hashtag": "typescript",
-                "tweetCount": 1234,
-                "rank": 1
-              },
-              {
-                "id": "def456.sig",
-                "hashtag": "javascript",
-                "tweetCount": 987,
-                "rank": 2
-              },
-              {
-                "id": "ghi789.sig",
-                "hashtag": "nodejs",
-                "tweetCount": 654,
-                "rank": 3
-              }
-            ]
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "ISO 8601 timestamp of when trends were last calculated (updated every 30 minutes)",
-            "example": "2024-11-18T10:30:00.000Z"
-          }
-        },
-        "required": [
-          "trends",
-          "updatedAt"
-        ],
-        "description": "List of trending hashtags from the last 24 hours"
-      },
-      "HashtagTweetsResponse": {
-        "type": "object",
-        "properties": {
-          "tweets": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "content": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "createdAt": {
-                  "type": "string",
-                  "format": "date"
-                },
-                "likesCount": {
-                  "type": "integer"
-                },
-                "retweetCount": {
-                  "type": "integer"
-                },
-                "repliesCount": {
-                  "type": "integer"
-                },
-                "quotesCount": {
-                  "type": "integer"
-                },
-                "replyControl": {
-                  "type": "string",
-                  "enum": [
-                    "EVERYONE",
-                    "FOLLOWINGS",
-                    "VERIFIED",
-                    "MENTIONED"
-                  ]
-                },
-                "parentId": {
-                  "type": "string",
-                  "nullable": true,
-                  "format": "uuid"
-                },
-                "tweetType": {
-                  "type": "string",
-                  "enum": [
-                    "TWEET",
-                    "REPLY",
-                    "QUOTE"
-                  ]
-                },
-                "user": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "name": {
-                      "type": "string",
-                      "nullable": true,
-                      "minLength": 1
-                    },
-                    "username": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "profileMedia": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        }
-                      },
-                      "required": [
-                        "id"
-                      ]
-                    },
-                    "verified": {
-                      "type": "boolean"
-                    },
-                    "protectedAccount": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "name",
-                    "username",
-                    "profileMedia",
-                    "verified",
-                    "protectedAccount"
-                  ]
-                }
-              },
-              "required": [
-                "id",
-                "content",
-                "createdAt",
-                "likesCount",
-                "retweetCount",
-                "repliesCount",
-                "quotesCount",
-                "replyControl",
-                "tweetType",
-                "user"
-              ]
-            },
-            "description": "List of tweets containing this hashtag"
-          },
-          "nextCursor": {
-            "type": "string",
-            "nullable": true,
-            "description": "Encoded cursor for next page of results (null if no more pages)"
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether there are more tweets available for pagination"
-          }
-        },
-        "required": [
-          "tweets",
-          "nextCursor",
-          "hasMore"
-        ],
-        "description": "Paginated list of tweets for a hashtag"
-      },
-      "CreateTweetDTO": {
+      "ParsedDocument": {
         "type": "object",
         "properties": {
           "id": {
@@ -278,110 +46,24 @@
           "tokens": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "username": {
-                  "type": "string",
-                  "description": "Username"
-                },
-                "name": {
-                  "type": "string",
-                  "description": "Display name"
-                },
-                "photo": {
-                  "type": "string",
-                  "nullable": true,
-                  "format": "uri",
-                  "description": "Avatar URL"
-                },
-                "bio": {
-                  "type": "string",
-                  "nullable": true,
-                  "description": "User bio"
-                },
-                "verified": {
-                  "type": "boolean",
-                  "description": "Is the user verified"
-                },
-                "isFollowing": {
-                  "type": "boolean",
-                  "description": "Is the current user following this user"
-                },
-                "isFollower": {
-                  "type": "boolean",
-                  "description": "Is this user following the current user"
-                },
-                "youRequested": {
-                  "type": "boolean",
-                  "description": "Has the current user sent a follow request to this user"
-                },
-                "followStatus": {
-                  "type": "string",
-                  "enum": [
-                    "NONE",
-                    "PENDING",
-                    "ACCEPTED"
-                  ],
-                  "description": "Follow status between result user and target (param) user"
-                }
-              },
-              "required": [
-                "username",
-                "name",
-                "photo",
-                "bio",
-                "verified",
-                "isFollowing",
-                "isFollower",
-                "youRequested",
-                "followStatus"
+              "type": "string",
+              "example": [
+                "openai",
+                "chatgpt"
               ]
-            },
-            "description": "List of followers, followings, blocked or muted users"
+            }
           },
-          "nextCursor": {
-            "type": "string",
-            "nullable": true,
-            "description": "Opaque cursor for pagination; pass as 'cursor' in the next request. Null if no more data."
+          "timestamp": {
+            "type": "number",
+            "example": 1700000000
           },
-          "hasMore": {
-            "type": "boolean",
-            "description": "True if more data is available; false if this is the last page."
+          "data": {
+            "type": "object",
+            "example": {}
           }
-        },
-        "required": [
-          "users",
-          "nextCursor",
-          "hasMore"
-        ]
+        }
       },
-      "ChatUser": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "username": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string",
-            "nullable": true
-          },
-          "profilePhoto": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "id",
-          "username",
-          "name",
-          "profilePhoto"
-        ]
-      },
-      "Media": {
+      "SearchResult": {
         "type": "object",
         "properties": {
           "id": {
@@ -475,75 +157,30 @@
             "type": "boolean",
             "example": true
           },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
+          "followersCount": {
+            "type": "number",
+            "example": 1000
           },
-          "messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Message"
-            }
-          },
-          "chatUsers": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatUserRelation"
-            }
-          },
-          "chatGroup": {
-            "$ref": "#/components/schemas/ChatGroup"
-          },
-          "unseenMessagesCount": {
-            "type": "number"
+          "followingsCount": {
+            "type": "number",
+            "example": 150
           }
         }
       },
       "CrawledHashtag": {
         "type": "object",
         "properties": {
-          "error": {
+          "id": {
             "type": "string",
-            "description": "Chat ID is required"
-          }
-        },
-        "required": [
-          "error"
-        ]
-      },
-      "CreateChatInput": {
-        "type": "object",
-        "properties": {
-          "DMChat": {
-            "type": "boolean"
+            "example": "hashtag_123"
           },
-          "participant_ids": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        },
-        "required": [
-          "participant_ids"
-        ]
-      },
-      "UpdateChatGroupInput": {
-        "type": "object",
-        "properties": {
-          "name": {
+          "tag": {
             "type": "string",
-            "description": "New name for the group chat"
+            "example": "example"
           },
-          "description": {
-            "type": "string",
-            "description": "New description for the group chat"
-          },
-          "photo": {
-            "type": "string",
-            "format": "uri",
-            "description": "New photo URL for the group chat"
+          "tweetCount": {
+            "type": "number",
+            "example": 250
           }
         }
       }
@@ -657,6 +294,27 @@
             "description": "Tweet ID",
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The cursor for pagination"
+            },
+            "required": false,
+            "description": "The cursor for pagination",
+            "name": "cursor",
+            "in": "query"
           }
         ],
         "responses": {
@@ -667,7 +325,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "users": {
+                    "data": {
                       "type": "array",
                       "items": {
                         "type": "object",
@@ -683,7 +341,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -713,10 +372,15 @@
                           "protectedAccount"
                         ]
                       }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true
                     }
                   },
                   "required": [
-                    "users"
+                    "data",
+                    "nextCursor"
                   ]
                 }
               }
@@ -812,6 +476,27 @@
             "description": "Tweet ID",
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The cursor for pagination"
+            },
+            "required": false,
+            "description": "The cursor for pagination",
+            "name": "cursor",
+            "in": "query"
           }
         ],
         "responses": {
@@ -830,7 +515,8 @@
                       },
                       "content": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "maxLength": 445
                       },
                       "createdAt": {
                         "type": "string",
@@ -884,7 +570,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -913,6 +600,23 @@
                           "verified",
                           "protectedAccount"
                         ]
+                      },
+                      "mediaIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "maxItems": 4
+                      },
+                      "isLiked": {
+                        "type": "boolean"
+                      },
+                      "isRetweeted": {
+                        "type": "boolean"
+                      },
+                      "isBookmarked": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
@@ -925,7 +629,10 @@
                       "quotesCount",
                       "replyControl",
                       "tweetType",
-                      "user"
+                      "user",
+                      "isLiked",
+                      "isRetweeted",
+                      "isBookmarked"
                     ]
                   }
                 }
@@ -1022,6 +729,27 @@
             "description": "Tweet ID",
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The cursor for pagination"
+            },
+            "required": false,
+            "description": "The cursor for pagination",
+            "name": "cursor",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1040,7 +768,8 @@
                       },
                       "content": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "maxLength": 445
                       },
                       "createdAt": {
                         "type": "string",
@@ -1094,7 +823,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -1123,6 +853,23 @@
                           "verified",
                           "protectedAccount"
                         ]
+                      },
+                      "mediaIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "maxItems": 4
+                      },
+                      "isLiked": {
+                        "type": "boolean"
+                      },
+                      "isRetweeted": {
+                        "type": "boolean"
+                      },
+                      "isBookmarked": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
@@ -1135,7 +882,10 @@
                       "quotesCount",
                       "replyControl",
                       "tweetType",
-                      "user"
+                      "user",
+                      "isLiked",
+                      "isRetweeted",
+                      "isBookmarked"
                     ]
                   }
                 }
@@ -1178,7 +928,8 @@
                     },
                     "content": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 445
                     },
                     "createdAt": {
                       "type": "string",
@@ -1232,7 +983,8 @@
                         },
                         "username": {
                           "type": "string",
-                          "minLength": 1
+                          "minLength": 1,
+                          "maxLength": 445
                         },
                         "profileMedia": {
                           "type": "object",
@@ -1261,6 +1013,23 @@
                         "verified",
                         "protectedAccount"
                       ]
+                    },
+                    "mediaIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "maxItems": 4
+                    },
+                    "isLiked": {
+                      "type": "boolean"
+                    },
+                    "isRetweeted": {
+                      "type": "boolean"
+                    },
+                    "isBookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -1273,7 +1042,10 @@
                     "quotesCount",
                     "replyControl",
                     "tweetType",
-                    "user"
+                    "user",
+                    "isLiked",
+                    "isRetweeted",
+                    "isBookmarked"
                   ]
                 }
               }
@@ -1327,7 +1099,8 @@
                 "properties": {
                   "content": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 445
                   }
                 },
                 "required": [
@@ -1463,7 +1236,8 @@
                       },
                       "content": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "maxLength": 445
                       },
                       "createdAt": {
                         "type": "string",
@@ -1517,7 +1291,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -1546,6 +1321,23 @@
                           "verified",
                           "protectedAccount"
                         ]
+                      },
+                      "mediaIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "maxItems": 4
+                      },
+                      "isLiked": {
+                        "type": "boolean"
+                      },
+                      "isRetweeted": {
+                        "type": "boolean"
+                      },
+                      "isBookmarked": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
@@ -1558,7 +1350,10 @@
                       "quotesCount",
                       "replyControl",
                       "tweetType",
-                      "user"
+                      "user",
+                      "isLiked",
+                      "isRetweeted",
+                      "isBookmarked"
                     ]
                   }
                 }
@@ -1689,6 +1484,27 @@
             "description": "Tweet ID",
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The cursor for pagination"
+            },
+            "required": false,
+            "description": "The cursor for pagination",
+            "name": "cursor",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1699,7 +1515,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "users": {
+                    "data": {
                       "type": "array",
                       "items": {
                         "type": "object",
@@ -1715,7 +1531,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -1745,10 +1562,15 @@
                           "protectedAccount"
                         ]
                       }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true
                     }
                   },
                   "required": [
-                    "users"
+                    "data",
+                    "nextCursor"
                   ]
                 }
               }
@@ -1797,7 +1619,8 @@
                       },
                       "content": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "maxLength": 445
                       },
                       "createdAt": {
                         "type": "string",
@@ -1851,7 +1674,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -1880,6 +1704,23 @@
                           "verified",
                           "protectedAccount"
                         ]
+                      },
+                      "mediaIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "maxItems": 4
+                      },
+                      "isLiked": {
+                        "type": "boolean"
+                      },
+                      "isRetweeted": {
+                        "type": "boolean"
+                      },
+                      "isBookmarked": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
@@ -1892,7 +1733,10 @@
                       "quotesCount",
                       "replyControl",
                       "tweetType",
-                      "user"
+                      "user",
+                      "isLiked",
+                      "isRetweeted",
+                      "isBookmarked"
                     ]
                   }
                 }
@@ -2046,7 +1890,8 @@
                     },
                     "summary": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 445
                     }
                   },
                   "required": [
@@ -2090,7 +1935,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 445
             },
             "required": true,
             "name": "query",
@@ -2178,7 +2024,8 @@
                     },
                     "content": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 445
                     },
                     "createdAt": {
                       "type": "string",
@@ -2232,7 +2079,8 @@
                         },
                         "username": {
                           "type": "string",
-                          "minLength": 1
+                          "minLength": 1,
+                          "maxLength": 445
                         },
                         "profileMedia": {
                           "type": "object",
@@ -2261,6 +2109,23 @@
                         "verified",
                         "protectedAccount"
                       ]
+                    },
+                    "mediaIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "maxItems": 4
+                    },
+                    "isLiked": {
+                      "type": "boolean"
+                    },
+                    "isRetweeted": {
+                      "type": "boolean"
+                    },
+                    "isBookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -2273,7 +2138,10 @@
                     "quotesCount",
                     "replyControl",
                     "tweetType",
-                    "user"
+                    "user",
+                    "isLiked",
+                    "isRetweeted",
+                    "isBookmarked"
                   ]
                 }
               }
@@ -2341,7 +2209,8 @@
                       },
                       "content": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "maxLength": 445
                       },
                       "createdAt": {
                         "type": "string",
@@ -2395,7 +2264,8 @@
                           },
                           "username": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "profileMedia": {
                             "type": "object",
@@ -2424,6 +2294,23 @@
                           "verified",
                           "protectedAccount"
                         ]
+                      },
+                      "mediaIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "maxItems": 4
+                      },
+                      "isLiked": {
+                        "type": "boolean"
+                      },
+                      "isRetweeted": {
+                        "type": "boolean"
+                      },
+                      "isBookmarked": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
@@ -2436,7 +2323,10 @@
                       "quotesCount",
                       "replyControl",
                       "tweetType",
-                      "user"
+                      "user",
+                      "isLiked",
+                      "isRetweeted",
+                      "isBookmarked"
                     ]
                   }
                 }
@@ -2533,7 +2423,8 @@
                             },
                             "content": {
                               "type": "string",
-                              "minLength": 1
+                              "minLength": 1,
+                              "maxLength": 445
                             },
                             "createdAt": {
                               "type": "string",
@@ -2587,7 +2478,8 @@
                                 },
                                 "username": {
                                   "type": "string",
-                                  "minLength": 1
+                                  "minLength": 1,
+                                  "maxLength": 445
                                 },
                                 "profileMedia": {
                                   "type": "object",
@@ -2617,10 +2509,27 @@
                                 "protectedAccount"
                               ]
                             },
+                            "mediaIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "maxItems": 4
+                            },
+                            "isLiked": {
+                              "type": "boolean"
+                            },
+                            "isRetweeted": {
+                              "type": "boolean"
+                            },
+                            "isBookmarked": {
+                              "type": "boolean"
+                            },
                             "retweets": {
                               "type": "object",
                               "properties": {
-                                "users": {
+                                "data": {
                                   "type": "array",
                                   "items": {
                                     "type": "object",
@@ -2636,7 +2545,8 @@
                                       },
                                       "username": {
                                         "type": "string",
-                                        "minLength": 1
+                                        "minLength": 1,
+                                        "maxLength": 445
                                       },
                                       "profileMedia": {
                                         "type": "object",
@@ -2666,10 +2576,15 @@
                                       "protectedAccount"
                                     ]
                                   }
+                                },
+                                "nextCursor": {
+                                  "type": "string",
+                                  "nullable": true
                                 }
                               },
                               "required": [
-                                "users"
+                                "data",
+                                "nextCursor"
                               ]
                             }
                           },
@@ -2684,6 +2599,9 @@
                             "replyControl",
                             "tweetType",
                             "user",
+                            "isLiked",
+                            "isRetweeted",
+                            "isBookmarked",
                             "retweets"
                           ]
                         }
@@ -2777,7 +2695,8 @@
                           },
                           "content": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "createdAt": {
                             "type": "string",
@@ -2831,7 +2750,8 @@
                               },
                               "username": {
                                 "type": "string",
-                                "minLength": 1
+                                "minLength": 1,
+                                "maxLength": 445
                               },
                               "profileMedia": {
                                 "type": "object",
@@ -2861,10 +2781,27 @@
                               "protectedAccount"
                             ]
                           },
+                          "mediaIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "maxItems": 4
+                          },
+                          "isLiked": {
+                            "type": "boolean"
+                          },
+                          "isRetweeted": {
+                            "type": "boolean"
+                          },
+                          "isBookmarked": {
+                            "type": "boolean"
+                          },
                           "retweets": {
                             "type": "object",
                             "properties": {
-                              "users": {
+                              "data": {
                                 "type": "array",
                                 "items": {
                                   "type": "object",
@@ -2880,7 +2817,8 @@
                                     },
                                     "username": {
                                       "type": "string",
-                                      "minLength": 1
+                                      "minLength": 1,
+                                      "maxLength": 445
                                     },
                                     "profileMedia": {
                                       "type": "object",
@@ -2910,10 +2848,15 @@
                                     "protectedAccount"
                                   ]
                                 }
+                              },
+                              "nextCursor": {
+                                "type": "string",
+                                "nullable": true
                               }
                             },
                             "required": [
-                              "users"
+                              "data",
+                              "nextCursor"
                             ]
                           }
                         },
@@ -2928,6 +2871,9 @@
                           "replyControl",
                           "tweetType",
                           "user",
+                          "isLiked",
+                          "isRetweeted",
+                          "isBookmarked",
                           "retweets"
                         ]
                       }
@@ -3011,7 +2957,8 @@
                           },
                           "content": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "maxLength": 445
                           },
                           "createdAt": {
                             "type": "string",
@@ -3065,7 +3012,8 @@
                               },
                               "username": {
                                 "type": "string",
-                                "minLength": 1
+                                "minLength": 1,
+                                "maxLength": 445
                               },
                               "profileMedia": {
                                 "type": "object",
@@ -3095,10 +3043,27 @@
                               "protectedAccount"
                             ]
                           },
+                          "mediaIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "maxItems": 4
+                          },
+                          "isLiked": {
+                            "type": "boolean"
+                          },
+                          "isRetweeted": {
+                            "type": "boolean"
+                          },
+                          "isBookmarked": {
+                            "type": "boolean"
+                          },
                           "retweets": {
                             "type": "object",
                             "properties": {
-                              "users": {
+                              "data": {
                                 "type": "array",
                                 "items": {
                                   "type": "object",
@@ -3114,7 +3079,8 @@
                                     },
                                     "username": {
                                       "type": "string",
-                                      "minLength": 1
+                                      "minLength": 1,
+                                      "maxLength": 445
                                     },
                                     "profileMedia": {
                                       "type": "object",
@@ -3144,10 +3110,15 @@
                                     "protectedAccount"
                                   ]
                                 }
+                              },
+                              "nextCursor": {
+                                "type": "string",
+                                "nullable": true
                               }
                             },
                             "required": [
-                              "users"
+                              "data",
+                              "nextCursor"
                             ]
                           }
                         },
@@ -3162,6 +3133,9 @@
                           "replyControl",
                           "tweetType",
                           "user",
+                          "isLiked",
+                          "isRetweeted",
+                          "isBookmarked",
                           "retweets"
                         ]
                       }
@@ -3852,11 +3826,9 @@
                           "REPLY",
                           "QUOTE",
                           "FOLLOW",
-                          "REQUEST_TO_FOLLOW",
-                          "ACCEPTED_FOLLOW",
-                          "MENTION",
-                          "LOGIN",
-                          "PASSWORD_CHANGED"
+                          "RequestToFollow",
+                          "AcceptedFollow",
+                          "MENTION"
                         ]
                       },
                       "body": {
@@ -3870,7 +3842,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-20T11:24:36.060Z"
+                        "default": "2025-11-21T08:57:28.656Z"
                       },
                       "userId": {
                         "type": "string",
@@ -4077,11 +4049,9 @@
                               "REPLY",
                               "QUOTE",
                               "FOLLOW",
-                              "REQUEST_TO_FOLLOW",
-                              "ACCEPTED_FOLLOW",
-                              "MENTION",
-                              "LOGIN",
-                              "PASSWORD_CHANGED"
+                              "RequestToFollow",
+                              "AcceptedFollow",
+                              "MENTION"
                             ]
                           },
                           "body": {
@@ -4095,7 +4065,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-20T11:24:36.060Z"
+                            "default": "2025-11-21T08:57:28.656Z"
                           },
                           "userId": {
                             "type": "string",
@@ -5475,29 +5445,23 @@
               "format": "uuid",
               "description": "Chat ID"
             },
-            "required": true,
+            "required": false,
             "description": "Chat ID",
             "name": "chatId",
-            "in": "path"
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Timestamp of the last message received (for pagination)"
+            },
+            "required": false,
+            "description": "Timestamp of the last message received (for pagination)",
+            "name": "lastMessageTimestamp",
+            "in": "query"
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "lastMessageTimestamp": {
-                    "type": "string",
-                    "format": "date-time",
-                    "description": "Timestamp of the last message received (for pagination)"
-                  }
-                }
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Chat information retrieved successfully",
