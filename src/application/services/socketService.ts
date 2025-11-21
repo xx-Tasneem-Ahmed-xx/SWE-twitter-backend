@@ -120,7 +120,7 @@ export class SocketService {
     }
   }
 
-  private async getAllUsers(chatId: string): Promise<string[]> {
+  public async getAllUsers(chatId: string): Promise<string[]> {
     const usersId = await prisma.chat.findUnique({
       where: {
         id: chatId,

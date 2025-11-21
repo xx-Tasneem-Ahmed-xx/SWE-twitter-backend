@@ -4000,7 +4000,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-20T18:21:40.013Z"
+                        "default": "2025-11-21T18:44:53.141Z"
                       },
                       "userId": {
                         "type": "string",
@@ -4225,7 +4225,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-20T18:21:40.013Z"
+                            "default": "2025-11-21T18:44:53.141Z"
                           },
                           "userId": {
                             "type": "string",
