@@ -1244,7 +1244,7 @@ router.get("/user", Auth(),  typedAuthController.GetUser); //tested
  * /userinfo:
  *   get:
  *     summary: Get authenticated user info (Reauthentication required)
- *     description: Same response as `/user` but requires an additional reauthentication step for extra security on sensitive account screens.
+ *     description: Same response as /user but requires a recent reauthentication step before accessing sensitive screens.
  *     tags: [User]
  *     security:
  *       - bearerAuth: []
