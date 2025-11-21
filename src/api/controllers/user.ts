@@ -1979,11 +1979,20 @@ export const UpdateUsername = async (
 ): Promise<void> => {
   try {
     const userId = (req as any).user?.id;
-    const { username } = req.body;
+    let { username } = req.body;
 
     if (!userId) throw new AppError("Unauthorized: Missing user ID", 401);
-    if (!username || typeof username !== "string" || username.trim() === "")
-      throw new AppError("Invalid username", 400);
+    
+    // If username is empty or invalid, generate a default unique one
+
+
+    username = username.trim().toLowerCase();
+
+    // Check if username is already taken
+    const existingUser = await prisma.user.findUnique({ where: { username } });
+    if (existingUser && existingUser.id !== userId) {
+      throw new AppError("Username already taken. Please choose another one.", 400);
+    }
 
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
@@ -1994,7 +2003,6 @@ export const UpdateUsername = async (
 
     const newVersion = (currentUser.tokenVersion || 0) + 1;
 
-
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
@@ -2002,7 +2010,6 @@ export const UpdateUsername = async (
         tokenVersion: newVersion,
       },
     });
-
 
     const accessObj = await utils.GenerateJwt({
       username: updatedUser.username,
@@ -2022,18 +2029,14 @@ export const UpdateUsername = async (
       expiresInSeconds: 60 * 60 * 24 * 30, // 30 days
     });
 
-    // 🍪 Set refresh token cookie
     res.cookie("refresh_token", refreshObj.token, {
       maxAge: 30 * 24 * 60 * 60 * 1000,
- 
     });
 
-    // ✅ Optional: reset session if you’re tracking sessions in Redis
     await utils.SetSession(req, userId, refreshObj.jti);
 
-    // 🎯 Return result
     return utils.SendRes(res, {
-      message: "Username updated successfully ✅",
+      message: "Username updated successfully ",
       user: {
         id: updatedUser.id,
         username: updatedUser.username,
@@ -2043,12 +2046,12 @@ export const UpdateUsername = async (
         access: accessObj.token,
         refresh: refreshObj.token,
       },
-      
     });
   } catch (err) {
     next(err);
   }
 };
+
 
 
 /* --------------------- Exports --------------------- */
