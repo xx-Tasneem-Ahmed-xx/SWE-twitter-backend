@@ -24,11 +24,11 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { StorageSystem } from "@/application/services/storeageSystem";
 import {admin, initializeFirebase} from './application/services/firebaseInitializer'
 import cookieParser from "cookie-parser";
-
+import { initializeSearchEngine } from "./api/controllers/SearchEngine";
 import { no } from "zod/v4/locales";
 import { Crawler, Parser, Indexer, SearchEngine } from './api/controllers/SearchEngine';
 // Type assertion for GeoGurd
-import apiRoutes from './api/routes/searchRoutes';
+import { apiRoutes } from './api/routes/searchRoutes';
 import { PrismaClient } from "@prisma/client";
 const app = express();
 app.use(cors());
@@ -54,12 +54,15 @@ export { storageService };
 
 const socketService = new SocketService(io);
 export { socketService };
-const prisma = new PrismaClient();
-const crawler = new Crawler(prisma);
-const parser = new Parser();
-const indexer = new Indexer();
-const searchEngine = new SearchEngine(indexer);
-app.use('/api', apiRoutes(crawler, parser, indexer, searchEngine));
+
+initializeSearchEngine()
+  .then(({ crawler, parser, indexer, searchEngine, persistence }) => {
+    app.use('/api', apiRoutes(crawler, parser, indexer, searchEngine, persistence));
+  })
+  .catch((err) => {
+    console.error('Failed to initialize search engine:', err);
+  });
+
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use("/api/auth", authRoutes);
 app.use("/oauth2", oauthRoutes);
