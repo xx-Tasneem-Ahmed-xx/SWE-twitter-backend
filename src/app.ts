@@ -5,7 +5,7 @@ import morgan from "morgan";
 import compression from "compression";
 import swaggerUi from "swagger-ui-express";
 import swaggerDoc from "./docs/index";
-import { createServer } from "http";
+import { createServer, get } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { SocketService } from "@/application/services/socketService";
 import ChatRouter from "@/api/routes/chatRoutes";
@@ -30,6 +30,7 @@ import { Crawler, Parser, Indexer, SearchEngine } from './api/controllers/Search
 // Type assertion for GeoGurd
 import { apiRoutes } from './api/routes/searchRoutes';
 import { PrismaClient } from "@prisma/client";
+import { getKey } from "./application/services/secrets";
 const app = express();
 app.use(cors());
 app.use(helmet());
@@ -48,9 +49,13 @@ export const io: SocketIOServer = new SocketIOServer(httpServer, {
   },
 });
 
-const s3 = new S3Client({ region: process.env.AWS_REGION });
-const storageService = new StorageSystem(s3);
-export { storageService };
+let storageService: StorageSystem | null = null;
+const storageServicePromise = getKey("AWS_REGION").then((region) => {
+  const s3 = new S3Client({ region });
+  storageService = new StorageSystem(s3);
+  return storageService;
+});
+export { storageService, storageServicePromise };
 
 const socketService = new SocketService(io);
 export { socketService };
