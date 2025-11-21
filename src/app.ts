@@ -17,7 +17,7 @@ import userInteractionsRoutes from "@/api/routes/userInteractions";
 import userRouter from "@/api/routes/user.routes";
 import hashtagsRoutes from "@/api/routes/hashtags";
 import { errorHandler } from "@/api/middlewares/errorHandler";
-import authRoutes from "@/api/routes/authRoutes";
+import  authRoutes  from "@/api/routes/authRoutes";
 import Auth from "@/api/middlewares/Auth";
 import oauthRoutes from "./api/routes/oauthRoutes";
 import { S3Client } from "@aws-sdk/client-s3";

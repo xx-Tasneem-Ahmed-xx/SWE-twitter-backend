@@ -2339,3 +2339,7 @@ router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
  *       500:
  *         $ref: '#/components/responses/InternalServerError'
  */
+
+router.use(AfterChange());
+router.use(GeoGurd());
+export default router;
