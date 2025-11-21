@@ -528,32 +528,47 @@ export async function Login(
 If this was not you, immediately change your password!
 — The Artemisa Team`;
 
-    utils.SendEmailSmtp(res, email, emailMessage).catch((err) => {
-      throw new AppError("Failed to send login notification email", 500);
-    });
+utils.SendEmailSmtp(res, email, emailMessage).catch((err) => {
+  throw new AppError("Failed to send login notification email", 500);
+});
 
-    await addNotification(user.id as UUID, {
-      title: NotificationTitle.LOGIN,
-      body: `Login from ${JSON.stringify(deviceRecord, null, 2)} at ${JSON.stringify(location, null, 2)}`,
-      actorId: user.id as UUID,
-    }, (err) => {
-      if (err) throw new AppError(err, 500);
-    });
+// Safely derive browser and country values whether deviceRecord/location are objects or strings
+const deviceBrowser =
+  typeof deviceRecord === "object" && deviceRecord
+    ? (deviceRecord as any).browser || "unknown"
+    : typeof deviceRecord === "string"
+    ? deviceRecord
+    : "unknown";
 
-    return utils.SendRes(res, {
-      user: {
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        email: user.email,
-        dateOfBirth: user.dateOfBirth,
-        isEmailVerified: user.isEmailVerified,
-      },
-      DeviceRecord: deviceRecord,
-      Token: accessObj.token,
-      Refresh_token: refreshObj.token,
-      message: "Login successful, email & in-app notification sent",
-    });
+const country =
+  typeof location === "object" && location
+    ? (location as any).Country || (location as any).country || "unknown"
+    : typeof location === "string"
+    ? location
+    : "unknown";
+
+await addNotification(user.id as UUID, {
+  title: NotificationTitle.LOGIN,
+  body: `Login from ${deviceBrowser} at ${country}`,
+  actorId: user.id as UUID,
+}, (err) => {
+  if (err) throw new AppError(err, 500);
+});
+
+return utils.SendRes(res, {
+  user: {
+    id: user.id,
+    username: user.username,
+    name: user.name,
+    email: user.email,
+    dateOfBirth: user.dateOfBirth,
+    isEmailVerified: user.isEmailVerified,
+  },
+  DeviceRecord: deviceRecord,
+  Token: accessObj.token,
+  Refresh_token: refreshObj.token,
+  message: "Login successful, email & in-app notification sent",
+});
   } catch (err) {
     next(err);
   }
@@ -833,10 +848,22 @@ If this wasn't you, secure your account immediately!
     utils.SendEmailSmtp(res, email, emailMessage).catch(() => {
       throw new AppError("Failed to send password change notification", 500);
     });
+const deviceBrowser =
+  typeof deviceRecord === "object" && deviceRecord
+    ? (deviceRecord as any).browser || "unknown"
+    : typeof deviceRecord === "string"
+    ? deviceRecord
+    : "unknown";
 
+const country =
+  typeof location === "object" && location
+    ? (location as any).Country || (location as any).country || "unknown"
+    : typeof location === "string"
+    ? location
+    : "unknown";
     await addNotification(user.id as UUID, {
       title: NotificationTitle.PASSWORD_CHANGED,
-      body: `Your password was changed from ${deviceRecord || "unknown device"} at ${location}`,
+      body:`Login from ${deviceBrowser} at ${country}`,
       actorId: user.id as UUID,
       tweetId:"32423",
     }, (err) => { if (err) throw new AppError(err, 500) });
