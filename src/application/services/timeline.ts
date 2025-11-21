@@ -468,13 +468,10 @@
 // src/application/services/timeline.ts
 import { prisma } from "@/prisma/client";
 import { Prisma } from "@prisma/client";
-// import { redis } from "@/infra/redis/cache"; // reuse your redis import if defined
-// (or import cacheGet/cacheSet helpers you already have)
-// import { cacheGet, cacheSet } from "@/infra/redis/cache";
+
 
 type ForYouParams = { userId: string; limit?: number; cursor?: string };
 
-// src/infra/redis/cache.ts
 import Redis from "ioredis";
 
 const redisUrl = process.env.REDIS_URL ?? "redis://127.0.0.1:6379";
