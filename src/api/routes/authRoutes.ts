@@ -1475,34 +1475,685 @@ router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
 //temp routes for searchEngine
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     IndexStats:
+ *       type: object
+ *       properties:
+ *         totalDocuments:
+ *           type: integer
+ *           example: 1000
+ *         totalTerms:
+ *           type: integer
+ *           example: 5000
+ *         tweets:
+ *           type: integer
+ *           example: 500
+ *         users:
+ *           type: integer
+ *           example: 300
+ *         hashtags:
+ *           type: integer
+ *           example: 200
+ *         urls:
+ *           type: integer
+ *           example: 0
+ *         averageDocLength:
+ *           type: integer
+ *           example: 45
+ *         indexSize:
+ *           type: string
+ *           example: "2.34 MB"
+ *
+ *     SearchResult:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "tweet_12345"
+ *         type:
+ *           type: string
+ *           enum: [tweet, user, hashtag, url]
+ *           example: "tweet"
+ *         score:
+ *           type: number
+ *           format: float
+ *           example: 45.67
+ *         tfidfScore:
+ *           type: number
+ *           format: float
+ *           example: 12.34
+ *         relevance:
+ *           type: integer
+ *           example: 89
+ *         matchedTokens:
+ *           type: array
+ *           items:
+ *             type: string
+ *           example: ["nodejs", "javascript"]
+ *         data:
+ *           type: object
+ *           example:
+ *             id: "tweet_12345"
+ *             content: "Learning Node.js is awesome"
+ *             username: "johndev"
+ *             likesCount: 150
+ *
+ *     PaginatedSearchResponse:
+ *       type: object
+ *       properties:
+ *         query:
+ *           type: string
+ *           example: "nodejs"
+ *         type:
+ *           type: string
+ *           example: "all"
+ *         results:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/SearchResult'
+ *         total:
+ *           type: integer
+ *           example: 250
+ *         page:
+ *           type: integer
+ *           example: 1
+ *         pageSize:
+ *           type: integer
+ *           example: 20
+ *         pages:
+ *           type: integer
+ *           example: 13
+ *         timestamp:
+ *           type: string
+ *           format: date-time
+ *           example: "2024-01-15T10:30:45.123Z"
+ *
+ *     Document:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "tweet_12345"
+ *         type:
+ *           type: string
+ *           enum: [tweet, user, hashtag, url]
+ *           example: "tweet"
+ *         tokensCount:
+ *           type: integer
+ *           example: 25
+ *         timestamp:
+ *           type: string
+ *           format: date-time
+ *           example: "2024-01-15T10:30:45.123Z"
+ *         data:
+ *           type: object
+ *
+ *     Term:
+ *       type: object
+ *       properties:
+ *         term:
+ *           type: string
+ *           example: "nodejs"
+ *         frequency:
+ *           type: integer
+ *           example: 1234
+ *         documentCount:
+ *           type: integer
+ *           example: 456
+ *
+ *     HealthResponse:
+ *       type: object
+ *       properties:
+ *         status:
+ *           type: string
+ *           example: "ok"
+ *         timestamp:
+ *           type: string
+ *           format: date-time
+ *           example: "2024-01-15T10:30:45.123Z"
+ *         index:
+ *           $ref: '#/components/schemas/IndexStats'
+ *
+ *     ErrorResponse:
+ *       type: object
+ *       properties:
+ *         error:
+ *           type: string
+ *           example: "Failed to index tweets"
+ *         details:
+ *           type: string
+ *           example: "Connection timeout"
+ *
+ *   responses:
+ *     BadRequest:
+ *       description: Bad request. Invalid parameters.
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ErrorResponse'
+ *
+ *     NotFound:
+ *       description: Resource not found.
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ErrorResponse'
+ *
+ *     InternalServerError:
+ *       description: Internal server error.
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ErrorResponse'
+ */
+
+/**
+ * @swagger
  * /health:
  *   get:
  *     summary: Health check
- *     description: Returns API status and timestamp.
+ *     description: Check if the search engine is running and get index statistics
  *     tags:
- *       - Health
+ *       - Health & Status
  *     responses:
  *       200:
- *         description: API is running
+ *         description: Search engine is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HealthResponse'
+ */
+
+/**
+ * @swagger
+ * /stats:
+ *   get:
+ *     summary: Get index statistics
+ *     description: Returns detailed statistics about the search index including document counts, terms, and size
+ *     tags:
+ *       - Health & Status
+ *     responses:
+ *       200:
+ *         description: Index statistics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/tweets:
+ *   post:
+ *     summary: Index tweets from database
+ *     description: Crawl and index tweets from the database with optional pagination
+ *     tags:
+ *       - Indexing - Tweets
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               limit:
+ *                 type: integer
+ *                 default: 100
+ *                 example: 100
+ *                 description: Number of tweets to index
+ *               offset:
+ *                 type: integer
+ *                 default: 0
+ *                 example: 0
+ *                 description: Starting offset for pagination
+ *     responses:
+ *       200:
+ *         description: Tweets indexed successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 status:
+ *                 message:
  *                   type: string
- *                 timestamp:
+ *                   example: "Successfully indexed 100 tweets"
+ *                 count:
+ *                   type: integer
+ *                   example: 100
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/users:
+ *   post:
+ *     summary: Index users from database
+ *     description: Crawl and index users from the database with optional pagination
+ *     tags:
+ *       - Indexing - Users
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               limit:
+ *                 type: integer
+ *                 default: 100
+ *                 example: 100
+ *               offset:
+ *                 type: integer
+ *                 default: 0
+ *                 example: 0
+ *     responses:
+ *       200:
+ *         description: Users indexed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
  *                   type: string
- *                   format: date-time
+ *                   example: "Successfully indexed 100 users"
+ *                 count:
+ *                   type: integer
+ *                   example: 100
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/hashtags:
+ *   post:
+ *     summary: Index hashtags from database
+ *     description: Crawl and index hashtags from the database with optional pagination
+ *     tags:
+ *       - Indexing - Hashtags
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               limit:
+ *                 type: integer
+ *                 default: 100
+ *                 example: 100
+ *               offset:
+ *                 type: integer
+ *                 default: 0
+ *                 example: 0
+ *     responses:
+ *       200:
+ *         description: Hashtags indexed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Successfully indexed 100 hashtags"
+ *                 count:
+ *                   type: integer
+ *                   example: 100
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/batch:
+ *   post:
+ *     summary: Batch index large datasets
+ *     description: Crawl and index large amounts of data (tweets, users, or hashtags) in optimized batches for scalability
+ *     tags:
+ *       - Indexing - Batch
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [tweets, users, hashtags]
+ *                 example: tweets
+ *                 description: Type of data to index
+ *               limit:
+ *                 type: integer
+ *                 default: 5000
+ *                 example: 5000
+ *                 description: Total number of items to index (processes in 500-item batches)
+ *     responses:
+ *       200:
+ *         description: Batch indexing completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Successfully batch indexed 5000 tweets"
+ *                 count:
+ *                   type: integer
+ *                   example: 5000
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/all:
+ *   post:
+ *     summary: Index all data types
+ *     description: Crawl and index tweets, users, and hashtags from the database simultaneously
+ *     tags:
+ *       - Indexing - All
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               limit:
+ *                 type: integer
+ *                 default: 100
+ *                 example: 100
+ *     responses:
+ *       200:
+ *         description: All data indexed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Successfully indexed all data"
+ *                 counts:
+ *                   type: object
+ *                   properties:
+ *                     tweets:
+ *                       type: integer
+ *                       example: 100
+ *                     users:
+ *                       type: integer
+ *                       example: 100
+ *                     hashtags:
+ *                       type: integer
+ *                       example: 100
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /search:
+ *   get:
+ *     summary: Search across all content types
+ *     description: Perform a global search with advanced options including fuzzy matching, phrase search, and pagination
+ *     tags:
+ *       - Search - Global
+ *     parameters:
+ *       - name: q
+ *         in: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: nodejs
+ *         description: Search query
+ *       - name: limit
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           minimum: 1
+ *           maximum: 100
+ *         example: 20
+ *         description: Results per page (max 100)
+ *       - name: offset
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *           minimum: 0
+ *         example: 0
+ *         description: Pagination offset
+ *       - name: type
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [all, tweet, user, hashtag, url]
+ *           default: all
+ *         example: all
+ *         description: Filter results by content type
+ *       - name: fuzzy
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         example: false
+ *         description: Enable fuzzy matching for typo tolerance
+ *       - name: phrase
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         example: false
+ *         description: Enable phrase search for exact multi-word matching
+ *     responses:
+ *       200:
+ *         description: Search results retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaginatedSearchResponse'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /search/{type}:
+ *   get:
+ *     summary: Search by specific content type
+ *     description: Search within a specific type (tweet, user, hashtag, or url) with advanced filtering options
+ *     tags:
+ *       - Search - By Type
+ *     parameters:
+ *       - name: type
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [tweet, user, hashtag, url]
+ *         example: tweet
+ *         description: Content type to search in
+ *       - name: q
+ *         in: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: javascript
+ *         description: Search query
+ *       - name: limit
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           minimum: 1
+ *           maximum: 100
+ *         example: 20
+ *         description: Results per page
+ *       - name: offset
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *           minimum: 0
+ *         example: 0
+ *         description: Pagination offset
+ *       - name: fuzzy
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         example: false
+ *         description: Enable fuzzy matching
+ *       - name: phrase
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         example: false
+ *         description: Enable phrase search
+ *     responses:
+ *       200:
+ *         description: Search results retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaginatedSearchResponse'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /documents:
+ *   get:
+ *     summary: Retrieve indexed documents
+ *     description: Get a list of all indexed documents with optional filtering by type
+ *     tags:
+ *       - Documents
+ *     parameters:
+ *       - name: type
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [tweet, user, hashtag, url]
+ *         example: tweet
+ *         description: Filter documents by type
+ *       - name: limit
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *           minimum: 1
+ *           maximum: 1000
+ *         example: 100
+ *         description: Maximum documents to return
+ *     responses:
+ *       200:
+ *         description: Documents retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total:
+ *                   type: integer
+ *                   example: 500
+ *                 returned:
+ *                   type: integer
+ *                   example: 100
+ *                 type:
+ *                   type: string
+ *                   example: tweet
+ *                 documents:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Document'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /terms:
+ *   get:
+ *     summary: Get most frequent terms in index
+ *     description: Retrieve the most frequently occurring terms in the index with their document frequency statistics
+ *     tags:
+ *       - Analytics
+ *     parameters:
+ *       - name: limit
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           minimum: 1
+ *           maximum: 500
+ *         example: 50
+ *         description: Number of top terms to return
+ *     responses:
+ *       200:
+ *         description: Terms retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total:
+ *                   type: integer
+ *                   example: 5000
+ *                 returned:
+ *                   type: integer
+ *                   example: 50
+ *                 terms:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Term'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 
 /**
  * @swagger
  * /crawl:
  *   post:
- *     summary: Crawl a single webpage URL and index it
+ *     summary: Crawl and index a single URL
+ *     description: Fetch a URL, parse its content, and add it to the search index
  *     tags:
- *       - Crawl
+ *       - Web Crawling
  *     requestBody:
  *       required: true
  *       content:
@@ -1514,7 +2165,9 @@ router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
  *             properties:
  *               url:
  *                 type: string
- *                 example: "https://example.com"
+ *                 format: uri
+ *                 example: https://example.com
+ *                 description: URL to crawl and index
  *     responses:
  *       200:
  *         description: URL crawled and indexed successfully
@@ -1525,25 +2178,33 @@ router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
  *               properties:
  *                 message:
  *                   type: string
+ *                   example: "URL crawled and indexed successfully"
  *                 documentId:
  *                   type: string
+ *                   example: "https://example.com"
  *                 url:
  *                   type: string
+ *                   example: "https://example.com"
  *                 title:
  *                   type: string
+ *                   example: "Example Domain"
+ *                 tokensCount:
+ *                   type: integer
+ *                   example: 45
  *       400:
- *         description: Missing URL or already crawled
+ *         $ref: '#/components/responses/BadRequest'
  *       500:
- *         description: Failed to crawl
+ *         $ref: '#/components/responses/InternalServerError'
  */
 
 /**
  * @swagger
  * /crawl/batch:
  *   post:
- *     summary: Crawl multiple webpage URLs and index them
+ *     summary: Crawl and index multiple URLs
+ *     description: Fetch multiple URLs in parallel, parse their content, and add them to the search index
  *     tags:
- *       - Crawl
+ *       - Web Crawling
  *     requestBody:
  *       required: true
  *       content:
@@ -1557,9 +2218,15 @@ router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
  *                 type: array
  *                 items:
  *                   type: string
+ *                   format: uri
+ *                 example:
+ *                   - https://example.com
+ *                   - https://example.org
+ *                   - https://example.net
+ *                 description: Array of URLs to crawl
  *     responses:
  *       200:
- *         description: URLs crawled and indexed
+ *         description: URLs crawled and indexed successfully
  *         content:
  *           application/json:
  *             schema:
@@ -1567,8 +2234,10 @@ router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
  *               properties:
  *                 message:
  *                   type: string
+ *                   example: "URLs crawled and indexed successfully"
  *                 count:
- *                   type: number
+ *                   type: integer
+ *                   example: 3
  *                 documents:
  *                   type: array
  *                   items:
@@ -1580,218 +2249,93 @@ router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
  *                         type: string
  *                       title:
  *                         type: string
+ *                       type:
+ *                         type: string
+ *                       tokensCount:
+ *                         type: integer
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
  *       400:
- *         description: Invalid URL list
+ *         $ref: '#/components/responses/BadRequest'
  *       500:
- *         description: Indexing failed
+ *         $ref: '#/components/responses/InternalServerError'
  */
 
 /**
  * @swagger
- * /search:
- *   get:
- *     summary: Search across tweets, users, hashtags, and URLs
+ * /index/save:
+ *   post:
+ *     summary: Save index to Redis
+ *     description: Persist the current search index to Redis for fault tolerance and recovery
  *     tags:
- *       - Search
- *     parameters:
- *       - in: query
- *         name: q
- *         required: true
- *         schema:
- *           type: string
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
+ *       - Persistence
  *     responses:
  *       200:
- *         description: Search results
+ *         description: Index saved successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 query:
+ *                 message:
  *                   type: string
- *                 total:
- *                   type: integer
- *                 timestamp:
+ *                   example: "Index saved to Redis successfully"
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/load:
+ *   post:
+ *     summary: Load index from Redis
+ *     description: Restore a previously saved search index from Redis
+ *     tags:
+ *       - Persistence
+ *     responses:
+ *       200:
+ *         description: Index loaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
  *                   type: string
- *                 results:
- *                   type: array
- *                   items:
- *                     $ref: "#/components/schemas/SearchResult"
- *       400:
- *         description: Query missing
+ *                   example: "Index loaded from Redis"
+ *                 data:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       404:
+ *         description: Index not found in Redis
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 
 /**
  * @swagger
- * /stats:
- *   get:
- *     summary: Get index statistics
+ * /index/clear:
+ *   delete:
+ *     summary: Clear the entire search index
+ *     description: Remove all documents and indexes from memory. WARNING - This operation cannot be undone without reindexing
  *     tags:
- *       - Stats
+ *       - Index Management
  *     responses:
  *       200:
- *         description: Index statistics
+ *         description: Index cleared successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 totalDocuments:
- *                   type: integer
- *                 totalTerms:
- *                   type: integer
- *                 tweets:
- *                   type: integer
- *                 users:
- *                   type: integer
- *                 hashtags:
- *                   type: integer
- *                 urls:
- *                   type: integer
+ *                 message:
+ *                   type: string
+ *                   example: "Index cleared successfully"
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
-
-/**
- * @swagger
- * /documents:
- *   get:
- *     summary: Get all indexed documents
- *     tags:
- *       - Documents
- *     responses:
- *       200:
- *         description: All documents
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 total:
- *                   type: number
- *                 documents:
- *                   type: array
- *                   items:
- *                     $ref: "#/components/schemas/ParsedDocument"
- */
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     ParsedDocument:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           example: "doc_12345"
- *         type:
- *           type: string
- *           enum: [tweet, user, hashtag, url]
- *           example: "tweet"
- *         tokens:
- *           type: array
- *           items:
- *             type: string
- *             example: ["openai", "chatgpt"]
- *         timestamp:
- *           type: number
- *           example: 1700000000
- *         data:
- *           type: object
- *           example: {}
- * 
- *     SearchResult:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           example: "tweet_98765"
- *         type:
- *           type: string
- *           enum: [tweet, user, hashtag, url]
- *           example: "user"
- *         score:
- *           type: number
- *           example: 0.92
- *         data:
- *           type: object
- *           example: {}
- *
- *     CrawledTweet:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           example: "tweet_12345"
- *         content:
- *           type: string
- *           example: "Hello world! #example"
- *         userId:
- *           type: string
- *           example: "user_56789"
- *         username:
- *           type: string
- *           example: "johndoe"
- *         createdAt:
- *           type: string
- *           format: date-time
- *           example: "2025-11-20T20:00:00Z"
- *         likesCount:
- *           type: number
- *           example: 123
- *         retweetCount:
- *           type: number
- *           example: 45
- *         hashtags:
- *           type: array
- *           items:
- *             type: string
- *             example: ["example", "hello"]
- *
- *     CrawledUser:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           example: "user_56789"
- *         username:
- *           type: string
- *           example: "johndoe"
- *         name:
- *           type: string
- *           example: "John Doe"
- *         bio:
- *           type: string
- *           example: "Tech enthusiast and developer."
- *         verified:
- *           type: boolean
- *           example: true
- *         followersCount:
- *           type: number
- *           example: 1000
- *         followingsCount:
- *           type: number
- *           example: 150
- *
- *     CrawledHashtag:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           example: "hashtag_123"
- *         tag:
- *           type: string
- *           example: "example"
- *         tweetCount:
- *           type: number
- *           example: 250
- */
-
-
-router.use(AfterChange());
-router.use(GeoGurd());
-export default router;
