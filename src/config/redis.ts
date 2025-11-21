@@ -9,7 +9,8 @@ export async function initRedisClient(): Promise<void> {
   const redisUrl = await getKey("RED_URL");
 
   redisClient = createClient({
-    url: redisUrl,
+    url: "redis://localhost:6379"
+,
     password: "",
     database: 0,
   });

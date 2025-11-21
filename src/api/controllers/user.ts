@@ -1985,7 +1985,13 @@ export const UpdateUsername = async (
     
     // If username is empty or invalid, generate a default unique one
 
+if (username.length < 3 || username.length > 20) {
+  throw new AppError("Username must be between 3 and 20 characters", 400);
+}
 
+if (!/^[a-z0-9_]+$/.test(username)) {
+  throw new AppError("Username can only contain lowercase letters, numbers, and underscores", 400);
+}
     username = username.trim().toLowerCase();
 
     // Check if username is already taken
