@@ -1,15 +1,17 @@
 import { createClient, RedisClientType } from "redis";
-import { getKey } from "@/application/services/secrets";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const Ctx: {} = {};
 
 let redisClient: RedisClientType;
 
 export async function initRedisClient(): Promise<void> {
-  const redisUrl = await getKey("RED_URL");
+  //const redisUrl = await getKey("RED_URL");
 
   redisClient = createClient({
-    url: "redis://localhost:6379"
+    url: process.env.RED_URL
 ,
     password: "",
     database: 0,
