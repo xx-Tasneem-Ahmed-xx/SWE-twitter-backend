@@ -12,14 +12,15 @@ async function start() {
   try {
     console.log("Starting server...");
 
+    await connectRedis();
+    console.log("Redis connected");
+    
     const portValue = await getKey("PORT");
     const PORT = portValue ? Number(portValue) : 3000;
 
     await connectToDatabase();
     console.log("Database connected");
 
-    await connectRedis();
-    console.log("Redis connected");
 
     await initEncoderService();
 
