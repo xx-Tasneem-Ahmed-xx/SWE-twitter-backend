@@ -527,9 +527,39 @@ export const getMutedList = async (
   const rows = await prisma.user.findMany(q);
   const hasMore = rows.length === take;
   const page = hasMore ? rows.slice(0, -1) : rows;
-  const users = page.map((user: any) =>
-    formatUserForResponse(user, false, false, false)
+
+  // compute follow/mutual follow status relative to the muter (viewer)
+  const userIds = page.map((u: any) => u.id);
+  const { followedByCurrentUserSet, followingCurrentUserSet } =
+    await checkMutualFollowStatus(userIds, muterId);
+
+  const pendingRequestsSentByCurrentUserSet = await isAlreadyFollowingBatch(
+    muterId,
+    userIds,
+    FollowStatus.PENDING
   );
+
+  // relationToTarget for muted list: muter (target) -> returned user (E)
+  const relationMap = await getRelationToTargetStatuses(
+    userIds,
+    muterId,
+    "TtoE"
+  );
+
+  const users = page.map((user: any) => {
+    const isFollowing = followedByCurrentUserSet.has(user.id);
+    const isFollower = followingCurrentUserSet.has(user.id);
+    const youRequested = pendingRequestsSentByCurrentUserSet.has(user.id);
+    const followStatus = (relationMap.get(user.id) as FollowStatus) ?? "NONE";
+    return formatUserForResponse(
+      user,
+      isFollowing,
+      isFollower,
+      youRequested,
+      followStatus
+    );
+  });
+
   const nextCursor = await computeNextCursor(page, hasMore);
   return { users, nextCursor, hasMore };
 };
