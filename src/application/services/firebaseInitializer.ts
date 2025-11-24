@@ -1,9 +1,10 @@
 import fs from "fs";
 import admin from "firebase-admin";
+import { getSecrets } from "@/config/secrets";
 
 const initializeFirebase = () => {
   try {
-    const serviceAccountPath = process.env.FIREBASE_KEY_PATH || "";
+    const { FIREBASE_KEY_PATH: serviceAccountPath } = getSecrets();
 
     if (!fs.existsSync(serviceAccountPath)) {
       throw new Error(

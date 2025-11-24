@@ -4,15 +4,15 @@ dotenv.config();
 
 import "module-alias/register";
 import { connectToDatabase } from "@/database";
-import { connectRedis } from "./config/redis";
+import { initRedis } from "./config/redis";
 import { loadSecrets, getSecrets } from "@/config/secrets";
 import { initEncoderService } from "./application/services/encoder";
 
 async function start() {
-  await connectRedis();
+  await initRedis();
   console.log("Redis connected");
 
-  await loadSecrets(); // load secrets here
+  await loadSecrets();
   console.log("Secrets loaded");
 
   const port = getSecrets().PORT ?? 3000;
@@ -23,7 +23,7 @@ async function start() {
   await initEncoderService();
 
   // defer app import until secrets are loaded
-  const { default: httpServer } = await import("@/app");  
+  const { default: httpServer } = await import("@/app");
   httpServer.listen(port, () => console.log(`Server running on port ${port}`));
 }
 

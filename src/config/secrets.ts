@@ -20,6 +20,16 @@ export async function loadSecrets() {
     domain: await getKey("DOMAIN"),
     Mail_email: await getKey("Mail_email"),
     Mail_password: await getKey("Mail_password"),
+    BULLMQ_REDIS: {
+      HOST: await getKey("BULLMQ_REDIS_HOST"),
+      PORT: Number(await getKey("BULLMQ_REDIS_PORT")),
+      PASSWORD: await getKey("REDIS_PASSWORD"),
+    },
+    REDIS_URL: await getKey("RED_URL"),
+    NODE_ENV: await getKey("NODE_ENV"),
+    DEBUG: await getKey("DEBUG"),
+    REDIS_SECRET_CACHE_KEY: await getKey("REDIS_SECRET_CACHE_KEY"),
+    FIREBASE_KEY_PATH: await getKey("FIREBASE_KEY_PATH"),
   };
 }
 

@@ -8,7 +8,9 @@ import Redis from 'ioredis';
 import { PorterStemmer } from 'natural';
 import Levenshtein from 'fast-levenshtein';
 import {apiRoutes }from '../routes/searchRoutes'
+import { getSecrets } from '@/config/secrets';
 // Logger utility
+const {DEBUG} = getSecrets()
 export class Logger {
   private context: string;
   constructor(context: string) {
@@ -24,7 +26,7 @@ export class Logger {
     console.warn(`[${this.context}]   ${msg}`, data || '');
   }
   debug(msg: string, data?: any) {
-    if (process.env.DEBUG) console.log(`[${this.context}] 🐛 ${msg}`, data || '');
+    if (DEBUG) console.log(`[${this.context}] 🐛 ${msg}`, data || '');
   }
 }
 
