@@ -501,11 +501,11 @@ class TweetService {
     };
   }
 
-  async getUserTweets(dto: TweetCursorServiceDTO) {
+  async getUserTweets(dto: TweetCursorServiceDTO, currentUserId: string) {
     const tweets = await prisma.tweet.findMany({
       where: { userId: dto.userId },
       select: {
-        ...this.tweetSelectFields(dto.userId),
+        ...this.tweetSelectFields(currentUserId),
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
