@@ -12,7 +12,7 @@ export const UserInteractionQuerySchema = z
       .optional()
       .default(null)
       .describe("Opaque cursor for pagination."),
-    limit: z
+    limit: z.coerce
       .number()
       .int()
       .min(1)
