@@ -16,8 +16,8 @@ import { Request, Response, NextFunction } from "express";
 import { AppError } from "@/errors/AppError";
 import axios from "axios";
 import qs from "querystring";
-import { getKey } from "../../application/services/secrets";
 import { NotificationTitle } from "@prisma/client";
+import { getSecrets } from "@/config/secrets";
 // --- Custom Type Definitions ---
 interface LocalJwtPayload extends JwtPayload {
   Username?: string;
@@ -48,36 +48,7 @@ interface PrismaUser {
 }
 
 
-let JWT_SECRET: string = "changeme";
-let PEPPER: string = "";
-let DOMAIN: string = "localhost";
-let CLIENT_DOMAIN: string = "localhost";
-
-// populate async values (no top-level await)
-getKey("JWT_SECRET")
-  .then((v) => {
-    if (v) JWT_SECRET = v;
-  })
-  .catch(() => {});
-
-getKey("PEPPER")
-  .then((v) => {
-    if (v) PEPPER = v;
-  })
-  .catch(() => {});
-
-getKey("DOMAIN")
-  .then((v) => {
-    if (v) DOMAIN = v;
-  })
-  .catch(() => {});
-
-getKey("CLIENT_DOMAIN")
-  .then((v) => {
-    if (v) CLIENT_DOMAIN = v;
-  })
-  .catch(() => {});
-
+const {JWT_SECRET,PEPPER,DOMAIN,CLIENT_DOMAIN,client_id,client_secret,redirect_uri,redirectUri,google_state,githubClientId,githubRedirectUrl,githubState,FRONTEND_URL} = getSecrets()
 
 function timingSafeEqual(a: string | Buffer | number | object, b: string | Buffer | number | object): boolean {
   try {
@@ -1465,10 +1436,10 @@ export async function LogoutSession(
 export async function exchangeGithubCode(code: string) {
   try {
     const params = {
-      client_id:await getKey("GITHUB_CLIENT_ID"),
-      client_secret:await getKey("GITHUB_CLIENT_ID"),
+      client_id,
+      client_secret,
       code,
-      redirect_uri:await getKey("GITHUB_RED_URL"),
+      redirect_uri,
     };
 
     const resp = await axios.post(
@@ -1515,9 +1486,9 @@ export async function exchangeGoogleCode(code: string) {
   try {
     const params = {
       code,
-      client_id:await getKey("CLIENT_ID"),
-      client_secret:await getKey("CLIENT_SECRET"),
-      redirect_uri:await getKey("RED_URL_PRD"),
+      client_id,
+      client_secret,
+      redirect_uri,
       grant_type: 'authorization_code'
     };
 
@@ -1587,15 +1558,11 @@ export async function Authorize(
     
     if (provider === 'google') {
       const scope = encodeURIComponent('openid email profile');
-      const redirectUri = await getKey("RED_URL_PRD") ?? "";
-      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${await getKey("CLIENT_ID")}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${await getKey("GOOGLE_STATE")}`;
+      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${client_id}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${google_state}`;
       return res.redirect(url);
     }
     
     if (provider === 'github') {
-      const githubClientId = await getKey("GITHUB_CLIENT_ID") ?? "";
-      const githubRedirectUrl = await getKey("GITHUB_RED_URL") ?? "";
-      const githubState = await getKey("GITHUB_STATE") ?? "";
       const url = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(githubRedirectUrl)}&scope=user%20user:email&state=${githubState}&prompt=select_account`;
       return res.redirect(url);
     }
@@ -1725,8 +1692,7 @@ If this wasn’t you, please reset your password or contact support immediately.
 
     await utils.SendEmailSmtp(res,email,emailMsg);
 
-    // ✅ Final Response
-  const redirectUrl = `${await getKey("FRONTEND_URL")}/login/success?token=${encodeURIComponent(token.token)}&refresh-token=${encodeURIComponent(refreshToken.token)}&user=${encodeURIComponent(JSON.stringify({
+  const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(token.token)}&refresh-token=${encodeURIComponent(refreshToken.token)}&user=${encodeURIComponent(JSON.stringify({
   id: user.id,
   username: user.username,
   name: user.name,
@@ -1854,7 +1820,7 @@ If this wasn’t you, please secure your account immediately.
     await utils.SendEmailSmtp(res,email,emailMsg );
 
    
-  const redirectUrl = `${await getKey("FRONTEND_URL")}/login/success?token=${encodeURIComponent(token.token)}&refresh-token=${encodeURIComponent(refreshToken.token)}&user=${encodeURIComponent(JSON.stringify({
+  const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(token.token)}&refresh-token=${encodeURIComponent(refreshToken.token)}&user=${encodeURIComponent(JSON.stringify({
   id: user.id,
   username: user.username,
   name: user.name,

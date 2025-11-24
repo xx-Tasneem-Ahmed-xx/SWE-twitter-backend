@@ -1,7 +1,7 @@
 // AfterChange.ts
 
 //import { prisma } from "../config/database.js";
-import { getKey } from "@/application/services/secrets";
+import { getSecrets } from "@/config/secrets";
 import * as utils from "../../application/utils/tweets/utils";
 // Adjust path if your Sequelize models are elsewhere
 import { redisClient } from "../../config/redis";
@@ -15,6 +15,7 @@ import { Request, Response, NextFunction } from "express"; // Import Express typ
  *
  * WARNING: Redis FLUSHALL is destructive; keep same semantics as your Go version.
  */
+const { domain } = getSecrets();
 export default function AfterChange() {
   return async function (
     req: Request,
@@ -27,7 +28,7 @@ export default function AfterChange() {
 
       // clear cookie (Express)
       res.clearCookie("refresh_token", {
-        domain: (await getKey("DOMAIN")) || "localhost",
+        domain,
         path: "/",
       });
 
