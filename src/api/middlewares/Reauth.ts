@@ -21,8 +21,8 @@ interface RequestWithAuthEmail extends Request {
  */
 export default function Reauth() {
   return async function (
-    req: RequestWithAuthEmail, 
-    res: Response, 
+    req: RequestWithAuthEmail,
+    res: Response,
     next: NextFunction
   ): Promise<void> {
     try {
@@ -31,7 +31,7 @@ export default function Reauth() {
 
       if (!email) {
         throw new AppError(
-          "You did not authorize your action. Please choose an authorization method", 
+          "You did not authorize your action. Please choose an authorization method",
           401
         );
       }
@@ -45,14 +45,13 @@ export default function Reauth() {
       // If key didn't exist, user hasn't completed reauth flow
       if (!exists || exists === 0) {
         throw new AppError(
-          "Re-authentication required. Please verify your identity first", 
+          "Re-authentication required. Please verify your identity first",
           401
         );
       }
 
       // Reauth successful, proceed to next middleware
       next();
-
     } catch (err) {
       // Pass error to centralized error handler
       next(err);

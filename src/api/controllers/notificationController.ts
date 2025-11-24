@@ -167,13 +167,17 @@ export const addNotification = async (
         },
       });
       sendOverSocket(recipientId, newNotification);
-      await sendOverFCM(recipientId, data.title as NotificationTitle, body, newNotification);
+      await sendOverFCM(
+        recipientId,
+        data.title as NotificationTitle,
+        body,
+        newNotification
+      );
     } else {
       const actor = await prisma.user.findUnique({
         where: { id: data.actorId },
         select: { id: true, name: true, username: true, profileMediaId: true },
       });
-
 
       const newNotification = {
         userId: recipientId,
@@ -212,7 +216,7 @@ export const addNotification = async (
           recipientId,
           data.title as NotificationTitle,
           data.body,
-          {createdNotification}
+          { createdNotification }
         );
       }
     }
