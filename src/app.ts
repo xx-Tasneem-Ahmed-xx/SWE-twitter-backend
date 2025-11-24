@@ -5,7 +5,7 @@ import morgan from "morgan";
 import compression from "compression";
 import swaggerUi from "swagger-ui-express";
 import swaggerDoc from "./docs/index";
-import { createServer } from "http";
+import { createServer, get } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { SocketService } from "@/application/services/socketService";
 import ChatRouter from "@/api/routes/chatRoutes";
@@ -17,15 +17,20 @@ import userInteractionsRoutes from "@/api/routes/userInteractions";
 import userRouter from "@/api/routes/user.routes";
 import hashtagsRoutes from "@/api/routes/hashtags";
 import { errorHandler } from "@/api/middlewares/errorHandler";
-import authRoutes from "@/api/routes/authRoutes";
+import  authRoutes  from "@/api/routes/authRoutes";
 import Auth from "@/api/middlewares/Auth";
 import oauthRoutes from "./api/routes/oauthRoutes";
 import { S3Client } from "@aws-sdk/client-s3";
 import { StorageSystem } from "@/application/services/storeageSystem";
 import {admin, initializeFirebase} from './application/services/firebaseInitializer'
 import cookieParser from "cookie-parser";
-
-
+import { initializeSearchEngine } from "./api/controllers/SearchEngine";
+import { no } from "zod/v4/locales";
+import { Crawler, Parser, Indexer, SearchEngine } from './api/controllers/SearchEngine';
+// Type assertion for GeoGurd
+import { apiRoutes } from './api/routes/searchRoutes';
+import { PrismaClient } from "@prisma/client";
+import { getKey } from "./application/services/secrets";
 const app = express();
 app.use(cors());
 app.use(helmet());
@@ -44,12 +49,22 @@ export const io: SocketIOServer = new SocketIOServer(httpServer, {
   },
 });
 
-const s3 = new S3Client({ region: process.env.AWS_REGION });
+const s3 = new S3Client({
+  region: async () => (await getKey("AWS_REGION")) ?? "us-east-1",
+});
 const storageService = new StorageSystem(s3);
 export { storageService };
 
 const socketService = new SocketService(io);
 export { socketService };
+
+initializeSearchEngine()
+  .then(({ crawler, parser, indexer, searchEngine, persistence }) => {
+    app.use('/api', apiRoutes(crawler, parser, indexer, searchEngine, persistence));
+  })
+  .catch((err) => {
+    console.error('Failed to initialize search engine:', err);
+  });
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use("/api/auth", authRoutes);

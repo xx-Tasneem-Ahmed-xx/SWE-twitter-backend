@@ -1,106 +1,508 @@
 // ===========================
 // TYPES & INTERFACES
 // ===========================
+import { parse as parseHtml } from 'node-html-parser';
+import { PrismaClient } from '@prisma/client';
 
-interface CrawledData {
-  url: string;
-  content: string;
-  title: string;
-  timestamp: number;
+import Redis from 'ioredis';
+import { PorterStemmer } from 'natural';
+import Levenshtein from 'fast-levenshtein';
+import {apiRoutes }from '../routes/searchRoutes'
+import { getSecrets } from '@/config/secrets';
+// Logger utility
+const {DEBUG} = getSecrets()
+export class Logger {
+  private context: string;
+  constructor(context: string) {
+    this.context = context;
+  }
+  info(msg: string, data?: any) {
+    console.log(`[${this.context}]   ${msg}`, data || '');
+  }
+  error(msg: string, error?: any) {
+    console.error(`[${this.context}]  ${msg}`, error || '');
+  }
+  warn(msg: string, data?: any) {
+    console.warn(`[${this.context}]   ${msg}`, data || '');
+  }
+  debug(msg: string, data?: any) {
+    if (DEBUG) console.log(`[${this.context}] 🐛 ${msg}`, data || '');
+  }
 }
 
-interface ParsedDocument {
+export interface CrawledTweet {
   id: string;
-  url: string;
-  title: string;
   content: string;
+  userId: string;
+  username: string;
+  createdAt: Date;
+  likesCount: number;
+  retweetCount: number;
+  hashtags: string[];
+}
+
+export interface CrawledUser {
+  id: string;
+  username: string;
+  name: string | null;
+  bio: string | null;
+  verified: boolean;
+  followersCount?: number;
+  followingsCount?: number;
+}
+
+export interface CrawledHashtag {
+  id: string;
+  tag: string;
+  tweetCount: number;
+}
+
+export interface ParsedDocument {
+  id: string;
+  type: 'tweet' | 'user' | 'hashtag' | 'url';
   tokens: string[];
+  stemmedTokens: string[];
+  data: any;
   timestamp: number;
+  url?: string;
+  title?: string;
+  length: number;
 }
 
-interface IndexedDocument {
+export interface InvertedIndex {
+  [term: string]: Set<string>;
+}
+
+export interface DocumentFrequency {
+  [term: string]: number;
+}
+
+export interface SearchResult {
   id: string;
-  url: string;
-  title: string;
-  content: string;
-  timestamp: number;
-}
-
-interface InvertedIndex {
-  [term: string]: Set<string>; // term -> document IDs
-}
-
-interface SearchResult {
-  id: string;
-  url: string;
-  title: string;
-  snippet: string;
+  type: 'tweet' | 'user' | 'hashtag' | 'url';
   score: number;
+  tfidfScore: number;
+  data: any;
+  matchedTokens?: string[];
+  relevance: number;
+}
+
+export interface PaginatedResults {
+  query: string;
+  type: string;
+  results: SearchResult[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pages: number;
+  timestamp: string;
+}
+
+export interface IndexStats {
+  totalDocuments: number;
+  totalTerms: number;
+  tweets: number;
+  users: number;
+  hashtags: number;
+  urls: number;
+  averageDocLength: number;
+  indexSize: string;
 }
 
 // ===========================
-// CRAWLER
+// ADVANCED TOKENIZER
 // ===========================
 
-class Crawler {
-  private crawledUrls: Set<string> = new Set();
-  private crawlData: CrawledData[] = [];
+export class AdvancedTokenizer {
+  private stopWords = new Set([
+    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
+    'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
+    'to', 'was', 'will', 'with', 'this', 'but', 'they', 'have', 'had',
+    'or', 'not', 'been', 'being', 'can', 'could', 'would', 'should',
+    'i', 'me', 'my', 'you', 'your', 'we', 'our', 'what', 'which', 'who',
+    'when', 'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few',
+    'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'only', 'own',
+    'same', 'so', 'than', 'too', 'very', 'just', 'then', 'now', 'here'
+  ]);
 
-  async crawl(url: string): Promise<CrawledData | null> {
-    if (this.crawledUrls.has(url)) {
-      console.log(`Already crawled: ${url}`);
-      return null;
-    }
+  private emojiRegex = /(\u00d7|\u2763|\u{1F300}-\u{1F9FF})/gu;
+  private logger = new Logger('Tokenizer');
 
+  tokenize(text: string): string[] {
     try {
-      console.log(`Crawling: ${url}`);
+      // Remove emojis but keep hashtags and mentions
+      let cleaned = text.replace(this.emojiRegex, ' ');
       
-      // Simulate HTTP request (in production, use axios or fetch)
-      const response = await this.fetchUrl(url);
+      // Normalize URLs
+      cleaned = cleaned.replace(/https?:\/\/\S+/gi, 'URL');
       
-      const crawledData: CrawledData = {
-        url,
-        content: response.content,
-        title: response.title,
-        timestamp: Date.now()
-      };
+      // Split on whitespace and punctuation
+      const words = cleaned.toLowerCase()
+        .replace(/[^\w\s#@]/g, ' ')
+        .split(/\s+/)
+        .filter(word => word.length > 1);
 
-      this.crawledUrls.add(url);
-      this.crawlData.push(crawledData);
-      
-      return crawledData;
+      // Filter stopwords
+      return words.filter(word => !this.stopWords.has(word));
     } catch (error) {
-      console.error(`Failed to crawl ${url}:`, error);
+      this.logger.error('Tokenization failed', error);
+      return [];
+    }
+  }
+
+  stem(word: string): string {
+    try {
+      // Handle hashtags and mentions specially
+      if (word.startsWith('#') || word.startsWith('@')) {
+        return word;
+      }
+      // use the correct PorterStemmer API
+      return PorterStemmer.stem(word);
+    } catch (error) {
+      return word;
+    }
+  }
+
+  normalizeHashtag(tag: string): string {
+    return tag.toLowerCase().replace(/^#+/, '');
+  }
+
+  tokenizeAndStem(text: string): { tokens: string[]; stemmed: string[] } {
+    const tokens = this.tokenize(text);
+    const stemmed = tokens.map(t => this.stem(t));
+    return { tokens, stemmed };
+  }
+}
+
+// ===========================
+// PERSISTENCE LAYER
+// ===========================
+
+export class PersistenceManager {
+  private redis: Redis;
+  private logger = new Logger('Persistence');
+
+  constructor(redisUrl: string = 'redis://localhost:6379') {
+    this.redis = new Redis(redisUrl);
+    this.redis.on('error', (err) => this.logger.error('Redis error', err));
+    this.redis.on('connect', () => this.logger.info('Redis connected'));
+  }
+
+  async saveIndex(indexData: any, indexName: string = 'search_index'): Promise<boolean> {
+    try {
+      const serialized = JSON.stringify(indexData);
+      await this.redis.set(`${indexName}:data`, serialized);
+      await this.redis.set(`${indexName}:timestamp`, Date.now().toString());
+      this.logger.info(`Index saved: ${indexName}`);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to save index', error);
+      return false;
+    }
+  }
+
+  async loadIndex(indexName: string = 'search_index'): Promise<any | null> {
+    try {
+      const data = await this.redis.get(`${indexName}:data`);
+      if (!data) {
+        this.logger.warn(`Index not found: ${indexName}`);
+        return null;
+      }
+      this.logger.info(`Index loaded: ${indexName}`);
+      return JSON.parse(data);
+    } catch (error) {
+      this.logger.error('Failed to load index', error);
       return null;
     }
   }
 
-  async crawlMultiple(urls: string[]): Promise<CrawledData[]> {
-    const results: CrawledData[] = [];
-    
-    for (const url of urls) {
-      const data = await this.crawl(url);
-      if (data) results.push(data);
+  async cacheSearchResults(query: string, results: any, ttl: number = 3600): Promise<void> {
+    try {
+      const key = `search:${query.toLowerCase()}`;
+      await this.redis.setex(key, ttl, JSON.stringify(results));
+    } catch (error) {
+      this.logger.warn('Failed to cache results', error);
     }
+  }
+
+  async getCachedResults(query: string): Promise<any | null> {
+    try {
+      const key = `search:${query.toLowerCase()}`;
+      const cached = await this.redis.get(key);
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async close(): Promise<void> {
+    await this.redis.quit();
+    this.logger.info('Redis connection closed');
+  }
+}
+
+// ===========================
+// BM25 RANKING ALGORITHM
+// ===========================
+
+export class BM25Ranker {
+  private k1 = 1.5; // Term frequency saturation
+  private b = 0.75; // Length normalization
+  private logger = new Logger('BM25');
+
+  calculateBM25(
+    query: string[],
+    documentTokens: string[],
+    invertedIndex: InvertedIndex,
+    allDocuments: Map<string, ParsedDocument>,
+    collectionSize: number
+  ): number {
+    let score = 0;
+    const docLength = documentTokens.length;
+    const avgDocLength = this.calculateAverageDocLength(allDocuments);
+
+    for (const term of query) {
+      const docFreq = invertedIndex[term]?.size || 0;
+      const termFreq = documentTokens.filter(t => t === term).length;
+
+      if (docFreq === 0) continue;
+
+      const idf = Math.log((collectionSize - docFreq + 0.5) / (docFreq + 0.5) + 1);
+      const normLength = 1 - this.b + this.b * (docLength / avgDocLength);
+      const bm25Term = idf * ((this.k1 + 1) * termFreq) / (this.k1 * normLength + termFreq);
+
+      score += bm25Term;
+    }
+
+    return score;
+  }
+
+  calculateTFIDF(
+    queryTerm: string,
+    documentTokens: string[],
+    invertedIndex: InvertedIndex,
+    collectionSize: number
+  ): number {
+    const termFreq = documentTokens.filter(t => t === queryTerm).length;
+    const docFreq = invertedIndex[queryTerm]?.size || 1;
+    const idf = Math.log(collectionSize / docFreq);
+    return termFreq * idf;
+  }
+
+  private calculateAverageDocLength(documents: Map<string, ParsedDocument>): number {
+    if (documents.size === 0) return 0;
+    const totalLength = Array.from(documents.values()).reduce((sum, doc) => sum + doc.length, 0);
+    return totalLength / documents.size;
+  }
+}
+
+// ===========================
+// FUZZY SEARCH
+// ===========================
+
+export class FuzzyMatcher {
+  private logger = new Logger('FuzzyMatcher');
+  private threshold = 0.7; // 70% similarity
+
+  fuzzyMatch(query: string, candidates: string[]): string[] {
+    try {
+      return candidates.filter(candidate => {
+        const distance = Levenshtein.get(query.toLowerCase(), candidate.toLowerCase());
+        const maxLen = Math.max(query.length, candidate.length);
+        const similarity = 1 - distance / maxLen;
+        return similarity >= this.threshold;
+      });
+    } catch (error) {
+      this.logger.error('Fuzzy matching failed', error);
+      return [];
+    }
+  }
+
+  findClosestMatch(query: string, candidates: string[]): string | null {
+    if (candidates.length === 0) return null;
+
+    let bestMatch = candidates[0];
+    let bestScore = 0;
+
+    for (const candidate of candidates) {
+      const distance = Levenshtein.get(query.toLowerCase(), candidate.toLowerCase());
+      const maxLen = Math.max(query.length, candidate.length);
+      const similarity = 1 - distance / maxLen;
+
+      if (similarity > bestScore) {
+        bestScore = similarity;
+        bestMatch = candidate;
+      }
+    }
+
+    return bestScore >= this.threshold ? bestMatch : null;
+  }
+}
+
+// ===========================
+// DATABASE CRAWLER
+// ===========================
+
+export class Crawler {
+  private prisma: PrismaClient;
+  private logger = new Logger('Crawler');
+  private batchSize = 500;
+
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma;
+  }
+
+  async crawlTweets(limit: number = 1000, offset: number = 0): Promise<CrawledTweet[]> {
+    this.logger.info(`Crawling tweets: limit=${limit}, offset=${offset}`);
     
-    return results;
+    try {
+      const tweets = await this.prisma.tweet.findMany({
+        take: limit,
+        skip: offset,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { username: true } },
+          hashtags: { include: { hash: true } }
+        }
+      });
+
+      this.logger.info(`Crawled ${tweets.length} tweets`);
+      return tweets.map(tweet => ({
+        id: tweet.id,
+        content: tweet.content,
+        userId: tweet.userId,
+        username: tweet.user.username,
+        createdAt: tweet.createdAt,
+        likesCount: tweet.likesCount || 0,
+        retweetCount: tweet.retweetCount || 0,
+        hashtags: tweet.hashtags.map(h => h.hash.tag_text)
+      }));
+    } catch (error) {
+      this.logger.error('Error crawling tweets', error);
+      return [];
+    }
   }
 
-  private async fetchUrl(url: string): Promise<{ content: string; title: string }> {
-    // Simulate fetching (replace with real HTTP client in production)
-    // For demo purposes, returning mock data
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          title: `Page Title for ${url}`,
-          content: `This is sample content from ${url}. It contains various information about topics like technology, programming, and web development.`
-        });
-      }, 100);
-    });
+  async crawlUsers(limit: number = 1000, offset: number = 0): Promise<CrawledUser[]> {
+    this.logger.info(`Crawling users: limit=${limit}, offset=${offset}`);
+    
+    try {
+      const users = await this.prisma.user.findMany({
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          bio: true,
+          verified: true,
+          _count: { select: { followers: true, followings: true } }
+        }
+      });
+
+      this.logger.info(`Crawled ${users.length} users`);
+      return users.map(user => ({
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        bio: user.bio,
+        verified: user.verified,
+        followersCount: user._count?.followers || 0,
+        followingsCount: user._count?.followings || 0
+      }));
+    } catch (error) {
+      this.logger.error('Error crawling users', error);
+      return [];
+    }
   }
 
-  getCrawledData(): CrawledData[] {
-    return this.crawlData;
+  async crawlHashtags(limit: number = 1000, offset: number = 0): Promise<CrawledHashtag[]> {
+    this.logger.info(`Crawling hashtags: limit=${limit}, offset=${offset}`);
+    
+    try {
+      const hashtags = await this.prisma.hash.findMany({
+        take: limit,
+        skip: offset,
+        include: { _count: { select: { tweets: true } } }
+      });
+
+      this.logger.info(`Crawled ${hashtags.length} hashtags`);
+      return hashtags.map(hash => ({
+        id: hash.id,
+        tag: hash.tag_text,
+        tweetCount: hash._count?.tweets || 0
+      }));
+    } catch (error) {
+      this.logger.error('Error crawling hashtags', error);
+      return [];
+    }
+  }
+
+  async crawlUrl(url: string) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) return null;
+      const html = await response.text();
+      return { url, html };
+    } catch (error) {
+      // Handle fetch abort separately for clearer logs
+      if ((error as any)?.name === 'AbortError') {
+        this.logger.warn(`Fetch aborted due to timeout for URL ${url}`);
+      } else {
+        this.logger.error(`Error crawling URL ${url}`, error);
+      }
+      return null;
+    }
+  }
+
+  async crawlMultiple(urls: string[]) {
+    const results = await Promise.allSettled(
+      urls.map(url => this.crawlUrl(url))
+    );
+    return results
+      .map(r => r.status === 'fulfilled' ? r.value : null)
+      .filter(r => r !== null);
+  }
+
+  async crawlInBatches(type: 'tweets' | 'users' | 'hashtags', totalLimit: number = 10000) {
+    this.logger.info(`Starting batch crawl: type=${type}, limit=${totalLimit}`);
+    const allData = [];
+    let offset = 0;
+
+    while (offset < totalLimit) {
+      const batchLimit = Math.min(this.batchSize, totalLimit - offset);
+      let batchData: string | any[] = [];
+
+      if (type === 'tweets') {
+        batchData = await this.crawlTweets(batchLimit, offset);
+      } else if (type === 'users') {
+        batchData = await this.crawlUsers(batchLimit, offset);
+      } else if (type === 'hashtags') {
+        batchData = await this.crawlHashtags(batchLimit, offset);
+      }
+
+      if (batchData.length === 0) break;
+      allData.push(...batchData);
+      offset += batchData.length;
+
+      this.logger.debug(`Batch progress: ${offset}/${totalLimit}`);
+    }
+
+    this.logger.info(`Batch crawl complete: collected ${allData.length} items`);
+    return allData;
+  }
+
+  async crawlAll() {
+    return Promise.all([
+      this.crawlTweets(),
+      this.crawlUsers(),
+      this.crawlHashtags()
+    ]);
   }
 }
 
@@ -108,53 +510,107 @@ class Crawler {
 // PARSER
 // ===========================
 
-class Parser {
-  private stopWords = new Set([
-    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
-    'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
-    'to', 'was', 'will', 'with', 'this', 'but', 'they', 'have', 'had'
-  ]);
+export class Parser {
+  private tokenizer: AdvancedTokenizer;
+  private logger = new Logger('Parser');
 
-  parse(crawledData: CrawledData): ParsedDocument {
-    const id = this.generateId(crawledData.url);
-    const tokens = this.tokenize(crawledData.content);
+  constructor() {
+    this.tokenizer = new AdvancedTokenizer();
+  }
+
+  parseTweet(tweet: CrawledTweet): ParsedDocument {
+    const { tokens, stemmed } = this.tokenizer.tokenizeAndStem(tweet.content);
     
     return {
-      id,
-      url: crawledData.url,
-      title: crawledData.title,
-      content: crawledData.content,
+      id: tweet.id,
+      type: 'tweet',
       tokens,
-      timestamp: crawledData.timestamp
+      stemmedTokens: stemmed,
+      data: tweet,
+      timestamp: tweet.createdAt.getTime(),
+      length: tokens.length
     };
   }
 
-  parseMultiple(crawledDataArray: CrawledData[]): ParsedDocument[] {
-    return crawledDataArray.map(data => this.parse(data));
-  }
-
-  private tokenize(text: string): string[] {
-    // Convert to lowercase and split into words
-    const words = text.toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
-      .split(/\s+/)
-      .filter(word => word.length > 2);
-
-    // Remove stop words
-    const filtered = words.filter(word => !this.stopWords.has(word));
+  parseUser(user: CrawledUser): ParsedDocument {
+    const text = [user.username, user.name || '', user.bio || ''].join(' ');
+    const { tokens, stemmed } = this.tokenizer.tokenizeAndStem(text);
     
-    return filtered;
+    return {
+      id: user.id,
+      type: 'user',
+      tokens,
+      stemmedTokens: stemmed,
+      data: user,
+      timestamp: Date.now(),
+      length: tokens.length
+    };
   }
 
-  private generateId(url: string): string {
-    // Simple hash function for ID generation
-    let hash = 0;
-    for (let i = 0; i < url.length; i++) {
-      const char = url.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
+  parseHashtag(hashtag: CrawledHashtag): ParsedDocument {
+    const normalized = this.tokenizer.normalizeHashtag(hashtag.tag);
+    const { tokens, stemmed } = this.tokenizer.tokenizeAndStem(normalized);
+    
+    return {
+      id: hashtag.id,
+      type: 'hashtag',
+      tokens,
+      stemmedTokens: stemmed,
+      data: hashtag,
+      timestamp: Date.now(),
+      length: tokens.length
+    };
+  }
+
+  parseUrl(page: { url: string; html: string }): ParsedDocument {
+    try {
+      const root = parseHtml(page.html);
+      const title = root.querySelector('title')?.text || '';
+      const bodyText = (root as any).text || '';
+      const text = title + ' ' + bodyText;
+      const { tokens, stemmed } = this.tokenizer.tokenizeAndStem(text);
+
+      return {
+        id: page.url,
+        type: 'url',
+        tokens,
+        stemmedTokens: stemmed,
+        data: { url: page.url, title, text: text.substring(0, 500) },
+        timestamp: Date.now(),
+        url: page.url,
+        title,
+        length: tokens.length
+      };
+    } catch (error) {
+      this.logger.error('Error parsing URL', error);
+      throw error;
     }
-    return Math.abs(hash).toString(36);
+  }
+
+  parseMultiple(items: any[]): ParsedDocument[] {
+    const docs: ParsedDocument[] = [];
+    
+    for (const item of items) {
+      try {
+        if (item.html && item.url) {
+          docs.push(this.parseUrl(item));
+        } else if (item.content && item.username) {
+          docs.push(this.parseTweet(item));
+        } else if (item.bio !== undefined && item.username) {
+          docs.push(this.parseUser(item));
+        } else if (item.tag) {
+          docs.push(this.parseHashtag(item));
+        }
+      } catch (error) {
+        this.logger.warn('Error parsing item', error);
+      }
+    }
+    
+    return docs;
+  }
+
+  getTokenizer(): AdvancedTokenizer {
+    return this.tokenizer;
   }
 }
 
@@ -162,51 +618,103 @@ class Parser {
 // INDEXER
 // ===========================
 
-class Indexer {
+export class Indexer {
   private invertedIndex: InvertedIndex = {};
-  private documents: Map<string, IndexedDocument> = new Map();
+  private stemmedIndex: InvertedIndex = {};
+  private documents: Map<string, ParsedDocument> = new Map();
+  private documentFrequency: DocumentFrequency = {};
+  private typeIndex: Map<string, Set<string>> = new Map([
+    ['tweet', new Set()],
+    ['user', new Set()],
+    ['hashtag', new Set()],
+    ['url', new Set()]
+  ]);
+  private logger = new Logger('Indexer');
+  private indexSize = 0;
 
   index(parsedDoc: ParsedDocument): void {
-    // Store document
-    this.documents.set(parsedDoc.id, {
-      id: parsedDoc.id,
-      url: parsedDoc.url,
-      title: parsedDoc.title,
-      content: parsedDoc.content,
-      timestamp: parsedDoc.timestamp
-    });
+    this.documents.set(parsedDoc.id, parsedDoc);
+    this.typeIndex.get(parsedDoc.type)?.add(parsedDoc.id);
 
-    // Build inverted index
+    // Index original tokens
     parsedDoc.tokens.forEach(token => {
       if (!this.invertedIndex[token]) {
         this.invertedIndex[token] = new Set();
+        this.documentFrequency[token] = 0;
       }
       this.invertedIndex[token].add(parsedDoc.id);
+      this.documentFrequency[token]++;
     });
 
-    console.log(`Indexed document: ${parsedDoc.title} (${parsedDoc.id})`);
+    // Index stemmed tokens
+    parsedDoc.stemmedTokens.forEach(token => {
+      if (!this.stemmedIndex[token]) {
+        this.stemmedIndex[token] = new Set();
+      }
+      this.stemmedIndex[token].add(parsedDoc.id);
+    });
+
+    this.indexSize += JSON.stringify(parsedDoc).length;
   }
 
   indexMultiple(parsedDocs: ParsedDocument[]): void {
     parsedDocs.forEach(doc => this.index(doc));
+    this.logger.info(`Indexed ${parsedDocs.length} documents`);
   }
 
   getInvertedIndex(): InvertedIndex {
     return this.invertedIndex;
   }
 
-  getDocuments(): Map<string, IndexedDocument> {
+  getStemmedIndex(): InvertedIndex {
+    return this.stemmedIndex;
+  }
+
+  getDocuments(): Map<string, ParsedDocument> {
     return this.documents;
   }
 
-  getIndexStats() {
+  getDocumentsByType(type: 'tweet' | 'user' | 'hashtag' | 'url'): ParsedDocument[] {
+    const docIds = this.typeIndex.get(type) || new Set();
+    return Array.from(docIds)
+      .map(id => this.documents.get(id))
+      .filter((doc): doc is ParsedDocument => doc !== undefined);
+  }
+
+  getDocumentFrequency(): DocumentFrequency {
+    return this.documentFrequency;
+  }
+
+  getIndexStats(): IndexStats {
+    const avgLength = this.documents.size > 0
+      ? Array.from(this.documents.values()).reduce((sum, doc) => sum + doc.length, 0) / this.documents.size
+      : 0;
+
     return {
       totalDocuments: this.documents.size,
       totalTerms: Object.keys(this.invertedIndex).length,
-      averageTermsPerDoc: this.documents.size > 0 
-        ? Object.keys(this.invertedIndex).length / this.documents.size 
-        : 0
+      tweets: this.typeIndex.get('tweet')?.size || 0,
+      users: this.typeIndex.get('user')?.size || 0,
+      hashtags: this.typeIndex.get('hashtag')?.size || 0,
+      urls: this.typeIndex.get('url')?.size || 0,
+      averageDocLength: Math.round(avgLength),
+      indexSize: `${(this.indexSize / 1024 / 1024).toFixed(2)} MB`
     };
+  }
+
+  clear(): void {
+    this.invertedIndex = {};
+    this.stemmedIndex = {};
+    this.documents.clear();
+    this.documentFrequency = {};
+    this.typeIndex = new Map([
+      ['tweet', new Set()],
+      ['user', new Set()],
+      ['hashtag', new Set()],
+      ['url', new Set()]
+    ]);
+    this.indexSize = 0;
+    this.logger.info('Index cleared');
   }
 }
 
@@ -214,78 +722,179 @@ class Indexer {
 // SEARCH ENGINE
 // ===========================
 
-class SearchEngine {
+export class SearchEngine {
   private indexer: Indexer;
   private parser: Parser;
+  private bm25Ranker: BM25Ranker;
+  private fuzzyMatcher: FuzzyMatcher;
+  private persistence: PersistenceManager;
+  private logger = new Logger('SearchEngine');
 
-  constructor(indexer: Indexer) {
+  constructor(indexer: Indexer, parser: Parser, persistence?: PersistenceManager) {
     this.indexer = indexer;
-    this.parser = new Parser();
+    this.parser = parser;
+    this.bm25Ranker = new BM25Ranker();
+    this.fuzzyMatcher = new FuzzyMatcher();
+    this.persistence = persistence || new PersistenceManager();
   }
 
-  search(query: string, limit: number = 10): SearchResult[] {
-    // Tokenize query
-    const queryTokens = this.parser['tokenize'](query);
-    
-    if (queryTokens.length === 0) {
-      return [];
-    }
-
-    // Find matching documents
-    const docScores = new Map<string, number>();
+  private searchPhrase(phrase: string, type: 'tweet' | 'user' | 'hashtag' | 'url' | 'all' = 'all'): string[] {
+    const words = phrase.split(/\s+/);
     const invertedIndex = this.indexer.getInvertedIndex();
+    let matchingDocs = new Set<string>();
 
-    queryTokens.forEach(token => {
-      const docIds = invertedIndex[token];
-      if (docIds) {
-        docIds.forEach(docId => {
-          const currentScore = docScores.get(docId) || 0;
-          docScores.set(docId, currentScore + 1);
-        });
+    words.forEach((word, idx) => {
+      const docIds = invertedIndex[word] || new Set();
+      if (idx === 0) {
+        matchingDocs = new Set(docIds);
+      } else {
+        matchingDocs = new Set([...matchingDocs].filter(id => docIds.has(id)));
       }
     });
 
-    // Sort by score and convert to results
+    if (type === 'all') return Array.from(matchingDocs);
+
+    const typeSet = this.indexer.getDocumentsByType(type as any).map(d => d.id);
+    return Array.from(matchingDocs).filter(id => typeSet.includes(id));
+  }
+
+  search(
+    query: string,
+    options: {
+      limit?: number;
+      offset?: number;
+      type?: 'tweet' | 'user' | 'hashtag' | 'url' | 'all';
+      useFuzzy?: boolean;
+      usePhrase?: boolean;
+    } = {}
+  ): PaginatedResults {
+    const { limit = 20, offset = 0, type = 'all', useFuzzy = false, usePhrase = false } = options;
+
+    if (!query || query.trim().length === 0) {
+      return {
+        query,
+        type,
+        results: [],
+        total: 0,
+        page: Math.floor(offset / limit) + 1,
+        pageSize: limit,
+        pages: 0,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    const startTime = Date.now();
+    const tokenizer = this.parser.getTokenizer();
+    const { tokens, stemmed } = tokenizer.tokenizeAndStem(query);
+
+    if (tokens.length === 0) {
+      this.logger.warn('No valid tokens from query', { query });
+      return {
+        query,
+        type,
+        results: [],
+        total: 0,
+        page: Math.floor(offset / limit) + 1,
+        pageSize: limit,
+        pages: 0,
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    let matchingDocIds: Set<string>;
+
+    if (usePhrase) {
+      matchingDocIds = new Set(this.searchPhrase(query, type as any));
+    } else {
+      const invertedIndex = this.indexer.getStemmedIndex();
+      matchingDocIds = new Set();
+
+      stemmed.forEach(token => {
+        const docIds = invertedIndex[token] || new Set();
+        if (matchingDocIds.size === 0) {
+          matchingDocIds = new Set(docIds);
+        } else {
+          matchingDocIds = new Set([...matchingDocIds, ...docIds]);
+        }
+      });
+    }
+
     const documents = this.indexer.getDocuments();
     const results: SearchResult[] = [];
+    const collectionSize = documents.size;
 
-    docScores.forEach((score, docId) => {
+    matchingDocIds.forEach(docId => {
       const doc = documents.get(docId);
-      if (doc) {
-        results.push({
-          id: doc.id,
-          url: doc.url,
-          title: doc.title,
-          snippet: this.generateSnippet(doc.content, queryTokens),
-          score
-        });
+      if (!doc || (type !== 'all' && doc.type !== type)) return;
+
+      const bm25Score = this.bm25Ranker.calculateBM25(
+        stemmed,
+        doc.stemmedTokens,
+        this.indexer.getStemmedIndex(),
+        documents,
+        collectionSize
+      );
+
+      let tfidfScore = 0;
+      stemmed.forEach(token => {
+        tfidfScore += this.bm25Ranker.calculateTFIDF(
+          token,
+          doc.stemmedTokens,
+          this.indexer.getStemmedIndex(),
+          collectionSize
+        );
+      });
+
+      let finalScore = bm25Score + (tfidfScore * 0.5);
+
+      // Boost scores based on document type and metadata
+      if (doc.type === 'user' && doc.data.verified) finalScore *= 2;
+      if (doc.type === 'tweet') {
+        finalScore += (doc.data.likesCount * 0.01);
+        finalScore += (doc.data.retweetCount * 0.02);
       }
+      if (doc.type === 'hashtag') finalScore += (doc.data.tweetCount * 0.01);
+      if (doc.type === 'user') finalScore += (doc.data.followersCount * 0.001);
+
+      results.push({
+        id: doc.id,
+        type: doc.type,
+        score: finalScore,
+        tfidfScore,
+        data: doc.data,
+        matchedTokens: tokens.filter(t => 
+          doc.tokens.includes(t) || 
+          doc.stemmedTokens.includes(tokenizer.stem(t))
+        ),
+        relevance: Math.min(100, Math.round((bm25Score / (collectionSize * 0.1)) * 100))
+      });
     });
 
-    // Sort by score (descending) and limit results
-    return results
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+    results.sort((a, b) => b.score - a.score);
+    const total = results.length;
+    const paginatedResults = results.slice(offset, offset + limit);
+
+    this.logger.info(`Search completed: query="${query}" results=${total} time=${Date.now() - startTime}ms`);
+
+    return {
+      query,
+      type,
+      results: paginatedResults,
+      total,
+      page: Math.floor(offset / limit) + 1,
+      pageSize: limit,
+      pages: Math.ceil(total / limit),
+      timestamp: new Date().toISOString()
+    };
   }
 
-  private generateSnippet(content: string, queryTokens: string[]): string {
-    const words = content.split(' ');
-    const snippetLength = 150;
-
-    // Find first occurrence of any query token
-    let startIndex = 0;
-    for (let i = 0; i < words.length; i++) {
-      const word = words[i].toLowerCase();
-      if (queryTokens.some(token => word.includes(token))) {
-        startIndex = Math.max(0, i - 10);
-        break;
-      }
-    }
-
-    const snippet = words.slice(startIndex, startIndex + 30).join(' ');
-    return snippet.length > snippetLength 
-      ? snippet.substring(0, snippetLength) + '...'
-      : snippet;
+  searchByType(
+    query: string,
+    type: 'tweet' | 'user' | 'hashtag' | 'url',
+    limit: number = 20,
+    offset: number = 0
+  ): PaginatedResults {
+    return this.search(query, { type, limit, offset });
   }
 }
 
@@ -293,113 +902,49 @@ class SearchEngine {
 // EXPRESS API
 // ===========================
 
-import express, { Request, Response } from 'express';
+
+
+// ===========================
+// INITIALIZATION & SETUP
+// ===========================
+
+export async function initializeSearchEngine(redisUrl?: string) {
+  const logger = new Logger('Init');
+  
+  try {
+    const prisma = new PrismaClient();
+    const crawler = new Crawler(prisma);
+    const parser = new Parser();
+    const indexer = new Indexer();
+    const persistence = new PersistenceManager(redisUrl || 'redis://localhost:6379');
+    const searchEngine = new SearchEngine(indexer, parser, persistence);
+
+    logger.info('Search engine initialized successfully');
+
+    return {
+      crawler,
+      parser,
+      indexer,
+      searchEngine,
+      persistence,
+      apiRoutes: (app: any) => app.use('/api', apiRoutes(crawler, parser, indexer, searchEngine, persistence))
+    };
+  } catch (error) {
+    logger.error('Failed to initialize search engine', error);
+    throw error;
+  }
+}
+
+
+// ===== USAGE EXAMPLE =====
+/*
+import express from 'express';
 
 const app = express();
 app.use(express.json());
 
-// Initialize components
-const crawler = new Crawler();
-const parser = new Parser();
-const indexer = new Indexer();
-const searchEngine = new SearchEngine(indexer);
-
-// ===========================
-// API ENDPOINTS
-// ===========================
-
-// Health check
-app.get('/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+initializeSearchEngine('redis://localhost:6379').then(({ apiRoutes }) => {
+  apiRoutes(app);
+  app.listen(3000, () => console.log('Server running on port 3000'));
 });
-
-// Crawl and index a URL
-app.post('/crawl', async (req: Request, res: Response) => {
-  const { url } = req.body;
-
-  if (!url) {
-    return res.status(400).json({ error: 'URL is required' });
-  }
-
-  try {
-    const crawledData = await crawler.crawl(url);
-    
-    if (!crawledData) {
-      return res.status(400).json({ error: 'URL already crawled or failed' });
-    }
-
-    const parsedDoc = parser.parse(crawledData);
-    indexer.index(parsedDoc);
-
-    res.json({
-      message: 'URL crawled and indexed successfully',
-      documentId: parsedDoc.id,
-      url: parsedDoc.url,
-      title: parsedDoc.title
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to crawl and index URL' });
-  }
-});
-
-// Crawl and index multiple URLs
-app.post('/crawl/batch', async (req: Request, res: Response) => {
-  const { urls } = req.body;
-
-  if (!urls || !Array.isArray(urls)) {
-    return res.status(400).json({ error: 'URLs array is required' });
-  }
-
-  try {
-    const crawledData = await crawler.crawlMultiple(urls);
-    const parsedDocs = parser.parseMultiple(crawledData);
-    indexer.indexMultiple(parsedDocs);
-
-    res.json({
-      message: 'URLs crawled and indexed successfully',
-      count: parsedDocs.length,
-      documents: parsedDocs.map(doc => ({
-        id: doc.id,
-        url: doc.url,
-        title: doc.title
-      }))
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to crawl and index URLs' });
-  }
-});
-
-// Search endpoint
-app.get('/search', (req: Request, res: Response) => {
-  const { q, limit } = req.query;
-
-  if (!q || typeof q !== 'string') {
-    return res.status(400).json({ error: 'Query parameter "q" is required' });
-  }
-
-  const searchLimit = limit ? parseInt(limit as string) : 10;
-  const results = searchEngine.search(q, searchLimit);
-
-  res.json({
-    query: q,
-    results,
-    total: results.length,
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Get index statistics
-app.get('/stats', (req: Request, res: Response) => {
-  const stats = indexer.getIndexStats();
-  res.json(stats);
-});
-
-// Get all indexed documents
-app.get('/documents', (req: Request, res: Response) => {
-  const documents = Array.from(indexer.getDocuments().values());
-  res.json({
-    total: documents.length,
-    documents
-  });
-});
-
+*/

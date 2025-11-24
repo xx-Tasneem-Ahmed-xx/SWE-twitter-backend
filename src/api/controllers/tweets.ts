@@ -175,7 +175,18 @@ export class TweetController {
   async getLikers(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const likers = await tweetService.getLikers(id);
+      const query = req.query;
+      const decodedCursor = encoderService.decode<{
+        userId: string;
+        createdAt: string;
+      }>(query.cursor as string);
+
+      const parsedDTO = InteractionsCursorServiceSchema.parse({
+        userId: (req as any).user.id,
+        limit: query.limit,
+        cursor: decodedCursor ?? undefined,
+      });
+      const likers = await tweetService.getLikers(id, parsedDTO);
       res.status(200).json(likers);
     } catch (error) {
       next(error);
@@ -218,6 +229,7 @@ export class TweetController {
     try {
       const { username } = req.params;
       const query = req.query;
+      const currentUserId = (req as any).user.id;
 
       const { id: userId } = await resolveUsernameToId(username);
       const decodedCursor = encoderService.decode<{
@@ -231,7 +243,7 @@ export class TweetController {
         cursor: decodedCursor ?? undefined,
       });
 
-      const tweets = await tweetService.getUserTweets(parsedDTO);
+      const tweets = await tweetService.getUserTweets(parsedDTO,currentUserId);
       res.status(200).json(tweets);
     } catch (error) {
       next(error);
