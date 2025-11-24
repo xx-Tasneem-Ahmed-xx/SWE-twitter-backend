@@ -124,6 +124,9 @@ pipeline {
                 container('nodejs') {
                     script {
                         sh '''
+                            echo "Installing Prisma"
+                            npm install prisma@^6.0.0 @prisma/client@^6.0.0
+                             
                             echo "Running Prisma migrations..."
                             npx prisma migrate deploy
                             
