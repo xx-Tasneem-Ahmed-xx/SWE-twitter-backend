@@ -1124,7 +1124,7 @@ export async function ChangePassword(
       data: {
         saltPassword: salt,
         password: hashed,
-        tokenVersion: (user.tokenVersion || 0) + 1,
+        
       },
     });
 
