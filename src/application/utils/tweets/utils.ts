@@ -59,7 +59,7 @@ export const isMentioned = async (
   mentionerId: string,
   tweetId: string
 ) => {
-  const row = prisma.mention.findUnique({
+  const row = await prisma.mention.findUnique({
     where: {
       tweetId_mentionerId_mentionedId: { tweetId, mentionerId, mentionedId },
     },
