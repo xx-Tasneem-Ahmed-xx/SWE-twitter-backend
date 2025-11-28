@@ -40,12 +40,14 @@ jobs:
           node-version: 20
           cache: "npm"
 
-      - name: Install Dependencies
+      - name: Install Dependencies and Generate prisma client
         run: npm ci
+        run: npx prisma generate
 
       - name: Set environment variables
         run: |
           echo DATABASE_URL="postgresql://postgres:postgres@localhost:5432/test_db" >> $GITHUB_ENV
+          echo SHADOW_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/test_db_shadow" >> $GITHUB_ENV
           echo REDIS_URL="redis://localhost:6379" >> $GITHUB_ENV
 
       - name: Wait for Postgres & Redis
@@ -53,9 +55,8 @@ jobs:
           until pg_isready -h localhost -p 5432 -U postgres; do sleep 1; done
           until docker exec $(docker ps -qf "ancestor=redis:7") redis-cli ping; do sleep 1; done
 
-      - name: Reset Database
-        run: |
-          npx prisma migrate reset --force --skip-seed
+      - name: Apply schema
+        run: npx prisma db push --accept-data-loss --config ./prisma/prisma.config.ts
 
       - name: Run Tests
         run: npm test --if-present
