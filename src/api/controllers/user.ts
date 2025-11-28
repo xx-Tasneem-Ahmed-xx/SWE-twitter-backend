@@ -1127,7 +1127,31 @@ export async function ChangePassword(
         
       },
     });
+      const result = await utils.SetDeviceInfo(req, res, email);
+   const devid = result.devid;
+const accessObj = await utils.GenerateJwt({
+      username: user.username,
+      email,
+      id: user.id,
+      expiresInSeconds: 60 * 60,
+      version: user.tokenVersion || 0,
+      devid,
+      role: "user",
+    });
 
+    const refreshObj = await utils.GenerateJwt({
+      username: user.username,
+      email,
+      id: user.id,
+      expiresInSeconds: 30 * 24 * 60 * 60,
+      version: user.tokenVersion || 0,
+      devid,
+      role: "user",
+    });
+
+    res.cookie("refresh_token", refreshObj.token, {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
     await utils.AddPasswordHistory(hashed, user.id);
 
     const ip: string =
@@ -1153,21 +1177,13 @@ If you did NOT change your password, please secure your account immediately.
       throw new AppError("Failed to send password change email", 500);
     });
 
-    await addNotification(
-      user.id as UUID,
-      {
-        title: NotificationTitle.PASSWORD_CHANGED,
-        body: `Password of this account has been changed of  at ${geo?.City}`,
-        actorId: user.id as UUID,
-        tweetId: "32423",
-      },
-      (err) => {
-        if (err) throw new AppError(err, 500);
-      }
-    );
+   
     return utils.SendRes(res, {
+       refresh_token: refreshObj.token,
+      accesstoken: accessObj.token,
       Message: "Password updated successfully",
       Score: score,
+
     });
   } catch (err) {
     next(err);

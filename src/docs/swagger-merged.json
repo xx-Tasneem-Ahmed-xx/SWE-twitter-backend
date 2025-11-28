@@ -38,168 +38,9 @@
             "example": 5000
           },
           "tweets": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "content": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 445
-                },
-                "createdAt": {
-                  "type": "string",
-                  "format": "date"
-                },
-                "likesCount": {
-                  "type": "integer"
-                },
-                "retweetCount": {
-                  "type": "integer"
-                },
-                "repliesCount": {
-                  "type": "integer"
-                },
-                "quotesCount": {
-                  "type": "integer"
-                },
-                "replyControl": {
-                  "type": "string",
-                  "enum": [
-                    "EVERYONE",
-                    "FOLLOWINGS",
-                    "VERIFIED",
-                    "MENTIONED"
-                  ]
-                },
-                "parentId": {
-                  "type": "string",
-                  "nullable": true,
-                  "format": "uuid"
-                },
-                "tweetType": {
-                  "type": "string",
-                  "enum": [
-                    "TWEET",
-                    "REPLY",
-                    "QUOTE"
-                  ]
-                },
-                "user": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "name": {
-                      "type": "string",
-                      "nullable": true,
-                      "minLength": 1
-                    },
-                    "username": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 445
-                    },
-                    "profileMedia": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        }
-                      },
-                      "required": [
-                        "id"
-                      ]
-                    },
-                    "verified": {
-                      "type": "boolean"
-                    },
-                    "protectedAccount": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "name",
-                    "username",
-                    "profileMedia",
-                    "verified",
-                    "protectedAccount"
-                  ]
-                }
-              },
-              "required": [
-                "id",
-                "content",
-                "createdAt",
-                "likesCount",
-                "retweetCount",
-                "repliesCount",
-                "quotesCount",
-                "replyControl",
-                "tweetType",
-                "user"
-              ]
-            },
-            "description": "List of tweets containing this hashtag"
+            "type": "integer",
+            "example": 500
           },
-          "nextCursor": {
-            "type": "string",
-            "nullable": true,
-            "description": "Encoded cursor for next page of results (null if no more pages)"
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether there are more tweets available for pagination"
-          }
-        },
-        "required": [
-          "tweets",
-          "nextCursor",
-          "hasMore"
-        ],
-        "description": "Paginated list of tweets for a hashtag"
-      },
-      "CreateTweetDTO": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 445
-          },
-          "replyControl": {
-            "type": "string",
-            "enum": [
-              "EVERYONE",
-              "FOLLOWINGS",
-              "VERIFIED",
-              "MENTIONED"
-            ]
-          },
-          "mediaIds": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "maxItems": 4
-          }
-        },
-        "required": [
-          "content"
-        ]
-      },
-      "UserInteractionsListResponse": {
-        "type": "object",
-        "properties": {
           "users": {
             "type": "integer",
             "example": 300
@@ -4084,7 +3925,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-11-21T18:44:53.141Z"
+                        "default": "2025-11-25T10:03:27.578Z"
                       },
                       "userId": {
                         "type": "string",
@@ -4309,7 +4150,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-11-21T18:44:53.141Z"
+                            "default": "2025-11-25T10:03:27.578Z"
                           },
                           "userId": {
                             "type": "string",
@@ -9561,7 +9402,7 @@
       }
     },
     "/authorize/{provider}": {
-      "get": {
+      "post": {
         "tags": [
           "OAuth"
         ],
@@ -9596,7 +9437,7 @@
       }
     },
     "/callback/google": {
-      "get": {
+      "post": {
         "tags": [
           "OAuth"
         ],
@@ -9635,7 +9476,7 @@
       }
     },
     "/callback/github": {
-      "get": {
+      "post": {
         "tags": [
           "OAuth"
         ],
@@ -9674,7 +9515,7 @@
       }
     },
     "/callback/android_google": {
-      "get": {
+      "post": {
         "tags": [
           "OAuth"
         ],

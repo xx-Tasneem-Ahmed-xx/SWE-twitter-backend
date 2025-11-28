@@ -438,7 +438,7 @@ export async function IncrAttempts(
     const exists: number = await redisClient.exists(`Login:fail:${email}`);
     if (!exists) {
       // create a key with small TTL (matching Go's behavior, Go used 5s in some places; adapt as required)
-      await redisClient.set(`Login:fail:${email}`, "0", { EX: 5 });
+      await redisClient.set(`Login:fail:${email}`, "0", { EX: 300 });
     }
     const numStr: string | null = await redisClient.get(`Login:fail:${email}`);
     if (!numStr) {
@@ -448,7 +448,7 @@ export async function IncrAttempts(
     const num: number = parseInt(numStr.trim(), 10) || 0;
     const next: number = num + 1;
     const ttl: number = await _getTTL(`Login:fail:${email}`);
-    const newTTL: number = ttl > 0 ? ttl : 5;
+    const newTTL: number = ttl > 0 ? ttl : 300;
     await redisClient.set(`Login:fail:${email}`, String(next), { EX: newTTL });
     return true;
   } catch (err) {
@@ -580,7 +580,7 @@ export async function IncrResetAttempts(
   try {
     const exists: number = await redisClient.exists(`reset:fail:${email}`);
     if (!exists) {
-      await redisClient.set(`reset:fail:${email}`, "0", { EX: 5 });
+      await redisClient.set(`reset:fail:${email}`, "0", { EX: 300 });
     }
     const numStr: string | null = await redisClient.get(`reset:fail:${email}`);
     if (!numStr) {
@@ -591,7 +591,7 @@ export async function IncrResetAttempts(
     const next: number = num + 1;
     const ttl: number = await _getTTL(`reset:fail:${email}`);
     await redisClient.set(`reset:fail:${email}`, String(next), {
-      EX: ttl > 0 ? ttl : 5,
+      EX: ttl > 0 ? ttl : 300,
     });
     return true;
   } catch (err) {
