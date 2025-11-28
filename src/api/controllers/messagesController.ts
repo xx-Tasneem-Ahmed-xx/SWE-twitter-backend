@@ -24,7 +24,7 @@ const getUnseenMessagesCountofChat = async (chatId: string, userId: string) => {
   } catch (error) {}
 };
 
-const CreateChatFun = async (DMChat: boolean, participant_ids: string[]) => {
+export const CreateChatFun = async (DMChat: boolean, participant_ids: string[]) => {
   try {
     //ceating DM chat
     const newChat = await prisma.chat.create({

@@ -171,20 +171,20 @@ export async function Create(
     const code: string = gen6();
     await redisClient.set(`Signup:code:${input.email}`, code, { EX: 15 * 60 });
 
-    const message: string = `Subject: Verify Your Email Address 🚀
+    const message: string = `Subject: Verify Your Email Address 
 
 Hello ${input.name},
 
-Thank you for signing up to Artimesa! 🎉  
+Thank you for signing up to Artimesa!  
 To complete your registration and verify your email address, please enter the verification code below:
 
-🔐 Your verification code: ${code}
+ Your verification code: ${code}
 
-This code will expire in 15 minutes. ⏳  
+This code will expire in 15 minutes.   
 If you didn't sign up for this account, you can safely ignore this message.
 
 Welcome aboard,  
-— The Artemisa Team 🛡️
+— The Artemisa Team 
 `;
 
     utils.SendEmailSmtp(res, input.email, message).catch((err) => {
@@ -392,18 +392,18 @@ export async function FinalizeSignup(
     });
     await utils.SetSession(req, created.id, jti);
 
-    const completeMsg = `Subject: Welcome to Artimesa 🎉
+    const completeMsg = `Subject: Welcome to Artimesa 
 
 Hello ${created.name},
 
-Your registration is now complete! ✅  
+Your registration is now complete!   
 You can log in anytime using your email: ${created.email}
 
-We're thrilled to have you on board at Artimesa — enjoy exploring our community! 🌟
+We're thrilled to have you on board at Artimesa — enjoy exploring our community! 
 
 If you didn't create this account, please contact our support team immediately.
 
-— The Artimesa Team 🛡️
+— The Artimesa Team 
 `;
 
     utils.SendEmailSmtp(res, created.email, completeMsg).catch((err) => {
@@ -506,11 +506,8 @@ export async function Login(
 
     const emailMessage = `Hello ${user.username},
 
-🚀 Your account was just accessed!
-
-📍 Location: ${JSON.stringify(location, null, 2)}
-💻 Device info: ${JSON.stringify(deviceRecord, null, 2)}
-🕒 Time: ${new Date().toLocaleString()}
+ Your account was just accessed!
+Time: ${new Date().toLocaleString()}
 
 If this was not you, immediately change your password!
 — The Artemisa Team`;
@@ -737,7 +734,7 @@ Hi ${user.username},
 
 You requested a password reset for your Artemisa account.
 
-🔑 Your password reset code is: ${code}
+ Your password reset code is: ${code}
 
 This code is valid for 15 minutes.
 
@@ -831,11 +828,8 @@ export async function ResetPassword(
 
     const emailMessage = `Hello ${user.username},
 
-🔐 Your password was just changed!
-
-📍 Location: ${readableLocation}
-💻 Device info: ${readableDevice}
-🕒 Time: ${new Date().toLocaleString()}
+ Your password was just changed!
+ Time: ${new Date().toLocaleString()}
 
 If this wasn't you, secure your account immediately!
 — Artemisa Team`;
@@ -1124,8 +1118,32 @@ export async function ChangePassword(
       data: {
         saltPassword: salt,
         password: hashed,
-        
       },
+    });
+    const result = await utils.SetDeviceInfo(req, res, email);
+    const devid = result.devid;
+    const accessObj = await utils.GenerateJwt({
+      username: user.username,
+      email,
+      id: user.id,
+      expiresInSeconds: 60 * 60,
+      version: user.tokenVersion || 0,
+      devid,
+      role: "user",
+    });
+
+    const refreshObj = await utils.GenerateJwt({
+      username: user.username,
+      email,
+      id: user.id,
+      expiresInSeconds: 30 * 24 * 60 * 60,
+      version: user.tokenVersion || 0,
+      devid,
+      role: "user",
+    });
+
+    res.cookie("refresh_token", refreshObj.token, {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     });
       const result = await utils.SetDeviceInfo(req, res, email);
    const devid = result.devid;
@@ -1164,10 +1182,10 @@ const accessObj = await utils.GenerateJwt({
 
 We're letting you know that the password for your account (${email}) was just changed.
 
-🕒 Time: ${new Date().toISOString()}
-📍 Location: ${geo ? `${geo.Timezone}, ${geo.City}` : "unknown"}
-🌐 IP Address: ${ip}
-🖥️ Device: ${req.get("User-Agent") || ""}
+ Time: ${new Date().toISOString()}
+ Location: ${geo ? `${geo.Timezone}, ${geo.City}` : "unknown"}
+ IP Address: ${ip}
+ Device: ${req.get("User-Agent") || ""}
 
 If you did NOT change your password, please secure your account immediately.
 — The Artemisa Team
@@ -1179,6 +1197,8 @@ If you did NOT change your password, please secure your account immediately.
 
    
     return utils.SendRes(res, {
+      refresh_token: refreshObj.token,
+      accesstoken: accessObj.token,
        refresh_token: refreshObj.token,
       accesstoken: accessObj.token,
       Message: "Password updated successfully",
@@ -1305,7 +1325,6 @@ export async function VerifyNewEmail(
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
-    // ✅ Optional: delete old Redis codes
     await redisClient.del(`ChangeEmail:code:${currentEmail}`);
     await redisClient.del(`ChangeEmail:new:${currentEmail}`);
 
@@ -2061,35 +2080,6 @@ export async function CallbackAndroidGoogle(
   }
 }
 
-// export const UpdateUsername = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//    const userId = (req as any).user.id;
-//     const { username } = req.body;
-
-//     if (!userId) {
-//       throw new AppError("Unauthorized: Missing user ID", 401);
-//     }
-
-//     if (!username || typeof username !== 'string' || username.trim() === '') {
-//       throw new AppError("Invalid username", 400);
-//     }
-
-//     const updatedUser = await prisma.user.update({
-//       where: { id: userId },
-//       data: { username },
-//     });
-
-//     return utils.SendRes(res, {
-//       message: 'Username updated successfully ✅',
-//       user: {
-//         id: updatedUser.id,
-//         username: updatedUser.username,
-//       },
-//     });
-//   } catch (err) {
-//     next(err);
-//   }
-// };
 export const UpdateUsername = async (
   req: Request,
   res: Response,

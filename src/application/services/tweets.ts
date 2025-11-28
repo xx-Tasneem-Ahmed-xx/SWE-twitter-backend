@@ -25,10 +25,12 @@ import { Prisma } from "@prisma/client";
 import { BaseInteractionRecord } from "@/types/interfaces";
 
 class TweetService {
-  private validateId(id: string) {
+  private async validateId(id: string) {
     if (!id || typeof id !== "string") {
       throw new AppError("Invalid ID", 400);
     }
+    const tweet = await prisma.tweet.findUnique({ where: { id } });
+    if (!tweet) throw new AppError("Tweet not found", 404);
   }
 
   private async saveMentionedUsersTx(
@@ -138,6 +140,7 @@ class TweetService {
   }
 
   async createQuote(dto: CreateReplyOrQuoteServiceDTO) {
+    await this.validateId(dto.parentId);
     const valid = await validToRetweetOrQuote(dto.parentId);
     if (!valid) throw new AppError("You cannot quote a protected tweet", 403);
 
@@ -176,6 +179,7 @@ class TweetService {
   }
 
   async createReply(dto: CreateReplyOrQuoteServiceDTO) {
+    await this.validateId(dto.parentId);
     const valid = await validToReply(dto.parentId, dto.userId);
     if (!valid) throw new AppError("You cannot reply to this tweet", 403);
 
@@ -214,7 +218,7 @@ class TweetService {
   }
 
   async createRetweet(dto: CreateReTweetServiceDto) {
-    this.validateId(dto.parentId);
+    await this.validateId(dto.parentId);
     const valid = await validToRetweetOrQuote(dto.parentId);
     if (!valid) throw new AppError("You cannot retweet a protected tweet", 403);
 
@@ -230,7 +234,7 @@ class TweetService {
   }
 
   async getRetweets(tweetId: string, dto: InteractionsCursorServiceDTO) {
-    this.validateId(tweetId);
+    await this.validateId(tweetId);
     const retweeters = await prisma.retweet.findMany({
       where: { tweetId },
       select: {
@@ -267,7 +271,7 @@ class TweetService {
   }
 
   async getTweet(id: string, userId: string) {
-    this.validateId(id);
+    await this.validateId(id);
     const tweet = await prisma.tweet.findUnique({
       where: { id },
       select: this.tweetSelectFields(userId),
@@ -277,7 +281,7 @@ class TweetService {
   }
 
   async updateTweet(id: string, content: string) {
-    this.validateId(id);
+    await this.validateId(id);
     return prisma.tweet.update({
       where: { id },
       data: { content },
@@ -286,7 +290,7 @@ class TweetService {
   }
 
   async deleteTweet(id: string) {
-    this.validateId(id);
+    await this.validateId(id);
     const tweet = await prisma.tweet.findUnique({
       where: { id },
       select: { parentId: true, tweetType: true },
@@ -308,7 +312,7 @@ class TweetService {
   }
 
   private async deleteReply(id: string, parentId: string) {
-    this.validateId(id);
+    await this.validateId(id);
     return prisma.$transaction([
       prisma.tweet.delete({ where: { id } }),
       prisma.retweet.deleteMany({ where: { tweetId: id } }),
@@ -320,7 +324,7 @@ class TweetService {
   }
 
   private async deleteQuote(id: string, parentId: string) {
-    this.validateId(id);
+    await this.validateId(id);
     return prisma.$transaction([
       prisma.tweet.delete({ where: { id } }),
       prisma.retweet.deleteMany({ where: { tweetId: id } }),
@@ -332,7 +336,7 @@ class TweetService {
   }
 
   async deleteRetweet(userId: string, tweetId: string) {
-    this.validateId(tweetId);
+    await this.validateId(tweetId);
     return prisma.$transaction([
       prisma.retweet.delete({
         where: { userId_tweetId: { userId, tweetId } },
@@ -395,7 +399,7 @@ class TweetService {
   }
 
   async likeTweet(userId: string, tweetId: string) {
-    this.validateId(tweetId);
+    await this.validateId(tweetId);
     const tweet = await prisma.tweet.findUnique({ where: { id: tweetId } });
     if (!tweet) throw new AppError("Tweet not found", 404);
 
@@ -414,7 +418,7 @@ class TweetService {
   }
 
   async deleteLike(userId: string, tweetId: string) {
-    this.validateId(tweetId);
+    await this.validateId(tweetId);
     const existingLike = await prisma.tweetLike.findUnique({
       where: {
         userId_tweetId: {
@@ -440,7 +444,7 @@ class TweetService {
   }
 
   async getLikers(tweetId: string, dto: InteractionsCursorServiceDTO) {
-    this.validateId(tweetId);
+    await this.validateId(tweetId);
     const records = await prisma.tweetLike.findMany({
       where: { tweetId },
       select: {
@@ -476,7 +480,7 @@ class TweetService {
   }
 
   async getTweetSummary(tweetId: string) {
-    this.validateId(tweetId);
+    await this.validateId(tweetId);
 
     const tweet = await prisma.tweet.findUnique({
       where: { id: tweetId },
