@@ -145,13 +145,16 @@ export class UserController {
     }
   }
 
-   async updateUserProfile(req: Request, res: Response, next: NextFunction) {
+  async updateUserProfile(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
       const userId = (req as any).user?.id;
 
       if (!userId || userId !== id) {
-        throw new AppError("Forbidden: you can only update your own profile", 403);
+        throw new AppError(
+          "Forbidden: you can only update your own profile",
+          403
+        );
       }
 
       const parsedBody = UpdateUserProfileDTOSchema.safeParse(req.body);
@@ -159,7 +162,10 @@ export class UserController {
         throw new AppError("Invalid input data", 400);
       }
 
-      const updatedUser = await userService.updateUserProfile(id, parsedBody.data);
+      const updatedUser = await userService.updateUserProfile(
+        id,
+        parsedBody.data
+      );
 
       return res.status(200).json({
         message: "Profile updated successfully",
@@ -250,7 +256,7 @@ export class UserController {
         //   .json({ message: "Unauthorized: user not authenticated" });
       }
       // TODO ensure the profile photo is not the default one
-
+      
       const updatedUser = await userService.deleteProfilePhoto(userId);
 
       return res.status(200).json({
@@ -322,42 +328,46 @@ export class UserController {
     }
   }
 
-async addFcmToken(req: Request, res: Response, next: NextFunction) {
-  try {
-    const userId = (req as any).user?.id;
+  async addFcmToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as any).user?.id;
 
-    if (!userId) {
-      throw new AppError("Unauthorized: user not authenticated", 401);
-      // return res
-      //   .status(401)
-      //   .json({ message: "Unauthorized: user not authenticated" });
+      if (!userId) {
+        throw new AppError("Unauthorized: user not authenticated", 401);
+        // return res
+        //   .status(401)
+        //   .json({ message: "Unauthorized: user not authenticated" });
+      }
+
+      // Validate request body using Zod schema
+      const parsedBody = AddFcmTokenDTOSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        throw new AppError("Invalid request body", 400);
+        // return res.status(400).json({
+        //   message: "Invalid request body",
+        //   errors: parsedBody.error.format(),
+        // });
+      }
+
+      const { token, osType } = parsedBody.data;
+
+      // Add token using service
+      const fcmToken = await userService.addFcmToken(
+        userId,
+        token,
+        osType as OSType
+      );
+
+      return res.status(200).json({
+        message: "FCM token added successfully",
+        fcmToken,
+      });
+    } catch (error) {
+      console.error("Error adding FCM token:", error);
+
+      next(error);
     }
-
-    // Validate request body using Zod schema
-    const parsedBody = AddFcmTokenDTOSchema.safeParse(req.body);
-    if (!parsedBody.success) {
-      throw new AppError("Invalid request body", 400);
-      // return res.status(400).json({
-      //   message: "Invalid request body",
-      //   errors: parsedBody.error.format(),
-      // });
-    }
-
-    const { token, osType } = parsedBody.data;
-
-    // Add token using service
-    const fcmToken = await userService.addFcmToken(userId, token, osType as OSType);
-
-    return res.status(200).json({
-      message: "FCM token added successfully",
-      fcmToken,
-    });
-  } catch (error) {
-    console.error("Error adding FCM token:", error);
-
-    next(error);
   }
-}
 }
 export const userController = new UserController();
 
@@ -374,5 +384,4 @@ export const updateUserBanner =
   userController.updateUserBanner.bind(userController);
 export const deleteUserBanner =
   userController.deleteUserBanner.bind(userController);
-export const addFcmToken =
-  userController.addFcmToken.bind(userController);
+export const addFcmToken = userController.addFcmToken.bind(userController);
