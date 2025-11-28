@@ -9,7 +9,6 @@ import { initEncoderService } from "./application/services/encoder";
 
 async function start() {
   await initRedis();
-  console.log("Redis connected");
 
   await loadSecrets();
   console.log("Secrets loaded");
@@ -17,7 +16,6 @@ async function start() {
   const port = getSecrets().PORT ?? 3000;
 
   await connectToDatabase();
-  console.log("Database connected");
 
   await initEncoderService();
 
