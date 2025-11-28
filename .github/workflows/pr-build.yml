@@ -27,13 +27,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      # 4. Install dependencies
       - name: Install dependencies
         run: npm install
 
-      - name: Run Dev
-        run: npm run dev
-
-      # Run build (only if dev succeeded)
       - name: Build Project
         run: npm run build
