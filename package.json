@@ -29,7 +29,9 @@
     "@aws-sdk/client-secrets-manager": "^3.936.0",
     "@aws-sdk/s3-request-presigner": "^3.914.0",
     "@faker-js/faker": "^10.1.0",
-    "@prisma/client": "^6.18.0",
+    "@prisma/client": "^7.0.1",
+    "hono": "^4.10.7",
+    "valibot": "^0.32.0",
     "@types/socket.io": "^3.0.1",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
@@ -96,7 +98,7 @@
     "fs-extra": "^11.3.2",
     "jest": "^30.2.0",
     "nodemon": "^3.1.10",
-    "prisma": "^6.18.0",
+    "prisma": "^7.0.1",
     "supertest": "^7.1.4",
     "swagger-ui-express": "^5.0.1",
     "ts-jest": "^29.4.5",
@@ -106,5 +108,9 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
     "zod": "^4.1.12"
+  },
+  "overrides": {
+    "hono": "^4.10.7",
+    "valibot": "^0.32.0"
   }
 }

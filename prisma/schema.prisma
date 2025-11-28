@@ -9,9 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider          = "postgresql"
-  url               = env("DATABASE_URL")
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  provider = "postgresql"
 }
 
 model User {
@@ -62,11 +60,13 @@ model User {
   profileMedia          Media?          @relation("profileMedia", fields: [profileMediaId], references: [id])
   coverMedia            Media?          @relation("coverMedia", fields: [coverMediaId], references: [id])
 
-  oldPassword  OldPassword[]
-  deviceRecord DeviceRecord[]
-  oAuthAccount OAuthAccount[]
-  userMedia    UserMedia[]
-  FcmToken     FcmToken[]
+  oldPassword    OldPassword[]
+  deviceRecord   DeviceRecord[]
+  oAuthAccount   OAuthAccount[]
+  userMedia      UserMedia[]
+  FcmToken       FcmToken[]
+  notInteresteds NotInterested[]
+  spamReports    SpamReport[]
 
   @@map("users")
 }
@@ -132,17 +132,19 @@ model Tweet {
   parentId       String?
   tweetType      TweetType
 
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent        Tweet?          @relation("parentTweets", fields: [parentId], references: [id], onDelete: Cascade)
-  parentTweet   Tweet[]         @relation("parentTweets")
-  hashtags      TweetHash[]
-  tweetSummary  TweetSummary?
-  mention       Mention[]
-  retweets      Retweet[]
-  tweetLikes    TweetLike[]
-  tweetBookmark TweetBookmark[]
-  tweetMedia    TweetMedia[]
-  Notification  Notification[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent         Tweet?          @relation("parentTweets", fields: [parentId], references: [id], onDelete: Cascade)
+  parentTweet    Tweet[]         @relation("parentTweets")
+  hashtags       TweetHash[]
+  tweetSummary   TweetSummary?
+  mention        Mention[]
+  retweets       Retweet[]
+  tweetLikes     TweetLike[]
+  tweetBookmark  TweetBookmark[]
+  tweetMedia     TweetMedia[]
+  Notification   Notification[]
+  notInteresteds NotInterested[]
+  spamReports    SpamReport[]
 
   @@unique([lastActivityAt, id])
   @@index([userId, createdAt])
@@ -383,6 +385,27 @@ model FcmToken {
   createdAt DateTime @default(now())
   userId    String
   user      User     @relation(fields: [userId], references: [id])
+}
+
+model NotInterested {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  userId    String
+  tweetId   String
+
+  user  User  @relation(fields: [userId], references: [id])
+  tweet Tweet @relation(fields: [tweetId], references: [id])
+}
+
+model SpamReport {
+  id         String   @id @default(uuid())
+  reason     String
+  createdAt  DateTime @default(now())
+  reporterId String
+  tweetId    String
+
+  reporter User  @relation(fields: [reporterId], references: [id])
+  tweet    Tweet @relation(fields: [tweetId], references: [id])
 }
 
 enum ReplyControl {
