@@ -122,6 +122,16 @@ export const UserResponseDTOSchema = z
       .optional(),
     isFollower: z.boolean().optional(),
     isFollowing: z.boolean().optional(),
+
+    // New attributes
+    muted: z
+      .boolean()
+      .optional()
+      .describe("Whether the viewer has muted this user"),
+    blocked: z
+      .boolean()
+      .optional()
+      .describe("Whether the viewer has blocked this user"),
   })
   .openapi("UserProfileResponseDTO");
 

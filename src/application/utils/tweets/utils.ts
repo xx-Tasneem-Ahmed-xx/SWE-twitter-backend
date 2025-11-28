@@ -10,7 +10,7 @@ import zxcvbn from "zxcvbn";
 import { redisClient } from "@/config/redis";
 import { Request, Response } from "express";
 import { AppError } from "@/errors/AppError";
-// import { getKey } from "@/application/services/secrets";
+import { getSecrets } from "@/config/secrets";
 
 const uuidv4 = async () => {
   const { v4 } = await import("uuid");
@@ -128,7 +128,7 @@ export interface JwtUserPayload extends JwtPayload {
   Username: string;
   email: string;
   role: string;
-  id: string; // Assuming user ID is a number based on prisma use below
+  id: string;
   version: number;
   jti: string;
   devid: string | null; // Assuming devid is a number or null
@@ -160,10 +160,8 @@ export interface UserSession {
   ExpireAt: string;
 }
 
-// --- Environment Variables (type assertions) ---
-const JWT_SECRET: string = process.env.JWT_SECRET as string;
-const PEPPER: string = process.env.PEPPER || "";
-const COOKIE_DOMAIN: string = process.env.DOMAIN || "localhost";
+const { JWT_SECRET, PEPPER, COOKIE_DOMAIN, Mail_email, Mail_password } =
+  getSecrets();
 
 /* ------------------------------ Generic response helpers ------------------------------ */
 
@@ -617,13 +615,13 @@ export async function SendEmailSmtp(
       port: 587,
       secure: false, // TLS will be used automatically if false
       auth: {
-        user: process.env.Mail_email,
-        pass: process.env.Mail_password, // App password for Gmail
+        user: Mail_email,
+        pass: Mail_password, // App password for Gmail
       },
     });
 
     const mailOptions = {
-      from: process.env.Mail_email,
+      from: Mail_email,
       to: email,
       subject: "Notification", // You can customize the subject
       text: message,

@@ -18,7 +18,9 @@ export enum SearchTab {
 
 export const StringSchema = z
   .string()
-  .min(1, { message: "Content must not be empty" });
+  .trim()
+  .min(1, { message: "Content must not be empty" })
+  .max(445);
 
 const UserSchema = z.object({
   id: z.uuid(),
@@ -30,13 +32,22 @@ const UserSchema = z.object({
 });
 
 export const UsersResponseSchema = z.object({
-  users: z.array(UserSchema),
+  data: z.array(UserSchema),
+  nextCursor: z.string().nullable(),
 });
 
 export const CreateTweetDTOSchema = z
   .object({
     content: StringSchema,
     replyControl: z.enum(ReplyControl).optional(),
+    mediaIds: z
+      .array(z.uuid())
+      .max(4)
+      .optional()
+      .refine(
+        (arr) => !arr || new Set(arr).size === arr.length,
+        "Duplicate media IDs are not allowed"
+      ),
   })
   .openapi("CreateTweetDTO");
 
@@ -52,6 +63,17 @@ export const TweetResponsesSchema = z.object({
   parentId: z.uuid().nullable().optional(),
   tweetType: z.enum(TweetType),
   user: UserSchema,
+  mediaIds: z
+    .array(z.uuid())
+    .max(4)
+    .optional()
+    .refine(
+      (arr) => !arr || new Set(arr).size === arr.length,
+      "Duplicate media IDs are not allowed"
+    ),
+  isLiked: z.boolean(),
+  isRetweeted: z.boolean(),
+  isBookmarked: z.boolean(),
 });
 
 export const timelineResponeSchema = TweetResponsesSchema.extend({

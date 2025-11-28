@@ -24,7 +24,7 @@ const router: Router = express.Router();
 /**
  * @openapi
  * /authorize/{provider}:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
  *     summary: Start OAuth 2.0 authorization flow
@@ -47,20 +47,23 @@ const router: Router = express.Router();
  *       500:
  *         description: Internal server error during authorization setup.
  */
-router.get("/authorize/:provider", typedOauthController.Authorize);
-
+router.post("/authorize/:provider", typedOauthController.Authorize);
 /**
  * @openapi
  * /callback/google:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
- *     summary: Handle Google OAuth callback
+ *     summary: Google OAuth callback
  *     description: >
- *       This endpoint handles the callback from **Google OAuth** after user authorization.
- *       It exchanges the received authorization code for an ID token, retrieves the user's profile and email,
- *       creates or updates the user in the database, issues access and refresh tokens, stores session info,
- *       and sends a login notification email.
+ *       Handles Google OAuth callback after user authorization.
+ *       Exchanges the authorization code for Google tokens, extracts email and profile info,
+ *       creates/links the user, generates JWT access & refresh tokens, stores refresh token in Redis,
+ *       sets a secure HttpOnly cookie, sends login notification email, then redirects to the frontend.
+ *
+ *        This endpoint does **NOT** return JSON.  
+ *       It **redirects (302)** to the frontend with tokens and user info encoded in the URL.
+ *
  *     parameters:
  *       - in: query
  *         name: code
@@ -68,63 +71,42 @@ router.get("/authorize/:provider", typedOauthController.Authorize);
  *         description: Authorization code returned by Google after user consent.
  *         schema:
  *           type: string
+ *
  *     responses:
- *       200:
- *         description: User successfully authenticated and tokens issued.
- *         content:
- *           application/json:
+ *       302:
+ *         description: Redirects to the frontend with tokens and user info.
+ *         headers:
+ *           Location:
+ *             description: >
+ *               Example redirect URL structure:  
+ *               `{FRONTEND_URL}/login/success?token={accessToken}&refresh-token={refreshToken}&user={jsonUser}`
  *             schema:
- *               type: object
- *               properties:
- *                 token:
- *                   type: string
- *                   description: JWT access token.
- *                 refreshToken:
- *                   type: string
- *                   description: JWT refresh token stored in cookies and Redis.
- *                 user:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: integer
- *                     username:
- *                       type: string
- *                     name:
- *                       type: string
- *                     email:
- *                       type: string
- *                     dateOfBirth:
- *                       type: string
- *                     isEmailVerified:
- *                       type: boolean
- *                 deviceRecord:
- *                   type: object
- *                   description: Information about the device used for login.
- *                 location:
- *                   type: object
- *                   description: IP-based geolocation info.
- *                 message:
- *                   type: string
- *                   example: User registered and logged in successfully ✅
+ *               type: string
  *       400:
  *         description: Missing or invalid authorization code.
  *       500:
- *         description: Error during token exchange, user creation, or email notification.
+ *         description: Internal error during token exchange, user creation, or notification process.
  */
-router.get("/callback/google", typedOauthController.CallbackGoogle);
+router.post("/callback/google", typedOauthController.CallbackGoogle);
+
 
 /**
  * @openapi
  * /callback/github:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
- *     summary: Handle GitHub OAuth callback
+ *     summary: GitHub OAuth callback
  *     description: >
- *       This endpoint handles the callback from **GitHub OAuth** after the user grants access.
- *       It exchanges the authorization code for an access token, retrieves the user’s primary verified email,
- *       fetches GitHub profile data, creates or links the user in the system, issues JWT tokens,
- *       logs the device info, and sends a login alert email.
+ *       Handles GitHub OAuth callback after user authorization.
+ *       Exchanges the authorization code for an access token, retrieves the verified primary email,
+ *       fetches GitHub profile, creates/links the user, generates JWT access & refresh tokens,
+ *       stores refresh token in Redis, sets a secure HttpOnly cookie, sends login alert email,
+ *       then redirects the user to the frontend.
+ *
+ *        This endpoint does **NOT** return JSON.  
+ *       It **redirects (302)** to the frontend with tokens and user info encoded in the URL.
+ *
  *     parameters:
  *       - in: query
  *         name: code
@@ -132,51 +114,82 @@ router.get("/callback/google", typedOauthController.CallbackGoogle);
  *         description: Authorization code returned by GitHub after user consent.
  *         schema:
  *           type: string
+ *
  *     responses:
- *       200:
- *         description: User successfully authenticated and tokens issued.
- *         content:
- *           application/json:
+ *       302:
+ *         description: Redirects to the frontend with access token, refresh token, and user info.
+ *         headers:
+ *           Location:
+ *             description: >
+ *               Example redirect URL structure:  
+ *               `{FRONTEND_URL}/login/success?token={accessToken}&refresh-token={refreshToken}&user={jsonUser}`
  *             schema:
- *               type: object
- *               properties:
- *                 token:
- *                   type: string
- *                   description: JWT access token.
- *                 refreshToken:
- *                   type: string
- *                   description: JWT refresh token stored in cookies and Redis.
- *                 user:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: integer
- *                     username:
- *                       type: string
- *                     name:
- *                       type: string
- *                     email:
- *                       type: string
- *                     dateOfBirth:
- *                       type: string
- *                     isEmailVerified:
- *                       type: boolean
- *                 deviceRecord:
- *                   type: object
- *                   description: Information about the device used for login.
- *                 location:
- *                   type: object
- *                   description: IP-based geolocation info.
- *                 message:
- *                   type: string
- *                   example: User logged in successfully via GitHub ✅
+ *               type: string
  *       400:
- *         description: Missing or invalid authorization code.
+ *         description: No verified email found, or invalid code.
  *       500:
- *         description: Error during token exchange, user lookup, or email notification.
+ *         description: Internal error during token exchange, user lookup, or login email notification.
  */
-router.get("/callback/github", typedOauthController.CallbackGithub);
-
+router.post("/callback/github", typedOauthController.CallbackGithub);
+/**
+ * @openapi
+ * /callback/android_google:
+ *   post:
+ *     tags:
+ *       - OAuth
+ *     summary: Android Google OAuth callback
+ *     description: >
+ *       Handles Google Sign-In for **Android mobile apps**.
+ *
+ *       Unlike web OAuth, Android does **not** use authorization codes.
+ *       The Flutter app obtains an **ID token** directly from Google using the
+ *       official Google Sign-In SDK, then sends it to this endpoint.
+ *
+ *       This endpoint:
+ *       - Validates the ID token signature & audience  
+ *       - Extracts user info (email, name, sub)  
+ *       - Creates or links user with Google provider  
+ *       - Generates JWT access & refresh tokens  
+ *       - Stores refresh token in Redis  
+ *       - Sends login security email  
+ *       - Redirects the user to the frontend success page  
+ *
+ *       **This endpoint does NOT return JSON.**  
+ *       It performs a **302 redirect** with tokens and user JSON encoded in the URL.
+ *
+ *     parameters:
+ *       - in: query
+ *         name: id_token
+ *         required: true
+ *         description: >
+ *           Google ID token obtained from the Android Google Sign-In SDK.
+ *           This is NOT a code. It is a JWT returned directly from Google.
+ *         schema:
+ *           type: string
+ *
+ *     responses:
+ *       302:
+ *         description: >
+ *           Redirects to the frontend with access token, refresh token,
+ *           and user info encoded in the query string.
+ *         headers:
+ *           Location:
+ *             description: >
+ *               Example redirect format:  
+ *               `{FRONTEND_URL}/login/success?token={accessToken}&refresh-token={refreshToken}&user={jsonUser}`
+ *             schema:
+ *               type: string
+ *
+ *       400:
+ *         description: Missing or invalid Google ID token.
+ *
+ *       401:
+ *         description: ID token failed verification (invalid signature / audience mismatch).
+ *
+ *       500:
+ *         description: Internal server error during token validation, user creation, or login email process.
+ */
+router.post("/callback/android_google", typedOauthController.CallbackAndroidGoogle);
 
 // router.get("/callback/facebook", typedOauthController.CallbackFacebook);
 // router.get("/callback/linkedin", typedOauthController.CallbackLinkedin);

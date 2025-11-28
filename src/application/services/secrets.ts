@@ -1,18 +1,19 @@
+// src/application/services/secrets.ts
 import dotenv from "dotenv";
-import {
-  SecretsManagerClient,
-  GetSecretValueCommand,
-} from "@aws-sdk/client-secrets-manager";
+import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
 import { AppError } from "@/errors/AppError";
 import { redisClient } from "../../config/redis";
-import { log } from "console";
 
 dotenv.config();
 
-const REDIS_SECRET_CACHE_KEY =
-  process.env.REDIS_SECRET_CACHE_KEY || "aws_secrets_cache_key";
+const REDIS_SECRET_CACHE_KEY = process.env.REDIS_SECRET_CACHE_KEY || "aws_secrets_cache_key";
 
+// Load secrets from AWS, cache in Redis
 async function loadAwsSecrets(): Promise<Record<string, string>> {
+  if (!redisClient) {
+    throw new AppError("Redis client not initialized. Call initRedis() first.");
+  }
+
   const redisValue = await redisClient.get(REDIS_SECRET_CACHE_KEY);
   if (redisValue) {
     return JSON.parse(redisValue);
@@ -24,13 +25,10 @@ async function loadAwsSecrets(): Promise<Record<string, string>> {
   }
 
   const region = process.env.AWS_REGION;
-
   const client = new SecretsManagerClient({ region });
 
   const response = await client.send(
-    new GetSecretValueCommand({
-      SecretId: secretName,
-    })
+    new GetSecretValueCommand({ SecretId: secretName })
   );
 
   const secretString =
@@ -40,11 +38,13 @@ async function loadAwsSecrets(): Promise<Record<string, string>> {
 
   const parsed = JSON.parse(secretString);
 
+  // cache in Redis
   await redisClient.set(REDIS_SECRET_CACHE_KEY, JSON.stringify(parsed));
 
   return parsed;
 }
 
+// get a single key from AWS secrets or env
 export async function getKey(key: string): Promise<string | undefined> {
   if (process.env[key]) return process.env[key];
 
@@ -52,6 +52,7 @@ export async function getKey(key: string): Promise<string | undefined> {
   return awsSecrets[key];
 }
 
+// get multiple keys
 export async function getKeys<T extends Record<string, string>>(
   keys: readonly (keyof T)[]
 ): Promise<Partial<T>> {

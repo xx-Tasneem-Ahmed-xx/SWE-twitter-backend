@@ -1,7 +1,8 @@
-import {S3Client, HeadObjectCommand, HeadObjectCommandOutput} from "@aws-sdk/client-s3";
+import prisma from "@/database";
+import { AppError } from "@/errors/AppError";
+import {S3Client, HeadObjectCommand, HeadObjectCommandOutput, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
-
+import { getKey } from "./secrets";
 interface FileDetail {
     keyName: string; 
     fileType: string; 
@@ -28,7 +29,7 @@ class StorageSystem {
     expirationInSeconds: number = 300
     ): Promise<string> {
         const command = new PutObjectCommand({
-            Bucket: process.env.AWS_S3_BUCKET,
+            Bucket: await getKey("AWS_S3_BUCKET"),
             Key: keyName,
             ContentType: contentType
         });
@@ -38,7 +39,7 @@ class StorageSystem {
 
     public async getS3ObjectMetadata(keyName: string): Promise<HeadObjectCommandOutput | null> {
         const command = new HeadObjectCommand({
-            Bucket: process.env.AWS_S3_BUCKET,
+            Bucket: await getKey("AWS_S3_BUCKET"),
             Key: keyName,
         });
 
@@ -54,13 +55,21 @@ class StorageSystem {
     }
 
 
-    public async getDownloadUrl(keyName: string, expirationInSeconds: number = 300): Promise<string> {
+    public async getDownloadUrl(keyName: string, expirationInSeconds: number = 7*24*60*60): Promise<string> {
+        
+        if(!await this.getS3ObjectMetadata(keyName)){
+            await prisma.media.deleteMany({
+                where: { keyName: keyName },
+            });
+            throw new AppError("media not found on s3", 404);
+        }
         const command = new GetObjectCommand({
-            Bucket: process.env.AWS_S3_BUCKET,
+            Bucket: await getKey("AWS_S3_BUCKET"),
             Key: keyName,
         });
         return getSignedUrl(this.s3Client, command, { expiresIn: expirationInSeconds });
     }
+
 
 
     public async getPresignedUrls(
@@ -70,7 +79,7 @@ class StorageSystem {
     const uploadedFiles: SignedUploadDetail[] = [];
     for (const detail of fileDetails) {
       const command = new PutObjectCommand({
-        Bucket: process.env.PROCESS_AWS_S3_BUCKET,
+        Bucket: await getKey("AWS_S3_BUCKET"),
         Key: detail.keyName,
         ContentType: detail.fileType,
       });
@@ -82,6 +91,22 @@ class StorageSystem {
     }
     return uploadedFiles;
   }
+
+
+  public async dropS3Media(keyName: string): Promise<any> {
+  const params = {
+    Bucket: await getKey("AWS_S3_BUCKET"),
+    Key: keyName, 
+  };
+
+  try {
+    const command = new DeleteObjectCommand(params);
+    const response = await this.s3Client.send(command);
+    return response; 
+  } catch (error) {
+    throw error; 
+  }
+}
 }
 
 

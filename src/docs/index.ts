@@ -10,8 +10,9 @@ type OpenAPIObject = Record<string, any>;
 
 import { registerTweetDocs } from "@/docs/tweets";
 import { registerTimelineAndExploreDocs } from "@/docs/timelineAndExplore";
-import { registerTrendsDocs } from "./trends";
+//import { registerTrendsDocs } from "./trends";
 import { registerUserInteractionsDocs } from "@/docs/userInteractions";
+import { registerHashtagAndTrendsDocs } from "./hashtags&trends";
 import { registerChatDocs } from "@/docs/chats";
 import { registerMediaDocs } from "@/docs/media";
 import { registerUserDocs } from "@/docs/users";
@@ -21,9 +22,10 @@ const registry = new OpenAPIRegistry();
 registerTweetDocs(registry);
 registerTimelineAndExploreDocs(registry);
 registerUserInteractionsDocs(registry);
+registerHashtagAndTrendsDocs(registry);
 registerNotificationDocs(registry);
 registerUserDocs(registry);
-registerTrendsDocs(registry);
+//registerTrendsDocs(registry);
 
 registry.registerComponent("securitySchemes", "bearerAuth", {
   type: "http",

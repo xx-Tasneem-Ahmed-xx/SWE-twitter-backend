@@ -680,9 +680,7 @@ router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
  *     tags:
  *       - Auth
  *     summary: Reset user password
- *     description: Allows a user to reset their password after verifying the reset code. Requires email and new password.
- *     security:
- *       - bearerAuth: []   # assuming Auth() middleware uses Bearer token
+ *     description: Allows a user to reset their password after verifying the reset code. No login required.
  *     requestBody:
  *       required: true
  *       content:
@@ -692,15 +690,23 @@ router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
  *             required:
  *               - email
  *               - password
+ *               - resetCode
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
- *                 description: The email of the user whose password is being reset.
+ *                 description: The user's email
+ *                 example: "user@example.com"
  *               password:
  *                 type: string
  *                 format: password
- *                 description: The new password to set for the user.
+ *                 description: The new password
+ *                 example: "NewStrongPass@2025"
+ *               resetCode:
+ *                 type: string
+ *                 description: Code sent to user's email for password reset
+ *                 example: "123456"
+ *
  *     responses:
  *       200:
  *         description: Password reset successfully, notification sent
@@ -712,31 +718,73 @@ router.post("/verify-reset-code", typedAuthController.VerifyResetCode);
  *                 message:
  *                   type: string
  *                   example: "Password reset successfully, notification sent"
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     dateOfBirth:
+ *                       type: string
+ *                     isEmailVerified:
+ *                       type: boolean
+ *                 refreshtoken:
+ *                   type: string
+ *                   description: JWT refresh token
+ *                 accesstoken:
+ *                   type: string
+ *                   description: JWT access token
+ *
  *       400:
  *         description: Validation error or missing fields
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Email, password, and reset code are required"
+ *
  *       401:
  *         description: Invalid reset code or unauthorized
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid or expired reset code"
+ *
  *       404:
  *         description: User not found
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "User not found"
+ *
  *       500:
  *         description: Internal server error (email sending / DB update failed)
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error"
  */
+
 router.post("/reset-password",  typedAuthController.ResetPassword);
 
 // --- Session & Logout Routes ---
@@ -964,15 +1012,22 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
 // --- Sensitive Change Routes (Require Auth & Reauth) ---
 
 /**
- * @swagger
+ * @openapi
  * /change-password:
  *   post:
  *     summary: Change user password
- *     description: Allows an authenticated user to change their password after verifying the old one. Invalidates old tokens by incrementing token version.
+ *     description: >
+ *       Allows an authenticated user to change their account password after validating the old one.
+ *       The system checks password strength, prevents reuse of old passwords, updates the stored hash
+ *       with a new salt, increments `tokenVersion` to invalidate previous tokens, and logs password
+ *       history for security. A security notification email is then sent to the account owner.
+ *       This endpoint requires a valid Bearer token.
+ *
  *     tags:
  *       - Account
  *     security:
  *       - bearerAuth: []
+ *
  *     requestBody:
  *       required: true
  *       content:
@@ -993,29 +1048,63 @@ router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);
  *               confirmPassword:
  *                 type: string
  *                 example: "NewStrongPass@2025"
+ *
  *     responses:
  *       200:
- *         description: Password updated successfully.
+ *         description: Password updated successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 Message:
+ *                 message:
  *                   type: string
- *                   example: Password updated successfully
- *                 Score:
+ *                   example: "Password updated successfully"
+ *                 score:
  *                   type: object
- *                   description: Password strength analysis
+ *                   description: Password strength analysis result
+ *                   properties:
+ *                     score:
+ *                       type: integer
+ *                       example: 3
+ *                     crack_times_display:
+ *                       type: object
+ *                       example:
+ *                         offline_fast_hashing_1e10_per_second: "centuries"
+ *                         online_no_throttling_10_per_second: "months"
+ *                     feedback:
+ *                       type: object
+ *                       properties:
+ *                         warning:
+ *                           type: string
+ *                           example: "Repeats like 'aaa' are easy to guess"
+ *                         suggestions:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                           example:
+ *                             - "Use a longer password"
+ *                             - "Add more unpredictable words"
+ *
  *       400:
- *         description: Invalid password or validation failed.
+ *         description: Validation failed (missing fields, weak password, confirmation mismatch, etc.)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Confirm password does not match the new password"
+ *
  *       401:
- *         description: Incorrect old password or reauthentication required.
+ *         description: Old password incorrect or reauthentication required.
  *       404:
  *         description: User not found.
  *       500:
- *         description: Internal server error.
+ *         description: Internal server error while updating password or sending notification email.
  */
+
 router.post("/change-password", Auth(), typedAuthController.ChangePassword); //tested
 
 /**
@@ -1116,19 +1205,77 @@ router.post("/verify-new-email",Auth(),  typedAuthController.VerifyNewEmail); //
  * @swagger
  * /user:
  *   get:
- *     summary: Get current user information
- *     description: Retrieves information about the authenticated user.
- *     tags:
- *       - User
+ *     summary: Get authenticated user info including device history
+ *     description: Returns user profile data and previously logged device information.
+ *     tags: [User]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: User info retrieved successfully.
+ *         description: User information with device records
+ *         content:
+ *           application/json:
+ *             example:
+ *               user:
+ *                 id: "uuid"
+ *                 username: "master_hossam"
+ *                 name: "Hossam"
+ *                 email: "test@example.com"
+ *                 dateOfBirth: "2003-10-02"
+ *                 isEmailVerified: true
+ *                 bio: "Backend engineer"
+ *                 protectedAcc: false
+ *               DeviceRecords:
+ *                 - id: "device-id"
+ *                   ip: "102.xx.xx.1"
+ *                   agent: "Firefox on Ubuntu"
+ *                   location: "Cairo, Egypt"
+ *                   updatedAt: "2025-11-18T14:22:10Z"
+ *               message: "User info returned with device history"
  *       401:
- *         description: Unauthorized or token missing.
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
  */
+
 router.get("/user", Auth(),  typedAuthController.GetUser); //tested
+/**
+ * @swagger
+ * /userinfo:
+ *   get:
+ *     summary: Get authenticated user info (Reauthentication required)
+ *     description: Same response as /user but requires a recent reauthentication step before accessing sensitive screens.
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully returned user info and device history
+ *         content:
+ *           application/json:
+ *             example:
+ *               user:
+ *                 id: "uuid"
+ *                 username: "master_hossam"
+ *                 name: "Hossam"
+ *                 email: "user@example.com"
+ *                 dateOfBirth: "2003-10-02"
+ *                 isEmailVerified: true
+ *                 bio: "Backend engineer"
+ *                 protectedAcc: false
+ *               DeviceRecords:
+ *                 - id: "device-id"
+ *                   ip: "102.xx.xx.1"
+ *                   agent: "Firefox on Ubuntu Linux"
+ *                   location: "Cairo, Egypt"
+ *                   updatedAt: "2025-11-18T14:22:10Z"
+ *               message: "User info returned with device history"
+ *       401:
+ *         description: Unauthorized or reauthentication required
+ *       404:
+ *         description: User not found
+ */
+router.get("/userinfo",Auth(),typedAuthController.GetUserz); //tested
 /**
  * @swagger
  * /sessions:
@@ -1204,7 +1351,7 @@ router.delete("/session/:sessionid", Auth(),  typedAuthController.LogoutSession)
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Username updated successfully ✅
+ *                   example: Username updated successfully 
  *                 user:
  *                   type: object
  *                   properties:
@@ -1325,6 +1472,874 @@ router.post("/getUser",typedAuthController.CheckEmail);
  *         description: Internal server error
  */
 router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
+//temp routes for searchEngine
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     IndexStats:
+ *       type: object
+ *       properties:
+ *         totalDocuments:
+ *           type: integer
+ *           example: 1000
+ *         totalTerms:
+ *           type: integer
+ *           example: 5000
+ *         tweets:
+ *           type: integer
+ *           example: 500
+ *         users:
+ *           type: integer
+ *           example: 300
+ *         hashtags:
+ *           type: integer
+ *           example: 200
+ *         urls:
+ *           type: integer
+ *           example: 0
+ *         averageDocLength:
+ *           type: integer
+ *           example: 45
+ *         indexSize:
+ *           type: string
+ *           example: "2.34 MB"
+ *
+ *     SearchResult:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "tweet_12345"
+ *         type:
+ *           type: string
+ *           enum: [tweet, user, hashtag, url]
+ *           example: "tweet"
+ *         score:
+ *           type: number
+ *           format: float
+ *           example: 45.67
+ *         tfidfScore:
+ *           type: number
+ *           format: float
+ *           example: 12.34
+ *         relevance:
+ *           type: integer
+ *           example: 89
+ *         matchedTokens:
+ *           type: array
+ *           items:
+ *             type: string
+ *           example: ["nodejs", "javascript"]
+ *         data:
+ *           type: object
+ *           example:
+ *             id: "tweet_12345"
+ *             content: "Learning Node.js is awesome"
+ *             username: "johndev"
+ *             likesCount: 150
+ *
+ *     PaginatedSearchResponse:
+ *       type: object
+ *       properties:
+ *         query:
+ *           type: string
+ *           example: "nodejs"
+ *         type:
+ *           type: string
+ *           example: "all"
+ *         results:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/SearchResult'
+ *         total:
+ *           type: integer
+ *           example: 250
+ *         page:
+ *           type: integer
+ *           example: 1
+ *         pageSize:
+ *           type: integer
+ *           example: 20
+ *         pages:
+ *           type: integer
+ *           example: 13
+ *         timestamp:
+ *           type: string
+ *           format: date-time
+ *           example: "2024-01-15T10:30:45.123Z"
+ *
+ *     Document:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "tweet_12345"
+ *         type:
+ *           type: string
+ *           enum: [tweet, user, hashtag, url]
+ *           example: "tweet"
+ *         tokensCount:
+ *           type: integer
+ *           example: 25
+ *         timestamp:
+ *           type: string
+ *           format: date-time
+ *           example: "2024-01-15T10:30:45.123Z"
+ *         data:
+ *           type: object
+ *
+ *     Term:
+ *       type: object
+ *       properties:
+ *         term:
+ *           type: string
+ *           example: "nodejs"
+ *         frequency:
+ *           type: integer
+ *           example: 1234
+ *         documentCount:
+ *           type: integer
+ *           example: 456
+ *
+ *     HealthResponse:
+ *       type: object
+ *       properties:
+ *         status:
+ *           type: string
+ *           example: "ok"
+ *         timestamp:
+ *           type: string
+ *           format: date-time
+ *           example: "2024-01-15T10:30:45.123Z"
+ *         index:
+ *           $ref: '#/components/schemas/IndexStats'
+ *
+ *     ErrorResponse:
+ *       type: object
+ *       properties:
+ *         error:
+ *           type: string
+ *           example: "Failed to index tweets"
+ *         details:
+ *           type: string
+ *           example: "Connection timeout"
+ *
+ *   responses:
+ *     BadRequest:
+ *       description: Bad request. Invalid parameters.
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ErrorResponse'
+ *
+ *     NotFound:
+ *       description: Resource not found.
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ErrorResponse'
+ *
+ *     InternalServerError:
+ *       description: Internal server error.
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ErrorResponse'
+ */
+
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     description: Check if the search engine is running and get index statistics
+ *     tags:
+ *       - Health & Status
+ *     responses:
+ *       200:
+ *         description: Search engine is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HealthResponse'
+ */
+
+/**
+ * @swagger
+ * /stats:
+ *   get:
+ *     summary: Get index statistics
+ *     description: Returns detailed statistics about the search index including document counts, terms, and size
+ *     tags:
+ *       - Health & Status
+ *     responses:
+ *       200:
+ *         description: Index statistics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/tweets:
+ *   post:
+ *     summary: Index tweets from database
+ *     description: Crawl and index tweets from the database with optional pagination
+ *     tags:
+ *       - Indexing - Tweets
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               limit:
+ *                 type: integer
+ *                 default: 100
+ *                 example: 100
+ *                 description: Number of tweets to index
+ *               offset:
+ *                 type: integer
+ *                 default: 0
+ *                 example: 0
+ *                 description: Starting offset for pagination
+ *     responses:
+ *       200:
+ *         description: Tweets indexed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Successfully indexed 100 tweets"
+ *                 count:
+ *                   type: integer
+ *                   example: 100
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/users:
+ *   post:
+ *     summary: Index users from database
+ *     description: Crawl and index users from the database with optional pagination
+ *     tags:
+ *       - Indexing - Users
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               limit:
+ *                 type: integer
+ *                 default: 100
+ *                 example: 100
+ *               offset:
+ *                 type: integer
+ *                 default: 0
+ *                 example: 0
+ *     responses:
+ *       200:
+ *         description: Users indexed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Successfully indexed 100 users"
+ *                 count:
+ *                   type: integer
+ *                   example: 100
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/hashtags:
+ *   post:
+ *     summary: Index hashtags from database
+ *     description: Crawl and index hashtags from the database with optional pagination
+ *     tags:
+ *       - Indexing - Hashtags
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               limit:
+ *                 type: integer
+ *                 default: 100
+ *                 example: 100
+ *               offset:
+ *                 type: integer
+ *                 default: 0
+ *                 example: 0
+ *     responses:
+ *       200:
+ *         description: Hashtags indexed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Successfully indexed 100 hashtags"
+ *                 count:
+ *                   type: integer
+ *                   example: 100
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/batch:
+ *   post:
+ *     summary: Batch index large datasets
+ *     description: Crawl and index large amounts of data (tweets, users, or hashtags) in optimized batches for scalability
+ *     tags:
+ *       - Indexing - Batch
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [tweets, users, hashtags]
+ *                 example: tweets
+ *                 description: Type of data to index
+ *               limit:
+ *                 type: integer
+ *                 default: 5000
+ *                 example: 5000
+ *                 description: Total number of items to index (processes in 500-item batches)
+ *     responses:
+ *       200:
+ *         description: Batch indexing completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Successfully batch indexed 5000 tweets"
+ *                 count:
+ *                   type: integer
+ *                   example: 5000
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/all:
+ *   post:
+ *     summary: Index all data types
+ *     description: Crawl and index tweets, users, and hashtags from the database simultaneously
+ *     tags:
+ *       - Indexing - All
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               limit:
+ *                 type: integer
+ *                 default: 100
+ *                 example: 100
+ *     responses:
+ *       200:
+ *         description: All data indexed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Successfully indexed all data"
+ *                 counts:
+ *                   type: object
+ *                   properties:
+ *                     tweets:
+ *                       type: integer
+ *                       example: 100
+ *                     users:
+ *                       type: integer
+ *                       example: 100
+ *                     hashtags:
+ *                       type: integer
+ *                       example: 100
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /search:
+ *   get:
+ *     summary: Search across all content types
+ *     description: Perform a global search with advanced options including fuzzy matching, phrase search, and pagination
+ *     tags:
+ *       - Search - Global
+ *     parameters:
+ *       - name: q
+ *         in: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: nodejs
+ *         description: Search query
+ *       - name: limit
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           minimum: 1
+ *           maximum: 100
+ *         example: 20
+ *         description: Results per page (max 100)
+ *       - name: offset
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *           minimum: 0
+ *         example: 0
+ *         description: Pagination offset
+ *       - name: type
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [all, tweet, user, hashtag, url]
+ *           default: all
+ *         example: all
+ *         description: Filter results by content type
+ *       - name: fuzzy
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         example: false
+ *         description: Enable fuzzy matching for typo tolerance
+ *       - name: phrase
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         example: false
+ *         description: Enable phrase search for exact multi-word matching
+ *     responses:
+ *       200:
+ *         description: Search results retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaginatedSearchResponse'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /search/{type}:
+ *   get:
+ *     summary: Search by specific content type
+ *     description: Search within a specific type (tweet, user, hashtag, or url) with advanced filtering options
+ *     tags:
+ *       - Search - By Type
+ *     parameters:
+ *       - name: type
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [tweet, user, hashtag, url]
+ *         example: tweet
+ *         description: Content type to search in
+ *       - name: q
+ *         in: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: javascript
+ *         description: Search query
+ *       - name: limit
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           minimum: 1
+ *           maximum: 100
+ *         example: 20
+ *         description: Results per page
+ *       - name: offset
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *           minimum: 0
+ *         example: 0
+ *         description: Pagination offset
+ *       - name: fuzzy
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         example: false
+ *         description: Enable fuzzy matching
+ *       - name: phrase
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         example: false
+ *         description: Enable phrase search
+ *     responses:
+ *       200:
+ *         description: Search results retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaginatedSearchResponse'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /documents:
+ *   get:
+ *     summary: Retrieve indexed documents
+ *     description: Get a list of all indexed documents with optional filtering by type
+ *     tags:
+ *       - Documents
+ *     parameters:
+ *       - name: type
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [tweet, user, hashtag, url]
+ *         example: tweet
+ *         description: Filter documents by type
+ *       - name: limit
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *           minimum: 1
+ *           maximum: 1000
+ *         example: 100
+ *         description: Maximum documents to return
+ *     responses:
+ *       200:
+ *         description: Documents retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total:
+ *                   type: integer
+ *                   example: 500
+ *                 returned:
+ *                   type: integer
+ *                   example: 100
+ *                 type:
+ *                   type: string
+ *                   example: tweet
+ *                 documents:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Document'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /terms:
+ *   get:
+ *     summary: Get most frequent terms in index
+ *     description: Retrieve the most frequently occurring terms in the index with their document frequency statistics
+ *     tags:
+ *       - Analytics
+ *     parameters:
+ *       - name: limit
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           minimum: 1
+ *           maximum: 500
+ *         example: 50
+ *         description: Number of top terms to return
+ *     responses:
+ *       200:
+ *         description: Terms retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total:
+ *                   type: integer
+ *                   example: 5000
+ *                 returned:
+ *                   type: integer
+ *                   example: 50
+ *                 terms:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Term'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /crawl:
+ *   post:
+ *     summary: Crawl and index a single URL
+ *     description: Fetch a URL, parse its content, and add it to the search index
+ *     tags:
+ *       - Web Crawling
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - url
+ *             properties:
+ *               url:
+ *                 type: string
+ *                 format: uri
+ *                 example: https://example.com
+ *                 description: URL to crawl and index
+ *     responses:
+ *       200:
+ *         description: URL crawled and indexed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "URL crawled and indexed successfully"
+ *                 documentId:
+ *                   type: string
+ *                   example: "https://example.com"
+ *                 url:
+ *                   type: string
+ *                   example: "https://example.com"
+ *                 title:
+ *                   type: string
+ *                   example: "Example Domain"
+ *                 tokensCount:
+ *                   type: integer
+ *                   example: 45
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /crawl/batch:
+ *   post:
+ *     summary: Crawl and index multiple URLs
+ *     description: Fetch multiple URLs in parallel, parse their content, and add them to the search index
+ *     tags:
+ *       - Web Crawling
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - urls
+ *             properties:
+ *               urls:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uri
+ *                 example:
+ *                   - https://example.com
+ *                   - https://example.org
+ *                   - https://example.net
+ *                 description: Array of URLs to crawl
+ *     responses:
+ *       200:
+ *         description: URLs crawled and indexed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "URLs crawled and indexed successfully"
+ *                 count:
+ *                   type: integer
+ *                   example: 3
+ *                 documents:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       url:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       type:
+ *                         type: string
+ *                       tokensCount:
+ *                         type: integer
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/save:
+ *   post:
+ *     summary: Save index to Redis
+ *     description: Persist the current search index to Redis for fault tolerance and recovery
+ *     tags:
+ *       - Persistence
+ *     responses:
+ *       200:
+ *         description: Index saved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Index saved to Redis successfully"
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/load:
+ *   post:
+ *     summary: Load index from Redis
+ *     description: Restore a previously saved search index from Redis
+ *     tags:
+ *       - Persistence
+ *     responses:
+ *       200:
+ *         description: Index loaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Index loaded from Redis"
+ *                 data:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       404:
+ *         description: Index not found in Redis
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
+/**
+ * @swagger
+ * /index/clear:
+ *   delete:
+ *     summary: Clear the entire search index
+ *     description: Remove all documents and indexes from memory. WARNING - This operation cannot be undone without reindexing
+ *     tags:
+ *       - Index Management
+ *     responses:
+ *       200:
+ *         description: Index cleared successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Index cleared successfully"
+ *                 stats:
+ *                   $ref: '#/components/schemas/IndexStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+
 router.use(AfterChange());
 router.use(GeoGurd());
 export default router;

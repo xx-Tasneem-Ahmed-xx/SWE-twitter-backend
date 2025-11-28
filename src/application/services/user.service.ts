@@ -73,10 +73,17 @@ export class UserService {
         ...serializedUser,
         isFollower: false,
         isFollowing: false,
+        muted: false,
+        blocked: false,
       };
     }
 
-    const [isFollowerRelation, isFollowingRelation] = await Promise.all([
+    const [
+      isFollowerRelation,
+      isFollowingRelation,
+      mutedRelation,
+      blockedRelation,
+    ] = await Promise.all([
       prisma.follow.findUnique({
         where: {
           followerId_followingId: {
@@ -93,12 +100,30 @@ export class UserService {
           },
         },
       }),
+      prisma.mute.findUnique({
+        where: {
+          muterId_mutedId: {
+            muterId: viewerId,
+            mutedId: user.id,
+          },
+        },
+      }),
+      prisma.block.findUnique({
+        where: {
+          blockerId_blockedId: {
+            blockerId: viewerId,
+            blockedId: user.id,
+          },
+        },
+      }),
     ]);
 
     return {
       ...serializedUser,
       isFollower: !!isFollowerRelation,
       isFollowing: !!isFollowingRelation,
+      muted: !!mutedRelation,
+      blocked: !!blockedRelation,
     };
   }
 
