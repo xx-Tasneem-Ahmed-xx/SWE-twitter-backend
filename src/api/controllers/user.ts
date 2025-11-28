@@ -1142,30 +1142,7 @@ export async function ChangePassword(
       role: "user",
     });
 
-    res.cookie("refresh_token", refreshObj.token, {
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
-      const result = await utils.SetDeviceInfo(req, res, email);
-   const devid = result.devid;
-const accessObj = await utils.GenerateJwt({
-      username: user.username,
-      email,
-      id: user.id,
-      expiresInSeconds: 60 * 60,
-      version: user.tokenVersion || 0,
-      devid,
-      role: "user",
-    });
 
-    const refreshObj = await utils.GenerateJwt({
-      username: user.username,
-      email,
-      id: user.id,
-      expiresInSeconds: 30 * 24 * 60 * 60,
-      version: user.tokenVersion || 0,
-      devid,
-      role: "user",
-    });
 
     res.cookie("refresh_token", refreshObj.token, {
       maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -1198,8 +1175,6 @@ If you did NOT change your password, please secure your account immediately.
    
     return utils.SendRes(res, {
       refresh_token: refreshObj.token,
-      accesstoken: accessObj.token,
-       refresh_token: refreshObj.token,
       accesstoken: accessObj.token,
       Message: "Password updated successfully",
       Score: score,
