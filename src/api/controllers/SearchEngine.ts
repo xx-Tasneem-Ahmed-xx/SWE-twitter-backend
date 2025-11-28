@@ -1,32 +1,33 @@
 // ===========================
 // TYPES & INTERFACES
 // ===========================
-import { parse as parseHtml } from 'node-html-parser';
-import { PrismaClient } from '@prisma/client';
+import { parse as parseHtml } from "node-html-parser";
+import { prisma as clientPrisma } from "@/prisma/client";
+import type { PrismaClient } from "@prisma/client";
 
-import Redis from 'ioredis';
-import { PorterStemmer } from 'natural';
-import Levenshtein from 'fast-levenshtein';
-import {apiRoutes }from '../routes/searchRoutes'
-import { getSecrets } from '@/config/secrets';
+import Redis from "ioredis";
+import { PorterStemmer } from "natural";
+import Levenshtein from "fast-levenshtein";
+import { apiRoutes } from "../routes/searchRoutes";
+import { getSecrets } from "@/config/secrets";
 // Logger utility
-const {DEBUG} = getSecrets()
+const { DEBUG } = getSecrets();
 export class Logger {
   private context: string;
   constructor(context: string) {
     this.context = context;
   }
   info(msg: string, data?: any) {
-    console.log(`[${this.context}]   ${msg}`, data || '');
+    console.log(`[${this.context}]   ${msg}`, data || "");
   }
   error(msg: string, error?: any) {
-    console.error(`[${this.context}]  ${msg}`, error || '');
+    console.error(`[${this.context}]  ${msg}`, error || "");
   }
   warn(msg: string, data?: any) {
-    console.warn(`[${this.context}]   ${msg}`, data || '');
+    console.warn(`[${this.context}]   ${msg}`, data || "");
   }
   debug(msg: string, data?: any) {
-    if (DEBUG) console.log(`[${this.context}] 🐛 ${msg}`, data || '');
+    if (DEBUG) console.log(`[${this.context}] 🐛 ${msg}`, data || "");
   }
 }
 
@@ -59,7 +60,7 @@ export interface CrawledHashtag {
 
 export interface ParsedDocument {
   id: string;
-  type: 'tweet' | 'user' | 'hashtag' | 'url';
+  type: "tweet" | "user" | "hashtag" | "url";
   tokens: string[];
   stemmedTokens: string[];
   data: any;
@@ -79,7 +80,7 @@ export interface DocumentFrequency {
 
 export interface SearchResult {
   id: string;
-  type: 'tweet' | 'user' | 'hashtag' | 'url';
+  type: "tweet" | "user" | "hashtag" | "url";
   score: number;
   tfidfScore: number;
   data: any;
@@ -115,37 +116,104 @@ export interface IndexStats {
 
 export class AdvancedTokenizer {
   private stopWords = new Set([
-    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
-    'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
-    'to', 'was', 'will', 'with', 'this', 'but', 'they', 'have', 'had',
-    'or', 'not', 'been', 'being', 'can', 'could', 'would', 'should',
-    'i', 'me', 'my', 'you', 'your', 'we', 'our', 'what', 'which', 'who',
-    'when', 'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few',
-    'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'only', 'own',
-    'same', 'so', 'than', 'too', 'very', 'just', 'then', 'now', 'here'
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "has",
+    "he",
+    "in",
+    "is",
+    "it",
+    "its",
+    "of",
+    "on",
+    "that",
+    "the",
+    "to",
+    "was",
+    "will",
+    "with",
+    "this",
+    "but",
+    "they",
+    "have",
+    "had",
+    "or",
+    "not",
+    "been",
+    "being",
+    "can",
+    "could",
+    "would",
+    "should",
+    "i",
+    "me",
+    "my",
+    "you",
+    "your",
+    "we",
+    "our",
+    "what",
+    "which",
+    "who",
+    "when",
+    "where",
+    "why",
+    "how",
+    "all",
+    "each",
+    "every",
+    "both",
+    "few",
+    "more",
+    "most",
+    "other",
+    "some",
+    "such",
+    "no",
+    "nor",
+    "only",
+    "own",
+    "same",
+    "so",
+    "than",
+    "too",
+    "very",
+    "just",
+    "then",
+    "now",
+    "here",
   ]);
 
   private emojiRegex = /(\u00d7|\u2763|\u{1F300}-\u{1F9FF})/gu;
-  private logger = new Logger('Tokenizer');
+  private logger = new Logger("Tokenizer");
 
   tokenize(text: string): string[] {
     try {
       // Remove emojis but keep hashtags and mentions
-      let cleaned = text.replace(this.emojiRegex, ' ');
-      
+      let cleaned = text.replace(this.emojiRegex, " ");
+
       // Normalize URLs
-      cleaned = cleaned.replace(/https?:\/\/\S+/gi, 'URL');
-      
+      cleaned = cleaned.replace(/https?:\/\/\S+/gi, "URL");
+
       // Split on whitespace and punctuation
-      const words = cleaned.toLowerCase()
-        .replace(/[^\w\s#@]/g, ' ')
+      const words = cleaned
+        .toLowerCase()
+        .replace(/[^\w\s#@]/g, " ")
         .split(/\s+/)
-        .filter(word => word.length > 1);
+        .filter((word) => word.length > 1);
 
       // Filter stopwords
-      return words.filter(word => !this.stopWords.has(word));
+      return words.filter((word) => !this.stopWords.has(word));
     } catch (error) {
-      this.logger.error('Tokenization failed', error);
+      this.logger.error("Tokenization failed", error);
       return [];
     }
   }
@@ -153,7 +221,7 @@ export class AdvancedTokenizer {
   stem(word: string): string {
     try {
       // Handle hashtags and mentions specially
-      if (word.startsWith('#') || word.startsWith('@')) {
+      if (word.startsWith("#") || word.startsWith("@")) {
         return word;
       }
       // use the correct PorterStemmer API
@@ -164,12 +232,12 @@ export class AdvancedTokenizer {
   }
 
   normalizeHashtag(tag: string): string {
-    return tag.toLowerCase().replace(/^#+/, '');
+    return tag.toLowerCase().replace(/^#+/, "");
   }
 
   tokenizeAndStem(text: string): { tokens: string[]; stemmed: string[] } {
     const tokens = this.tokenize(text);
-    const stemmed = tokens.map(t => this.stem(t));
+    const stemmed = tokens.map((t) => this.stem(t));
     return { tokens, stemmed };
   }
 }
@@ -180,15 +248,18 @@ export class AdvancedTokenizer {
 
 export class PersistenceManager {
   private redis: Redis;
-  private logger = new Logger('Persistence');
+  private logger = new Logger("Persistence");
 
-  constructor(redisUrl: string = 'redis://localhost:6379') {
+  constructor(redisUrl: string = "redis://localhost:6379") {
     this.redis = new Redis(redisUrl);
-    this.redis.on('error', (err) => this.logger.error('Redis error', err));
-    this.redis.on('connect', () => this.logger.info('Redis connected'));
+    this.redis.on("error", (err) => this.logger.error("Redis error", err));
+    this.redis.on("connect", () => this.logger.info("Redis connected"));
   }
 
-  async saveIndex(indexData: any, indexName: string = 'search_index'): Promise<boolean> {
+  async saveIndex(
+    indexData: any,
+    indexName: string = "search_index"
+  ): Promise<boolean> {
     try {
       const serialized = JSON.stringify(indexData);
       await this.redis.set(`${indexName}:data`, serialized);
@@ -196,12 +267,12 @@ export class PersistenceManager {
       this.logger.info(`Index saved: ${indexName}`);
       return true;
     } catch (error) {
-      this.logger.error('Failed to save index', error);
+      this.logger.error("Failed to save index", error);
       return false;
     }
   }
 
-  async loadIndex(indexName: string = 'search_index'): Promise<any | null> {
+  async loadIndex(indexName: string = "search_index"): Promise<any | null> {
     try {
       const data = await this.redis.get(`${indexName}:data`);
       if (!data) {
@@ -211,17 +282,21 @@ export class PersistenceManager {
       this.logger.info(`Index loaded: ${indexName}`);
       return JSON.parse(data);
     } catch (error) {
-      this.logger.error('Failed to load index', error);
+      this.logger.error("Failed to load index", error);
       return null;
     }
   }
 
-  async cacheSearchResults(query: string, results: any, ttl: number = 3600): Promise<void> {
+  async cacheSearchResults(
+    query: string,
+    results: any,
+    ttl: number = 3600
+  ): Promise<void> {
     try {
       const key = `search:${query.toLowerCase()}`;
       await this.redis.setex(key, ttl, JSON.stringify(results));
     } catch (error) {
-      this.logger.warn('Failed to cache results', error);
+      this.logger.warn("Failed to cache results", error);
     }
   }
 
@@ -237,7 +312,7 @@ export class PersistenceManager {
 
   async close(): Promise<void> {
     await this.redis.quit();
-    this.logger.info('Redis connection closed');
+    this.logger.info("Redis connection closed");
   }
 }
 
@@ -248,7 +323,7 @@ export class PersistenceManager {
 export class BM25Ranker {
   private k1 = 1.5; // Term frequency saturation
   private b = 0.75; // Length normalization
-  private logger = new Logger('BM25');
+  private logger = new Logger("BM25");
 
   calculateBM25(
     query: string[],
@@ -263,13 +338,16 @@ export class BM25Ranker {
 
     for (const term of query) {
       const docFreq = invertedIndex[term]?.size || 0;
-      const termFreq = documentTokens.filter(t => t === term).length;
+      const termFreq = documentTokens.filter((t) => t === term).length;
 
       if (docFreq === 0) continue;
 
-      const idf = Math.log((collectionSize - docFreq + 0.5) / (docFreq + 0.5) + 1);
+      const idf = Math.log(
+        (collectionSize - docFreq + 0.5) / (docFreq + 0.5) + 1
+      );
       const normLength = 1 - this.b + this.b * (docLength / avgDocLength);
-      const bm25Term = idf * ((this.k1 + 1) * termFreq) / (this.k1 * normLength + termFreq);
+      const bm25Term =
+        (idf * ((this.k1 + 1) * termFreq)) / (this.k1 * normLength + termFreq);
 
       score += bm25Term;
     }
@@ -283,15 +361,20 @@ export class BM25Ranker {
     invertedIndex: InvertedIndex,
     collectionSize: number
   ): number {
-    const termFreq = documentTokens.filter(t => t === queryTerm).length;
+    const termFreq = documentTokens.filter((t) => t === queryTerm).length;
     const docFreq = invertedIndex[queryTerm]?.size || 1;
     const idf = Math.log(collectionSize / docFreq);
     return termFreq * idf;
   }
 
-  private calculateAverageDocLength(documents: Map<string, ParsedDocument>): number {
+  private calculateAverageDocLength(
+    documents: Map<string, ParsedDocument>
+  ): number {
     if (documents.size === 0) return 0;
-    const totalLength = Array.from(documents.values()).reduce((sum, doc) => sum + doc.length, 0);
+    const totalLength = Array.from(documents.values()).reduce(
+      (sum, doc) => sum + doc.length,
+      0
+    );
     return totalLength / documents.size;
   }
 }
@@ -301,19 +384,22 @@ export class BM25Ranker {
 // ===========================
 
 export class FuzzyMatcher {
-  private logger = new Logger('FuzzyMatcher');
+  private logger = new Logger("FuzzyMatcher");
   private threshold = 0.7; // 70% similarity
 
   fuzzyMatch(query: string, candidates: string[]): string[] {
     try {
-      return candidates.filter(candidate => {
-        const distance = Levenshtein.get(query.toLowerCase(), candidate.toLowerCase());
+      return candidates.filter((candidate) => {
+        const distance = Levenshtein.get(
+          query.toLowerCase(),
+          candidate.toLowerCase()
+        );
         const maxLen = Math.max(query.length, candidate.length);
         const similarity = 1 - distance / maxLen;
         return similarity >= this.threshold;
       });
     } catch (error) {
-      this.logger.error('Fuzzy matching failed', error);
+      this.logger.error("Fuzzy matching failed", error);
       return [];
     }
   }
@@ -325,7 +411,10 @@ export class FuzzyMatcher {
     let bestScore = 0;
 
     for (const candidate of candidates) {
-      const distance = Levenshtein.get(query.toLowerCase(), candidate.toLowerCase());
+      const distance = Levenshtein.get(
+        query.toLowerCase(),
+        candidate.toLowerCase()
+      );
       const maxLen = Math.max(query.length, candidate.length);
       const similarity = 1 - distance / maxLen;
 
@@ -345,29 +434,32 @@ export class FuzzyMatcher {
 
 export class Crawler {
   private prisma: PrismaClient;
-  private logger = new Logger('Crawler');
+  private logger = new Logger("Crawler");
   private batchSize = 500;
 
   constructor(prisma: PrismaClient) {
     this.prisma = prisma;
   }
 
-  async crawlTweets(limit: number = 1000, offset: number = 0): Promise<CrawledTweet[]> {
+  async crawlTweets(
+    limit: number = 1000,
+    offset: number = 0
+  ): Promise<CrawledTweet[]> {
     this.logger.info(`Crawling tweets: limit=${limit}, offset=${offset}`);
-    
+
     try {
       const tweets = await this.prisma.tweet.findMany({
         take: limit,
         skip: offset,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
           user: { select: { username: true } },
-          hashtags: { include: { hash: true } }
-        }
+          hashtags: { include: { hash: true } },
+        },
       });
 
       this.logger.info(`Crawled ${tweets.length} tweets`);
-      return tweets.map(tweet => ({
+      return tweets.map((tweet) => ({
         id: tweet.id,
         content: tweet.content,
         userId: tweet.userId,
@@ -375,17 +467,20 @@ export class Crawler {
         createdAt: tweet.createdAt,
         likesCount: tweet.likesCount || 0,
         retweetCount: tweet.retweetCount || 0,
-        hashtags: tweet.hashtags.map(h => h.hash.tag_text)
+        hashtags: tweet.hashtags.map((h) => h.hash.tag_text),
       }));
     } catch (error) {
-      this.logger.error('Error crawling tweets', error);
+      this.logger.error("Error crawling tweets", error);
       return [];
     }
   }
 
-  async crawlUsers(limit: number = 1000, offset: number = 0): Promise<CrawledUser[]> {
+  async crawlUsers(
+    limit: number = 1000,
+    offset: number = 0
+  ): Promise<CrawledUser[]> {
     this.logger.info(`Crawling users: limit=${limit}, offset=${offset}`);
-    
+
     try {
       const users = await this.prisma.user.findMany({
         take: limit,
@@ -396,44 +491,47 @@ export class Crawler {
           name: true,
           bio: true,
           verified: true,
-          _count: { select: { followers: true, followings: true } }
-        }
+          _count: { select: { followers: true, followings: true } },
+        },
       });
 
       this.logger.info(`Crawled ${users.length} users`);
-      return users.map(user => ({
+      return users.map((user) => ({
         id: user.id,
         username: user.username,
         name: user.name,
         bio: user.bio,
         verified: user.verified,
         followersCount: user._count?.followers || 0,
-        followingsCount: user._count?.followings || 0
+        followingsCount: user._count?.followings || 0,
       }));
     } catch (error) {
-      this.logger.error('Error crawling users', error);
+      this.logger.error("Error crawling users", error);
       return [];
     }
   }
 
-  async crawlHashtags(limit: number = 1000, offset: number = 0): Promise<CrawledHashtag[]> {
+  async crawlHashtags(
+    limit: number = 1000,
+    offset: number = 0
+  ): Promise<CrawledHashtag[]> {
     this.logger.info(`Crawling hashtags: limit=${limit}, offset=${offset}`);
-    
+
     try {
       const hashtags = await this.prisma.hash.findMany({
         take: limit,
         skip: offset,
-        include: { _count: { select: { tweets: true } } }
+        include: { _count: { select: { tweets: true } } },
       });
 
       this.logger.info(`Crawled ${hashtags.length} hashtags`);
-      return hashtags.map(hash => ({
+      return hashtags.map((hash) => ({
         id: hash.id,
         tag: hash.tag_text,
-        tweetCount: hash._count?.tweets || 0
+        tweetCount: hash._count?.tweets || 0,
       }));
     } catch (error) {
-      this.logger.error('Error crawling hashtags', error);
+      this.logger.error("Error crawling hashtags", error);
       return [];
     }
   }
@@ -451,7 +549,7 @@ export class Crawler {
       return { url, html };
     } catch (error) {
       // Handle fetch abort separately for clearer logs
-      if ((error as any)?.name === 'AbortError') {
+      if ((error as any)?.name === "AbortError") {
         this.logger.warn(`Fetch aborted due to timeout for URL ${url}`);
       } else {
         this.logger.error(`Error crawling URL ${url}`, error);
@@ -462,14 +560,17 @@ export class Crawler {
 
   async crawlMultiple(urls: string[]) {
     const results = await Promise.allSettled(
-      urls.map(url => this.crawlUrl(url))
+      urls.map((url) => this.crawlUrl(url))
     );
     return results
-      .map(r => r.status === 'fulfilled' ? r.value : null)
-      .filter(r => r !== null);
+      .map((r) => (r.status === "fulfilled" ? r.value : null))
+      .filter((r) => r !== null);
   }
 
-  async crawlInBatches(type: 'tweets' | 'users' | 'hashtags', totalLimit: number = 10000) {
+  async crawlInBatches(
+    type: "tweets" | "users" | "hashtags",
+    totalLimit: number = 10000
+  ) {
     this.logger.info(`Starting batch crawl: type=${type}, limit=${totalLimit}`);
     const allData = [];
     let offset = 0;
@@ -478,11 +579,11 @@ export class Crawler {
       const batchLimit = Math.min(this.batchSize, totalLimit - offset);
       let batchData: string | any[] = [];
 
-      if (type === 'tweets') {
+      if (type === "tweets") {
         batchData = await this.crawlTweets(batchLimit, offset);
-      } else if (type === 'users') {
+      } else if (type === "users") {
         batchData = await this.crawlUsers(batchLimit, offset);
-      } else if (type === 'hashtags') {
+      } else if (type === "hashtags") {
         batchData = await this.crawlHashtags(batchLimit, offset);
       }
 
@@ -501,7 +602,7 @@ export class Crawler {
     return Promise.all([
       this.crawlTweets(),
       this.crawlUsers(),
-      this.crawlHashtags()
+      this.crawlHashtags(),
     ]);
   }
 }
@@ -512,7 +613,7 @@ export class Crawler {
 
 export class Parser {
   private tokenizer: AdvancedTokenizer;
-  private logger = new Logger('Parser');
+  private logger = new Logger("Parser");
 
   constructor() {
     this.tokenizer = new AdvancedTokenizer();
@@ -520,76 +621,76 @@ export class Parser {
 
   parseTweet(tweet: CrawledTweet): ParsedDocument {
     const { tokens, stemmed } = this.tokenizer.tokenizeAndStem(tweet.content);
-    
+
     return {
       id: tweet.id,
-      type: 'tweet',
+      type: "tweet",
       tokens,
       stemmedTokens: stemmed,
       data: tweet,
       timestamp: tweet.createdAt.getTime(),
-      length: tokens.length
+      length: tokens.length,
     };
   }
 
   parseUser(user: CrawledUser): ParsedDocument {
-    const text = [user.username, user.name || '', user.bio || ''].join(' ');
+    const text = [user.username, user.name || "", user.bio || ""].join(" ");
     const { tokens, stemmed } = this.tokenizer.tokenizeAndStem(text);
-    
+
     return {
       id: user.id,
-      type: 'user',
+      type: "user",
       tokens,
       stemmedTokens: stemmed,
       data: user,
       timestamp: Date.now(),
-      length: tokens.length
+      length: tokens.length,
     };
   }
 
   parseHashtag(hashtag: CrawledHashtag): ParsedDocument {
     const normalized = this.tokenizer.normalizeHashtag(hashtag.tag);
     const { tokens, stemmed } = this.tokenizer.tokenizeAndStem(normalized);
-    
+
     return {
       id: hashtag.id,
-      type: 'hashtag',
+      type: "hashtag",
       tokens,
       stemmedTokens: stemmed,
       data: hashtag,
       timestamp: Date.now(),
-      length: tokens.length
+      length: tokens.length,
     };
   }
 
   parseUrl(page: { url: string; html: string }): ParsedDocument {
     try {
       const root = parseHtml(page.html);
-      const title = root.querySelector('title')?.text || '';
-      const bodyText = (root as any).text || '';
-      const text = title + ' ' + bodyText;
+      const title = root.querySelector("title")?.text || "";
+      const bodyText = (root as any).text || "";
+      const text = title + " " + bodyText;
       const { tokens, stemmed } = this.tokenizer.tokenizeAndStem(text);
 
       return {
         id: page.url,
-        type: 'url',
+        type: "url",
         tokens,
         stemmedTokens: stemmed,
         data: { url: page.url, title, text: text.substring(0, 500) },
         timestamp: Date.now(),
         url: page.url,
         title,
-        length: tokens.length
+        length: tokens.length,
       };
     } catch (error) {
-      this.logger.error('Error parsing URL', error);
+      this.logger.error("Error parsing URL", error);
       throw error;
     }
   }
 
   parseMultiple(items: any[]): ParsedDocument[] {
     const docs: ParsedDocument[] = [];
-    
+
     for (const item of items) {
       try {
         if (item.html && item.url) {
@@ -602,10 +703,10 @@ export class Parser {
           docs.push(this.parseHashtag(item));
         }
       } catch (error) {
-        this.logger.warn('Error parsing item', error);
+        this.logger.warn("Error parsing item", error);
       }
     }
-    
+
     return docs;
   }
 
@@ -624,12 +725,12 @@ export class Indexer {
   private documents: Map<string, ParsedDocument> = new Map();
   private documentFrequency: DocumentFrequency = {};
   private typeIndex: Map<string, Set<string>> = new Map([
-    ['tweet', new Set()],
-    ['user', new Set()],
-    ['hashtag', new Set()],
-    ['url', new Set()]
+    ["tweet", new Set()],
+    ["user", new Set()],
+    ["hashtag", new Set()],
+    ["url", new Set()],
   ]);
-  private logger = new Logger('Indexer');
+  private logger = new Logger("Indexer");
   private indexSize = 0;
 
   index(parsedDoc: ParsedDocument): void {
@@ -637,7 +738,7 @@ export class Indexer {
     this.typeIndex.get(parsedDoc.type)?.add(parsedDoc.id);
 
     // Index original tokens
-    parsedDoc.tokens.forEach(token => {
+    parsedDoc.tokens.forEach((token) => {
       if (!this.invertedIndex[token]) {
         this.invertedIndex[token] = new Set();
         this.documentFrequency[token] = 0;
@@ -647,7 +748,7 @@ export class Indexer {
     });
 
     // Index stemmed tokens
-    parsedDoc.stemmedTokens.forEach(token => {
+    parsedDoc.stemmedTokens.forEach((token) => {
       if (!this.stemmedIndex[token]) {
         this.stemmedIndex[token] = new Set();
       }
@@ -658,7 +759,7 @@ export class Indexer {
   }
 
   indexMultiple(parsedDocs: ParsedDocument[]): void {
-    parsedDocs.forEach(doc => this.index(doc));
+    parsedDocs.forEach((doc) => this.index(doc));
     this.logger.info(`Indexed ${parsedDocs.length} documents`);
   }
 
@@ -674,10 +775,12 @@ export class Indexer {
     return this.documents;
   }
 
-  getDocumentsByType(type: 'tweet' | 'user' | 'hashtag' | 'url'): ParsedDocument[] {
+  getDocumentsByType(
+    type: "tweet" | "user" | "hashtag" | "url"
+  ): ParsedDocument[] {
     const docIds = this.typeIndex.get(type) || new Set();
     return Array.from(docIds)
-      .map(id => this.documents.get(id))
+      .map((id) => this.documents.get(id))
       .filter((doc): doc is ParsedDocument => doc !== undefined);
   }
 
@@ -686,19 +789,23 @@ export class Indexer {
   }
 
   getIndexStats(): IndexStats {
-    const avgLength = this.documents.size > 0
-      ? Array.from(this.documents.values()).reduce((sum, doc) => sum + doc.length, 0) / this.documents.size
-      : 0;
+    const avgLength =
+      this.documents.size > 0
+        ? Array.from(this.documents.values()).reduce(
+            (sum, doc) => sum + doc.length,
+            0
+          ) / this.documents.size
+        : 0;
 
     return {
       totalDocuments: this.documents.size,
       totalTerms: Object.keys(this.invertedIndex).length,
-      tweets: this.typeIndex.get('tweet')?.size || 0,
-      users: this.typeIndex.get('user')?.size || 0,
-      hashtags: this.typeIndex.get('hashtag')?.size || 0,
-      urls: this.typeIndex.get('url')?.size || 0,
+      tweets: this.typeIndex.get("tweet")?.size || 0,
+      users: this.typeIndex.get("user")?.size || 0,
+      hashtags: this.typeIndex.get("hashtag")?.size || 0,
+      urls: this.typeIndex.get("url")?.size || 0,
       averageDocLength: Math.round(avgLength),
-      indexSize: `${(this.indexSize / 1024 / 1024).toFixed(2)} MB`
+      indexSize: `${(this.indexSize / 1024 / 1024).toFixed(2)} MB`,
     };
   }
 
@@ -708,13 +815,13 @@ export class Indexer {
     this.documents.clear();
     this.documentFrequency = {};
     this.typeIndex = new Map([
-      ['tweet', new Set()],
-      ['user', new Set()],
-      ['hashtag', new Set()],
-      ['url', new Set()]
+      ["tweet", new Set()],
+      ["user", new Set()],
+      ["hashtag", new Set()],
+      ["url", new Set()],
     ]);
     this.indexSize = 0;
-    this.logger.info('Index cleared');
+    this.logger.info("Index cleared");
   }
 }
 
@@ -728,9 +835,13 @@ export class SearchEngine {
   private bm25Ranker: BM25Ranker;
   private fuzzyMatcher: FuzzyMatcher;
   private persistence: PersistenceManager;
-  private logger = new Logger('SearchEngine');
+  private logger = new Logger("SearchEngine");
 
-  constructor(indexer: Indexer, parser: Parser, persistence?: PersistenceManager) {
+  constructor(
+    indexer: Indexer,
+    parser: Parser,
+    persistence?: PersistenceManager
+  ) {
     this.indexer = indexer;
     this.parser = parser;
     this.bm25Ranker = new BM25Ranker();
@@ -738,7 +849,10 @@ export class SearchEngine {
     this.persistence = persistence || new PersistenceManager();
   }
 
-  private searchPhrase(phrase: string, type: 'tweet' | 'user' | 'hashtag' | 'url' | 'all' = 'all'): string[] {
+  private searchPhrase(
+    phrase: string,
+    type: "tweet" | "user" | "hashtag" | "url" | "all" = "all"
+  ): string[] {
     const words = phrase.split(/\s+/);
     const invertedIndex = this.indexer.getInvertedIndex();
     let matchingDocs = new Set<string>();
@@ -748,14 +862,18 @@ export class SearchEngine {
       if (idx === 0) {
         matchingDocs = new Set(docIds);
       } else {
-        matchingDocs = new Set([...matchingDocs].filter(id => docIds.has(id)));
+        matchingDocs = new Set(
+          [...matchingDocs].filter((id) => docIds.has(id))
+        );
       }
     });
 
-    if (type === 'all') return Array.from(matchingDocs);
+    if (type === "all") return Array.from(matchingDocs);
 
-    const typeSet = this.indexer.getDocumentsByType(type as any).map(d => d.id);
-    return Array.from(matchingDocs).filter(id => typeSet.includes(id));
+    const typeSet = this.indexer
+      .getDocumentsByType(type as any)
+      .map((d) => d.id);
+    return Array.from(matchingDocs).filter((id) => typeSet.includes(id));
   }
 
   search(
@@ -763,12 +881,18 @@ export class SearchEngine {
     options: {
       limit?: number;
       offset?: number;
-      type?: 'tweet' | 'user' | 'hashtag' | 'url' | 'all';
+      type?: "tweet" | "user" | "hashtag" | "url" | "all";
       useFuzzy?: boolean;
       usePhrase?: boolean;
     } = {}
   ): PaginatedResults {
-    const { limit = 20, offset = 0, type = 'all', useFuzzy = false, usePhrase = false } = options;
+    const {
+      limit = 20,
+      offset = 0,
+      type = "all",
+      useFuzzy = false,
+      usePhrase = false,
+    } = options;
 
     if (!query || query.trim().length === 0) {
       return {
@@ -779,7 +903,7 @@ export class SearchEngine {
         page: Math.floor(offset / limit) + 1,
         pageSize: limit,
         pages: 0,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     }
 
@@ -788,7 +912,7 @@ export class SearchEngine {
     const { tokens, stemmed } = tokenizer.tokenizeAndStem(query);
 
     if (tokens.length === 0) {
-      this.logger.warn('No valid tokens from query', { query });
+      this.logger.warn("No valid tokens from query", { query });
       return {
         query,
         type,
@@ -809,7 +933,7 @@ export class SearchEngine {
       const invertedIndex = this.indexer.getStemmedIndex();
       matchingDocIds = new Set();
 
-      stemmed.forEach(token => {
+      stemmed.forEach((token) => {
         const docIds = invertedIndex[token] || new Set();
         if (matchingDocIds.size === 0) {
           matchingDocIds = new Set(docIds);
@@ -823,9 +947,9 @@ export class SearchEngine {
     const results: SearchResult[] = [];
     const collectionSize = documents.size;
 
-    matchingDocIds.forEach(docId => {
+    matchingDocIds.forEach((docId) => {
       const doc = documents.get(docId);
-      if (!doc || (type !== 'all' && doc.type !== type)) return;
+      if (!doc || (type !== "all" && doc.type !== type)) return;
 
       const bm25Score = this.bm25Ranker.calculateBM25(
         stemmed,
@@ -836,7 +960,7 @@ export class SearchEngine {
       );
 
       let tfidfScore = 0;
-      stemmed.forEach(token => {
+      stemmed.forEach((token) => {
         tfidfScore += this.bm25Ranker.calculateTFIDF(
           token,
           doc.stemmedTokens,
@@ -845,16 +969,16 @@ export class SearchEngine {
         );
       });
 
-      let finalScore = bm25Score + (tfidfScore * 0.5);
+      let finalScore = bm25Score + tfidfScore * 0.5;
 
       // Boost scores based on document type and metadata
-      if (doc.type === 'user' && doc.data.verified) finalScore *= 2;
-      if (doc.type === 'tweet') {
-        finalScore += (doc.data.likesCount * 0.01);
-        finalScore += (doc.data.retweetCount * 0.02);
+      if (doc.type === "user" && doc.data.verified) finalScore *= 2;
+      if (doc.type === "tweet") {
+        finalScore += doc.data.likesCount * 0.01;
+        finalScore += doc.data.retweetCount * 0.02;
       }
-      if (doc.type === 'hashtag') finalScore += (doc.data.tweetCount * 0.01);
-      if (doc.type === 'user') finalScore += (doc.data.followersCount * 0.001);
+      if (doc.type === "hashtag") finalScore += doc.data.tweetCount * 0.01;
+      if (doc.type === "user") finalScore += doc.data.followersCount * 0.001;
 
       results.push({
         id: doc.id,
@@ -862,11 +986,15 @@ export class SearchEngine {
         score: finalScore,
         tfidfScore,
         data: doc.data,
-        matchedTokens: tokens.filter(t => 
-          doc.tokens.includes(t) || 
-          doc.stemmedTokens.includes(tokenizer.stem(t))
+        matchedTokens: tokens.filter(
+          (t) =>
+            doc.tokens.includes(t) ||
+            doc.stemmedTokens.includes(tokenizer.stem(t))
         ),
-        relevance: Math.min(100, Math.round((bm25Score / (collectionSize * 0.1)) * 100))
+        relevance: Math.min(
+          100,
+          Math.round((bm25Score / (collectionSize * 0.1)) * 100)
+        ),
       });
     });
 
@@ -874,7 +1002,11 @@ export class SearchEngine {
     const total = results.length;
     const paginatedResults = results.slice(offset, offset + limit);
 
-    this.logger.info(`Search completed: query="${query}" results=${total} time=${Date.now() - startTime}ms`);
+    this.logger.info(
+      `Search completed: query="${query}" results=${total} time=${
+        Date.now() - startTime
+      }ms`
+    );
 
     return {
       query,
@@ -884,13 +1016,13 @@ export class SearchEngine {
       page: Math.floor(offset / limit) + 1,
       pageSize: limit,
       pages: Math.ceil(total / limit),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
   searchByType(
     query: string,
-    type: 'tweet' | 'user' | 'hashtag' | 'url',
+    type: "tweet" | "user" | "hashtag" | "url",
     limit: number = 20,
     offset: number = 0
   ): PaginatedResults {
@@ -902,24 +1034,24 @@ export class SearchEngine {
 // EXPRESS API
 // ===========================
 
-
-
 // ===========================
 // INITIALIZATION & SETUP
 // ===========================
 
 export async function initializeSearchEngine(redisUrl?: string) {
-  const logger = new Logger('Init');
-  
+  const logger = new Logger("Init");
+
   try {
-    const prisma = new PrismaClient();
+    const prisma = clientPrisma;
     const crawler = new Crawler(prisma);
     const parser = new Parser();
     const indexer = new Indexer();
-    const persistence = new PersistenceManager(redisUrl || 'redis://localhost:6379');
+    const persistence = new PersistenceManager(
+      redisUrl || "redis://localhost:6379"
+    );
     const searchEngine = new SearchEngine(indexer, parser, persistence);
 
-    logger.info('Search engine initialized successfully');
+    logger.info("Search engine initialized successfully");
 
     return {
       crawler,
@@ -927,14 +1059,17 @@ export async function initializeSearchEngine(redisUrl?: string) {
       indexer,
       searchEngine,
       persistence,
-      apiRoutes: (app: any) => app.use('/api', apiRoutes(crawler, parser, indexer, searchEngine, persistence))
+      apiRoutes: (app: any) =>
+        app.use(
+          "/api",
+          apiRoutes(crawler, parser, indexer, searchEngine, persistence)
+        ),
     };
   } catch (error) {
-    logger.error('Failed to initialize search engine', error);
+    logger.error("Failed to initialize search engine", error);
     throw error;
   }
 }
-
 
 // ===== USAGE EXAMPLE =====
 /*

@@ -1,4 +1,4 @@
-name: PR Dev & Build Check
+name: PR Build Check
 
 on:
   pull_request:
@@ -6,8 +6,8 @@ on:
       - main
 
 jobs:
-  dev-and-build:
-    name: Dev then Build
+  build:
+    name: Build
     runs-on: ubuntu-latest
 
     steps:
@@ -29,6 +29,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+        
+      - name: Generate Prisma Client
+        run: npx prisma generate
 
       - name: Build Project
         run: npm run build
