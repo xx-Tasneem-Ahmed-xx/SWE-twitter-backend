@@ -1,19 +1,27 @@
-name: Build
+name: SonarQube PR Analysis
+
 on:
- workflow_dispatch:
-  push:
-    branches:
-      - main
   pull_request:
     types: [opened, synchronize, reopened]
+
 jobs:
-  sonarqube:
-    name: SonarQube
+  sonar-pr:
+    name: Sonar PR Scan
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - run: npm install
+
+      - run: npm test --if-present
+
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v6
         env:
