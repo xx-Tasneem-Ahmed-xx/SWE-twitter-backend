@@ -289,6 +289,7 @@ class TweetService {
           throw err;
         }
       );
+      return retweet;
     });
   }
 
