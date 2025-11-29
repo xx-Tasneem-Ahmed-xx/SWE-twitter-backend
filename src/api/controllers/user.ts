@@ -62,7 +62,9 @@ const {
   githubState,
   FRONTEND_URL,
   GITHUB_CLIENT_SECRET,
-
+GITHUB_SECRET_FRONT,
+GITHUB_CLIENT_ID_FRONT,
+GITHUB_RED_URL_FRONT,
 } = getSecrets();
 
 function timingSafeEqual(
@@ -1601,11 +1603,7 @@ export async function exchangeGoogleCode(code: string) {
 //   }
 // }
 /* --------------------- OAuth Controllers --------------------- */
-const {
-GITHUB_SECRET_FRONT,
-GITHUB_CLIENT_ID_FRONT,
-GITHUB_RED_URL_FRONT,
-}=getSecrets();
+
 export async function exchangeGithubCodeFront(code: string) {
   try {
     // ❌ WRONG: You were using variable names as keys
@@ -1617,11 +1615,11 @@ export async function exchangeGithubCodeFront(code: string) {
       redirect_uri: GITHUB_RED_URL_FRONT,        // ✅ Not "redirectUri"
     };
 
-    // console.log('🔍 GitHub Token Exchange Debug:');
-    // console.log('client_id:', githubClientId ? '✅ Set' : '❌ UNDEFINED');
-    // console.log('client_secret:', GITHUB_CLIENT_SECRET ? '✅ Set' : '❌ UNDEFINED');
-    // console.log('redirect_uri:', redirectUri);
-    // console.log('code:', code ? code.substring(0, 15) + '...' : '❌ NO CODE');
+    console.log('🔍 GitHub Token Exchange Debug:');
+    console.log('client_id:', GITHUB_CLIENT_ID_FRONT ? '✅ Set' : '❌ UNDEFINED');
+    console.log('client_secret:', GITHUB_SECRET_FRONT ? '✅ Set' : '❌ UNDEFINED');
+    console.log('redirect_uri:', GITHUB_RED_URL_FRONT);
+    console.log('code:', code ? code.substring(0, 15) + '...' : '❌ NO CODE');
 
     const resp = await axios.post(
       "https://github.com/login/oauth/access_token",
@@ -1851,22 +1849,78 @@ export async function CallbackGithubFront(
   res: Response,
   next: NextFunction
 ) {
+  const code = req.query.code as string;
+  
   try {
-    const code = req.query.code as string;
-    if (!code) throw new AppError("Authorization code is missing", 400);
+    const state = req.query.state as string;
+    const error = req.query.error as string;
 
-    const tokenResp = await exchangeGithubCode(code);
+    console.log('=== GitHub Callback Front ===');
+    console.log('code:', code ? code.substring(0, 10) + '...' : '❌ Missing');
+    console.log('state:', state);
+    console.log('error:', error || 'None');
+
+    // Check for OAuth error from GitHub
+    if (error) {
+      throw new AppError(`GitHub OAuth error: ${error}`, 400);
+    }
+
+    if (!code) {
+      throw new AppError("Authorization code is missing", 400);
+    }
+
+    // ✅ PREVENT DUPLICATE PROCESSING using Redis
+    const codeKey = `oauth:github:code:${code}`;
+    const isProcessing = await redisClient.get(codeKey);
+    
+    if (isProcessing) {
+      console.log('⚠️ Code already being processed, ignoring duplicate request');
+      return res.status(400).json({
+        error: 'Authorization already in progress',
+        message: 'This authorization code is already being processed'
+      });
+    }
+
+    // Mark this code as being processed (expires in 30 seconds)
+    await redisClient.set(codeKey, 'processing', { EX: 30 });
+
+    // Verify state to prevent CSRF
+    const secrets = getSecrets();
+    if (state !== secrets.githubState) {
+      await redisClient.del(codeKey); // Clean up on error
+      console.error('State mismatch!', { received: state, expected: secrets.githubState });
+      throw new AppError("Invalid state parameter - possible CSRF attack", 400);
+    }
+
+    // Exchange code for access token
+    const tokenResp = await exchangeGithubCodeFront(code);
     const accessToken = tokenResp.access_token as string;
-console.log("GITHUB TOKEN:", accessToken);
 
-    const emails = await fetchGithubEmails(accessToken);
+    console.log("GITHUB TOKEN:", accessToken ? '✅ Received' : '❌ Missing');
+
+    if (!accessToken) {
+      await redisClient.del(codeKey); // Clean up on error
+      throw new AppError("Failed to obtain access token from GitHub", 500);
+    }
+
+    // Fetch user emails
+    const emails = await fetchGithubEmailsFront(accessToken);
     const primary = emails.find((e: any) => e.primary && e.verified);
-    if (!primary) throw new AppError("No verified email found", 400);
+    
+    if (!primary) {
+      await redisClient.del(codeKey); // Clean up on error
+      throw new AppError("No verified primary email found in GitHub account", 400);
+    }
 
     const email = primary.email as string;
-    const userProfile = await fetchGithubUser(accessToken);
+    console.log('GitHub email:', email);
+
+    // Fetch user profile
+    const userProfile = await fetchGithubUserFront(accessToken);
     const name = userProfile.name || userProfile.login;
     const providerId = userProfile.id.toString();
+
+    console.log('GitHub user:', { name, providerId });
 
     // 🔹 Find or create user
     let oauth = await prisma.oAuthAccount.findFirst({
@@ -1877,6 +1931,7 @@ console.log("GITHUB TOKEN:", accessToken);
     let user;
     if (oauth) {
       user = oauth.user;
+      console.log('Existing user found:', user.username);
     } else {
       user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
@@ -1894,10 +1949,12 @@ console.log("GITHUB TOKEN:", accessToken);
             },
           },
         });
+        console.log('New user created:', user.username);
       } else {
         await prisma.oAuthAccount.create({
           data: { provider: "github", providerId, userId: user.id },
         });
+        console.log('OAuth account linked to existing user:', user.username);
       }
     }
 
@@ -1929,11 +1986,12 @@ console.log("GITHUB TOKEN:", accessToken);
       { EX: 60 * 60 * 24 * 30 }
     );
 
-    res.cookie("refresh-token", refreshToken, {
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-      httpOnly: true,
-      secure: true,
-    });
+    // res.cookie("refresh-token", refreshToken, {
+    //   maxAge: 1000 * 60 * 60 * 24 * 30,
+    //   httpOnly: true,
+    //   secure: true,
+    //   sameSite: 'lax', // ✅ Added for better security
+    // });
 
     await prisma.user.update({
       where: { email },
@@ -1944,7 +2002,7 @@ console.log("GITHUB TOKEN:", accessToken);
     const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
     const geo = await utils.Sendlocation(ip);
 
-    // 📧 Send Professional Login Email
+    // 📧 Send Professional Login Email (non-blocking)
     const emailMsg = `
 👋 Hello, ${user.username || name}
 
@@ -1957,12 +2015,15 @@ We noticed a new login to your account via GitHub.
 
 Your login was successful 🎉
 
-If this wasn’t you, please reset your password or contact support immediately.
+If this wasn't you, please reset your password or contact support immediately.
 
 — The Artemisa Security Team 🦊
 `;
 
-    await utils.SendEmailSmtp(res, email, emailMsg);
+    // ✅ Send email asynchronously (don't block the response)
+    utils.SendEmailSmtp(res, email, emailMsg).catch(err => {
+      console.error('Failed to send login email:', err);
+    });
 
     const redirectUrl = `https://ingeborg-untrammed-leo.ngrok-free.dev/login/success?token=${encodeURIComponent(
       token.token
@@ -1979,9 +2040,23 @@ If this wasn’t you, please reset your password or contact support immediately.
       })
     )}`;
 
+    console.log('✅ GitHub OAuth successful, redirecting to frontend');
+    
+    // Clean up the Redis key
+    await redisClient.del(codeKey);
+    
     return res.redirect(redirectUrl);
   } catch (err) {
-    console.error("CallbackGithub err:", err);
+    console.error("CallbackGithubFront err:", err);
+    
+    // Clean up on error
+    if (code) {
+      const codeKey = `oauth:github:code:${code}`;
+      await redisClient.del(codeKey).catch(() => {
+        // Ignore cleanup errors
+      });
+    }
+    
     next(err);
   }
 }
