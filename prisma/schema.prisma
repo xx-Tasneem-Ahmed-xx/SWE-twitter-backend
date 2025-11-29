@@ -438,11 +438,6 @@ enum NotificationTitle {
   MENTION
   LOGIN
   PASSWORD_CHANGED
-  EMAIL_CHANGED
-  GOOGLE_REGSTER
-  GITHUB_REGSTER
- login_new device_location
-  Failed_login_attempts
 }
 
 enum MediaType {

@@ -245,12 +245,15 @@ export class AdvancedTokenizer {
 // ===========================
 // PERSISTENCE LAYER
 // ===========================
+const {
+REDIS_URL,
+}= getSecrets();
 
 export class PersistenceManager {
   private redis: Redis;
   private logger = new Logger("Persistence");
 
-  constructor(redisUrl: string = "redis://localhost:6379") {
+  constructor(redisUrl: string =REDIS_URL ) {
     this.redis = new Redis(redisUrl);
     this.redis.on("error", (err) => this.logger.error("Redis error", err));
     this.redis.on("connect", () => this.logger.info("Redis connected"));
@@ -1047,7 +1050,7 @@ export async function initializeSearchEngine(redisUrl?: string) {
     const parser = new Parser();
     const indexer = new Indexer();
     const persistence = new PersistenceManager(
-      redisUrl || "redis://localhost:6379"
+      redisUrl || REDIS_URL
     );
     const searchEngine = new SearchEngine(indexer, parser, persistence);
 

@@ -837,31 +837,31 @@ If this wasn't you, secure your account immediately!
     utils.SendEmailSmtp(res, email, emailMessage).catch(() => {
       throw new AppError("Failed to send password change notification", 500);
     });
-    const deviceBrowser =
-      typeof deviceRecord === "object" && deviceRecord
-        ? (deviceRecord as any).browser || "unknown"
-        : typeof deviceRecord === "string"
-        ? deviceRecord
-        : "unknown";
+    // const deviceBrowser =
+    //   typeof deviceRecord === "object" && deviceRecord
+    //     ? (deviceRecord as any).browser || "unknown"
+    //     : typeof deviceRecord === "string"
+    //     ? deviceRecord
+    //     : "unknown";
 
-    const country =
-      typeof location === "object" && location
-        ? (location as any).Country || (location as any).country || "unknown"
-        : typeof location === "string"
-        ? location
-        : "unknown";
-    await addNotification(
-      user.id as UUID,
-      {
-        title: NotificationTitle.PASSWORD_CHANGED,
-        body: `Password of this account has been changed of ${deviceBrowser} at ${country}`,
-        actorId: user.id as UUID,
-        tweetId: "32423",
-      },
-      (err) => {
-        if (err) throw new AppError(err, 500);
-      }
-    );
+    // const country =
+    //   typeof location === "object" && location
+    //     ? (location as any).Country || (location as any).country || "unknown"
+    //     : typeof location === "string"
+    //     ? location
+    //     : "unknown";
+    // await addNotification(
+    //   user.id as UUID,
+    //   {
+    //     title: NotificationTitle.PASSWORD_CHANGED,
+    //     body: `Password of this account has been changed of ${deviceBrowser} at ${country}`,
+    //     actorId: user.id as UUID,
+    //     tweetId: "32423",
+    //   },
+    //   (err) => {
+    //     if (err) throw new AppError(err, 500);
+    //   }
+    // );
 
     const accessObj = await utils.GenerateJwt({
       username: user.username,
@@ -1790,7 +1790,7 @@ If this wasn’t you, please reset your password or contact support immediately.
 
     await utils.SendEmailSmtp(res, email, emailMsg);
 
-    const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
+    const redirectUrl = `myapp://login/success?token=${encodeURIComponent(
       token.token
     )}&refresh-token=${encodeURIComponent(
       refreshToken.token

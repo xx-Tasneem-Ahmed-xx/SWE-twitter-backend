@@ -47,7 +47,7 @@ const router: Router = express.Router();
  *       500:
  *         description: Internal server error during authorization setup.
  */
-router.post("/authorize/:provider", typedOauthController.Authorize);
+router.get("/authorize/:provider", typedOauthController.Authorize);
 /**
  * @openapi
  * /callback/google:
