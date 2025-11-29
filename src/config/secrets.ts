@@ -8,14 +8,22 @@ export async function loadSecrets() {
     PEPPER: await getKey("PEPPER"),
     DOMAIN: await getKey("DOMAIN"),
     CLIENT_DOMAIN: await getKey("CLIENT_DOMAIN"),
-    client_id: await getKey("GITHUB_CLIENT_ID"),
-    client_secret: await getKey("GITHUB_CLIENT_ID"),
-    redirect_uri: await getKey("GITHUB_RED_URL"),
-    redirectUri: await getKey("RED_URL_PRD"),
+    //google
+    client_id: await getKey("CLIENT_ID"),
+    client_secret: await getKey("CLIENT_SECRET"),
+    redirect_uri: await getKey("RED_URL_PRD"),
     google_state: await getKey("GOOGLE_STATE"),
+    //github
+    redirectUri: await getKey("GITHUB_RED_URL"),
+    GITHUB_CLIENT_SECRET: await getKey("GITHUB_CLIENT_SECRET"),
     githubClientId: await getKey("GITHUB_CLIENT_ID"),
-    githubRedirectUrl: await getKey("GITHUB_RED_URL"),
+    
     githubState: await getKey("GITHUB_STATE"),
+//github front
+  GITHUB_RED_URL_FRONT: await getKey("GITHUB_RED_URL_FRONT"),
+    GITHUB_SECRET_FRONT: await getKey("GITHUB_SECRET_FRONT"),
+    GITHUB_CLIENT_ID_FRONT: await getKey("GITHUB_CLIENT_ID_FRONT"),
+//
     FRONTEND_URL: await getKey("FRONTEND_URL"),
     domain: await getKey("DOMAIN"),
     Mail_email: await getKey("Mail_email"),
