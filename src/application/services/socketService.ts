@@ -120,7 +120,7 @@ export class SocketService {
     }
   }
 
-  private async getAllUsers(chatId: string): Promise<string[]> {
+  public async getAllUsers(chatId: string): Promise<string[]> {
     const usersId = await prisma.chat.findUnique({
       where: {
         id: chatId,
@@ -173,8 +173,8 @@ export class SocketService {
 
     socket.on("add-message", async (data: { message: newMessageInput }) => {
       try {
-        await addMessageToChat(data.message, userId);
-        this.io.to(userId).emit("message-added", { chatId: data.message.chatId });
+        const messageId = await addMessageToChat(data.message, userId);
+        this.io.to(userId).emit("message-added", { chatId: data.message.chatId, messageId });
       } catch (error) {
         console.error("Error adding message to chat via socket:", error);
       }

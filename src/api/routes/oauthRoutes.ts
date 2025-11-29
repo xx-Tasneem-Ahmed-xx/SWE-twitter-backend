@@ -24,7 +24,7 @@ const router: Router = express.Router();
 /**
  * @openapi
  * /authorize/{provider}:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
  *     summary: Start OAuth 2.0 authorization flow
@@ -47,11 +47,11 @@ const router: Router = express.Router();
  *       500:
  *         description: Internal server error during authorization setup.
  */
-router.get("/authorize/:provider", typedOauthController.Authorize);
+router.post("/authorize/:provider", typedOauthController.Authorize);
 /**
  * @openapi
  * /callback/google:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
  *     summary: Google OAuth callback
@@ -87,13 +87,13 @@ router.get("/authorize/:provider", typedOauthController.Authorize);
  *       500:
  *         description: Internal error during token exchange, user creation, or notification process.
  */
-router.get("/callback/google", typedOauthController.CallbackGoogle);
+router.post("/callback/google", typedOauthController.CallbackGoogle);
 
 
 /**
  * @openapi
  * /callback/github:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
  *     summary: GitHub OAuth callback
@@ -130,11 +130,11 @@ router.get("/callback/google", typedOauthController.CallbackGoogle);
  *       500:
  *         description: Internal error during token exchange, user lookup, or login email notification.
  */
-router.get("/callback/github", typedOauthController.CallbackGithub);
+router.post("/callback/github", typedOauthController.CallbackGithub);
 /**
  * @openapi
  * /callback/android_google:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
  *     summary: Android Google OAuth callback
@@ -189,7 +189,7 @@ router.get("/callback/github", typedOauthController.CallbackGithub);
  *       500:
  *         description: Internal server error during token validation, user creation, or login email process.
  */
-router.get("/callback/android_google", typedOauthController.CallbackAndroidGoogle);
+router.post("/callback/android_google", typedOauthController.CallbackAndroidGoogle);
 
 // router.get("/callback/facebook", typedOauthController.CallbackFacebook);
 // router.get("/callback/linkedin", typedOauthController.CallbackLinkedin);

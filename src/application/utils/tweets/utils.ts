@@ -59,7 +59,7 @@ export const isMentioned = async (
   mentionerId: string,
   tweetId: string
 ) => {
-  const row = prisma.mention.findUnique({
+  const row = await prisma.mention.findUnique({
     where: {
       tweetId_mentionerId_mentionedId: { tweetId, mentionerId, mentionedId },
     },
@@ -116,12 +116,7 @@ const evaluateReplyControl = async (
       return false;
   }
 };
-//////////////////HOSSAM///////////////////////////
-// utils.ts (ESM) - Prisma + Redis version of your Go utils package
-// npm install jsonwebtoken bcryptjs uuid node-fetch zxcvbn qrcode speakeasy nodemailer @prisma/client
-// You will also need: npm install -D @types/express @types/jsonwebtoken @types/bcryptjs @types/uuid @types/node-fetch @types/nodemailer @types/zxcvbn
 
-// --- Custom Type Definitions ---
 
 // Define the structure of the payload you put into the JWT
 export interface JwtUserPayload extends JwtPayload {
@@ -380,7 +375,6 @@ export async function Attempts(
 
     const ttl = await _getTTL(`Login:fail:${email}`);
 
-    // 🧱 Web CAPTCHA logic
     if (clientType === "web") {
       if (num === 3) {
         await redisClient.set(`Login:fail:${email}`, String(num + 1), {
@@ -401,7 +395,6 @@ export async function Attempts(
       }
     }
 
-    // 🧱 Universal lock logic (web + mobile)
     if (num >= 5) {
       await SendEmail_FAILED_LOGIN(res, email).catch(console.error);
       await redisClient.set(`Login:block:${email}`, "1", { EX: 15 * 60 });
@@ -666,15 +659,11 @@ export async function Sendlocation(
     }
     const target: string =
       ip.includes("127.0.0.1") || ip.includes("::1") ? "8.8.8.8" : ip;
-    // console.log("🌍 Sending location request for:", target);
     const resp: FetchResponse = await fetch(`http://ip-api.com/json/${target}`);
-    // console.log("🌎 Geo API status:", resp.status);
     if (!resp.ok) throw new Error("failed to fetch geo info");
     const data: any = await resp.json();
-    // console.log("🌎 Geo API raw data:", data);
     if (!data || data.status !== "success")
       throw new Error("failed to get geo info");
-    // normalize to GeoData fields used previously
     return {
       Query: data.query,
       Country: data.country,
@@ -710,7 +699,7 @@ export async function SendEmail_FAILED_LOGIN(
 
 We noticed multiple failed login attempts on your account using the email: ${email}.
 
-📍 Location Details:
+ Location Details:
 - IP Address: ${geo?.Query || ipAddr}
 - Country: ${geo?.Country || ""}
 - Region: ${geo?.RegionName || ""}
@@ -718,7 +707,7 @@ We noticed multiple failed login attempts on your account using the email: ${ema
 - ISP: ${geo?.ISP || ""}
 - Organization: ${geo?.Org || ""}
 - Timezone: ${geo?.Timezone || ""}
-🕒 Time: ${new Date().toISOString()}
+Time: ${new Date().toISOString()}
 
 As a security precaution, we’ve temporarily blocked login from this IP for 15 minutes.
 
@@ -744,15 +733,15 @@ export async function SendEmail(res: Response, email: string): Promise<void> {
       "0.0.0.0";
     const geo: GeoData | null = await Sendlocation(ipAddr).catch(() => null);
     const user = await prisma.user.findUnique({ where: { email } });
-    const message: string = `Subject: 🎉 Welcome to Racist Team, ${
+    const message: string = `Subject: Welcome to Racist Team, ${
       user?.username || ""
     }!
 
-Hello ${user?.username || ""} 👋,
+Hello ${user?.username || ""},
 
 Welcome aboard! Your account with the email: ${email} has just been created successfully.
 
-🗺️ Location at Signup:
+ Location at Signup:
 - IP Address: ${geo?.Query || ipAddr}
 - Country: ${geo?.Country || ""}
 - Region: ${geo?.RegionName || ""}
@@ -761,7 +750,7 @@ Welcome aboard! Your account with the email: ${email} has just been created succ
 - Organization: ${geo?.Org || ""}
 - Timezone: ${geo?.Timezone || ""}
 
-🕒 Signup Time: ${new Date().toISOString()}
+Signup Time: ${new Date().toISOString()}
 
 Cheers,
 The Racist Team
@@ -867,7 +856,7 @@ export async function VerifEmailHelper(
 
 We received a request to change the email address associated with your account. To confirm this change and verify your new email address, please use the verification code below:
 
-🔐 Verification Code: ${code}
+ Verification Code: ${code}
 
 This code is valid for the next 10 minutes.
 
@@ -985,7 +974,6 @@ export async function SetSession(
     };
 
     const key: string = `User:sessions:${userId}:${jti}`;
-    // console.log("Storing session in Redis key:", key, "session:", session);
     // Push new session into Redis list (acts like array)
     await redisClient.rPush(key, JSON.stringify(session));
 

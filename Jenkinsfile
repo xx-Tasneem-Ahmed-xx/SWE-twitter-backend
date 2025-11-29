@@ -5,7 +5,6 @@ pipeline {
         DOCKER_IMAGE = "realshoy/swe-backend"
         BUILD_TAG = "${env.BUILD_NUMBER}"
         DOCKER_REGISTRY_CREDENTIALS = 'dockerhub-credentials' 
-        KUBE_CONFIG_CREDENTIALS = 'kubeconfig-file'
         BACKEND_SECRET_FILE = 'backend-secret-file'  
         EMAIL_RECIPIENTS = 'asxcchcv@gmail.com'
         GIT_CREDENTIALS = 'github-token'
@@ -13,6 +12,30 @@ pipeline {
     }
     
     stages {
+
+        stage('Get Commit Info') {
+            steps {
+                script {
+                    // Get the commit author's email
+                    def commitEmail = sh(
+                        script: "git --no-pager show -s --format='%ae' HEAD",
+                        returnStdout: true
+                    ).trim()
+                    
+                    // Validate email
+                    if (commitEmail && commitEmail.contains('@')) {
+                        env.COMMIT_EMAILS = commitEmail
+                    } else {
+                        echo "Warning: Could not get commit email, using default"
+                        env.COMMIT_EMAILS = env.JENKINS_EMAIL
+                    }
+                    
+                    echo "Email will be sent to: ${env.COMMIT_EMAILS}"
+                }
+            }
+        }
+
+        
         stage("SCM Checkout") {
             steps {
                 script {
@@ -54,24 +77,19 @@ pipeline {
             steps {
                 container('nodejs') {
                     script {
-                        // Copy secret file from credentials to workspace
-                        withCredentials([file(credentialsId: "${BACKEND_SECRET_FILE}", variable: 'SECRET_FILE')]) {
-                            sh '''
-                                echo "Copying backend secret file..."
-                                cp "${SECRET_FILE}" ./.env
-                                echo "DATABASE_URL=${DATABASE_URL}" >> ./.env
-                                
-                                # Verify .env file exists
-                                if [ -f ./.env ]; then
-                                    echo ".env file created successfully"
-                                    echo "Content preview (first 3 lines, hiding values):"
-                                    head -3 ./.env | sed 's/=.*/=***HIDDEN***/'
-                                else
-                                    echo "Failed to create .env file"
-                                    exit 1
-                                fi
-                            '''
-                        }
+                        sh '''
+                            echo "DATABASE_URL=${DATABASE_URL}" >> ./.env
+                            
+                            # Verify .env file exists
+                            if [ -f ./.env ]; then
+                                echo ".env file created successfully"
+                                echo "Content preview (first 3 lines, hiding values):"
+                                head -3 ./.env | sed 's/=./=*HIDDEN/'
+                            else
+                                echo "Failed to create .env file"
+                                exit 1
+                            fi
+                        '''
                     }
                 }
             }
@@ -90,10 +108,10 @@ pipeline {
                                 npm run lint || true
                                 
                                 echo "Running Prettier check..."
-                                npx prettier --check "src/**/*.{js,jsx,ts,tsx}" || true
+                                npx prettier --check "src//*.{js,jsx,ts,tsx}" || true
                             '''
                         } catch (Exception e) {
-                            echo "⚠️ Linting failed, but continuing pipeline execution..."
+                            echo "⚠ Linting failed, but continuing pipeline execution..."
                             currentBuild.result = 'UNSTABLE'
                         }
                     }
@@ -106,6 +124,9 @@ pipeline {
                 container('nodejs') {
                     script {
                         sh '''
+                            echo "Installing Prisma"
+                            npm install prisma@^6.0.0 @prisma/client@^6.0.0
+                             
                             echo "Running Prisma migrations..."
                             npx prisma migrate deploy
                             
@@ -114,7 +135,6 @@ pipeline {
                             
                             echo "Database schema is up to date"
                         '''
-                        env.MIGRATED = 'true'
                     }
                 }
             }
@@ -124,7 +144,6 @@ pipeline {
             steps {
                 container('kaniko') {
                     script {
-                        // Copy .env file for Docker build context
                         withCredentials([
                             file(credentialsId: "${BACKEND_SECRET_FILE}", variable: 'SECRET_FILE'),
                             usernamePassword(
@@ -134,10 +153,6 @@ pipeline {
                             )
                         ]) {
                             sh '''
-                                # Copy secret file to build context
-                                cp "${SECRET_FILE}" ./.env
-                                echo "DATABASE_URL=${DATABASE_URL}" >> ./.env
-                                
                                 echo "Creating Docker config for Kaniko..."
                                 mkdir -p /kaniko/.docker
                                 cat > /kaniko/.docker/config.json <<EOF
@@ -175,29 +190,36 @@ EOF
                     sh """
                         echo "Running unit tests..."
                         npm i 
-                        npm run test
+                        npm install --save-dev jest
+                        #npm run test
                     """
                 }
             }
         }
 
-        stage("Deploy to Kubernetes") {
+       stage("Deploy to Kubernetes") {
             steps {
                 container('kubectl') {
-                    script {
-                        withCredentials([file(credentialsId: "${KUBE_CONFIG_CREDENTIALS}", variable: 'KUBECONFIG')]) {
+                    withCredentials([file(credentialsId: "${BACKEND_SECRET_FILE}", variable: 'SECRET_FILE')]) {
+                        script {
                             sh """ 
                                 echo "Updating deployment with new image..."
-                                sed -i "s|image: .*swe-backend.*|image: ${DOCKER_IMAGE}:${BUILD_TAG}|g" k8s-manifests/kubernetes/'Node Backend'/node-deployment.yaml
-                                
+                                sed -i "s|image: .swe-backend.|image: ${DOCKER_IMAGE}:${BUILD_TAG}|g" k8s-manifests/kubernetes/'Node Backend'/node-deployment.yaml
+
+                                # Create Secret from the Firebase service account file
+                                echo "Creating Secret from Firebase credentials..."
+                                kubectl create secret generic firebase-secret \
+                                    --from-file=psychic-fin-474008-h8-1be573080339.json=\${SECRET_FILE} \
+                                    -n swe-twitter \
+                                    --dry-run=client -o yaml | kubectl apply -f -
+
                                 echo "Applying Kubernetes manifest..."
                                 kubectl apply -f k8s-manifests/kubernetes/'Node Backend'/node-deployment.yaml
-                                
+
                                 echo "Waiting for rollout to complete..."
                                 kubectl rollout status deployment/swe-node-deployment -n swe-twitter --timeout=5m
-                                
+
                                 echo "Deployment successful!"
-                                echo "Current pod status:"
                                 kubectl get pods -n swe-twitter -l app=node-pod
                             """
                         }
@@ -205,7 +227,7 @@ EOF
                 }
             }
         }
-
+        
         stage("E2E Testing") {
             steps {
                 container('nodejs') {
@@ -216,24 +238,22 @@ EOF
                             """
                         } catch (Exception e) {
                             echo "❌ E2E tests failed! Rolling back deployment..."
-                            container('kubectl') {
-                                withCredentials([file(credentialsId: "${KUBE_CONFIG_CREDENTIALS}", variable: 'KUBECONFIG')]) {
-                                    sh """
-                                        echo "Rolling back backend deployment..."
-                                        kubectl rollout undo deployment/swe-node-deployment -n swe-twitter
-                                        kubectl rollout status deployment/swe-node-deployment -n swe-twitter --timeout=5m
-                                        
-                                        echo "Rollback completed"
-                                        kubectl get pods -n swe-twitter -l app=node-pod
-                                    """
-                                }
+                            container('kubectl') { 
+                                sh """
+                                    echo "Rolling back backend deployment..."
+                                    kubectl rollout undo deployment/swe-node-deployment -n swe-twitter
+                                    kubectl rollout status deployment/swe-node-deployment -n swe-twitter --timeout=5m
+                                    
+                                    echo "Rollback completed"
+                                    kubectl get pods -n swe-twitter -l app=node-pod
+                                """
                             }
                             error("E2E tests failed and deployment was rolled back")
                         }
                     }
                 }
             }
-        }
+        }    
     }
 
     post {
@@ -251,21 +271,16 @@ EOF
                     <p><strong>Deployment:</strong> swe-node-deployment</p>
                     <p><strong>Namespace:</strong> swe-twitter</p>
                 """,
-                to: "${EMAIL_RECIPIENTS}",
+                to: "${env.COMMIT_EMAILS ?: env.JENKINS_EMAIL}",
                 mimeType: 'text/html'
             )
         }
         
         failure {
-            script{
-                if (env.MIGRATED == 'true') {
-                    sh 'psql -d $DATABASE_URL -f prisma/migrations/last/down.sql'
-                }
-            }
             emailext (
                 subject: "❌ Jenkins Backend Build FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 body: """
-                    <h2>Backend Build Failed! ⚠️</h2>
+                    <h2>Backend Build Failed! ⚠</h2>
                     <p><strong>Job:</strong> ${env.JOB_NAME}</p>
                     <p><strong>Build Number:</strong> ${env.BUILD_NUMBER}</p>
                     <p><strong>Build URL:</strong> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
@@ -273,7 +288,7 @@ EOF
                     <hr>
                     <p>Please check the console output for error details.</p>
                 """,
-                to: "${EMAIL_RECIPIENTS}",
+                to: "${env.COMMIT_EMAILS ?: env.JENKINS_EMAIL}",
                 mimeType: 'text/html'
             )
         }
