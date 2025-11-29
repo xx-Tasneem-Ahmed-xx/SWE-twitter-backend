@@ -2,6 +2,8 @@ name: CI on PR
 
 on:
   pull_request:
+    branches:
+      - main
     types: [opened, synchronize, reopened]
 
 jobs:
@@ -41,8 +43,9 @@ jobs:
           cache: "npm"
 
       - name: Install Dependencies and Generate prisma client
-        run: npm ci
-        run: npx prisma generate
+        run: |
+          npm ci
+          npx prisma generate
 
       - name: Set environment variables
         run: |
