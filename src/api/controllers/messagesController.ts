@@ -463,6 +463,7 @@ export const addMessageToChat = async (
         userId: userId,
         content: messageInput.data.content,
         status: "SENT",
+        createdAt: messageInput.createdAt,
       },
     });
     if (
@@ -470,7 +471,6 @@ export const addMessageToChat = async (
       messageInput.data.messageMedia.length > 0
     ) {
       for (const mediaRaw of messageInput.data.messageMedia) {
-        // If mediaRaw is a Zod schema, parse it first
         let mediaObj: any;
         if (mediaRaw && typeof (mediaRaw as any).safeParse === "function") {
           const result = (mediaRaw as any).safeParse(mediaRaw);
