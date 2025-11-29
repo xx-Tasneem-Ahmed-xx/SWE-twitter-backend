@@ -223,30 +223,10 @@ export const getFollowers = async (
     const followersData = await getFollowersList(
       user.id,
       currentUserId,
-      "ACCEPTED",
       cursorId,
       limit
     );
     return res.status(200).json(followersData);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Get a list of follow requests for the current user
-export const getFollowRequests = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const currentUserId = (req as any).user.id;
-    const followRequestsData = await getFollowersList(
-      currentUserId,
-      currentUserId,
-      "PENDING"
-    );
-    return res.status(200).json(followRequestsData);
   } catch (error) {
     next(error);
   }

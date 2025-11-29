@@ -223,7 +223,6 @@ const getRelationToTargetStatuses = async (
 export const getFollowersList = async (
   userId: string,
   currentUserId: string,
-  followStatus: FollowStatus,
   cursorId?: string,
   limit: number = 30
 ) => {
