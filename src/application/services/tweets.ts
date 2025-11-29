@@ -446,15 +446,27 @@ class TweetService {
     };
   }
 
-  //TODO: paginate
-  async getTweetReplies(tweetId: string, userId: string) {
+  async getTweetReplies(tweetId: string, dto: TweetCursorServiceDTO) {
     const replies = await prisma.tweet.findMany({
       where: { parentId: tweetId },
       select: {
-        ...this.tweetSelectFields(userId),
+        ...this.tweetSelectFields(dto.userId),
       },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: dto.limit + 1,
+      ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
     });
-    return this.checkUserInteractions(replies);
+    const { cursor, paginatedRecords } = this.updateCursor(
+      replies,
+      dto.limit,
+      (record) => ({ id: record.id, createdAt: record.createdAt })
+    );
+
+    const data = this.checkUserInteractions(paginatedRecords);
+    return {
+      data,
+      cursor,
+    };
   }
 
   async likeTweet(userId: string, tweetId: string) {
