@@ -140,9 +140,21 @@ export class TweetController {
   async getTweetReplies(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
+      const userId = (req as any).user.id;
+      const decodedCursor = encoderService.decode<{
+        createdAt: string;
+        id: string;
+      }>(req.query.cursor as string);
+      
+      const parsedDTO = TweetCursorServiceSchema.parse({
+        userId,
+        limit: req.query.limit,
+        cursor: decodedCursor ?? undefined,
+      });
+
       const replies = await tweetService.getTweetReplies(
         id,
-        (req as any).user.id
+        parsedDTO
       );
       res.status(200).json(replies);
     } catch (error) {
@@ -233,7 +245,7 @@ export class TweetController {
 
       const { id: userId } = await resolveUsernameToId(username);
       const decodedCursor = encoderService.decode<{
-        lastActivityAt: string;
+        createdAt: string;
         id: string;
       }>(query.cursor as string);
 
@@ -243,7 +255,7 @@ export class TweetController {
         cursor: decodedCursor ?? undefined,
       });
 
-      const tweets = await tweetService.getUserTweets(parsedDTO,currentUserId);
+      const tweets = await tweetService.getUserTweets(parsedDTO, currentUserId);
       res.status(200).json(tweets);
     } catch (error) {
       next(error);
@@ -257,7 +269,7 @@ export class TweetController {
 
       const { id: userId } = await resolveUsernameToId(username);
       const decodedCursor = encoderService.decode<{
-        lastActivityAt: string;
+        createdAt: string;
         id: string;
       }>(query.cursor as string);
 

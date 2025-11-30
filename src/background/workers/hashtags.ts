@@ -4,7 +4,6 @@ import { attachHashtagsToTweet } from "@/application/services/hashtags";
 import { prisma } from "@/prisma/client";
 import type { HashtagJobData } from "@/background/types/jobs";
 
-// Hashtag extraction worker
 const hashtagWorker = new Worker<HashtagJobData>(
   "hashtags",
   async (job) => {

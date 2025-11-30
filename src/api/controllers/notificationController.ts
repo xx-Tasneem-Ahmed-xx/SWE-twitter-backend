@@ -7,7 +7,6 @@ import { UUID } from "crypto";
 import { z } from "zod";
 import { NotificationTitle } from "@prisma/client";
 import { AppError } from "@/errors/AppError";
-import { notificationsQueue } from "@/background/queues";
 import type { NotificationJobData } from "@/background/types/jobs";
 import { redisClient } from "@/config/redis";
 import { enqueueNewNotificationJob } from "@/background/jobs/notificationsJob";
