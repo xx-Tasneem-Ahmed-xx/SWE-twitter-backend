@@ -15,7 +15,6 @@ router
   .patch(followController.acceptFollow)
   .delete(followController.declineFollow)
   .get(followController.getFollowings);
-router.route("/followers/requests").get(followController.getFollowRequests);
 
 router
   .route("/blocks/:username")

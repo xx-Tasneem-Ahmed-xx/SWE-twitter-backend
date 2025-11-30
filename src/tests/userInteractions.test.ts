@@ -117,13 +117,35 @@ describe("User Interactions Service", () => {
     });
   });
 
-  // Clean up and close connection
+  // Clean up and close connection (only remove relations involving test users)
   afterAll(async () => {
-    await prisma.mute.deleteMany();
-    await prisma.block.deleteMany();
-    await prisma.follow.deleteMany();
+    const TEST_USER_IDS = ["123", "456", "789"];
+    await prisma.mute.deleteMany({
+      where: {
+        OR: [
+          { muterId: { in: TEST_USER_IDS } },
+          { mutedId: { in: TEST_USER_IDS } },
+        ],
+      },
+    });
+    await prisma.block.deleteMany({
+      where: {
+        OR: [
+          { blockerId: { in: TEST_USER_IDS } },
+          { blockedId: { in: TEST_USER_IDS } },
+        ],
+      },
+    });
+    await prisma.follow.deleteMany({
+      where: {
+        OR: [
+          { followerId: { in: TEST_USER_IDS } },
+          { followingId: { in: TEST_USER_IDS } },
+        ],
+      },
+    });
     await prisma.user.deleteMany({
-      where: { id: { in: ["123", "456", "789"] } },
+      where: { id: { in: TEST_USER_IDS } },
     });
     await prisma.media.deleteMany({
       where: { id: { in: ["media1", "media2", "media3"] } },
@@ -131,11 +153,33 @@ describe("User Interactions Service", () => {
     await prisma.$disconnect();
   });
 
-  // Clean up relationships before each test
+  // Clean up relationships before each test (only those involving test users)
   beforeEach(async () => {
-    await prisma.mute.deleteMany();
-    await prisma.block.deleteMany();
-    await prisma.follow.deleteMany();
+    const TEST_USER_IDS = ["123", "456", "789"];
+    await prisma.mute.deleteMany({
+      where: {
+        OR: [
+          { muterId: { in: TEST_USER_IDS } },
+          { mutedId: { in: TEST_USER_IDS } },
+        ],
+      },
+    });
+    await prisma.block.deleteMany({
+      where: {
+        OR: [
+          { blockerId: { in: TEST_USER_IDS } },
+          { blockedId: { in: TEST_USER_IDS } },
+        ],
+      },
+    });
+    await prisma.follow.deleteMany({
+      where: {
+        OR: [
+          { followerId: { in: TEST_USER_IDS } },
+          { followingId: { in: TEST_USER_IDS } },
+        ],
+      },
+    });
   });
 
   // Tests for findUserByUsername
@@ -487,8 +531,7 @@ describe("User Interactions Service", () => {
       // Get followers list for user 1 from perspective of user 2
       const result = await userInteractionsService.getFollowersList(
         "123",
-        "456",
-        "ACCEPTED"
+        "456"
       );
       expect(() => FollowsListResponseSchema.parse(result)).not.toThrow();
       expect(result).not.toBeNull();
@@ -501,65 +544,22 @@ describe("User Interactions Service", () => {
       expect(followerOne.username).toBe("test_user2");
       expect(followerOne.name).toBe("Test User Two");
       expect(followerOne.bio).toBe("I am test user two");
-      expect(followerOne.photo).toBe("https://example.com/photo2.jpg");
+      expect(followerOne.photo).toBe("media2");
       expect(followerOne.verified).toBe(true);
       expect(followerOne.isFollowing).toBe(false);
       expect(followerOne.isFollower).toBe(false);
+      expect(followerOne.youRequested).toBe(false);
+      expect(followerOne.followStatus).toBe(FollowStatus.ACCEPTED);
 
       expect(followerTwo.username).toBe("test_user3");
       expect(followerTwo.name).toBe("Test User Three");
       expect(followerTwo.bio).toBe("I am test user three");
-      expect(followerTwo.photo).toBe("https://example.com/photo3.jpg");
+      expect(followerTwo.photo).toBe("media3");
       expect(followerTwo.verified).toBe(true);
       expect(followerTwo.isFollowing).toBe(false);
       expect(followerTwo.isFollower).toBe(true);
-    });
-  });
-
-  // Tests for getFollowRequestsList
-  describe("getFollowRequestsList", () => {
-    it("should return empty list when there are no follow requests", async () => {
-      const result = await userInteractionsService.getFollowersList(
-        "123",
-        "456",
-        "PENDING"
-      );
-      expect(() => FollowsListResponseSchema.parse(result)).not.toThrow();
-      expect(result.users).toHaveLength(0);
-    });
-
-    it("should return list of follow requests", async () => {
-      await userInteractionsService.createFollowRelation(
-        "456",
-        "123",
-        "PENDING"
-      );
-      await userInteractionsService.createFollowRelation(
-        "789",
-        "123",
-        "ACCEPTED"
-      );
-
-      // Get follow requests list for user 1
-      const result = await userInteractionsService.getFollowersList(
-        "123",
-        "123",
-        "PENDING"
-      );
-      expect(() => FollowsListResponseSchema.parse(result)).not.toThrow();
-      expect(result).not.toBeNull();
-      expect(result.users).toBeDefined();
-      expect(Array.isArray(result.users)).toBe(true);
-      expect(result.users.length).toBe(1);
-
-      const requestUser = result.users[0];
-      expect(requestUser.username).toBe("test_user2");
-      expect(requestUser.name).toBe("Test User Two");
-      expect(requestUser.bio).toBe("I am test user two");
-      expect(requestUser.photo).toBe("https://example.com/photo2.jpg");
-      expect(requestUser.verified).toBe(true);
-      expect(requestUser.isFollowing).toBe(false);
-      expect(requestUser.isFollower).toBe(false);
+      expect(followerTwo.youRequested).toBe(false);
+      expect(followerTwo.followStatus).toBe(FollowStatus.ACCEPTED);
     });
   });
 
@@ -607,18 +607,22 @@ describe("User Interactions Service", () => {
       expect(followingOne.username).toBe("test_user2");
       expect(followingOne.name).toBe("Test User Two");
       expect(followingOne.bio).toBe("I am test user two");
-      expect(followingOne.photo).toBe("https://example.com/photo2.jpg");
+      expect(followingOne.photo).toBe("media2");
       expect(followingOne.verified).toBe(true);
       expect(followingOne.isFollowing).toBe(false);
       expect(followingOne.isFollower).toBe(false);
+      expect(followingOne.youRequested).toBe(false);
+      expect(followingOne.followStatus).toBe(FollowStatus.ACCEPTED);
 
       expect(followingTwo.username).toBe("test_user3");
       expect(followingTwo.name).toBe("Test User Three");
       expect(followingTwo.bio).toBe("I am test user three");
-      expect(followingTwo.photo).toBe("https://example.com/photo3.jpg");
+      expect(followingTwo.photo).toBe("media3");
       expect(followingTwo.verified).toBe(true);
       expect(followingTwo.isFollowing).toBe(false);
       expect(followingTwo.isFollower).toBe(true);
+      expect(followingTwo.youRequested).toBe(false);
+      expect(followingTwo.followStatus).toBe(FollowStatus.ACCEPTED);
     });
   });
 
@@ -646,10 +650,12 @@ describe("User Interactions Service", () => {
       expect(blockedUser.username).toBe("test_user2");
       expect(blockedUser.name).toBe("Test User Two");
       expect(blockedUser.bio).toBe("I am test user two");
-      expect(blockedUser.photo).toBe("https://example.com/photo2.jpg");
+      expect(blockedUser.photo).toBe("media2");
       expect(blockedUser.verified).toBe(true);
       expect(blockedUser.isFollowing).toBe(false);
       expect(blockedUser.isFollower).toBe(false);
+      expect(blockedUser.youRequested).toBe(false);
+      expect(blockedUser.followStatus).toBe("NONE");
     });
   });
 
@@ -684,10 +690,12 @@ describe("User Interactions Service", () => {
       expect(mutedUser.username).toBe("test_user2");
       expect(mutedUser.name).toBe("Test User Two");
       expect(mutedUser.bio).toBe("I am test user two");
-      expect(mutedUser.photo).toBe("https://example.com/photo2.jpg");
+      expect(mutedUser.photo).toBe("media2");
       expect(mutedUser.verified).toBe(true);
-      expect(mutedUser.isFollowing).toBe(false);
+      expect(mutedUser.isFollowing).toBe(true);
       expect(mutedUser.isFollower).toBe(false);
+      expect(mutedUser.youRequested).toBe(false);
+      expect(mutedUser.followStatus).toBe(FollowStatus.ACCEPTED);
     });
   });
 });
