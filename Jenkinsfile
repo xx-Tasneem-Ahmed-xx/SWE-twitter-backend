@@ -125,13 +125,13 @@ pipeline {
                     script {
                         sh '''
                             echo "Installing Prisma"
-                            npm install prisma@^6.0.0 @prisma/client@^6.0.0
+                            npm install prisma
                              
                             echo "Running Prisma migrations..."
-                            npx prisma migrate deploy
+                            npx prisma migrate deploy --config prisma/prisma.config.ts
                             
                             echo "Generating Prisma Client..."
-                            npx prisma generate
+                            npx prisma generate --config prisma/prisma.config.ts
                             
                             echo "Database schema is up to date"
                         '''
