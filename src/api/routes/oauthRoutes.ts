@@ -24,7 +24,7 @@ const router: Router = express.Router();
 /**
  * @openapi
  * /authorize/{provider}:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
  *     summary: Start OAuth 2.0 authorization flow
@@ -47,11 +47,11 @@ const router: Router = express.Router();
  *       500:
  *         description: Internal server error during authorization setup.
  */
-router.get("/authorize/:provider", typedOauthController.Authorize);
+router.post("/authorize/:provider", typedOauthController.Authorize);
 /**
  * @openapi
  * /callback/google:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
  *     summary: Google OAuth callback
@@ -87,13 +87,13 @@ router.get("/authorize/:provider", typedOauthController.Authorize);
  *       500:
  *         description: Internal error during token exchange, user creation, or notification process.
  */
-router.get("/callback/google", typedOauthController.CallbackGoogle);
+router.post("/callback/google", typedOauthController.CallbackGoogle);
 
 
 /**
  * @openapi
  * /callback/github:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
  *     summary: GitHub OAuth callback
@@ -130,9 +130,66 @@ router.get("/callback/google", typedOauthController.CallbackGoogle);
  *       500:
  *         description: Internal error during token exchange, user lookup, or login email notification.
  */
-router.get("/callback/github", typedOauthController.CallbackGithub);
-
-
+router.post("/callback/github", typedOauthController.CallbackGithub);
+/**
+ * @openapi
+ * /callback/android_google:
+ *   post:
+ *     tags:
+ *       - OAuth
+ *     summary: Android Google OAuth callback
+ *     description: >
+ *       Handles Google Sign-In for **Android mobile apps**.
+ *
+ *       Unlike web OAuth, Android does **not** use authorization codes.
+ *       The Flutter app obtains an **ID token** directly from Google using the
+ *       official Google Sign-In SDK, then sends it to this endpoint.
+ *
+ *       This endpoint:
+ *       - Validates the ID token signature & audience  
+ *       - Extracts user info (email, name, sub)  
+ *       - Creates or links user with Google provider  
+ *       - Generates JWT access & refresh tokens  
+ *       - Stores refresh token in Redis  
+ *       - Sends login security email  
+ *       - Redirects the user to the frontend success page  
+ *
+ *       **This endpoint does NOT return JSON.**  
+ *       It performs a **302 redirect** with tokens and user JSON encoded in the URL.
+ *
+ *     parameters:
+ *       - in: query
+ *         name: id_token
+ *         required: true
+ *         description: >
+ *           Google ID token obtained from the Android Google Sign-In SDK.
+ *           This is NOT a code. It is a JWT returned directly from Google.
+ *         schema:
+ *           type: string
+ *
+ *     responses:
+ *       302:
+ *         description: >
+ *           Redirects to the frontend with access token, refresh token,
+ *           and user info encoded in the query string.
+ *         headers:
+ *           Location:
+ *             description: >
+ *               Example redirect format:  
+ *               `{FRONTEND_URL}/login/success?token={accessToken}&refresh-token={refreshToken}&user={jsonUser}`
+ *             schema:
+ *               type: string
+ *
+ *       400:
+ *         description: Missing or invalid Google ID token.
+ *
+ *       401:
+ *         description: ID token failed verification (invalid signature / audience mismatch).
+ *
+ *       500:
+ *         description: Internal server error during token validation, user creation, or login email process.
+ */
+router.post("/callback/android_google", typedOauthController.CallbackAndroidGoogle);
 
 // router.get("/callback/facebook", typedOauthController.CallbackFacebook);
 // router.get("/callback/linkedin", typedOauthController.CallbackLinkedin);

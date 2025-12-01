@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import { HashtagTweetsQuerySchema } from "@/application/dtos/trends/trend.dto.schema";
-import { fetchTrends, fetchHashtagTweets } from "@/application/services/hashtags";
-import encoderService from "@/application/services/encoder";
+import {
+  fetchTrends,
+  fetchHashtagTweets,
+} from "@/application/services/hashtags";
+import { encoderService } from "@/application/services/encoder";
 
 export const getTrends = async (
   req: Request,
@@ -12,7 +15,8 @@ export const getTrends = async (
     const limit = req.query.limit
       ? parseInt(req.query.limit as string, 10)
       : 30;
-    const trends = await fetchTrends(limit);
+    const rawQuery = (req.query.q ?? req.query.query) as string | undefined;
+    const trends = await fetchTrends(limit, rawQuery);
     res.json(trends);
   } catch (error) {
     next(error);

@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/prisma/client";
 import { AppError } from "@/errors/AppError";
 import { redisClient } from "@/config/redis";
-import encoderService from "@/application/services/encoder";
+import { encoderService } from "@/application/services/encoder";
 
 // Trends configuration constants
 const TRENDS_CACHE_KEY = "trends:global";
@@ -179,11 +179,64 @@ export async function calculateAndCacheTrends(
     JSON.stringify(cacheData)
   );
 
-  console.log(`✓ Calculated and cached ${trends.length} trends`);
+  console.log(`Calculated and cached ${trends.length} trends`);
 }
 
 // Fetch trends from cache
-export const fetchTrends = async (limit: number = TRENDS_LIMIT) => {
+
+export const fetchTrends = async (
+  limit: number = TRENDS_LIMIT,
+  query?: string | null
+) => {
+  if (query && query.trim().length > 0) {
+    const q = query.trim().toLowerCase();
+
+    const matching = await prisma.hash.findMany({
+      where: { tag_text: { startsWith: q, mode: "insensitive" } },
+      select: { id: true, tag_text: true },
+      take: 500,
+    });
+
+    if (!matching || matching.length === 0) {
+      return { trends: [], updatedAt: new Date().toISOString() };
+    }
+
+    const cutoffDate = new Date();
+    cutoffDate.setHours(cutoffDate.getHours() - TREND_PERIOD_HOURS);
+    const matchingIds = matching.map((m) => m.id);
+
+    const counts = await prisma.tweetHash.groupBy({
+      by: ["hashId"],
+      _count: { hashId: true },
+      where: {
+        hashId: { in: matchingIds },
+        tweet: { createdAt: { gte: cutoffDate } },
+      },
+    });
+
+    const countMap = new Map(counts.map((c) => [c.hashId, c._count.hashId]));
+
+    const allTrends: TrendData[] = matching.map((m) => ({
+      id: encoderService.encode(m.id),
+      hashtag: m.tag_text,
+      tweetCount: countMap.get(m.id) ?? 0,
+      rank: 0,
+    }));
+
+    allTrends.sort((a, b) => {
+      if (b.tweetCount !== a.tweetCount) return b.tweetCount - a.tweetCount;
+      return a.hashtag.localeCompare(b.hashtag);
+    });
+
+    const trends = allTrends.slice(0, limit).map((t, idx) => ({
+      ...t,
+      rank: idx + 1,
+    }));
+
+    return { trends, updatedAt: new Date().toISOString() };
+  }
+
+  // No query: use existing cache-first behavior for global trends
   const cached = await redisClient.get(TRENDS_CACHE_KEY);
 
   if (cached) {

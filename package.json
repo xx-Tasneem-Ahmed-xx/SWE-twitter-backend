@@ -5,15 +5,12 @@
 
   "description": "",
   "main": "dist/src/index.js",
-  "_moduleAliases": {
-    "@": "dist/src"
-  },
   "scripts": {
     "dev": "nodemon -r tsconfig-paths/register --watch 'src/**/*.ts' --exec ts-node src/index.ts",
     "build": "tsc && tsc-alias",
-    "start": "ts-node --project tsconfig.json -r tsconfig-paths/register src/index.ts",
-    "seed": "node prisma/seedForYou.js",
-    "test": "jest",
+    "start": "node dist/index.js",
+    "seed": "ts-node prisma/seed.ts",
+    "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },
@@ -31,9 +28,11 @@
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^8.1.0",
     "@aws-sdk/client-s3": "^3.914.0",
+    "@aws-sdk/client-secrets-manager": "^3.936.0",
     "@aws-sdk/s3-request-presigner": "^3.914.0",
     "@faker-js/faker": "^10.1.0",
-    "@prisma/client": "^6.18.0",
+    "@prisma/adapter-pg": "^7.0.1",
+    "@prisma/client": "^7.0.1",
     "@types/socket.io": "^3.0.1",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
@@ -45,17 +44,22 @@
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "express-validator": "^7.2.1",
+    "fast-levenshtein": "^3.0.0",
     "firebase-admin": "^13.5.0",
     "groq-sdk": "^0.33.0",
     "helmet": "^8.1.0",
+    "hono": "^4.10.7",
     "ioredis": "^5.8.2",
     "js-yaml": "^4.1.1",
     "jsonwebtoken": "^9.0.2",
     "module-alias": "^2.2.3",
     "morgan": "^1.10.1",
+    "natural": "^8.1.0",
     "node-fetch": "^2.7.0",
+    "node-html-parser": "^7.0.1",
     "nodemailer": "^7.0.9",
     "pg": "^8.16.3",
+    "porter-stemmer": "^0.9.1",
     "qrcode": "^1.5.4",
     "redis": "^5.9.0",
     "socket.io": "^4.8.1",
@@ -65,6 +69,7 @@
     "tsoa": "^6.6.0",
     "twitter-text": "^3.1.0",
     "uuid": "^8.3.2",
+    "valibot": "^0.32.0",
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
@@ -78,6 +83,8 @@
     "@types/dotenv": "^6.1.1",
     "@types/express": "^5.0.5",
     "@types/express-validator": "^3.0.2",
+    "@types/fast-levenshtein": "^0.0.4",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.9.2",
@@ -92,15 +99,21 @@
     "@types/zxcvbn": "^4.4.5",
     "cross-env": "^10.1.0",
     "fs-extra": "^11.3.2",
+    "jest": "^30.2.0",
     "nodemon": "^3.1.10",
-    "prisma": "^6.18.0",
+    "prisma": "^7.0.1",
     "supertest": "^7.1.4",
     "swagger-ui-express": "^5.0.1",
+    "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
     "zod": "^4.1.12"
+  },
+  "overrides": {
+    "hono": "^4.10.7",
+    "valibot": "^0.32.0"
   }
 }

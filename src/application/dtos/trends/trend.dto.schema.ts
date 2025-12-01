@@ -15,6 +15,12 @@ export const TrendsQuerySchema = z
       .default(30)
       .optional()
       .describe("Number of trends to return (max: 30)"),
+    q: z
+      .string()
+      .optional()
+      .describe(
+        "Optional prefix query string for autocompletion/search (case-insensitive). When provided, endpoint returns matching hashtags ordered by recent popularity."
+      ),
   })
   .openapi("TrendsQuery");
 

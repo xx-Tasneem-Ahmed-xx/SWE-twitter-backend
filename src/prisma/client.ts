@@ -1,3 +1,4 @@
+import "dotenv/config";
 import {
   PrismaClient,
   TweetType,
@@ -5,5 +6,8 @@ import {
   FollowStatus,
   MediaType,
 } from "@prisma/client";
-export const prisma = new PrismaClient();
+import { PrismaPg } from "@prisma/adapter-pg";
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+export const prisma = new PrismaClient({ adapter });
 export { TweetType, ReplyControl, FollowStatus, MediaType };

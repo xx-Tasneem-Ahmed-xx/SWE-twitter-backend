@@ -1,8 +1,10 @@
 import { Groq } from "groq-sdk";
-
-const groq = new Groq();
+import { getKey } from "@/application/services/secrets";
 
 export async function generateTweetSumamry(tweetContent: string) {
+  const apiKey = await getKey("GROQ_API_KEY");
+  const groq = new Groq({ apiKey });
+
   const prompt = `You are an assistant that summarizes tweets briefly and clearly.
     The summary must:
         - Always be shorter than the original tweet.

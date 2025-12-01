@@ -2,18 +2,24 @@ import {
   InteractionsCursorServiceSchema,
   TweetCursorServiceSchema,
 } from "@/application/dtos/tweets/service/tweets.dto.schema";
-import { SearchDTOSchema } from "@/application/dtos/tweets/tweet.dto.schema";
+import {
+  CreateTweetDTOSchema,
+  SearchDTOSchema,
+} from "@/application/dtos/tweets/tweet.dto.schema";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { Request, Response, NextFunction } from "express";
 import tweetService from "@/application/services/tweets";
-import encoderService from "@/application/services/encoder";
+import { encoderService } from "@/application/services/encoder";
 
 export class TweetController {
   async createTweet(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = req.body;
+      const parsedData = CreateTweetDTOSchema.parse(req.body);
       const userId = (req as any).user.id;
-      const tweet = await tweetService.createTweet({ ...data, userId: userId });
+      const tweet = await tweetService.createTweet({
+        ...parsedData,
+        userId: userId,
+      });
       res.status(201).json(tweet);
     } catch (error) {
       next(error);
@@ -36,11 +42,11 @@ export class TweetController {
 
   async createQuote(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = req.body;
+      const parsedData = CreateTweetDTOSchema.parse(req.body);
       const parentId = req.params.id;
       const userId = (req as any).user.id;
       const quote = await tweetService.createQuote({
-        ...data,
+        ...parsedData,
         userId: userId,
         parentId,
       });
@@ -52,11 +58,11 @@ export class TweetController {
 
   async createReply(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = req.body;
+      const parsedData = CreateTweetDTOSchema.parse(req.body);
       const parentId = req.params.id;
       const userId = (req as any).user.id;
       const reply = await tweetService.createReply({
-        ...data,
+        ...parsedData,
         userId: userId,
         parentId,
       });
@@ -134,7 +140,22 @@ export class TweetController {
   async getTweetReplies(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const replies = await tweetService.getTweetReplies(id);
+      const userId = (req as any).user.id;
+      const decodedCursor = encoderService.decode<{
+        createdAt: string;
+        id: string;
+      }>(req.query.cursor as string);
+      
+      const parsedDTO = TweetCursorServiceSchema.parse({
+        userId,
+        limit: req.query.limit,
+        cursor: decodedCursor ?? undefined,
+      });
+
+      const replies = await tweetService.getTweetReplies(
+        id,
+        parsedDTO
+      );
       res.status(200).json(replies);
     } catch (error) {
       next(error);
@@ -166,7 +187,18 @@ export class TweetController {
   async getLikers(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const likers = await tweetService.getLikers(id);
+      const query = req.query;
+      const decodedCursor = encoderService.decode<{
+        userId: string;
+        createdAt: string;
+      }>(query.cursor as string);
+
+      const parsedDTO = InteractionsCursorServiceSchema.parse({
+        userId: (req as any).user.id,
+        limit: query.limit,
+        cursor: decodedCursor ?? undefined,
+      });
+      const likers = await tweetService.getLikers(id, parsedDTO);
       res.status(200).json(likers);
     } catch (error) {
       next(error);
@@ -209,10 +241,11 @@ export class TweetController {
     try {
       const { username } = req.params;
       const query = req.query;
+      const currentUserId = (req as any).user.id;
 
       const { id: userId } = await resolveUsernameToId(username);
       const decodedCursor = encoderService.decode<{
-        lastActivityAt: string;
+        createdAt: string;
         id: string;
       }>(query.cursor as string);
 
@@ -222,7 +255,7 @@ export class TweetController {
         cursor: decodedCursor ?? undefined,
       });
 
-      const tweets = await tweetService.getUserTweets(parsedDTO);
+      const tweets = await tweetService.getUserTweets(parsedDTO, currentUserId);
       res.status(200).json(tweets);
     } catch (error) {
       next(error);
@@ -236,7 +269,7 @@ export class TweetController {
 
       const { id: userId } = await resolveUsernameToId(username);
       const decodedCursor = encoderService.decode<{
-        lastActivityAt: string;
+        createdAt: string;
         id: string;
       }>(query.cursor as string);
 

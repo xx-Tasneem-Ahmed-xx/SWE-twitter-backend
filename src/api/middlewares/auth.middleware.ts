@@ -1,3 +1,4 @@
+import { getSecrets } from "@/config/secrets";
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
@@ -14,7 +15,7 @@ interface JwtPayload {
   id?: string;
   [k: string]: any;
 }
-
+const { JWT_SECRET } = getSecrets();
 export const requireAuth = (
   req: Request,
   res: Response,
@@ -29,7 +30,7 @@ export const requireAuth = (
 
   const token = authHeader.split(" ")[1];
   try {
-    const secret = process.env.JWT_SECRET || "devsecret";
+    const secret = JWT_SECRET || "devsecret";
     const payload = jwt.verify(token, secret) as JwtPayload;
     const userId = payload.sub || payload.id || payload.userId;
     if (!userId)

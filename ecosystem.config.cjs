@@ -6,6 +6,7 @@ module.exports = {
     ...[
       { name: "worker-hashtags", file: "hashtags.js" },
       { name: "worker-trends", file: "trends.js" },
+      { name: "worker-notifications", file: "notifications.js" },
       // add more workers here
     ].map((worker) => ({
       name: worker.name,
