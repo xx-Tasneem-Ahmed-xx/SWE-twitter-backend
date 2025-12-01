@@ -3773,7 +3773,7 @@
     "/api/hashtags/trends": {
       "get": {
         "summary": "Get trending hashtags",
-        "description": "Returns the top trending hashtags based on tweet count in the last 24 hours",
+        "description": "Returns the top trending hashtags based on tweet count in the last 24 hours.\n\nIf the optional `q` query parameter is provided, the endpoint performs a case-insensitive prefix autocomplete search and returns matching hashtags ordered by recent popularity (last 24 hours). When `q` is absent, the endpoint returns the cached global trends (calculated in the background).",
         "tags": [
           "Hashtags"
         ],
@@ -3789,6 +3789,16 @@
             "required": false,
             "description": "Number of trends to return (max: 30)",
             "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Optional prefix query string for autocompletion/search (case-insensitive). When provided, endpoint returns matching hashtags ordered by recent popularity."
+            },
+            "required": false,
+            "description": "Optional prefix query string for autocompletion/search (case-insensitive). When provided, endpoint returns matching hashtags ordered by recent popularity.",
+            "name": "q",
             "in": "query"
           }
         ],
@@ -3925,7 +3935,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-12-01T15:10:40.492Z"
+                        "default": "2025-12-01T17:48:50.290Z"
                       },
                       "userId": {
                         "type": "string",
@@ -4150,7 +4160,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-12-01T15:10:40.492Z"
+                            "default": "2025-12-01T17:48:50.290Z"
                           },
                           "userId": {
                             "type": "string",
