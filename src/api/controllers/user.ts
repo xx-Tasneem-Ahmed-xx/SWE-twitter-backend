@@ -18,6 +18,18 @@ import axios from "axios";
 import qs from "querystring";
 import { NotificationTitle } from "@prisma/client";
 import { getSecrets } from "@/config/secrets";
+import {
+  enqueueVerifyEmail,
+  enqueueWelcomeEmail,
+  enqueueLoginAlertEmail,
+  enqueuePasswordResetEmail,
+  enqueuePasswordChangedAlert,
+  enqueuePasswordChangedDetailed,
+  enqueueEmailChangeVerification,
+  enqueueSecurityLoginGithub,
+  enqueueSecurityLoginGoogle,
+  
+} from "../../background/jobs/emailJobs";
 // --- Custom Type Definitions ---
 interface LocalJwtPayload extends JwtPayload {
   Username?: string;
@@ -175,26 +187,26 @@ export async function Create(
     const code: string = gen6();
     await redisClient.set(`Signup:code:${input.email}`, code, { EX: 15 * 60 });
 
-    const message: string = `Subject: Verify Your Email Address 
+//     const message: string = `Subject: Verify Your Email Address 
 
-Hello ${input.name},
+// Hello ${input.name},
 
-Thank you for signing up to Artimesa!  
-To complete your registration and verify your email address, please enter the verification code below:
+// Thank you for signing up to Artimesa!  
+// To complete your registration and verify your email address, please enter the verification code below:
 
- Your verification code: ${code}
+//  Your verification code: ${code}
 
-This code will expire in 15 minutes.   
-If you didn't sign up for this account, you can safely ignore this message.
+// This code will expire in 15 minutes.   
+// If you didn't sign up for this account, you can safely ignore this message.
 
-Welcome aboard,  
-— The Artemisa Team 
-`;
+// Welcome aboard,  
+// — The Artemisa Team 
+// `;
 
-    utils.SendEmailSmtp(res, input.email, message).catch((err) => {
-      throw new AppError("Failed to send verification email", 500);
-    });
-
+    // utils.SendEmailSmtp(res, input.email, message).catch((err) => {
+    //   throw new AppError("Failed to send verification email", 500);
+    // });
+await enqueueVerifyEmail(input.email, input.name, code);
     await redisClient.set(`Signup:user:${input.email}`, JSON.stringify(input), {
       EX: 60 * 60,
     });
@@ -396,23 +408,24 @@ export async function FinalizeSignup(
     });
     await utils.SetSession(req, created.id, jti);
 
-    const completeMsg = `Subject: Welcome to Artimesa 
+//     const completeMsg = `Subject: Welcome to Artimesa 
 
-Hello ${created.name},
+// Hello ${created.name},
 
-Your registration is now complete!   
-You can log in anytime using your email: ${created.email}
+// Your registration is now complete!   
+// You can log in anytime using your email: ${created.email}
 
-We're thrilled to have you on board at Artimesa — enjoy exploring our community! 
+// We're thrilled to have you on board at Artimesa — enjoy exploring our community! 
 
-If you didn't create this account, please contact our support team immediately.
+// If you didn't create this account, please contact our support team immediately.
 
-— The Artimesa Team 
-`;
+// — The Artimesa Team 
+// `;
 
-    utils.SendEmailSmtp(res, created.email, completeMsg).catch((err) => {
-      throw new AppError("Failed to send welcome email", 500);
-    });
+//     utils.SendEmailSmtp(res, created.email, completeMsg).catch((err) => {
+//       throw new AppError("Failed to send welcome email", 500);
+//     });
+await enqueueWelcomeEmail(created.email, created.name);
 
     return utils.SendRes(res, {
       message: "Signup complete. Welcome!",
@@ -508,18 +521,18 @@ export async function Login(
     const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
     const location = await utils.Sendlocation(ip as string);
 
-    const emailMessage = `Hello ${user.username},
+//     const emailMessage = `Hello ${user.username},
 
- Your account was just accessed!
-Time: ${new Date().toLocaleString()}
+//  Your account was just accessed!
+// Time: ${new Date().toLocaleString()}
 
-If this was not you, immediately change your password!
-— The Artemisa Team`;
+// If this was not you, immediately change your password!
+// — The Artemisa Team`;
 
-    utils.SendEmailSmtp(res, email, emailMessage).catch((err) => {
-      throw new AppError("Failed to send login notification email", 500);
-    });
-
+//     utils.SendEmailSmtp(res, email, emailMessage).catch((err) => {
+//       throw new AppError("Failed to send login notification email", 500);
+//     });
+await enqueueLoginAlertEmail(user.email, user.username);
     // Safely derive browser and country values whether deviceRecord/location are objects or strings
     const deviceBrowser =
       typeof deviceRecord === "object" && deviceRecord
@@ -733,25 +746,25 @@ export async function ForgetPassword(
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-    const message = `
-Hi ${user.username},
+//     const message = `
+// Hi ${user.username},
 
-You requested a password reset for your Artemisa account.
+// You requested a password reset for your Artemisa account.
 
- Your password reset code is: ${code}
+//  Your password reset code is: ${code}
 
-This code is valid for 15 minutes.
+// This code is valid for 15 minutes.
 
-If you didn't request this change, please ignore this email or contact Artemisa support immediately.
+// If you didn't request this change, please ignore this email or contact Artemisa support immediately.
 
-— The Artemisa Team
-`;
-
+// — The Artemisa Team
+// `;
+await enqueuePasswordResetEmail(user.email, user.username, code);
     await redisClient.set(`Reset:code:${email}`, code, { EX: 15 * 60 });
 
-    utils.SendEmailSmtp(res, email, message).catch((err) => {
-      throw new AppError("Failed to send reset code email", 500);
-    });
+    // utils.SendEmailSmtp(res, email, message).catch((err) => {
+    //   throw new AppError("Failed to send reset code email", 500);
+    // });
 
     return utils.SendRes(res, {
       message: "Reset code sent via email. Check your inbox!",
@@ -830,17 +843,18 @@ export async function ResetPassword(
         ? JSON.stringify(deviceRecord, null, 2)
         : deviceRecord || "unknown";
 
-    const emailMessage = `Hello ${user.username},
+//     const emailMessage = `Hello ${user.username},
 
- Your password was just changed!
- Time: ${new Date().toLocaleString()}
+//  Your password was just changed!
+//  Time: ${new Date().toLocaleString()}
 
-If this wasn't you, secure your account immediately!
-— Artemisa Team`;
+// If this wasn't you, secure your account immediately!
+// — Artemisa Team`;
 
-    utils.SendEmailSmtp(res, email, emailMessage).catch(() => {
-      throw new AppError("Failed to send password change notification", 500);
-    });
+//     utils.SendEmailSmtp(res, email, emailMessage).catch(() => {
+//       throw new AppError("Failed to send password change notification", 500);
+//     });
+await enqueuePasswordChangedAlert(user.email, user.username);
     // const deviceBrowser =
     //   typeof deviceRecord === "object" && deviceRecord
     //     ? (deviceRecord as any).browser || "unknown"
@@ -1159,23 +1173,29 @@ export async function ChangePassword(
       .Sendlocation(ip)
       .catch(() => null);
 
-    const message: string = `Hi, ${user.username || "user"}
+//     const message: string = `Hi, ${user.username || "user"}
 
-We're letting you know that the password for your account (${email}) was just changed.
+// We're letting you know that the password for your account (${email}) was just changed.
 
- Time: ${new Date().toISOString()}
- Location: ${geo ? `${geo.Timezone}, ${geo.City}` : "unknown"}
- IP Address: ${ip}
- Device: ${req.get("User-Agent") || ""}
+//  Time: ${new Date().toISOString()}
+//  Location: ${geo ? `${geo.Timezone}, ${geo.City}` : "unknown"}
+//  IP Address: ${ip}
+//  Device: ${req.get("User-Agent") || ""}
 
-If you did NOT change your password, please secure your account immediately.
-— The Artemisa Team
-`;
+// If you did NOT change your password, please secure your account immediately.
+// — The Artemisa Team
+// `;
 
-    utils.SendEmailSmtp(res, email, message).catch(() => {
-      throw new AppError("Failed to send password change email", 500);
-    });
-
+//     utils.SendEmailSmtp(res, email, message).catch(() => {
+//       throw new AppError("Failed to send password change email", 500);
+//     });
+await enqueuePasswordChangedDetailed(user.email, {
+  username: user.username || "user",
+  timezone: geo ? `${geo.Timezone}` : "unknown",
+  city: geo ? geo.City : "unknown",
+  ip: ip,
+  userAgent: req.get("User-Agent") || "",
+});
    
     return utils.SendRes(res, {
       refresh_token: refreshObj.token,
@@ -1230,15 +1250,15 @@ export async function ChangeEmail(
     );
 
     // Send verification email with the code
-    const msg = `Hi ${user.name || "there"},
-        You requested to change your account email. Use the verification code below to confirm:
-        ${code}
-        This code will expire in 15 minutes
-        If you didn’t request this, please ignore this message.
-        -Artemsia team
-      `;
-    await utils.SendEmailSmtp(res, newEmail, msg);
-
+    // const msg = `Hi ${user.name || "there"},
+    //     You requested to change your account email. Use the verification code below to confirm:
+    //     ${code}
+    //     This code will expire in 15 minutes
+    //     If you didn’t request this, please ignore this message.
+    //     -Artemsia team
+    //   `;
+    // await utils.SendEmailSmtp(res, newEmail, msg);
+await enqueueEmailChangeVerification(user.email, user.name || "there", code);
     return utils.SendRes(res, {
       message: "Verification code sent successfully to your new email",
     });
@@ -2003,29 +2023,36 @@ export async function CallbackGithubFront(
     const geo = await utils.Sendlocation(ip);
 
     // 📧 Send Professional Login Email (non-blocking)
-    const emailMsg = `
-👋 Hello, ${user.username || name}
+//     const emailMsg = `
+// 👋 Hello, ${user.username || name}
 
-We noticed a new login to your account via GitHub.
+// We noticed a new login to your account via GitHub.
 
-🕒 Time: ${new Date().toLocaleString()}
-📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
-🌐 IP Address: ${geo.Query || ip}
-🖥️ Device: ${req.get("User-Agent") || "Unknown"}
+// 🕒 Time: ${new Date().toLocaleString()}
+// 📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
+// 🌐 IP Address: ${geo.Query || ip}
+// 🖥️ Device: ${req.get("User-Agent") || "Unknown"}
 
-Your login was successful 🎉
+// Your login was successful 🎉
 
-If this wasn't you, please reset your password or contact support immediately.
+// If this wasn't you, please reset your password or contact support immediately.
 
-— The Artemisa Security Team 🦊
-`;
+// — The Artemisa Security Team 🦊
+// `;
 
-    // ✅ Send email asynchronously (don't block the response)
-    utils.SendEmailSmtp(res, email, emailMsg).catch(err => {
-      console.error('Failed to send login email:', err);
-    });
-
-    const redirectUrl = `https://ingeborg-untrammed-leo.ngrok-free.dev/login/success?token=${encodeURIComponent(
+//     // ✅ Send email asynchronously (don't block the response)
+//     utils.SendEmailSmtp(res, email, emailMsg).catch(err => {
+//       console.error('Failed to send login email:', err);
+//     });
+await enqueueSecurityLoginGithub(user.email, {
+  username: user.username,
+  name: user.name||"",
+  city: geo.City || "Unknown",
+  country: geo.Country || "",
+  ip: geo.Query || ip,
+  userAgent: req.get("User-Agent") || "Unknown",
+});
+    const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
       token.token
     )}&refresh-token=${encodeURIComponent(
       refreshToken.token
@@ -2159,24 +2186,32 @@ console.log("GITHUB TOKEN:", accessToken);
     const geo = await utils.Sendlocation(ip);
 
     // 📧 Send Professional Login Email
-    const emailMsg = `
-👋 Hello, ${user.username || name}
+//     const emailMsg = `
+// 👋 Hello, ${user.username || name}
 
-We noticed a new login to your account via GitHub.
+// We noticed a new login to your account via GitHub.
 
-🕒 Time: ${new Date().toLocaleString()}
-📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
-🌐 IP Address: ${geo.Query || ip}
-🖥️ Device: ${req.get("User-Agent") || "Unknown"}
+// 🕒 Time: ${new Date().toLocaleString()}
+// 📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
+// 🌐 IP Address: ${geo.Query || ip}
+// 🖥️ Device: ${req.get("User-Agent") || "Unknown"}
 
-Your login was successful 🎉
+// Your login was successful 🎉
 
-If this wasn’t you, please reset your password or contact support immediately.
+// If this wasn’t you, please reset your password or contact support immediately.
 
-— The Artemisa Security Team 🦊
-`;
+// — The Artemisa Security Team 🦊
+// `;
 
-    await utils.SendEmailSmtp(res, email, emailMsg);
+//     await utils.SendEmailSmtp(res, email, emailMsg);
+await enqueueSecurityLoginGithub(user.email, {
+  username: user.username,
+  name: user.name||"",
+  city: geo.City || "Unknown",
+  country: geo.Country || "",
+  ip: geo.Query || ip,
+  userAgent: req.get("User-Agent") || "Unknown",
+});
 
     const redirectUrl = `myapp://login/success?token=${encodeURIComponent(
       token.token
@@ -2294,24 +2329,31 @@ export async function CallbackGoogle(
     const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
     const geo = await utils.Sendlocation(ip);
 
-    const emailMsg = `
-👋 Hi, ${user.username || name}
+//     const emailMsg = `
+// 👋 Hi, ${user.username || name}
 
-We noticed a new login to your account (${email}).
+// We noticed a new login to your account (${email}).
 
-🕒 Time: ${new Date().toLocaleString()}
-📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
-🌐 IP Address: ${geo.Query || ip}
-🖥️ Device: ${req.get("User-Agent") || "Unknown"}
+// 🕒 Time: ${new Date().toLocaleString()}
+// 📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
+// 🌐 IP Address: ${geo.Query || ip}
+// 🖥️ Device: ${req.get("User-Agent") || "Unknown"}
 
-If this was you — awesome! You’re all set 🎉
-If this wasn’t you, please secure your account immediately.
+// If this was you — awesome! You’re all set 🎉
+// If this wasn’t you, please secure your account immediately.
 
-— The Artemisa Security Team 🌙
-`;
+// — The Artemisa Security Team 🌙
+// `;
 
-    await utils.SendEmailSmtp(res, email, emailMsg);
-
+//     await utils.SendEmailSmtp(res, email, emailMsg);
+await enqueueSecurityLoginGoogle(user.email, {
+  username: user.username,
+  name: user.name||"",
+  city: geo.City || "Unknown",
+  country: geo.Country || "",
+  ip: geo.Query || ip,
+  userAgent: req.get("User-Agent") || "Unknown",
+});
     const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
       token.token
     )}&refresh-token=${encodeURIComponent(

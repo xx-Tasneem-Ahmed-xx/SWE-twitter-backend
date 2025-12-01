@@ -1,3 +1,4 @@
+
 import { Queue, QueueOptions } from "bullmq";
 import { bullRedisConfig } from "@/background/config/redis";
 
@@ -17,3 +18,4 @@ function createQueue(name: string, options: Partial<QueueOptions> = {}) {
 export const hashtagsQueue = createQueue("hashtags");
 export const trendsQueue = createQueue("trends");
 export const notificationsQueue = createQueue("notifications");
+export const emailQueue = createQueue("emails"); // Add this
