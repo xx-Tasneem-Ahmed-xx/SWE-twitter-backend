@@ -12,8 +12,7 @@ export const UserInteractionQuerySchema = z
       .optional()
       .default(null)
       .describe("Opaque cursor for pagination."),
-    limit: z
-      .coerce
+    limit: z.coerce
       .number()
       .int()
       .min(1)
@@ -39,7 +38,7 @@ export const FollowsListResponseSchema = z
         z.object({
           username: z.string().describe("Username"),
           name: z.string().describe("Display name"),
-          photo: z.string().url().nullable().describe("Avatar URL"),
+          photo: z.string().nullable().describe("Avatar URL"),
           bio: z.string().nullable().describe("User bio"),
           verified: z.boolean().describe("Is the user verified"),
           isFollowing: z

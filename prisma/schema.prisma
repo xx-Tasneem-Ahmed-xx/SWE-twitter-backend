@@ -40,6 +40,8 @@ model User {
   // TODO: add default ids when their medias is uploaded to s3
   profileMediaId          String?
   coverMediaId            String?
+  reputation              Float         @default(1.0)
+  reputationUpdatedAt     DateTime      @updatedAt 
 
   messages              Message[]
   tweet                 Tweet[]
@@ -60,13 +62,14 @@ model User {
   profileMedia          Media?          @relation("profileMedia", fields: [profileMediaId], references: [id])
   coverMedia            Media?          @relation("coverMedia", fields: [coverMediaId], references: [id])
 
-  oldPassword    OldPassword[]
-  deviceRecord   DeviceRecord[]
-  oAuthAccount   OAuthAccount[]
-  userMedia      UserMedia[]
-  FcmToken       FcmToken[]
-  notInteresteds NotInterested[]
-  spamReports    SpamReport[]
+  oldPassword         OldPassword[]
+  deviceRecord        DeviceRecord[]
+  oAuthAccount        OAuthAccount[]
+  userMedia           UserMedia[]
+  FcmToken            FcmToken[]
+  notInteresteds      NotInterested[]
+  spamReports         SpamReport[]
+  preferredCategories Category[]      @relation("UserPreferredCategories")
 
   @@map("users")
 }
@@ -145,6 +148,7 @@ model Tweet {
   Notification   Notification[]
   notInteresteds NotInterested[]
   spamReports    SpamReport[]
+  category       Category[]
 
   @@unique([lastActivityAt, id])
   @@index([userId, createdAt])
@@ -406,6 +410,15 @@ model SpamReport {
 
   reporter User  @relation(fields: [reporterId], references: [id])
   tweet    Tweet @relation(fields: [tweetId], references: [id])
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tweets    Tweet[]
+  users     User[]   @relation("UserPreferredCategories")
 }
 
 enum ReplyControl {

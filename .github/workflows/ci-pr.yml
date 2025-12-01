@@ -2,11 +2,19 @@ name: CI on PR
 
 on:
   pull_request:
+    branches:
+      - main
     types: [opened, synchronize, reopened]
 
 jobs:
-  test-backend:
+  Continous-Intergration:
     runs-on: ubuntu-latest
+    env:
+      AWS_MAIN_SECRET_NAME: ${{ secrets.AWS_MAIN_SECRET_NAME }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db_shadow
+      REDIS_URL: redis://localhost:6379
     services:
       postgres:
         image: postgres:15
@@ -41,14 +49,9 @@ jobs:
           cache: "npm"
 
       - name: Install Dependencies and Generate prisma client
-        run: npm ci
-        run: npx prisma generate
-
-      - name: Set environment variables
         run: |
-          echo DATABASE_URL="postgresql://postgres:postgres@localhost:5432/test_db" >> $GITHUB_ENV
-          echo SHADOW_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/test_db_shadow" >> $GITHUB_ENV
-          echo REDIS_URL="redis://localhost:6379" >> $GITHUB_ENV
+          npm ci
+          npx prisma generate
 
       - name: Wait for Postgres & Redis
         run: |

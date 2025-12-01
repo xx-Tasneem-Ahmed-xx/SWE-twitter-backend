@@ -1,4 +1,3 @@
-import { NotificationInputSchema } from "@/application/dtos/notification/notification.dto.schema";
 import { NotificationTitle } from "@prisma/client";
 import type { EmailTemplateType } from "../../application/utils/tweets/emailTemplates";
 

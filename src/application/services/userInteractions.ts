@@ -223,7 +223,6 @@ const getRelationToTargetStatuses = async (
 export const getFollowersList = async (
   userId: string,
   currentUserId: string,
-  followStatus: FollowStatus,
   cursorId?: string,
   limit: number = 30
 ) => {
@@ -527,6 +526,7 @@ export const getMutedList = async (
   const rows = await prisma.user.findMany(q);
   const hasMore = rows.length === take;
   const page = hasMore ? rows.slice(0, -1) : rows;
+
   // compute follow/mutual follow status relative to the muter (viewer)
   const userIds = page.map((u: any) => u.id);
   const { followedByCurrentUserSet, followingCurrentUserSet } =
@@ -558,6 +558,7 @@ export const getMutedList = async (
       followStatus
     );
   });
+
   const nextCursor = await computeNextCursor(page, hasMore);
   return { users, nextCursor, hasMore };
 };

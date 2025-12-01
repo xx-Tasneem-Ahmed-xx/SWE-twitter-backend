@@ -22,7 +22,8 @@ import { SearchParams } from "@/types/types";
 import { encoderService } from "@/application/services/encoder";
 import { enqueueHashtagJob } from "@/background/jobs/hashtags";
 import { Prisma } from "@prisma/client";
-import { BaseInteractionRecord } from "@/types/interfaces";
+import { addNotification } from "@/api/controllers/notificationController";
+import { UUID } from "node:crypto";
 
 class TweetService {
   private async validateId(id: string) {
@@ -56,6 +57,21 @@ class TweetService {
     });
 
     if (mentionedUsers.length === 0) return;
+
+    mentionedUsers.map((user) =>
+      addNotification(
+        user.id as UUID,
+        {
+          title: "MENTION",
+          body: "mentioned you",
+          tweetId,
+          actorId: mentionerId,
+        },
+        (err) => {
+          throw err;
+        }
+      )
+    );
 
     await tx.mention.createMany({
       data: mentionedUsers.map((user) => ({
@@ -155,9 +171,10 @@ class TweetService {
         },
       });
 
-      await tx.tweet.update({
+      const parent = await tx.tweet.update({
         where: { id: dto.parentId },
         data: { quotesCount: { increment: 1 } },
+        select: { userId: true },
       });
 
       await this.saveTweetMediasTx(tx, quote.id, dto.mediaIds);
@@ -173,6 +190,19 @@ class TweetService {
         tweetId: quote.id,
         content: quote.content,
       }).catch(() => console.log("Failed to enqueue hashtag job for quote"));
+
+      addNotification(
+        parent.userId as UUID,
+        {
+          title: "QUOTE",
+          body: "someone quoted you",
+          tweetId: dto.parentId,
+          actorId: dto.userId,
+        },
+        (err) => {
+          throw err;
+        }
+      );
 
       return quote;
     });
@@ -194,9 +224,10 @@ class TweetService {
         },
       });
 
-      await tx.tweet.update({
+      const parent = await tx.tweet.update({
         where: { id: dto.parentId },
         data: { repliesCount: { increment: 1 } },
+        select: { userId: true },
       });
 
       await this.saveTweetMediasTx(tx, reply.id, dto.mediaIds);
@@ -213,6 +244,19 @@ class TweetService {
         content: reply.content,
       }).catch(() => console.log("Failed to enqueue hashtag job for reply"));
 
+      addNotification(
+        parent.userId as UUID,
+        {
+          title: "REPLY",
+          body: "someone replied to",
+          tweetId: dto.parentId,
+          actorId: dto.userId,
+        },
+        (err) => {
+          throw err;
+        }
+      );
+
       return reply;
     });
   }
@@ -222,15 +266,31 @@ class TweetService {
     const valid = await validToRetweetOrQuote(dto.parentId);
     if (!valid) throw new AppError("You cannot retweet a protected tweet", 403);
 
-    return prisma.$transaction([
-      prisma.retweet.create({
+    return await prisma.$transaction(async (tx) => {
+      const retweet = await tx.retweet.create({
         data: { userId: dto.userId, tweetId: dto.parentId },
-      }),
-      prisma.tweet.update({
+      });
+
+      const parent = await tx.tweet.update({
         where: { id: dto.parentId },
         data: { retweetCount: { increment: 1 } },
-      }),
-    ]);
+        select: { userId: true },
+      });
+
+      addNotification(
+        parent.userId as UUID,
+        {
+          title: "RETWEET",
+          body: "reposted your post",
+          tweetId: dto.parentId,
+          actorId: dto.userId,
+        },
+        (err) => {
+          throw err;
+        }
+      );
+      return retweet;
+    });
   }
 
   async getRetweets(tweetId: string, dto: InteractionsCursorServiceDTO) {
@@ -387,15 +447,27 @@ class TweetService {
     };
   }
 
-  //TODO: paginate
-  async getTweetReplies(tweetId: string, userId: string) {
+  async getTweetReplies(tweetId: string, dto: TweetCursorServiceDTO) {
     const replies = await prisma.tweet.findMany({
       where: { parentId: tweetId },
       select: {
-        ...this.tweetSelectFields(userId),
+        ...this.tweetSelectFields(dto.userId),
       },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: dto.limit + 1,
+      ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
     });
-    return this.checkUserInteractions(replies);
+    const { cursor, paginatedRecords } = this.updateCursor(
+      replies,
+      dto.limit,
+      (record) => ({ id: record.id, createdAt: record.createdAt })
+    );
+
+    const data = this.checkUserInteractions(paginatedRecords);
+    return {
+      data,
+      cursor,
+    };
   }
 
   async likeTweet(userId: string, tweetId: string) {
@@ -408,13 +480,28 @@ class TweetService {
     });
 
     if (existingLike) throw new AppError("Tweet already liked", 409);
-    return prisma.$transaction([
-      prisma.tweet.update({
+    return await prisma.$transaction(async (tx) => {
+      const parent = await tx.tweet.update({
         where: { id: tweetId },
         data: { likesCount: { increment: 1 } },
-      }),
-      prisma.tweetLike.create({ data: { userId, tweetId } }),
-    ]);
+      });
+
+      await tx.tweetLike.create({
+        data: { userId, tweetId },
+      });
+      addNotification(
+        parent.userId as UUID,
+        {
+          title: "LIKE",
+          body: "liked your post",
+          tweetId: tweetId,
+          actorId: userId,
+        },
+        (err) => {
+          throw err;
+        }
+      );
+    });
   }
 
   async deleteLike(userId: string, tweetId: string) {
@@ -491,7 +578,7 @@ class TweetService {
 
     const existingSummary = await prisma.tweetSummary.findUnique({
       where: { tweetId },
-      select: { tweetId: true, summary: true },
+      select: { summary: true },
     });
 
     if (existingSummary) return existingSummary;
@@ -500,7 +587,6 @@ class TweetService {
     await prisma.tweetSummary.create({ data: { tweetId, summary } });
 
     return {
-      tweetId: tweetId,
       summary: summary,
     };
   }

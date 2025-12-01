@@ -3,7 +3,9 @@ import { loadSecrets } from "@/config/secrets";
 import { prisma } from "@/prisma/client";
 import { Tweet, TweetType, ReplyControl } from "@prisma/client";
 let connectToDatabase: any, tweetService: any;
-
+jest.mock("@/api/controllers/notificationController", () => ({
+  addNotification: jest.fn(),
+}));
 beforeAll(async () => {
   await initRedis();
   await loadSecrets();
@@ -366,7 +368,7 @@ describe("Tweets Service", () => {
   });
 
   describe("createRetweet", () => {
-    it("should create a retweet and update last activity of parent tweet", async () => {
+    it("should create a retweet", async () => {
       const parentTweet = await prisma.tweet.create({
         data: {
           userId: "123",
@@ -379,9 +381,8 @@ describe("Tweets Service", () => {
         parentId: parentTweet.id,
       });
 
-      expect(result[0]?.userId).toBe("123");
-      expect(result[0]?.tweetId).toBe(parentTweet.id);
-      expect(result[1]?.id).toBe(parentTweet.id);
+      expect(result?.userId).toBe("123");
+      expect(result?.tweetId).toBe(parentTweet.id);
 
       const updatedParent = await prisma.tweet.findUnique({
         where: { id: parentTweet.id },
