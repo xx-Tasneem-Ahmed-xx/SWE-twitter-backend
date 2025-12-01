@@ -79,7 +79,7 @@ pipeline {
                     script {
                         sh '''
                             echo "DATABASE_URL=${DATABASE_URL}" >> ./.env
-                            echo "SHADOW_DATABASE_URL=non-important" >> ./.env
+                            echo "SHADOW_DATABASE_URL=${DATABASE_URL}" >> ./.env
                             
                             # Verify .env file exists
                             if [ -f ./.env ]; then
