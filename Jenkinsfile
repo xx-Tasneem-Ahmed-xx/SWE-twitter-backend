@@ -43,7 +43,7 @@ pipeline {
                         $class: 'GitSCM',
                         branches: [[name: '*/main']],
                         userRemoteConfigs: [[
-                            url: 'https://github.com/CUFE-Software-Engineering-Project/SWE-twitter-backend.git',  
+                            url: 'https://github.com/CUFE-Software-Engineering-Project/SWE-twitter-Backend-Fork.git',  
                             credentialsId: "${GIT_CREDENTIALS}"
                         ]]
                     ])
