@@ -885,7 +885,7 @@ router.post("/logout-all", Auth(),  typedAuthController.LogoutALL, DeactivateUse
  *       401:
  *         description: Unauthorized request.
  */
-router.get("/captcha", Auth(),  typedAuthController.Captcha);
+router.get("/captcha" , typedAuthController.Captcha);
 /**
  * @swagger
  * /signup_captcha:
