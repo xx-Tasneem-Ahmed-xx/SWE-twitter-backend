@@ -19,7 +19,7 @@ export function registerHashtagAndTrendsDocs(registry: OpenAPIRegistry) {
     path: "/api/hashtags/trends",
     summary: "Get trending hashtags",
     description:
-      "Returns the top trending hashtags based on tweet count in the last 24 hours",
+      "Returns the top trending hashtags based on tweet count in the last 24 hours.\n\nIf the optional `q` query parameter is provided, the endpoint performs a case-insensitive prefix autocomplete search and returns matching hashtags ordered by recent popularity (last 24 hours). When `q` is absent, the endpoint returns the cached global trends (calculated in the background).",
     tags: ["Hashtags"],
     request: {
       query: TrendsQuerySchema,
@@ -40,11 +40,16 @@ export function registerHashtagAndTrendsDocs(registry: OpenAPIRegistry) {
     method: "get",
     path: "/api/hashtags/{id}/tweets",
     summary: "Get tweets for a hashtag",
-    description: "Returns tweets that contain the specified hashtag (works for any hashtag, trending or not)",
+    description:
+      "Returns tweets that contain the specified hashtag (works for any hashtag, trending or not)",
     tags: ["Hashtags"],
     request: {
       params: z.object({
-        id: z.string().describe("The encoded hashtag ID (get this from the trends list endpoint)"),
+        id: z
+          .string()
+          .describe(
+            "The encoded hashtag ID (get this from the trends list endpoint)"
+          ),
       }),
       query: HashtagTweetsQuerySchema,
     },
