@@ -1,6 +1,6 @@
 import { prisma, FollowStatus } from "@/prisma/client";
 import { AppError } from "@/errors/AppError";
-import { addNotification } from "@/api/controllers/notificationController";
+import { addNotification } from "./notification";
 import { NotificationTitle } from "@prisma/client";
 
 // Create a follow relationship
@@ -52,19 +52,13 @@ export const createFollowRelationAndNotify = async (
         ? `requested to follow you`
         : `started following you`;
 
-    // addNotification expects a callback/next; pass a simple callback to log errors
-    await addNotification(
-      followingId as any,
-      {
-        title,
-        body,
-        actorId: followerId,
-        tweetId: undefined,
-      },
-      (err: any) => {
-        if (err) console.error("Follow notification error:", err);
-      }
-    );
+    // fire notification (async) - errors handled by try/catch
+    await addNotification(followingId as any, {
+      title,
+      body,
+      actorId: followerId,
+      tweetId: undefined,
+    });
   } catch (err) {
     console.error("Failed to send follow notification:", err);
   }
@@ -115,18 +109,12 @@ export const updateFollowStatusAndNotify = async (
 
   try {
     const body = `accepted your follow request`;
-    await addNotification(
-      followerId as any,
-      {
-        title: NotificationTitle.ACCEPTED_FOLLOW,
-        body,
-        actorId: followingId,
-        tweetId: undefined,
-      },
-      (err: any) => {
-        if (err) console.error("Accepted follow notification error:", err);
-      }
-    );
+    await addNotification(followerId as any, {
+      title: NotificationTitle.ACCEPTED_FOLLOW,
+      body,
+      actorId: followingId,
+      tweetId: undefined,
+    });
   } catch (err) {
     console.error("Failed to send accepted-follow notification:", err);
   }
