@@ -275,7 +275,7 @@ export const fetchTrends = async (
 // Fetch tweets for a specific hashtag with pagination
 export const fetchHashtagTweets = async (
   hashtagId: string,
-  cursor?: string | null,
+  cursor?: { id: string; createdAt: string } | null,
   limit: number = 30,
   userId?: string | null
 ) => {
@@ -294,8 +294,12 @@ export const fetchHashtagTweets = async (
   };
 
   if (cursor) {
-    where.tweetId = {
-      lt: cursor,
+    const cursorDate = new Date(cursor.createdAt);
+    where.tweet = {
+      OR: [
+        { createdAt: { lt: cursorDate } },
+        { AND: [{ createdAt: cursorDate }, { id: { lt: cursor.id } }] },
+      ],
     };
   }
 
@@ -309,11 +313,7 @@ export const fetchHashtagTweets = async (
         select: tweetSelect,
       },
     },
-    orderBy: {
-      tweet: {
-        createdAt: "desc",
-      },
-    },
+    orderBy: [{ tweet: { createdAt: "desc" } }, { tweet: { id: "desc" } }],
     take: limit + 1,
   });
 
@@ -325,7 +325,16 @@ export const fetchHashtagTweets = async (
   const data = (tweetService as any).checkUserInteractions(rawTweets);
 
   const nextCursor = hasMore
-    ? encoderService.encode(rawTweets[rawTweets.length - 1].id)
+    ? (() => {
+        const lastTweet: any = rawTweets[rawTweets.length - 1];
+        return encoderService.encode({
+          id: lastTweet.id,
+          createdAt:
+            lastTweet && lastTweet.createdAt
+              ? (lastTweet.createdAt as Date).toISOString()
+              : new Date().toISOString(),
+        });
+      })()
     : null;
 
   return {
