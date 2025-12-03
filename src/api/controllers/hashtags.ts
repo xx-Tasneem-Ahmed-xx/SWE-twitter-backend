@@ -44,7 +44,12 @@ export const getHashtagTweets = async (
     // Decode cursor
     const decodedCursor = encoderService.decode<string>(cursor);
 
-    const tweets = await fetchHashtagTweets(hashtagId, decodedCursor, limit);
+    const tweets = await fetchHashtagTweets(
+      hashtagId,
+      decodedCursor,
+      limit,
+      req.user?.id
+    );
     res.json(tweets);
   } catch (error) {
     next(error);

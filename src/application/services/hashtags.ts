@@ -4,6 +4,7 @@ import { prisma } from "@/prisma/client";
 import { AppError } from "@/errors/AppError";
 import { redisClient } from "@/config/redis";
 import { encoderService } from "@/application/services/encoder";
+import tweetService from "@/application/services/tweets";
 
 // Trends configuration constants
 const TRENDS_CACHE_KEY = "trends:global";
@@ -271,7 +272,8 @@ export const fetchTrends = async (
 export const fetchHashtagTweets = async (
   hashtagId: string,
   cursor?: string | null,
-  limit: number = 30
+  limit: number = 30,
+  userId?: string | null
 ) => {
   const hash = await prisma.hash.findUnique({
     where: {
@@ -293,22 +295,14 @@ export const fetchHashtagTweets = async (
     };
   }
 
+  // select the same fields used by the tweet service's `getTweet` response
+  const tweetSelect = (tweetService as any).tweetSelectFields(userId ?? "");
+
   const tweetHashes = await prisma.tweetHash.findMany({
     where,
     include: {
       tweet: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              name: true,
-              profileMedia: { select: { id: true } },
-              verified: true,
-              protectedAccount: true,
-            },
-          },
-        },
+        select: tweetSelect,
       },
     },
     orderBy: {
@@ -320,13 +314,18 @@ export const fetchHashtagTweets = async (
   });
 
   const hasMore = tweetHashes.length > limit;
-  const tweets = hasMore ? tweetHashes.slice(0, limit) : tweetHashes;
+  const rows = hasMore ? tweetHashes.slice(0, limit) : tweetHashes;
+  const rawTweets = rows.map((r) => r.tweet);
+
+  // reuse tweet service's interaction checker to compute isLiked/isRetweeted/isBookmarked
+  const data = (tweetService as any).checkUserInteractions(rawTweets);
+
   const nextCursor = hasMore
-    ? encoderService.encode(tweets[tweets.length - 1].tweetId)
+    ? encoderService.encode(rawTweets[rawTweets.length - 1].id)
     : null;
 
   return {
-    tweets: tweets.map((th) => th.tweet),
+    tweets: data,
     nextCursor,
     hasMore,
   };
