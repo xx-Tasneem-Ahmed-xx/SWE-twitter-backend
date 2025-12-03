@@ -2,6 +2,7 @@ import { prisma, TweetType } from "@/prisma/client";
 import {
   validToRetweetOrQuote,
   validToReply,
+  updateCursor,
 } from "@/application/utils/tweet.utils";
 import {
   CreateReplyOrQuoteServiceDTO,
@@ -96,23 +97,6 @@ class TweetService {
     }));
 
     await tx.tweetMedia.createMany({ data });
-  }
-
-  private updateCursor<T>(
-    records: T[],
-    limit: number,
-    getCursorFn: (record: T) => Record<string, any>
-  ) {
-    const hasNextPage = records.length > limit;
-    const paginatedRecords = hasNextPage ? records.slice(0, -1) : records;
-
-    const lastRecord = paginatedRecords[paginatedRecords.length - 1];
-    const cursor = lastRecord ? getCursorFn(lastRecord) : null;
-
-    return {
-      paginatedRecords,
-      cursor: hasNextPage ? encoderService.encode(cursor) : null,
-    };
   }
 
   private checkUserInteractions(tweets: any[]) {
@@ -314,7 +298,7 @@ class TweetService {
       }),
     });
 
-    const { cursor, paginatedRecords } = this.updateCursor(
+    const { cursor, paginatedRecords } = updateCursor(
       retweeters,
       dto.limit,
       (record) => ({ userId: record.userId, createdAt: record.createdAt })
@@ -430,7 +414,7 @@ class TweetService {
       }),
     });
 
-    const { cursor, paginatedRecords } = this.updateCursor(
+    const { cursor, paginatedRecords } = updateCursor(
       tweetLikes,
       dto.limit,
       (record) => ({ userId: record.userId, createdAt: record.createdAt })
@@ -454,7 +438,7 @@ class TweetService {
       take: dto.limit + 1,
       ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
     });
-    const { cursor, paginatedRecords } = this.updateCursor(
+    const { cursor, paginatedRecords } = updateCursor(
       replies,
       dto.limit,
       (record) => ({ id: record.id, createdAt: record.createdAt })
@@ -545,7 +529,7 @@ class TweetService {
       }),
     });
 
-    const { cursor, paginatedRecords } = this.updateCursor(
+    const { cursor, paginatedRecords } = updateCursor(
       records,
       dto.limit,
       (record) => ({ userId: record.userId, createdAt: record.createdAt })
@@ -593,7 +577,7 @@ class TweetService {
       ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
     });
 
-    const { cursor, paginatedRecords } = this.updateCursor(
+    const { cursor, paginatedRecords } = updateCursor(
       tweets,
       dto.limit,
       (record) => ({ id: record.id, createdAt: record.createdAt })
@@ -618,7 +602,7 @@ class TweetService {
       ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
     });
 
-    const { cursor, paginatedRecords } = this.updateCursor(
+    const { cursor, paginatedRecords } = updateCursor(
       tweets,
       dto.limit,
       (record) => ({ id: record.id, createdAt: record.createdAt })
