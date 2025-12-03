@@ -250,7 +250,12 @@ export class PersistenceManager {
   private redis: Redis;
   private logger = new Logger("Persistence");
 
-  constructor(redisUrl: string = "redis://localhost:6379") {
+  constructor(redisUrl: string = "") {
+    if (redisUrl === "") {
+      const { REDIS_URL } = getSecrets();
+      redisUrl = REDIS_URL;
+    }
+
     this.redis = new Redis(redisUrl);
     this.redis.on("error", (err) => this.logger.error("Redis error", err));
     this.redis.on("connect", () => this.logger.info("Redis connected"));
@@ -1042,13 +1047,12 @@ export async function initializeSearchEngine(redisUrl?: string) {
   const logger = new Logger("Init");
 
   try {
+    const { REDIS_URL } = getSecrets();
     const prisma = clientPrisma;
     const crawler = new Crawler(prisma);
     const parser = new Parser();
     const indexer = new Indexer();
-    const persistence = new PersistenceManager(
-      redisUrl || "redis://localhost:6379"
-    );
+    const persistence = new PersistenceManager(redisUrl || REDIS_URL);
     const searchEngine = new SearchEngine(indexer, parser, persistence);
 
     logger.info("Search engine initialized successfully");

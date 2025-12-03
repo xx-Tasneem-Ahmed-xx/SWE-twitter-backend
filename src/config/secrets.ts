@@ -8,8 +8,15 @@ const SECRET_KEYS = [
   "PEPPER",
   "DOMAIN",
   "CLIENT_DOMAIN",
+  "CLIENT_ID",
+  "CLIENT_SECRET",
   "GITHUB_CLIENT_ID",
+  "GITHUB_CLIENT_SECRET",
   "GITHUB_RED_URL",
+  "GITHUB_STATE",
+  "GITHUB_RED_URL_FRONT",
+  "GITHUB_SECRET_FRONT",
+  "GITHUB_CLIENT_ID_FRONT",
   "RED_URL_PRD",
   "GOOGLE_STATE",
   "FRONTEND_URL",
@@ -42,6 +49,10 @@ interface Secrets {
   redirectUri: string;
   google_state: string;
   githubClientId: string;
+  GITHUB_CLIENT_SECRET: string;
+  GITHUB_SECRET_FRONT: string;
+  GITHUB_RED_URL_FRONT: string;
+  GITHUB_CLIENT_ID_FRONT: string;
   githubRedirectUrl: string;
   githubState: string;
   FRONTEND_URL: string;
@@ -71,14 +82,20 @@ export async function loadSecrets() {
     DOMAIN: keys.DOMAIN!,
     CLIENT_DOMAIN: keys.CLIENT_DOMAIN!,
     COOKIE_DOMAIN: keys.COOKIE_DOMAIN!,
-    client_id: keys.GITHUB_CLIENT_ID!,
-    client_secret: keys.GITHUB_CLIENT_ID!,
-    redirect_uri: keys.GITHUB_RED_URL!,
-    redirectUri: keys.RED_URL_PRD!,
-    google_state: keys.GOOGLE_STATE!,
+    client_id: keys.CLIENT_ID,
+    client_secret: keys.CLIENT_SECRET,
+    redirect_uri: keys.RED_URL_PRD,
+    google_state: keys.GOOGLE_STATE,
+
+    redirectUri: keys.GITHUB_RED_URL!,
     githubClientId: keys.GITHUB_CLIENT_ID!,
     githubRedirectUrl: keys.GITHUB_RED_URL!,
-    githubState: keys.GOOGLE_STATE!,
+    githubState: keys.GITHUB_STATE!,
+    GITHUB_CLIENT_SECRET: keys.GITHUB_CLIENT_SECRET,
+
+    GITHUB_RED_URL_FRONT: keys.GITHUB_RED_URL_FRONT,
+    GITHUB_SECRET_FRONT: keys.GITHUB_SECRET_FRONT,
+    GITHUB_CLIENT_ID_FRONT: keys.GITHUB_CLIENT_ID_FRONT,
     FRONTEND_URL: keys.FRONTEND_URL!,
     domain: keys.DOMAIN!,
     Mail_email: keys.Mail_email!,
