@@ -64,7 +64,7 @@ class TweetService {
 
     if (mentionedUsers.length === 0) return;
 
-    mentionedUsers.map((user) =>
+    mentionedUsers.forEach((user) =>
       addNotification(user.id as UUID, {
         title: "MENTION",
         body: "mentioned you",
