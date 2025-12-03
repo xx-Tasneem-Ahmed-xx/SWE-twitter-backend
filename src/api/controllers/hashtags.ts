@@ -30,6 +30,7 @@ export const getHashtagTweets = async (
 ) => {
   try {
     const { id } = req.params;
+    const currentUserId = (req as any).user?.id ?? null;
 
     // Decode the hashtag ID
     const hashtagId = encoderService.decode<string>(id);
@@ -48,7 +49,7 @@ export const getHashtagTweets = async (
       hashtagId,
       decodedCursor,
       limit,
-      req.user?.id
+      currentUserId
     );
     res.json(tweets);
   } catch (error) {
