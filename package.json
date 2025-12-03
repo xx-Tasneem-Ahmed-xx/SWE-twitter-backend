@@ -1,8 +1,6 @@
 {
   "name": "swe-twitter-backend",
   "version": "1.0.0",
-    "type": "module",
-
   "description": "",
   "main": "dist/src/index.js",
   "scripts": {
@@ -109,7 +107,7 @@
     "ts-node-dev": "^2.0.0",
     "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.9.3",
+    "typescript": "^5.3.3",
     "zod": "^4.1.12"
   },
   "overrides": {
