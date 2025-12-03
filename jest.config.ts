@@ -8,10 +8,17 @@ const config: Config = {
   setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
   collectCoverage: true,
   collectCoverageFrom: [
-    "src/**/*.ts", 
-    "!src/**/*.test.ts", 
+    "src/**/*.ts",
+    "!src/**/*.test.ts",
     "!src/**/tests/**",
     "!**/prisma/**",
+    "!src/background/**",
+    "!src/types/**",
+    "!src/__mocks__/**",
+    "!src/docs/**",
+    "!src/config/**",
+    "!src/index.ts",
+    "!src/database.ts",
   ],
 
   coveragePathIgnorePatterns: [
@@ -19,6 +26,13 @@ const config: Config = {
     "/prisma/",
     ".test.ts",
     "/tests/",
+    "/background/",
+    "/docs/",
+    "/config/",
+    "/types/",
+    "/__mocks__/",
+    "/index.ts",
+    "/database.ts",
   ],
 
   verbose: true,
