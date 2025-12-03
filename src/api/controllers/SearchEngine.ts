@@ -11,7 +11,6 @@ import Levenshtein from "fast-levenshtein";
 import { apiRoutes } from "../routes/searchRoutes";
 import { getSecrets } from "@/config/secrets";
 // Logger utility
-const { DEBUG } = getSecrets();
 export class Logger {
   private context: string;
   constructor(context: string) {
@@ -27,6 +26,7 @@ export class Logger {
     console.warn(`[${this.context}]   ${msg}`, data || "");
   }
   debug(msg: string, data?: any) {
+    const { DEBUG } = getSecrets();
     if (DEBUG) console.log(`[${this.context}] 🐛 ${msg}`, data || "");
   }
 }
@@ -245,15 +245,17 @@ export class AdvancedTokenizer {
 // ===========================
 // PERSISTENCE LAYER
 // ===========================
-const {
-REDIS_URL,
-}= getSecrets();
 
 export class PersistenceManager {
   private redis: Redis;
   private logger = new Logger("Persistence");
 
-  constructor(redisUrl: string =REDIS_URL ) {
+  constructor(redisUrl: string = "") {
+    if (redisUrl === "") {
+      const { REDIS_URL } = getSecrets();
+      redisUrl = REDIS_URL;
+    }
+
     this.redis = new Redis(redisUrl);
     this.redis.on("error", (err) => this.logger.error("Redis error", err));
     this.redis.on("connect", () => this.logger.info("Redis connected"));
@@ -1045,13 +1047,12 @@ export async function initializeSearchEngine(redisUrl?: string) {
   const logger = new Logger("Init");
 
   try {
+    const { REDIS_URL } = getSecrets();
     const prisma = clientPrisma;
     const crawler = new Crawler(prisma);
     const parser = new Parser();
     const indexer = new Indexer();
-    const persistence = new PersistenceManager(
-      redisUrl || REDIS_URL
-    );
+    const persistence = new PersistenceManager(redisUrl || REDIS_URL);
     const searchEngine = new SearchEngine(indexer, parser, persistence);
 
     logger.info("Search engine initialized successfully");

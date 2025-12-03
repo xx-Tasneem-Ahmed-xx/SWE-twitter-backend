@@ -7,7 +7,6 @@ import { v4 as uuidv4 } from "uuid";
 import zxcvbn from "zxcvbn";
 import qrcode from "qrcode";
 import speakeasy from "speakeasy";
-import { addNotification } from "./notificationController";
 import prisma from "../../database";
 import { redisClient } from "../../config/redis";
 import fetch from "node-fetch";
@@ -30,6 +29,7 @@ import {
   enqueueSecurityLoginGoogle,
   
 } from "../../background/jobs/emailJobs";
+import { addNotification } from "@/application/services/notification";
 // --- Custom Type Definitions ---
 interface LocalJwtPayload extends JwtPayload {
   Username?: string;
@@ -58,27 +58,6 @@ interface PrismaUser {
   isEmailVerified: boolean;
   otp: string | null;
 }
-
-const {
-  JWT_SECRET,
-  PEPPER,
-  DOMAIN,
-  CLIENT_DOMAIN,
-  client_id,
-  client_secret,
-  redirect_uri,
-  redirectUri,
-  google_state,
-  githubClientId,
-  githubRedirectUrl,
-  githubState,
-  FRONTEND_URL,
-  GITHUB_CLIENT_SECRET,
-GITHUB_SECRET_FRONT,
-GITHUB_CLIENT_ID_FRONT,
-GITHUB_RED_URL_FRONT,
-} = getSecrets();
-
 function timingSafeEqual(
   a: string | Buffer | number | object,
   b: string | Buffer | number | object
@@ -128,6 +107,7 @@ function generateJwt({
     jti,
     devid: devid || null,
   };
+  const { JWT_SECRET } = getSecrets();
   const token: string = jwt.sign(payload, JWT_SECRET, { algorithm: "HS256" });
   return { token, jti, payload };
 }
@@ -138,6 +118,7 @@ function validateJwt(token: string): {
   err?: Error;
 } {
   try {
+    const { JWT_SECRET } = getSecrets();
     const payload: LocalJwtPayload = jwt.verify(
       token,
       JWT_SECRET
@@ -548,17 +529,11 @@ await enqueueLoginAlertEmail(user.email, user.username);
         ? location
         : "unknown";
 
-    await addNotification(
-      user.id as UUID,
-      {
-        title: NotificationTitle.LOGIN,
-        body: `Login from ${deviceBrowser} at ${country}`,
-        actorId: user.id as UUID,
-      },
-      (err) => {
-        if (err) throw new AppError(err, 500);
-      }
-    );
+    await addNotification(user.id as UUID, {
+      title: NotificationTitle.LOGIN,
+      body: `Login from ${deviceBrowser} at ${country}`,
+      actorId: user.id as UUID,
+    });
 
     return utils.SendRes(res, {
       user: {
@@ -1160,8 +1135,6 @@ export async function ChangePassword(
       role: "user",
     });
 
-
-
     res.cookie("refresh_token", refreshObj.token, {
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
@@ -1197,12 +1170,15 @@ await enqueuePasswordChangedDetailed(user.email, {
   userAgent: req.get("User-Agent") || "",
 });
    
+    utils.SendEmailSmtp(res, email, message).catch(() => {
+      throw new AppError("Failed to send password change email", 500);
+    });
+
     return utils.SendRes(res, {
       refresh_token: refreshObj.token,
       accesstoken: accessObj.token,
       Message: "Password updated successfully",
       Score: score,
-
     });
   } catch (err) {
     next(err);
@@ -1553,13 +1529,9 @@ export async function LogoutSession(
 
 /* --------------------- OAuth Helper Functions --------------------- */
 
-
-
-
-
-
 export async function exchangeGoogleCode(code: string) {
   try {
+    const { client_id, client_secret, redirect_uri } = getSecrets();
     const params = {
       code,
       client_id,
@@ -1570,10 +1542,10 @@ export async function exchangeGoogleCode(code: string) {
 
     const resp = await axios.post(
       "https://oauth2.googleapis.com/token",
-      qs.stringify(params),
+      new URLSearchParams(params).toString(),
       { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
     );
-
+ console.log("Google token response:", resp.data);
     return resp.data;
   } catch (err) {
     throw new AppError("Failed to exchange Google code", 500);
@@ -1628,18 +1600,29 @@ export async function exchangeGithubCodeFront(code: string) {
   try {
     // ❌ WRONG: You were using variable names as keys
     // GitHub expects: client_id, client_secret, redirect_uri
+    const {
+      GITHUB_SECRET_FRONT,
+      GITHUB_CLIENT_ID_FRONT,
+      GITHUB_RED_URL_FRONT,
+    } = getSecrets();
     const params = {
-      client_id: GITHUB_CLIENT_ID_FRONT,        // ✅ Not "githubClientId"
-      client_secret: GITHUB_SECRET_FRONT,  // ✅ Not "GITHUB_CLIENT_SECRET"
+      client_id: GITHUB_CLIENT_ID_FRONT, // ✅ Not "githubClientId"
+      client_secret: GITHUB_SECRET_FRONT, // ✅ Not "GITHUB_CLIENT_SECRET"
       code: code,
-      redirect_uri: GITHUB_RED_URL_FRONT,        // ✅ Not "redirectUri"
+      redirect_uri: GITHUB_RED_URL_FRONT, // ✅ Not "redirectUri"
     };
 
-    console.log('🔍 GitHub Token Exchange Debug:');
-    console.log('client_id:', GITHUB_CLIENT_ID_FRONT ? '✅ Set' : '❌ UNDEFINED');
-    console.log('client_secret:', GITHUB_SECRET_FRONT ? '✅ Set' : '❌ UNDEFINED');
-    console.log('redirect_uri:', GITHUB_RED_URL_FRONT);
-    console.log('code:', code ? code.substring(0, 15) + '...' : '❌ NO CODE');
+    console.log("🔍 GitHub Token Exchange Debug:");
+    console.log(
+      "client_id:",
+      GITHUB_CLIENT_ID_FRONT ? "✅ Set" : "❌ UNDEFINED"
+    );
+    console.log(
+      "client_secret:",
+      GITHUB_SECRET_FRONT ? "✅ Set" : "❌ UNDEFINED"
+    );
+    console.log("redirect_uri:", GITHUB_RED_URL_FRONT);
+    console.log("code:", code ? code.substring(0, 15) + "..." : "❌ NO CODE");
 
     const resp = await axios.post(
       "https://github.com/login/oauth/access_token",
@@ -1647,11 +1630,11 @@ export async function exchangeGithubCodeFront(code: string) {
       { headers: { Accept: "application/json" } }
     );
 
-    console.log('GitHub Response:', resp.data);
+    console.log("GitHub Response:", resp.data);
 
     // Check for errors
     if (resp.data.error) {
-      console.error('GitHub OAuth Error:', resp.data);
+      console.error("GitHub OAuth Error:", resp.data);
       throw new AppError(
         `GitHub OAuth error: ${resp.data.error_description || resp.data.error}`,
         400
@@ -1659,26 +1642,26 @@ export async function exchangeGithubCodeFront(code: string) {
     }
 
     if (!resp.data.access_token) {
-      console.error('No access token in response:', resp.data);
+      console.error("No access token in response:", resp.data);
       throw new AppError("No access token received from GitHub", 500);
     }
 
     return resp.data;
   } catch (err: any) {
-    console.error('exchangeGithubCode error:', {
+    console.error("exchangeGithubCode error:", {
       message: err.message,
       response: err.response?.data,
-      status: err.response?.status
+      status: err.response?.status,
     });
-    
+
     if (err.statusCode) {
       throw err;
     }
-    
+
     throw new AppError(
-      err.response?.data?.error_description || 
-      err.response?.data?.message || 
-      "Failed to exchange GitHub code",
+      err.response?.data?.error_description ||
+        err.response?.data?.message ||
+        "Failed to exchange GitHub code",
       500
     );
   }
@@ -1686,19 +1669,22 @@ export async function exchangeGithubCodeFront(code: string) {
 
 export async function fetchGithubEmailsFront(accessToken: string) {
   try {
-    console.log('Fetching GitHub emails...');
-    
+    console.log("Fetching GitHub emails...");
+
     const resp = await axios.get("https://api.github.com/user/emails", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
       },
     });
-    
-    console.log('GitHub emails received:', resp.data.length, 'emails');
+
+    console.log("GitHub emails received:", resp.data.length, "emails");
     return resp.data;
   } catch (err: any) {
-    console.error('fetchGithubEmails error:', err.response?.data || err.message);
+    console.error(
+      "fetchGithubEmails error:",
+      err.response?.data || err.message
+    );
     throw new AppError(
       err.response?.data?.message || "Failed to fetch GitHub emails",
       err.response?.status || 500
@@ -1708,19 +1694,19 @@ export async function fetchGithubEmailsFront(accessToken: string) {
 
 export async function fetchGithubUserFront(accessToken: string) {
   try {
-    console.log('Fetching GitHub user...');
-    
+    console.log("Fetching GitHub user...");
+
     const resp = await axios.get("https://api.github.com/user", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
       },
     });
-    
-    console.log('GitHub user received:', resp.data.login);
+
+    console.log("GitHub user received:", resp.data.login);
     return resp.data;
   } catch (err: any) {
-    console.error('fetchGithubUser error:', err.response?.data || err.message);
+    console.error("fetchGithubUser error:", err.response?.data || err.message);
     throw new AppError(
       err.response?.data?.message || "Failed to fetch GitHub user",
       err.response?.status || 500
@@ -1731,18 +1717,22 @@ export async function exchangeGithubCode(code: string) {
   try {
     // ❌ WRONG: You were using variable names as keys
     // GitHub expects: client_id, client_secret, redirect_uri
+    const { redirectUri, githubClientId, GITHUB_CLIENT_SECRET } = getSecrets();
     const params = {
-      client_id: githubClientId,        // ✅ Not "githubClientId"
-      client_secret: GITHUB_CLIENT_SECRET,  // ✅ Not "GITHUB_CLIENT_SECRET"
+      client_id: githubClientId, // ✅ Not "githubClientId"
+      client_secret: GITHUB_CLIENT_SECRET, // ✅ Not "GITHUB_CLIENT_SECRET"
       code: code,
-      redirect_uri: redirectUri,        // ✅ Not "redirectUri"
+      redirect_uri: redirectUri, // ✅ Not "redirectUri"
     };
 
-    console.log('🔍 GitHub Token Exchange Debug:');
-    console.log('client_id:', githubClientId ? '✅ Set' : '❌ UNDEFINED');
-    console.log('client_secret:', GITHUB_CLIENT_SECRET ? '✅ Set' : '❌ UNDEFINED');
-    console.log('redirect_uri:', redirectUri);
-    console.log('code:', code ? code.substring(0, 15) + '...' : '❌ NO CODE');
+    console.log("🔍 GitHub Token Exchange Debug:");
+    console.log("client_id:", githubClientId ? "✅ Set" : "❌ UNDEFINED");
+    console.log(
+      "client_secret:",
+      GITHUB_CLIENT_SECRET ? "✅ Set" : "❌ UNDEFINED"
+    );
+    console.log("redirect_uri:", redirectUri);
+    console.log("code:", code ? code.substring(0, 15) + "..." : "❌ NO CODE");
 
     const resp = await axios.post(
       "https://github.com/login/oauth/access_token",
@@ -1750,11 +1740,11 @@ export async function exchangeGithubCode(code: string) {
       { headers: { Accept: "application/json" } }
     );
 
-    console.log('GitHub Response:', resp.data);
+    console.log("GitHub Response:", resp.data);
 
     // Check for errors
     if (resp.data.error) {
-      console.error('GitHub OAuth Error:', resp.data);
+      console.error("GitHub OAuth Error:", resp.data);
       throw new AppError(
         `GitHub OAuth error: ${resp.data.error_description || resp.data.error}`,
         400
@@ -1762,26 +1752,26 @@ export async function exchangeGithubCode(code: string) {
     }
 
     if (!resp.data.access_token) {
-      console.error('No access token in response:', resp.data);
+      console.error("No access token in response:", resp.data);
       throw new AppError("No access token received from GitHub", 500);
     }
 
     return resp.data;
   } catch (err: any) {
-    console.error('exchangeGithubCode error:', {
+    console.error("exchangeGithubCode error:", {
       message: err.message,
       response: err.response?.data,
-      status: err.response?.status
+      status: err.response?.status,
     });
-    
+
     if (err.statusCode) {
       throw err;
     }
-    
+
     throw new AppError(
-      err.response?.data?.error_description || 
-      err.response?.data?.message || 
-      "Failed to exchange GitHub code",
+      err.response?.data?.error_description ||
+        err.response?.data?.message ||
+        "Failed to exchange GitHub code",
       500
     );
   }
@@ -1789,19 +1779,22 @@ export async function exchangeGithubCode(code: string) {
 
 export async function fetchGithubEmails(accessToken: string) {
   try {
-    console.log('Fetching GitHub emails...');
-    
+    console.log("Fetching GitHub emails...");
+
     const resp = await axios.get("https://api.github.com/user/emails", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
       },
     });
-    
-    console.log('GitHub emails received:', resp.data.length, 'emails');
+
+    console.log("GitHub emails received:", resp.data.length, "emails");
     return resp.data;
   } catch (err: any) {
-    console.error('fetchGithubEmails error:', err.response?.data || err.message);
+    console.error(
+      "fetchGithubEmails error:",
+      err.response?.data || err.message
+    );
     throw new AppError(
       err.response?.data?.message || "Failed to fetch GitHub emails",
       err.response?.status || 500
@@ -1811,19 +1804,19 @@ export async function fetchGithubEmails(accessToken: string) {
 
 export async function fetchGithubUser(accessToken: string) {
   try {
-    console.log('Fetching GitHub user...');
-    
+    console.log("Fetching GitHub user...");
+
     const resp = await axios.get("https://api.github.com/user", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
       },
     });
-    
-    console.log('GitHub user received:', resp.data.login);
+
+    console.log("GitHub user received:", resp.data.login);
     return resp.data;
   } catch (err: any) {
-    console.error('fetchGithubUser error:', err.response?.data || err.message);
+    console.error("fetchGithubUser error:", err.response?.data || err.message);
     throw new AppError(
       err.response?.data?.message || "Failed to fetch GitHub user",
       err.response?.status || 500
@@ -1837,6 +1830,17 @@ export async function Authorize(
 ) {
   try {
     const provider = req.params?.provider;
+
+    const {
+      client_id,
+      redirectUri,
+      google_state,
+      githubClientId,
+      redirect_uri,
+      githubState,
+      GITHUB_CLIENT_ID_FRONT,
+      GITHUB_RED_URL_FRONT,
+    } = getSecrets();
 
     if (provider === "google") {
       const scope = encodeURIComponent("openid email profile");
@@ -1852,7 +1856,7 @@ export async function Authorize(
       )}&scope=user%20user:email&state=${githubState}&prompt=select_account`;
       return res.redirect(url);
     }
-       if (provider === "github_front") {
+    if (provider === "github_front") {
       const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID_FRONT}&redirect_uri=${encodeURIComponent(
         GITHUB_RED_URL_FRONT
       )}&scope=user%20user:email&state=${githubState}&prompt=select_account`;
@@ -1870,15 +1874,15 @@ export async function CallbackGithubFront(
   next: NextFunction
 ) {
   const code = req.query.code as string;
-  
+
   try {
     const state = req.query.state as string;
     const error = req.query.error as string;
 
-    console.log('=== GitHub Callback Front ===');
-    console.log('code:', code ? code.substring(0, 10) + '...' : '❌ Missing');
-    console.log('state:', state);
-    console.log('error:', error || 'None');
+    console.log("=== GitHub Callback Front ===");
+    console.log("code:", code ? code.substring(0, 10) + "..." : "❌ Missing");
+    console.log("state:", state);
+    console.log("error:", error || "None");
 
     // Check for OAuth error from GitHub
     if (error) {
@@ -1892,23 +1896,28 @@ export async function CallbackGithubFront(
     // ✅ PREVENT DUPLICATE PROCESSING using Redis
     const codeKey = `oauth:github:code:${code}`;
     const isProcessing = await redisClient.get(codeKey);
-    
+
     if (isProcessing) {
-      console.log('⚠️ Code already being processed, ignoring duplicate request');
+      console.log(
+        "⚠️ Code already being processed, ignoring duplicate request"
+      );
       return res.status(400).json({
-        error: 'Authorization already in progress',
-        message: 'This authorization code is already being processed'
+        error: "Authorization already in progress",
+        message: "This authorization code is already being processed",
       });
     }
 
     // Mark this code as being processed (expires in 30 seconds)
-    await redisClient.set(codeKey, 'processing', { EX: 30 });
+    await redisClient.set(codeKey, "processing", { EX: 30 });
 
     // Verify state to prevent CSRF
     const secrets = getSecrets();
     if (state !== secrets.githubState) {
       await redisClient.del(codeKey); // Clean up on error
-      console.error('State mismatch!', { received: state, expected: secrets.githubState });
+      console.error("State mismatch!", {
+        received: state,
+        expected: secrets.githubState,
+      });
       throw new AppError("Invalid state parameter - possible CSRF attack", 400);
     }
 
@@ -1916,7 +1925,7 @@ export async function CallbackGithubFront(
     const tokenResp = await exchangeGithubCodeFront(code);
     const accessToken = tokenResp.access_token as string;
 
-    console.log("GITHUB TOKEN:", accessToken ? '✅ Received' : '❌ Missing');
+    console.log("GITHUB TOKEN:", accessToken ? "✅ Received" : "❌ Missing");
 
     if (!accessToken) {
       await redisClient.del(codeKey); // Clean up on error
@@ -1926,21 +1935,24 @@ export async function CallbackGithubFront(
     // Fetch user emails
     const emails = await fetchGithubEmailsFront(accessToken);
     const primary = emails.find((e: any) => e.primary && e.verified);
-    
+
     if (!primary) {
       await redisClient.del(codeKey); // Clean up on error
-      throw new AppError("No verified primary email found in GitHub account", 400);
+      throw new AppError(
+        "No verified primary email found in GitHub account",
+        400
+      );
     }
 
     const email = primary.email as string;
-    console.log('GitHub email:', email);
+    console.log("GitHub email:", email);
 
     // Fetch user profile
     const userProfile = await fetchGithubUserFront(accessToken);
     const name = userProfile.name || userProfile.login;
     const providerId = userProfile.id.toString();
 
-    console.log('GitHub user:', { name, providerId });
+    console.log("GitHub user:", { name, providerId });
 
     // 🔹 Find or create user
     let oauth = await prisma.oAuthAccount.findFirst({
@@ -1951,7 +1963,7 @@ export async function CallbackGithubFront(
     let user;
     if (oauth) {
       user = oauth.user;
-      console.log('Existing user found:', user.username);
+      console.log("Existing user found:", user.username);
     } else {
       user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
@@ -1969,12 +1981,12 @@ export async function CallbackGithubFront(
             },
           },
         });
-        console.log('New user created:', user.username);
+        console.log("New user created:", user.username);
       } else {
         await prisma.oAuthAccount.create({
           data: { provider: "github", providerId, userId: user.id },
         });
-        console.log('OAuth account linked to existing user:', user.username);
+        console.log("OAuth account linked to existing user:", user.username);
       }
     }
 
@@ -2053,6 +2065,12 @@ await enqueueSecurityLoginGithub(user.email, {
   userAgent: req.get("User-Agent") || "Unknown",
 });
     const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
+    // ✅ Send email asynchronously (don't block the response)
+    utils.SendEmailSmtp(res, email, emailMsg).catch((err) => {
+      console.error("Failed to send login email:", err);
+    });
+
+    const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
       token.token
     )}&refresh-token=${encodeURIComponent(
       refreshToken.token
@@ -2067,15 +2085,15 @@ await enqueueSecurityLoginGithub(user.email, {
       })
     )}`;
 
-    console.log('✅ GitHub OAuth successful, redirecting to frontend');
-    
+    console.log("✅ GitHub OAuth successful, redirecting to frontend");
+
     // Clean up the Redis key
     await redisClient.del(codeKey);
-    
+
     return res.redirect(redirectUrl);
   } catch (err) {
     console.error("CallbackGithubFront err:", err);
-    
+
     // Clean up on error
     if (code) {
       const codeKey = `oauth:github:code:${code}`;
@@ -2083,7 +2101,7 @@ await enqueueSecurityLoginGithub(user.email, {
         // Ignore cleanup errors
       });
     }
-    
+
     next(err);
   }
 }
@@ -2098,7 +2116,7 @@ export async function CallbackGithub(
 
     const tokenResp = await exchangeGithubCode(code);
     const accessToken = tokenResp.access_token as string;
-console.log("GITHUB TOKEN:", accessToken);
+    console.log("GITHUB TOKEN:", accessToken);
 
     const emails = await fetchGithubEmails(accessToken);
     const primary = emails.find((e: any) => e.primary && e.verified);
@@ -2354,6 +2372,8 @@ await enqueueSecurityLoginGoogle(user.email, {
   ip: geo.Query || ip,
   userAgent: req.get("User-Agent") || "Unknown",
 });
+    await utils.SendEmailSmtp(res, email, emailMsg);
+    const { FRONTEND_URL } = getSecrets();
     const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
       token.token
     )}&refresh-token=${encodeURIComponent(

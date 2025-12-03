@@ -4,6 +4,7 @@ import { prisma } from "@/prisma/client";
 import { AppError } from "@/errors/AppError";
 import { redisClient } from "@/config/redis";
 import { encoderService } from "@/application/services/encoder";
+import tweetService from "@/application/services/tweets";
 
 // Trends configuration constants
 const TRENDS_CACHE_KEY = "trends:global";
@@ -16,6 +17,8 @@ export type TrendData = {
   id: string; // Encoded hashtag ID
   hashtag: string;
   tweetCount: number;
+  likesCount: number;
+  score: number;
   rank: number;
 };
 
@@ -112,49 +115,68 @@ export async function attachHashtagsToTweet(
   await createTweetHashRelations(tx, tweetId, allHashes);
 }
 
-// Calculate trends based on hashtag usage in tweets over the specified period
-export async function calculateAndCacheTrends(
-  periodHours: number = TREND_PERIOD_HOURS
-): Promise<void> {
+// Calculate trends for a given period.
+export async function calculateTrends(
+  periodHours: number = TREND_PERIOD_HOURS,
+  options?: { matchingIds?: string[]; limit?: number }
+): Promise<TrendData[]> {
   const cutoffDate = new Date();
   cutoffDate.setHours(cutoffDate.getHours() - periodHours);
 
-  const hashtagCounts = await prisma.tweetHash.groupBy({
-    by: ["hashId"],
-    _count: {
-      hashId: true,
-    },
-    where: {
-      tweet: {
-        createdAt: {
-          gte: cutoffDate,
-        },
-      },
-    },
-    orderBy: {
-      _count: {
-        hashId: "desc",
-      },
-    },
-    take: TRENDS_LIMIT,
+  const whereClause: any = {
+    tweet: { createdAt: { gte: cutoffDate } },
+  };
+
+  if (options?.matchingIds && options.matchingIds.length > 0) {
+    whereClause.hashId = { in: options.matchingIds };
+  }
+
+  const relations = await prisma.tweetHash.findMany({
+    where: whereClause,
+    select: { hashId: true, tweet: { select: { likesCount: true } } },
   });
 
-  const hashIds = hashtagCounts.map((item) => item.hashId);
+  const agg = new Map<string, { tweetCount: number; likesSum: number }>();
+  for (const r of relations) {
+    const cur = agg.get(r.hashId) || { tweetCount: 0, likesSum: 0 };
+    cur.tweetCount += 1;
+    cur.likesSum += r.tweet?.likesCount ?? 0;
+    agg.set(r.hashId, cur);
+  }
+
+  const entries = Array.from(agg.entries()).map(([hashId, v]) => ({
+    hashId,
+    tweetCount: v.tweetCount,
+    likesSum: v.likesSum,
+  }));
+
+  if (entries.length === 0) return [];
+
+  const maxTweet = Math.max(...entries.map((e) => e.tweetCount));
+  const maxLikes = Math.max(...entries.map((e) => e.likesSum));
+
+  const tweetWeight = 0.63;
+  const likesWeight = 0.37;
+
+  entries.forEach((e) => {
+    const tweetNorm = maxTweet > 0 ? e.tweetCount / maxTweet : 0;
+    const likesNorm = maxLikes > 0 ? e.likesSum / maxLikes : 0;
+    (e as any).score = tweetNorm * tweetWeight + likesNorm * likesWeight;
+  });
+
+  entries.sort((a, b) => (b as any).score - (a as any).score);
+
+  const take = options?.limit ?? TRENDS_LIMIT;
+  const top = entries.slice(0, take);
+
+  const hashIds = top.map((t) => t.hashId);
   const hashes = await prisma.hash.findMany({
-    where: {
-      id: {
-        in: hashIds,
-      },
-    },
-    select: {
-      id: true,
-      tag_text: true,
-    },
+    where: { id: { in: hashIds } },
+    select: { id: true, tag_text: true },
   });
-
   const hashMap = new Map(hashes.map((h) => [h.id, h.tag_text]));
 
-  const trends: TrendData[] = hashtagCounts
+  const trends: TrendData[] = top
     .map((item, index) => {
       const hashtag = hashMap.get(item.hashId) || "";
       if (!hashtag) return null;
@@ -162,28 +184,37 @@ export async function calculateAndCacheTrends(
       return {
         id: encoderService.encode(item.hashId),
         hashtag,
-        tweetCount: item._count.hashId,
+        tweetCount: item.tweetCount,
+        likesCount: item.likesSum,
+        score: Number(((item as any).score ?? 0).toFixed(4)),
         rank: index + 1,
       };
     })
-    .filter((trend): trend is TrendData => trend !== null);
+    .filter((t): t is TrendData => t !== null);
 
-  const cacheData = {
-    trends,
-    updatedAt: new Date().toISOString(),
-  };
+  return trends;
+}
 
+// Cache a list of trends and set updatedAt timestamp
+export async function cacheTrends(trends: TrendData[]) {
+  const cacheData = { trends, updatedAt: new Date().toISOString() };
   await redisClient.setEx(
     TRENDS_CACHE_KEY,
     TRENDS_CACHE_TTL,
     JSON.stringify(cacheData)
   );
+}
 
+// Backwards-compatible function used by the worker: calculate and cache trends
+export async function calculateAndCacheTrends(
+  periodHours: number = TREND_PERIOD_HOURS
+): Promise<void> {
+  const trends = await calculateTrends(periodHours);
+  await cacheTrends(trends);
   console.log(`Calculated and cached ${trends.length} trends`);
 }
 
 // Fetch trends from cache
-
 export const fetchTrends = async (
   limit: number = TRENDS_LIMIT,
   query?: string | null
@@ -200,45 +231,19 @@ export const fetchTrends = async (
     if (!matching || matching.length === 0) {
       return { trends: [], updatedAt: new Date().toISOString() };
     }
-
-    const cutoffDate = new Date();
-    cutoffDate.setHours(cutoffDate.getHours() - TREND_PERIOD_HOURS);
     const matchingIds = matching.map((m) => m.id);
-
-    const counts = await prisma.tweetHash.groupBy({
-      by: ["hashId"],
-      _count: { hashId: true },
-      where: {
-        hashId: { in: matchingIds },
-        tweet: { createdAt: { gte: cutoffDate } },
-      },
+    const trends = await calculateTrends(TREND_PERIOD_HOURS, {
+      matchingIds,
+      limit,
     });
-
-    const countMap = new Map(counts.map((c) => [c.hashId, c._count.hashId]));
-
-    const allTrends: TrendData[] = matching.map((m) => ({
-      id: encoderService.encode(m.id),
-      hashtag: m.tag_text,
-      tweetCount: countMap.get(m.id) ?? 0,
-      rank: 0,
-    }));
-
-    allTrends.sort((a, b) => {
-      if (b.tweetCount !== a.tweetCount) return b.tweetCount - a.tweetCount;
-      return a.hashtag.localeCompare(b.hashtag);
-    });
-
-    const trends = allTrends.slice(0, limit).map((t, idx) => ({
-      ...t,
-      rank: idx + 1,
-    }));
-
-    return { trends, updatedAt: new Date().toISOString() };
+    return {
+      trends: trends,
+      updatedAt: new Date().toISOString(),
+    };
   }
 
   // No query: use existing cache-first behavior for global trends
   const cached = await redisClient.get(TRENDS_CACHE_KEY);
-
   if (cached) {
     try {
       const data = JSON.parse(cached);
@@ -246,11 +251,12 @@ export const fetchTrends = async (
         trends: data.trends.slice(0, limit),
         updatedAt: data.updatedAt,
       };
-    } catch (error) {
-      console.error("Error parsing cached trends:", error);
+    } catch (err) {
+      console.error("Error parsing cached trends (v2):", err);
     }
   }
 
+  // No versioned cache: calculate and cache (cacheTrends will also overwrite legacy key)
   await calculateAndCacheTrends(TREND_PERIOD_HOURS);
   const newCached = await redisClient.get(TRENDS_CACHE_KEY);
   if (newCached) {
@@ -260,7 +266,6 @@ export const fetchTrends = async (
       updatedAt: data.updatedAt,
     };
   }
-
   return {
     trends: [],
     updatedAt: new Date().toISOString(),
@@ -270,8 +275,9 @@ export const fetchTrends = async (
 // Fetch tweets for a specific hashtag with pagination
 export const fetchHashtagTweets = async (
   hashtagId: string,
-  cursor?: string | null,
-  limit: number = 30
+  cursor?: { id: string; createdAt: string } | null,
+  limit: number = 30,
+  userId?: string | null
 ) => {
   const hash = await prisma.hash.findUnique({
     where: {
@@ -288,45 +294,51 @@ export const fetchHashtagTweets = async (
   };
 
   if (cursor) {
-    where.tweetId = {
-      lt: cursor,
+    const cursorDate = new Date(cursor.createdAt);
+    where.tweet = {
+      OR: [
+        { createdAt: { lt: cursorDate } },
+        { AND: [{ createdAt: cursorDate }, { id: { lt: cursor.id } }] },
+      ],
     };
   }
+
+  // select the same fields used by the tweet service's `getTweet` response
+  const tweetSelect = (tweetService as any).tweetSelectFields(userId ?? "");
 
   const tweetHashes = await prisma.tweetHash.findMany({
     where,
     include: {
       tweet: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              name: true,
-              profileMedia: { select: { id: true } },
-              verified: true,
-              protectedAccount: true,
-            },
-          },
-        },
+        select: tweetSelect,
       },
     },
-    orderBy: {
-      tweet: {
-        createdAt: "desc",
-      },
-    },
+    orderBy: [{ tweet: { createdAt: "desc" } }, { tweet: { id: "desc" } }],
     take: limit + 1,
   });
 
   const hasMore = tweetHashes.length > limit;
-  const tweets = hasMore ? tweetHashes.slice(0, limit) : tweetHashes;
+  const rows = hasMore ? tweetHashes.slice(0, limit) : tweetHashes;
+  const rawTweets = rows.map((r) => r.tweet);
+
+  // reuse tweet service's interaction checker to compute isLiked/isRetweeted/isBookmarked
+  const data = (tweetService as any).checkUserInteractions(rawTweets);
+
   const nextCursor = hasMore
-    ? encoderService.encode(tweets[tweets.length - 1].tweetId)
+    ? (() => {
+        const lastTweet: any = rawTweets[rawTweets.length - 1];
+        return encoderService.encode({
+          id: lastTweet.id,
+          createdAt:
+            lastTweet && lastTweet.createdAt
+              ? (lastTweet.createdAt as Date).toISOString()
+              : new Date().toISOString(),
+        });
+      })()
     : null;
 
   return {
-    tweets: tweets.map((th) => th.tweet),
+    tweets: data,
     nextCursor,
     hasMore,
   };

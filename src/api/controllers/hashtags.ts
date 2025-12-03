@@ -30,6 +30,7 @@ export const getHashtagTweets = async (
 ) => {
   try {
     const { id } = req.params;
+    const currentUserId = (req as any).user?.id ?? null;
 
     // Decode the hashtag ID
     const hashtagId = encoderService.decode<string>(id);
@@ -41,10 +42,18 @@ export const getHashtagTweets = async (
     if (!queryResult.success) throw queryResult.error;
     const { cursor, limit } = queryResult.data;
 
-    // Decode cursor
-    const decodedCursor = encoderService.decode<string>(cursor);
+    // Decode cursor into a composite shape { id, createdAt }
+    const decodedCursor = encoderService.decode<{
+      id: string;
+      createdAt: string;
+    }>(cursor);
 
-    const tweets = await fetchHashtagTweets(hashtagId, decodedCursor, limit);
+    const tweets = await fetchHashtagTweets(
+      hashtagId,
+      decodedCursor ?? null,
+      limit,
+      currentUserId
+    );
     res.json(tweets);
   } catch (error) {
     next(error);

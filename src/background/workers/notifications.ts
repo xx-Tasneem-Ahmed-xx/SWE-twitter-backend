@@ -2,10 +2,11 @@ import { Worker } from "bullmq";
 import { redisClient, initRedis } from "@/config/redis";
 import { bullRedisConfig } from "@/background/config/redis";
 import { prisma } from "@/prisma/client";
+import { loadSecrets } from "@/config/secrets";
 
-async function initWorker() {
+async function startWorker() {
   await initRedis();
-  await (await import("@/config/secrets")).loadSecrets();
+  await loadSecrets();
 
   const { sendOverSocket, sendOverFCM } = await import(
     "@/application/services/notification"
@@ -100,7 +101,7 @@ async function initWorker() {
   });
 }
 
-initWorker().catch((err) => {
+startWorker().catch((err) => {
   console.error("Worker (notifications) failed to start:", err);
   throw err;
 });
