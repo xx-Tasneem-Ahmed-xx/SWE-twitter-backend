@@ -4,6 +4,9 @@ import { getSecrets } from "@/config/secrets";
 
 const initializeFirebase = () => {
   try {
+    if (process.env.NODE_ENV === "test") {
+      return;
+    }
     const { FIREBASE_KEY_PATH: serviceAccountPath } = getSecrets();
 
     if (!fs.existsSync(serviceAccountPath)) {

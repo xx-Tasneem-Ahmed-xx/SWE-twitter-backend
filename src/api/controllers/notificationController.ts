@@ -135,8 +135,9 @@ export const addNotificationController = async (
   try {
     const recipientId = req.params.recipientId;
     const notificationData = req.body;
+    const data = NotificationInputSchema.parse(notificationData);
 
-    await addNotification(recipientId, notificationData);
+    await addNotification(recipientId, data);
 
     res.status(200).json({ message: "Notification sent successfully" });
   } catch (error) {

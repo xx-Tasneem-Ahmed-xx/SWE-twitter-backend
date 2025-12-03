@@ -8,17 +8,19 @@ import { NotificationInputSchema } from "../dtos/notification/notification.dto.s
 import z from "zod";
 import { redisClient } from "@/config/redis";
 
-export const sendOverSocket = (
-  recipientId: string,
-  notification: any
-) => {
+export const sendOverSocket = (recipientId: string, notification: any) => {
   const isActive: boolean = socketService.checkSocketStatus(recipientId);
   if (isActive) {
     socketService?.sendNotificationToUser(recipientId, notification);
   }
 };
 
-export const sendOverFCM = async (recipientId: string, title: NotificationTitle, body: string, dataPayload: any) => {
+export const sendOverFCM = async (
+  recipientId: string,
+  title: NotificationTitle,
+  body: string,
+  dataPayload: any
+) => {
   const userFCMTokens = await prisma.fcmToken.findMany({
     where: { userId: recipientId },
   });
@@ -45,13 +47,10 @@ export const sendOverFCM = async (recipientId: string, title: NotificationTitle,
   }
 };
 
-
 export const addNotification = async (
   recipientId: string,
-  notificationData: z.infer<typeof NotificationInputSchema>
+  data: z.infer<typeof NotificationInputSchema>
 ) => {
-  const data = NotificationInputSchema.parse(notificationData);
-
   const systemRelevantTitles: NotificationTitle[] = [
     NotificationTitle.PASSWORD_CHANGED,
     NotificationTitle.LOGIN,
@@ -89,8 +88,12 @@ export const addNotification = async (
     });
 
     sendOverSocket(recipientId, newNotification);
-    await sendOverFCM(recipientId, data.title as NotificationTitle, body, newNotification);
-
+    await sendOverFCM(
+      recipientId,
+      data.title as NotificationTitle,
+      body,
+      newNotification
+    );
   } else {
     const actor = await prisma.user.findUnique({
       where: { id: data.actorId },
