@@ -1550,10 +1550,10 @@ export async function exchangeGoogleCode(code: string) {
 
     const resp = await axios.post(
       "https://oauth2.googleapis.com/token",
-      qs.stringify(params),
+      new URLSearchParams(params).toString(),
       { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
     );
-
+ console.log("Google token response:", resp.data);
     return resp.data;
   } catch (err) {
     throw new AppError("Failed to exchange Google code", 500);
@@ -2025,7 +2025,7 @@ If this wasn't you, please reset your password or contact support immediately.
       console.error('Failed to send login email:', err);
     });
 
-    const redirectUrl = `https://ingeborg-untrammed-leo.ngrok-free.dev/login/success?token=${encodeURIComponent(
+    const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
       token.token
     )}&refresh-token=${encodeURIComponent(
       refreshToken.token
