@@ -1,5 +1,7 @@
 import { prisma, FollowStatus } from "@/prisma/client";
 import { AppError } from "@/errors/AppError";
+import { addNotification } from "@/api/controllers/notificationController";
+import { NotificationTitle } from "@prisma/client";
 
 // Create a follow relationship
 export const createFollowRelation = async (
@@ -24,6 +26,50 @@ export const createFollowRelation = async (
     }
     throw error;
   }
+};
+
+// Create follow relation then trigger notification (service-level helper)
+export const createFollowRelationAndNotify = async (
+  followerId: string,
+  followingId: string,
+  followStatus: string,
+  actorUsername?: string
+) => {
+  const follow = await createFollowRelation(
+    followerId,
+    followingId,
+    followStatus
+  );
+
+  // fire notification, but don't let it break the main flow
+  try {
+    const title =
+      followStatus === "PENDING"
+        ? NotificationTitle.REQUEST_TO_FOLLOW
+        : NotificationTitle.FOLLOW;
+    const body =
+      followStatus === "PENDING"
+        ? `requested to follow you`
+        : `started following you`;
+
+    // addNotification expects a callback/next; pass a simple callback to log errors
+    await addNotification(
+      followingId as any,
+      {
+        title,
+        body,
+        actorId: followerId,
+        tweetId: undefined,
+      },
+      (err: any) => {
+        if (err) console.error("Follow notification error:", err);
+      }
+    );
+  } catch (err) {
+    console.error("Failed to send follow notification:", err);
+  }
+
+  return follow;
 };
 
 // Remove a follow relationship
@@ -57,6 +103,35 @@ export const updateFollowStatus = async (
       status: FollowStatus.ACCEPTED,
     },
   });
+};
+
+// Update follow status (from PENDING to ACCEPTED) and notify the follower
+export const updateFollowStatusAndNotify = async (
+  followerId: string,
+  followingId: string,
+  actorUsername?: string
+) => {
+  const updated = await updateFollowStatus(followerId, followingId);
+
+  try {
+    const body = `accepted your follow request`;
+    await addNotification(
+      followerId as any,
+      {
+        title: NotificationTitle.ACCEPTED_FOLLOW,
+        body,
+        actorId: followingId,
+        tweetId: undefined,
+      },
+      (err: any) => {
+        if (err) console.error("Accepted follow notification error:", err);
+      }
+    );
+  } catch (err) {
+    console.error("Failed to send accepted-follow notification:", err);
+  }
+
+  return updated;
 };
 
 // Check if user is already following another user and return the relationship with status if found

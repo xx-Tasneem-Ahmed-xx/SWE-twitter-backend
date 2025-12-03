@@ -1,16 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { AppError } from "@/errors/AppError";
-import { addNotification } from "../notificationController";
-import { NotificationTitle } from "@prisma/client";
 import {
   UserInteractionParamsSchema,
   UserInteractionQuerySchema,
 } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 import {
-  createFollowRelation,
+  createFollowRelationAndNotify,
   removeFollowRelation,
-  updateFollowStatus,
+  updateFollowStatusAndNotify,
   isAlreadyFollowing,
   checkBlockStatus,
   getFollowersList,
@@ -46,32 +44,12 @@ export const followUser = async (
       throw new AppError("You are already following this user", 400);
 
     const followStatus = userToFollow.protectedAccount ? "PENDING" : "ACCEPTED";
-    const follow = await createFollowRelation(
+    await createFollowRelationAndNotify(
       currentUserId,
       userToFollow.id,
-      followStatus
+      followStatus,
+      (req as any).user.username
     );
-
-    try {
-      await addNotification(
-        userToFollow.id as any,
-        {
-          title:
-            followStatus === "PENDING"
-              ? NotificationTitle.REQUEST_TO_FOLLOW
-              : NotificationTitle.FOLLOW,
-          body:
-            followStatus === "PENDING"
-              ? `${(req as any).user.username} requested to follow you`
-              : `${(req as any).user.username} started following you`,
-          actorId: currentUserId as any,
-          tweetId: undefined,
-        },
-        next
-      );
-    } catch (err) {
-      console.error("Failed to send follow notification:", err);
-    }
 
     const statusCode = userToFollow.protectedAccount ? 202 : 201;
     const message = userToFollow.protectedAccount
@@ -133,22 +111,11 @@ export const acceptFollow = async (
     if (existingFollow.status === "ACCEPTED")
       throw new AppError("Follow request already accepted", 409);
 
-    await updateFollowStatus(follower.id, currentUserId);
-
-    try {
-      await addNotification(
-        follower.id as any,
-        {
-          title: NotificationTitle.ACCEPTED_FOLLOW,
-          body: `${(req as any).user.username} accepted your follow request`,
-          actorId: currentUserId as any,
-          tweetId: undefined,
-        },
-        next
-      );
-    } catch (err) {
-      console.error("Failed to send accepted-follow notification:", err);
-    }
+    await updateFollowStatusAndNotify(
+      follower.id,
+      currentUserId,
+      (req as any).user.username
+    );
 
     return res.status(200).json({
       message: "Follow request accepted",
