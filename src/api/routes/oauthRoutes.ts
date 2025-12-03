@@ -47,7 +47,7 @@ const router: Router = express.Router();
  *       500:
  *         description: Internal server error during authorization setup.
  */
-router.post("/authorize/:provider", typedOauthController.Authorize);
+router.get("/authorize/:provider", typedOauthController.Authorize);
 /**
  * @openapi
  * /callback/google:
@@ -87,7 +87,7 @@ router.post("/authorize/:provider", typedOauthController.Authorize);
  *       500:
  *         description: Internal error during token exchange, user creation, or notification process.
  */
-router.post("/callback/google", typedOauthController.CallbackGoogle);
+router.get("/callback/google", typedOauthController.CallbackGoogle);
 
 
 /**
@@ -130,7 +130,8 @@ router.post("/callback/google", typedOauthController.CallbackGoogle);
  *       500:
  *         description: Internal error during token exchange, user lookup, or login email notification.
  */
-router.post("/callback/github", typedOauthController.CallbackGithub);
+router.get("/callback/github", typedOauthController.CallbackGithub);
+router.get("/callback/github_front", typedOauthController.CallbackGithubFront);
 /**
  * @openapi
  * /callback/android_google:

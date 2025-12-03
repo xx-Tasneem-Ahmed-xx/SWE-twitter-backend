@@ -2,7 +2,7 @@ import { prisma, TweetType } from "@/prisma/client";
 import {
   validToRetweetOrQuote,
   validToReply,
-} from "@/application/utils/tweets/utils";
+} from "@/application/utils/tweet.utils";
 import {
   CreateReplyOrQuoteServiceDTO,
   CreateReTweetServiceDto,
@@ -12,7 +12,10 @@ import {
   TweetCursorServiceDTO,
 } from "@/application/dtos/tweets/service/tweets.dto";
 import { AppError } from "@/errors/AppError";
-import { generateTweetSumamry } from "@/application/services/aiSummary";
+import {
+  generateTweetCategory,
+  generateTweetSumamry,
+} from "@/application/services/aiSummary";
 import { SearchServiceSchema } from "@/application/dtos/tweets/service/tweets.dto.schema";
 import {
   PeopleFilter,
@@ -20,10 +23,13 @@ import {
 } from "@/application/dtos/tweets/tweet.dto.schema";
 import { SearchParams } from "@/types/types";
 import { encoderService } from "@/application/services/encoder";
-import { enqueueHashtagJob } from "@/background/jobs/hashtags";
+import {
+  enqueueCategorizeTweetJob,
+  enqueueHashtagJob,
+} from "@/background/jobs/hashtags";
 import { Prisma } from "@prisma/client";
-import { addNotification } from "@/api/controllers/notificationController";
 import { UUID } from "node:crypto";
+import { addNotification } from "./notification";
 
 class TweetService {
   private async validateId(id: string) {
@@ -59,18 +65,12 @@ class TweetService {
     if (mentionedUsers.length === 0) return;
 
     mentionedUsers.map((user) =>
-      addNotification(
-        user.id as UUID,
-        {
-          title: "MENTION",
-          body: "mentioned you",
-          tweetId,
-          actorId: mentionerId,
-        },
-        (err) => {
-          throw err;
-        }
-      )
+      addNotification(user.id as UUID, {
+        title: "MENTION",
+        body: "mentioned you",
+        tweetId,
+        actorId: mentionerId,
+      })
     );
 
     await tx.mention.createMany({
@@ -151,6 +151,11 @@ class TweetService {
         () => console.log("Failed to enqueue hashtag job for tweet")
       );
 
+      enqueueCategorizeTweetJob({
+        tweetId: tweet.id,
+        content: tweet.content,
+      }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
+
       return tweet;
     });
   }
@@ -191,18 +196,17 @@ class TweetService {
         content: quote.content,
       }).catch(() => console.log("Failed to enqueue hashtag job for quote"));
 
-      addNotification(
-        parent.userId as UUID,
-        {
-          title: "QUOTE",
-          body: "someone quoted you",
-          tweetId: dto.parentId,
-          actorId: dto.userId,
-        },
-        (err) => {
-          throw err;
-        }
-      );
+      enqueueCategorizeTweetJob({
+        tweetId: quote.id,
+        content: quote.content,
+      }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
+
+      addNotification(parent.userId as UUID, {
+        title: "QUOTE",
+        body: "someone quoted you",
+        tweetId: dto.parentId,
+        actorId: dto.userId,
+      });
 
       return quote;
     });
@@ -244,18 +248,17 @@ class TweetService {
         content: reply.content,
       }).catch(() => console.log("Failed to enqueue hashtag job for reply"));
 
-      addNotification(
-        parent.userId as UUID,
-        {
-          title: "REPLY",
-          body: "someone replied to",
-          tweetId: dto.parentId,
-          actorId: dto.userId,
-        },
-        (err) => {
-          throw err;
-        }
-      );
+      enqueueCategorizeTweetJob({
+        tweetId: reply.id,
+        content: reply.content,
+      }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
+
+      addNotification(parent.userId as UUID, {
+        title: "REPLY",
+        body: "someone replied to",
+        tweetId: dto.parentId,
+        actorId: dto.userId,
+      });
 
       return reply;
     });
@@ -277,18 +280,12 @@ class TweetService {
         select: { userId: true },
       });
 
-      addNotification(
-        parent.userId as UUID,
-        {
-          title: "RETWEET",
-          body: "reposted your post",
-          tweetId: dto.parentId,
-          actorId: dto.userId,
-        },
-        (err) => {
-          throw err;
-        }
-      );
+      addNotification(parent.userId as UUID, {
+        title: "RETWEET",
+        body: "reposted your post",
+        tweetId: dto.parentId,
+        actorId: dto.userId,
+      });
       return retweet;
     });
   }
@@ -495,18 +492,12 @@ class TweetService {
       await tx.tweetLike.create({
         data: { userId, tweetId },
       });
-      addNotification(
-        parent.userId as UUID,
-        {
-          title: "LIKE",
-          body: "liked your post",
-          tweetId: tweetId,
-          actorId: userId,
-        },
-        (err) => {
-          throw err;
-        }
-      );
+      addNotification(parent.userId as UUID, {
+        title: "LIKE",
+        body: "liked your post",
+        tweetId: tweetId,
+        actorId: userId,
+      });
     });
   }
 
@@ -643,6 +634,32 @@ class TweetService {
       data,
       cursor,
     };
+  }
+
+  async categorizeTweet(
+    id: string,
+    tweetContent: string,
+    tx: Prisma.TransactionClient
+  ) {
+    const categories = await generateTweetCategory(tweetContent);
+    const categoryRecords = await tx.category.findMany({
+      where: {
+        name: { in: categories },
+      },
+      select: { id: true },
+    });
+
+    if (categoryRecords.length === 0) return;
+
+    await tx.tweet.update({
+      where: { id },
+      data: {
+        category: {
+          set: [],
+          connect: categoryRecords.map((category) => ({ id: category.id })),
+        },
+      },
+    });
   }
 
   async searchTweets(dto: SearchServiceDTO) {

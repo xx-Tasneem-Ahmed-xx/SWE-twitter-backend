@@ -7,7 +7,6 @@ import { v4 as uuidv4 } from "uuid";
 import zxcvbn from "zxcvbn";
 import qrcode from "qrcode";
 import speakeasy from "speakeasy";
-import { addNotification } from "./notificationController";
 import prisma from "../../database";
 import { redisClient } from "../../config/redis";
 import fetch from "node-fetch";
@@ -18,6 +17,7 @@ import axios from "axios";
 import qs from "querystring";
 import { NotificationTitle } from "@prisma/client";
 import { getSecrets } from "@/config/secrets";
+import { addNotification } from "@/application/services/notification";
 // --- Custom Type Definitions ---
 interface LocalJwtPayload extends JwtPayload {
   Username?: string;
@@ -46,23 +46,6 @@ interface PrismaUser {
   isEmailVerified: boolean;
   otp: string | null;
 }
-
-const {
-  JWT_SECRET,
-  PEPPER,
-  DOMAIN,
-  CLIENT_DOMAIN,
-  client_id,
-  client_secret,
-  redirect_uri,
-  redirectUri,
-  google_state,
-  githubClientId,
-  githubRedirectUrl,
-  githubState,
-  FRONTEND_URL,
-} = getSecrets();
-
 function timingSafeEqual(
   a: string | Buffer | number | object,
   b: string | Buffer | number | object
@@ -112,6 +95,7 @@ function generateJwt({
     jti,
     devid: devid || null,
   };
+  const { JWT_SECRET } = getSecrets();
   const token: string = jwt.sign(payload, JWT_SECRET, { algorithm: "HS256" });
   return { token, jti, payload };
 }
@@ -122,6 +106,7 @@ function validateJwt(token: string): {
   err?: Error;
 } {
   try {
+    const { JWT_SECRET } = getSecrets();
     const payload: LocalJwtPayload = jwt.verify(
       token,
       JWT_SECRET
@@ -531,17 +516,11 @@ If this was not you, immediately change your password!
         ? location
         : "unknown";
 
-    await addNotification(
-      user.id as UUID,
-      {
-        title: NotificationTitle.LOGIN,
-        body: `Login from ${deviceBrowser} at ${country}`,
-        actorId: user.id as UUID,
-      },
-      (err) => {
-        if (err) throw new AppError(err, 500);
-      }
-    );
+    await addNotification(user.id as UUID, {
+      title: NotificationTitle.LOGIN,
+      body: `Login from ${deviceBrowser} at ${country}`,
+      actorId: user.id as UUID,
+    });
 
     return utils.SendRes(res, {
       user: {
@@ -837,31 +816,31 @@ If this wasn't you, secure your account immediately!
     utils.SendEmailSmtp(res, email, emailMessage).catch(() => {
       throw new AppError("Failed to send password change notification", 500);
     });
-    const deviceBrowser =
-      typeof deviceRecord === "object" && deviceRecord
-        ? (deviceRecord as any).browser || "unknown"
-        : typeof deviceRecord === "string"
-        ? deviceRecord
-        : "unknown";
+    // const deviceBrowser =
+    //   typeof deviceRecord === "object" && deviceRecord
+    //     ? (deviceRecord as any).browser || "unknown"
+    //     : typeof deviceRecord === "string"
+    //     ? deviceRecord
+    //     : "unknown";
 
-    const country =
-      typeof location === "object" && location
-        ? (location as any).Country || (location as any).country || "unknown"
-        : typeof location === "string"
-        ? location
-        : "unknown";
-    await addNotification(
-      user.id as UUID,
-      {
-        title: NotificationTitle.PASSWORD_CHANGED,
-        body: `Password of this account has been changed of ${deviceBrowser} at ${country}`,
-        actorId: user.id as UUID,
-        tweetId: "32423",
-      },
-      (err) => {
-        if (err) throw new AppError(err, 500);
-      }
-    );
+    // const country =
+    //   typeof location === "object" && location
+    //     ? (location as any).Country || (location as any).country || "unknown"
+    //     : typeof location === "string"
+    //     ? location
+    //     : "unknown";
+    // await addNotification(
+    //   user.id as UUID,
+    //   {
+    //     title: NotificationTitle.PASSWORD_CHANGED,
+    //     body: `Password of this account has been changed of ${deviceBrowser} at ${country}`,
+    //     actorId: user.id as UUID,
+    //     tweetId: "32423",
+    //   },
+    //   (err) => {
+    //     if (err) throw new AppError(err, 500);
+    //   }
+    // );
 
     const accessObj = await utils.GenerateJwt({
       username: user.username,
@@ -1525,57 +1504,9 @@ export async function LogoutSession(
 
 /* --------------------- OAuth Helper Functions --------------------- */
 
-export async function exchangeGithubCode(code: string) {
-  try {
-    const params = {
-      client_id,
-      client_secret,
-      code,
-      redirect_uri,
-    };
-
-    const resp = await axios.post(
-      "https://github.com/login/oauth/access_token",
-      qs.stringify(params),
-      { headers: { Accept: "application/json" } }
-    );
-
-    return resp.data;
-  } catch (err) {
-    throw new AppError("Failed to exchange GitHub code", 500);
-  }
-}
-
-export async function fetchGithubEmails(accessToken: string) {
-  try {
-    const resp = await axios.get("https://api.github.com/user/emails", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-    });
-    return resp.data;
-  } catch (err) {
-    throw new AppError("Failed to fetch GitHub emails", 500);
-  }
-}
-
-export async function fetchGithubUser(accessToken: string) {
-  try {
-    const resp = await axios.get("https://api.github.com/user", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-    });
-    return resp.data;
-  } catch (err) {
-    throw new AppError("Failed to fetch GitHub user", 500);
-  }
-}
-
 export async function exchangeGoogleCode(code: string) {
   try {
+    const { client_id, client_secret, redirect_uri } = getSecrets();
     const params = {
       code,
       client_id,
@@ -1640,6 +1571,233 @@ export async function exchangeGoogleCode(code: string) {
 // }
 /* --------------------- OAuth Controllers --------------------- */
 
+export async function exchangeGithubCodeFront(code: string) {
+  try {
+    // ❌ WRONG: You were using variable names as keys
+    // GitHub expects: client_id, client_secret, redirect_uri
+    const {
+      GITHUB_SECRET_FRONT,
+      GITHUB_CLIENT_ID_FRONT,
+      GITHUB_RED_URL_FRONT,
+    } = getSecrets();
+    const params = {
+      client_id: GITHUB_CLIENT_ID_FRONT, // ✅ Not "githubClientId"
+      client_secret: GITHUB_SECRET_FRONT, // ✅ Not "GITHUB_CLIENT_SECRET"
+      code: code,
+      redirect_uri: GITHUB_RED_URL_FRONT, // ✅ Not "redirectUri"
+    };
+
+    console.log("🔍 GitHub Token Exchange Debug:");
+    console.log(
+      "client_id:",
+      GITHUB_CLIENT_ID_FRONT ? "✅ Set" : "❌ UNDEFINED"
+    );
+    console.log(
+      "client_secret:",
+      GITHUB_SECRET_FRONT ? "✅ Set" : "❌ UNDEFINED"
+    );
+    console.log("redirect_uri:", GITHUB_RED_URL_FRONT);
+    console.log("code:", code ? code.substring(0, 15) + "..." : "❌ NO CODE");
+
+    const resp = await axios.post(
+      "https://github.com/login/oauth/access_token",
+      qs.stringify(params),
+      { headers: { Accept: "application/json" } }
+    );
+
+    console.log("GitHub Response:", resp.data);
+
+    // Check for errors
+    if (resp.data.error) {
+      console.error("GitHub OAuth Error:", resp.data);
+      throw new AppError(
+        `GitHub OAuth error: ${resp.data.error_description || resp.data.error}`,
+        400
+      );
+    }
+
+    if (!resp.data.access_token) {
+      console.error("No access token in response:", resp.data);
+      throw new AppError("No access token received from GitHub", 500);
+    }
+
+    return resp.data;
+  } catch (err: any) {
+    console.error("exchangeGithubCode error:", {
+      message: err.message,
+      response: err.response?.data,
+      status: err.response?.status,
+    });
+
+    if (err.statusCode) {
+      throw err;
+    }
+
+    throw new AppError(
+      err.response?.data?.error_description ||
+        err.response?.data?.message ||
+        "Failed to exchange GitHub code",
+      500
+    );
+  }
+}
+
+export async function fetchGithubEmailsFront(accessToken: string) {
+  try {
+    console.log("Fetching GitHub emails...");
+
+    const resp = await axios.get("https://api.github.com/user/emails", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+    });
+
+    console.log("GitHub emails received:", resp.data.length, "emails");
+    return resp.data;
+  } catch (err: any) {
+    console.error(
+      "fetchGithubEmails error:",
+      err.response?.data || err.message
+    );
+    throw new AppError(
+      err.response?.data?.message || "Failed to fetch GitHub emails",
+      err.response?.status || 500
+    );
+  }
+}
+
+export async function fetchGithubUserFront(accessToken: string) {
+  try {
+    console.log("Fetching GitHub user...");
+
+    const resp = await axios.get("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+    });
+
+    console.log("GitHub user received:", resp.data.login);
+    return resp.data;
+  } catch (err: any) {
+    console.error("fetchGithubUser error:", err.response?.data || err.message);
+    throw new AppError(
+      err.response?.data?.message || "Failed to fetch GitHub user",
+      err.response?.status || 500
+    );
+  }
+}
+export async function exchangeGithubCode(code: string) {
+  try {
+    // ❌ WRONG: You were using variable names as keys
+    // GitHub expects: client_id, client_secret, redirect_uri
+    const { redirectUri, githubClientId, GITHUB_CLIENT_SECRET } = getSecrets();
+    const params = {
+      client_id: githubClientId, // ✅ Not "githubClientId"
+      client_secret: GITHUB_CLIENT_SECRET, // ✅ Not "GITHUB_CLIENT_SECRET"
+      code: code,
+      redirect_uri: redirectUri, // ✅ Not "redirectUri"
+    };
+
+    console.log("🔍 GitHub Token Exchange Debug:");
+    console.log("client_id:", githubClientId ? "✅ Set" : "❌ UNDEFINED");
+    console.log(
+      "client_secret:",
+      GITHUB_CLIENT_SECRET ? "✅ Set" : "❌ UNDEFINED"
+    );
+    console.log("redirect_uri:", redirectUri);
+    console.log("code:", code ? code.substring(0, 15) + "..." : "❌ NO CODE");
+
+    const resp = await axios.post(
+      "https://github.com/login/oauth/access_token",
+      qs.stringify(params),
+      { headers: { Accept: "application/json" } }
+    );
+
+    console.log("GitHub Response:", resp.data);
+
+    // Check for errors
+    if (resp.data.error) {
+      console.error("GitHub OAuth Error:", resp.data);
+      throw new AppError(
+        `GitHub OAuth error: ${resp.data.error_description || resp.data.error}`,
+        400
+      );
+    }
+
+    if (!resp.data.access_token) {
+      console.error("No access token in response:", resp.data);
+      throw new AppError("No access token received from GitHub", 500);
+    }
+
+    return resp.data;
+  } catch (err: any) {
+    console.error("exchangeGithubCode error:", {
+      message: err.message,
+      response: err.response?.data,
+      status: err.response?.status,
+    });
+
+    if (err.statusCode) {
+      throw err;
+    }
+
+    throw new AppError(
+      err.response?.data?.error_description ||
+        err.response?.data?.message ||
+        "Failed to exchange GitHub code",
+      500
+    );
+  }
+}
+
+export async function fetchGithubEmails(accessToken: string) {
+  try {
+    console.log("Fetching GitHub emails...");
+
+    const resp = await axios.get("https://api.github.com/user/emails", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+    });
+
+    console.log("GitHub emails received:", resp.data.length, "emails");
+    return resp.data;
+  } catch (err: any) {
+    console.error(
+      "fetchGithubEmails error:",
+      err.response?.data || err.message
+    );
+    throw new AppError(
+      err.response?.data?.message || "Failed to fetch GitHub emails",
+      err.response?.status || 500
+    );
+  }
+}
+
+export async function fetchGithubUser(accessToken: string) {
+  try {
+    console.log("Fetching GitHub user...");
+
+    const resp = await axios.get("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+    });
+
+    console.log("GitHub user received:", resp.data.login);
+    return resp.data;
+  } catch (err: any) {
+    console.error("fetchGithubUser error:", err.response?.data || err.message);
+    throw new AppError(
+      err.response?.data?.message || "Failed to fetch GitHub user",
+      err.response?.status || 500
+    );
+  }
+}
 export async function Authorize(
   req: Request,
   res: Response,
@@ -1648,17 +1806,34 @@ export async function Authorize(
   try {
     const provider = req.params?.provider;
 
+    const {
+      client_id,
+      redirectUri,
+      google_state,
+      githubClientId,
+      redirect_uri,
+      githubState,
+      GITHUB_CLIENT_ID_FRONT,
+      GITHUB_RED_URL_FRONT,
+    } = getSecrets();
+
     if (provider === "google") {
       const scope = encodeURIComponent("openid email profile");
       const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${client_id}&redirect_uri=${encodeURIComponent(
-        redirectUri
+        redirect_uri
       )}&response_type=code&scope=${scope}&state=${google_state}`;
       return res.redirect(url);
     }
 
     if (provider === "github") {
       const url = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(
-        githubRedirectUrl
+        redirectUri
+      )}&scope=user%20user:email&state=${githubState}&prompt=select_account`;
+      return res.redirect(url);
+    }
+    if (provider === "github_front") {
+      const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID_FRONT}&redirect_uri=${encodeURIComponent(
+        GITHUB_RED_URL_FRONT
       )}&scope=user%20user:email&state=${githubState}&prompt=select_account`;
       return res.redirect(url);
     }
@@ -1668,7 +1843,230 @@ export async function Authorize(
     next(err);
   }
 }
+export async function CallbackGithubFront(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const code = req.query.code as string;
 
+  try {
+    const state = req.query.state as string;
+    const error = req.query.error as string;
+
+    console.log("=== GitHub Callback Front ===");
+    console.log("code:", code ? code.substring(0, 10) + "..." : "❌ Missing");
+    console.log("state:", state);
+    console.log("error:", error || "None");
+
+    // Check for OAuth error from GitHub
+    if (error) {
+      throw new AppError(`GitHub OAuth error: ${error}`, 400);
+    }
+
+    if (!code) {
+      throw new AppError("Authorization code is missing", 400);
+    }
+
+    // ✅ PREVENT DUPLICATE PROCESSING using Redis
+    const codeKey = `oauth:github:code:${code}`;
+    const isProcessing = await redisClient.get(codeKey);
+
+    if (isProcessing) {
+      console.log(
+        "⚠️ Code already being processed, ignoring duplicate request"
+      );
+      return res.status(400).json({
+        error: "Authorization already in progress",
+        message: "This authorization code is already being processed",
+      });
+    }
+
+    // Mark this code as being processed (expires in 30 seconds)
+    await redisClient.set(codeKey, "processing", { EX: 30 });
+
+    // Verify state to prevent CSRF
+    const secrets = getSecrets();
+    if (state !== secrets.githubState) {
+      await redisClient.del(codeKey); // Clean up on error
+      console.error("State mismatch!", {
+        received: state,
+        expected: secrets.githubState,
+      });
+      throw new AppError("Invalid state parameter - possible CSRF attack", 400);
+    }
+
+    // Exchange code for access token
+    const tokenResp = await exchangeGithubCodeFront(code);
+    const accessToken = tokenResp.access_token as string;
+
+    console.log("GITHUB TOKEN:", accessToken ? "✅ Received" : "❌ Missing");
+
+    if (!accessToken) {
+      await redisClient.del(codeKey); // Clean up on error
+      throw new AppError("Failed to obtain access token from GitHub", 500);
+    }
+
+    // Fetch user emails
+    const emails = await fetchGithubEmailsFront(accessToken);
+    const primary = emails.find((e: any) => e.primary && e.verified);
+
+    if (!primary) {
+      await redisClient.del(codeKey); // Clean up on error
+      throw new AppError(
+        "No verified primary email found in GitHub account",
+        400
+      );
+    }
+
+    const email = primary.email as string;
+    console.log("GitHub email:", email);
+
+    // Fetch user profile
+    const userProfile = await fetchGithubUserFront(accessToken);
+    const name = userProfile.name || userProfile.login;
+    const providerId = userProfile.id.toString();
+
+    console.log("GitHub user:", { name, providerId });
+
+    // 🔹 Find or create user
+    let oauth = await prisma.oAuthAccount.findFirst({
+      where: { provider: "github", providerId },
+      include: { user: true },
+    });
+
+    let user;
+    if (oauth) {
+      user = oauth.user;
+      console.log("Existing user found:", user.username);
+    } else {
+      user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        const username = await utils.generateUsername(name);
+        user = await prisma.user.create({
+          data: {
+            email,
+            username,
+            name,
+            password: "",
+            saltPassword: "",
+            dateOfBirth: "2001-11-03T00:00:00.000Z",
+            oAuthAccount: {
+              create: { provider: "github", providerId },
+            },
+          },
+        });
+        console.log("New user created:", user.username);
+      } else {
+        await prisma.oAuthAccount.create({
+          data: { provider: "github", providerId, userId: user.id },
+        });
+        console.log("OAuth account linked to existing user:", user.username);
+      }
+    }
+
+    // 🌍 Set Device Info
+    const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
+
+    // 🔑 Generate Tokens
+    const payload = {
+      username: user.username,
+      email: user.email,
+      id: user.id,
+      role: "user",
+      expiresInSeconds: 60 * 60,
+    };
+    const payload2 = {
+      username: user.username,
+      email: user.email,
+      id: user.id,
+      role: "user",
+      expiresInSeconds: 60 * 60 * 24 * 30,
+    };
+
+    const token = await utils.GenerateJwt(payload);
+    const refreshToken = await utils.GenerateJwt(payload2);
+
+    await redisClient.set(
+      `refresh-token:${user.email}:${devid}`,
+      refreshToken.token,
+      { EX: 60 * 60 * 24 * 30 }
+    );
+
+    // res.cookie("refresh-token", refreshToken, {
+    //   maxAge: 1000 * 60 * 60 * 24 * 30,
+    //   httpOnly: true,
+    //   secure: true,
+    //   sameSite: 'lax', // ✅ Added for better security
+    // });
+
+    await prisma.user.update({
+      where: { email },
+      data: { tokenVersion: (user.tokenVersion || 0) + 1 },
+    });
+
+    // 🌐 Get Location Info
+    const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
+    const geo = await utils.Sendlocation(ip);
+
+    // 📧 Send Professional Login Email (non-blocking)
+    const emailMsg = `
+👋 Hello, ${user.username || name}
+
+We noticed a new login to your account via GitHub.
+
+🕒 Time: ${new Date().toLocaleString()}
+📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
+🌐 IP Address: ${geo.Query || ip}
+🖥️ Device: ${req.get("User-Agent") || "Unknown"}
+
+Your login was successful 🎉
+
+If this wasn't you, please reset your password or contact support immediately.
+
+— The Artemisa Security Team 🦊
+`;
+
+    // ✅ Send email asynchronously (don't block the response)
+    utils.SendEmailSmtp(res, email, emailMsg).catch((err) => {
+      console.error("Failed to send login email:", err);
+    });
+
+    const redirectUrl = `https://ingeborg-untrammed-leo.ngrok-free.dev/login/success?token=${encodeURIComponent(
+      token.token
+    )}&refresh-token=${encodeURIComponent(
+      refreshToken.token
+    )}&user=${encodeURIComponent(
+      JSON.stringify({
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+        isEmailVerified: user.isEmailVerified,
+      })
+    )}`;
+
+    console.log("✅ GitHub OAuth successful, redirecting to frontend");
+
+    // Clean up the Redis key
+    await redisClient.del(codeKey);
+
+    return res.redirect(redirectUrl);
+  } catch (err) {
+    console.error("CallbackGithubFront err:", err);
+
+    // Clean up on error
+    if (code) {
+      const codeKey = `oauth:github:code:${code}`;
+      await redisClient.del(codeKey).catch(() => {
+        // Ignore cleanup errors
+      });
+    }
+
+    next(err);
+  }
+}
 export async function CallbackGithub(
   req: Request,
   res: Response,
@@ -1680,6 +2078,7 @@ export async function CallbackGithub(
 
     const tokenResp = await exchangeGithubCode(code);
     const accessToken = tokenResp.access_token as string;
+    console.log("GITHUB TOKEN:", accessToken);
 
     const emails = await fetchGithubEmails(accessToken);
     const primary = emails.find((e: any) => e.primary && e.verified);
@@ -1786,7 +2185,7 @@ If this wasn’t you, please reset your password or contact support immediately.
 
     await utils.SendEmailSmtp(res, email, emailMsg);
 
-    const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
+    const redirectUrl = `myapp://login/success?token=${encodeURIComponent(
       token.token
     )}&refresh-token=${encodeURIComponent(
       refreshToken.token
@@ -1919,7 +2318,7 @@ If this wasn’t you, please secure your account immediately.
 `;
 
     await utils.SendEmailSmtp(res, email, emailMsg);
-
+    const { FRONTEND_URL } = getSecrets();
     const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
       token.token
     )}&refresh-token=${encodeURIComponent(
@@ -2181,6 +2580,7 @@ const oauthController = {
   CallbackGoogle,
   CallbackGithub,
   CallbackAndroidGoogle,
+  CallbackGithubFront,
 };
 
 export { authController, oauthController };
