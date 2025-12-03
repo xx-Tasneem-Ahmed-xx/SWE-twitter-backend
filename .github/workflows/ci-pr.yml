@@ -67,7 +67,7 @@ jobs:
         run: npx prisma db push --accept-data-loss --config ./prisma/prisma.config.ts
 
       - name: Run Tests
-        run: npm test:coverage
+        run: npm run test:coverage
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v6
