@@ -41,7 +41,7 @@ model User {
   profileMediaId          String?
   coverMediaId            String?
   reputation              Float         @default(1.0)
-  reputationUpdatedAt     DateTime      @updatedAt 
+  reputationUpdatedAt     DateTime      @updatedAt
 
   messages              Message[]
   tweet                 Tweet[]
@@ -135,20 +135,21 @@ model Tweet {
   parentId       String?
   tweetType      TweetType
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent         Tweet?          @relation("parentTweets", fields: [parentId], references: [id], onDelete: Cascade)
-  parentTweet    Tweet[]         @relation("parentTweets")
-  hashtags       TweetHash[]
-  tweetSummary   TweetSummary?
-  mention        Mention[]
-  retweets       Retweet[]
-  tweetLikes     TweetLike[]
-  tweetBookmark  TweetBookmark[]
-  tweetMedia     TweetMedia[]
-  Notification   Notification[]
-  notInteresteds NotInterested[]
-  spamReports    SpamReport[]
-  category       Category[]
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent          Tweet?          @relation("parentTweets", fields: [parentId], references: [id], onDelete: Cascade)
+  parentTweet     Tweet[]         @relation("parentTweets")
+  hashtags        TweetHash[]
+  tweetSummary    TweetSummary?
+  mention         Mention[]
+  retweets        Retweet[]
+  tweetLikes      TweetLike[]
+  tweetBookmark   TweetBookmark[]
+  tweetMedia      TweetMedia[]
+  Notification    Notification[]
+  notInteresteds  NotInterested[]
+  spamReports     SpamReport[]
+  category        Category[]
+  tweetCategories TweetCategory[]
 
   @@unique([lastActivityAt, id])
   @@index([userId, createdAt])
@@ -413,12 +414,24 @@ model SpamReport {
 }
 
 model Category {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tweets    Tweet[]
-  users     User[]   @relation("UserPreferredCategories")
+  id              String          @id @default(uuid())
+  name            String          @unique
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  tweets          Tweet[]
+  users           User[]          @relation("UserPreferredCategories")
+  tweetCategories TweetCategory[]
+}
+
+model TweetCategory {
+  tweetId    String
+  categoryId String
+
+  tweet    Tweet    @relation(fields: [tweetId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@id([tweetId, categoryId])
+  @@map("tweet_categories")
 }
 
 enum ReplyControl {

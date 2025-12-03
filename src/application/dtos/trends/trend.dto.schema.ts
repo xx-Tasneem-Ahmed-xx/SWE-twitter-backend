@@ -48,6 +48,8 @@ export const TrendItemSchema = z.object({
   id: z.string(),
   hashtag: z.string(),
   tweetCount: z.number().int(),
+  likesCount: z.number().int().optional(),
+  score: z.number().optional(),
   rank: z.number().int(),
 });
 
@@ -69,6 +71,16 @@ export const TrendsResponseSchema = z
             description:
               "Number of tweets with this hashtag in the last 24 hours",
             example: 1234,
+          }),
+          likesCount: z.number().int().openapi({
+            description:
+              "Total number of likes across tweets with this hashtag in the last 24 hours",
+            example: 2400,
+          }),
+          score: z.number().openapi({
+            description:
+              "Combined normalized score (0-1) using 70% tweet count and 30% likes to rank trends",
+            example: 0.8723,
           }),
           rank: z.number().int().openapi({
             description: "Position in trending list (1-30)",

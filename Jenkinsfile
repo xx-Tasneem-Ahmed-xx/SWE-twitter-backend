@@ -43,7 +43,7 @@ pipeline {
                         $class: 'GitSCM',
                         branches: [[name: '*/main']],
                         userRemoteConfigs: [[
-                            url: 'https://github.com/CUFE-Software-Engineering-Project/SWE-twitter-backend.git',  
+                            url: 'https://github.com/CUFE-Software-Engineering-Project/SWE-twitter-Backend-Fork.git',  
                             credentialsId: "${GIT_CREDENTIALS}"
                         ]]
                     ])
@@ -79,6 +79,7 @@ pipeline {
                     script {
                         sh '''
                             echo "DATABASE_URL=${DATABASE_URL}" >> ./.env
+                            echo "SHADOW_DATABASE_URL=postgresql://test_user:fakePass123@db.example.com:5432/fake_db" >> ./.env
                             
                             # Verify .env file exists
                             if [ -f ./.env ]; then
@@ -125,13 +126,13 @@ pipeline {
                     script {
                         sh '''
                             echo "Installing Prisma"
-                            npm install prisma@^6.0.0 @prisma/client@^6.0.0
+                            npm install prisma
                              
                             echo "Running Prisma migrations..."
-                            npx prisma migrate deploy
+                            npx prisma migrate deploy --config prisma/prisma.config.ts
                             
                             echo "Generating Prisma Client..."
-                            npx prisma generate
+                            npx prisma generate --config prisma/prisma.config.ts
                             
                             echo "Database schema is up to date"
                         '''
