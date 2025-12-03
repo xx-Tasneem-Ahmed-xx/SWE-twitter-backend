@@ -1,9 +1,7 @@
-import { prisma, ReplyControl } from "@/prisma/client";
+import { prisma } from "@/prisma/client";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
-
-//import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import fetch, { Response as FetchResponse } from "node-fetch";
 import zxcvbn from "zxcvbn";
@@ -17,25 +15,6 @@ const uuidv4 = async () => {
   return v4();
 };
 
-export const validToRetweetOrQuote = async (parentTweetId: string) => {
-  const rightToTweet = await prisma.tweet.findUnique({
-    where: { id: parentTweetId },
-    select: { user: { select: { protectedAccount: true } } },
-  });
-  return rightToTweet ? !rightToTweet.user.protectedAccount : false;
-};
-
-export const isFollower = async (followerId: string, followingId: string) => {
-  const row = await prisma.follow.findUnique({
-    where: {
-      followerId_followingId: {
-        followerId,
-        followingId,
-      },
-    },
-  });
-  return !!row;
-};
 export const resolveUsernameToId = async (username: string) => {
   const user = await prisma.user.findUnique({
     where: { username },
@@ -44,79 +23,6 @@ export const resolveUsernameToId = async (username: string) => {
   if (!user?.id) throw new AppError("User not found", 404);
   return user;
 };
-
-export const isVerified = async (id: string) => {
-  const user = await prisma.user.findUnique({
-    where: { id },
-    select: { verified: true },
-  });
-
-  return user?.verified ?? false;
-};
-
-export const isMentioned = async (
-  mentionedId: string,
-  mentionerId: string,
-  tweetId: string
-) => {
-  const row = await prisma.mention.findUnique({
-    where: {
-      tweetId_mentionerId_mentionedId: { tweetId, mentionerId, mentionedId },
-    },
-  });
-  return !!row;
-};
-
-export const validToReply = async (id: string, userId: string) => {
-  if (!id || !userId) return false;
-
-  const tweet = await prisma.tweet.findUnique({
-    where: { id },
-    select: {
-      userId: true,
-      user: { select: { protectedAccount: true } },
-      replyControl: true,
-    },
-  });
-  if (!tweet) return false;
-
-  const protectedAccount = tweet?.user?.protectedAccount ?? false;
-  const replyControl = await evaluateReplyControl(
-    id,
-    tweet.replyControl,
-    tweet.userId,
-    userId
-  );
-  if (protectedAccount) {
-    const follows = await isFollower(userId, tweet.userId);
-    return follows && replyControl;
-  }
-  return replyControl;
-};
-
-const evaluateReplyControl = async (
-  tweetId: string,
-  type: ReplyControl,
-  replieeId: string,
-  replierId: string
-) => {
-  switch (type) {
-    case "EVERYONE":
-      return true;
-
-    case "FOLLOWINGS":
-      return isFollower(replierId, replieeId);
-
-    case "VERIFIED":
-      return isVerified(replierId);
-
-    case "MENTIONED":
-      return isMentioned(replierId, replieeId, tweetId);
-    default:
-      return false;
-  }
-};
-
 
 // Define the structure of the payload you put into the JWT
 export interface JwtUserPayload extends JwtPayload {
@@ -154,9 +60,6 @@ export interface UserSession {
   DeviceInfoId: string | null;
   ExpireAt: string;
 }
-
-const { JWT_SECRET, PEPPER, COOKIE_DOMAIN, Mail_email, Mail_password } =
-  getSecrets();
 
 /* ------------------------------ Generic response helpers ------------------------------ */
 
@@ -232,6 +135,7 @@ export async function GenerateJwt({
     jti,
     devid,
   };
+  const { JWT_SECRET } = getSecrets();
   const token: string = jwt.sign(payload, JWT_SECRET, { algorithm: "HS256" });
   return { token, jti, payload };
 }
@@ -246,6 +150,7 @@ export function ValidateToken(tokenString: string): {
 } {
   try {
     //console.log("Token:", token);
+    const { JWT_SECRET } = getSecrets();
 
     // We assert the type to our custom payload interface
     const payload: JwtUserPayload = jwt.verify(
@@ -264,6 +169,7 @@ export async function HashPassword(
   password: string,
   salt: string
 ): Promise<string> {
+  const { PEPPER } = getSecrets();
   return await bcrypt.hash(password + PEPPER + salt, 10);
 }
 
@@ -273,6 +179,7 @@ export async function CheckPass(
   salt: string
 ): Promise<boolean> {
   try {
+    const { PEPPER } = getSecrets();
     return await bcrypt.compare(password + PEPPER + salt, hashed);
   } catch {
     return false;
@@ -603,6 +510,8 @@ export async function SendEmailSmtp(
   message: string
 ): Promise<Response<any> | void> {
   try {
+    const { Mail_email, Mail_password } = getSecrets();
+
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,
