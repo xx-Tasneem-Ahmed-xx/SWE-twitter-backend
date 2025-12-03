@@ -1,124 +1,124 @@
-// jest.mock("@/app", () => {
-//   return {
-//     socketService: {
-//       sendMessageToChat: jest.fn(),
-//     },
-//   };
-// });
+jest.mock("@/app", () => {
+  return {
+    socketService: {
+      sendMessageToChat: jest.fn(),
+    },
+  };
+});
 
-// import { prisma } from "@/prisma/client";
-// import { connectToDatabase } from "@/database";
-// import * as chatService from "../api/controllers/messagesController";
-// import { body, param } from "express-validator";
-// import { newMessageInput } from "@/application/dtos/chat/messages.dto";
-// import { log } from "node:console";
+import { prisma } from "@/prisma/client";
+import { connectToDatabase } from "@/database";
+import * as chatService from "../api/controllers/messagesController";
+import { body, param } from "express-validator";
+import { newMessageInput } from "@/application/dtos/chat/messages.dto";
+import { log } from "node:console";
 
-// function mockRes() {
-//   const res: any = {};
-//   res.status = jest.fn().mockReturnValue(res);
-//   res.json = jest.fn().mockReturnValue(res);
-//   res.send = jest.fn().mockReturnValue(res);
-//   return res;
-// }
+function mockRes() {
+  const res: any = {};
+  res.status = jest.fn().mockReturnValue(res);
+  res.json = jest.fn().mockReturnValue(res);
+  res.send = jest.fn().mockReturnValue(res);
+  return res;
+}
 
-// describe("chat service", () => {
-//     beforeAll(async () => {
-//         await connectToDatabase();
-//         console.log("Running tests with real database connection");
-//         await prisma.user.upsert({
-//             where: { username: "test_user1" },
-//             update: {},
-//             create: {
-//                 username: "test_user1",
-//                 id: "123",
-//                 email: "test_user1@example.com",
-//                 password: "password123",
-//                 saltPassword: "salt123",
-//                 dateOfBirth: new Date("2025-11-21"),
-//                 name: "Test User One",
-//                 //profileMediaId: "media1",
-//                 bio: "I am test user one",
-//                 verified: true,
-//                 protectedAccount: false,
-//             },
-//         });
-//         await prisma.user.upsert({
-//             where: { username: "test_user2" },
-//             update: {},
-//             create: {
-//                 username: "test_user2",
-//                 id: "456",
-//                 email: "test_user2@example.com",
-//                 password: "password456",
-//                 saltPassword: "salt456",
-//                 dateOfBirth: new Date("2025-10-21"),
-//                 name: "Test User Two",
-//                 //profileMediaId: "media2",
-//                 bio: "I am test user two",
-//                 verified: true,
-//                 protectedAccount: false,
-//             },
-//         });
-//         await prisma.user.upsert({
-//             where: { username: "test_user3" },
-//             update: {},
-//             create: {
-//                 username: "test_user3",
-//                 id: "789",
-//                 email: "test_user3@example.com",
-//                 password: "password456",
-//                 saltPassword: "salt456",
-//                 dateOfBirth: new Date("2025-10-21"),
-//                 name: "Test User Three",
-//                 //profileMediaId: "media2",
-//                 bio: "I am test user three",
-//                 verified: true,
-//                 protectedAccount: false,
-//             },
-//         });
+describe("chat service", () => {
+    beforeAll(async () => {
+        await connectToDatabase();
+        console.log("Running tests with real database connection");
+        await prisma.user.upsert({
+            where: { username: "test_user1" },
+            update: {},
+            create: {
+                username: "test_user1",
+                id: "123",
+                email: "test_user1@example.com",
+                password: "password123",
+                saltPassword: "salt123",
+                dateOfBirth: new Date("2025-11-21"),
+                name: "Test User One",
+                //profileMediaId: "media1",
+                bio: "I am test user one",
+                verified: true,
+                protectedAccount: false,
+            },
+        });
+        await prisma.user.upsert({
+            where: { username: "test_user2" },
+            update: {},
+            create: {
+                username: "test_user2",
+                id: "456",
+                email: "test_user2@example.com",
+                password: "password456",
+                saltPassword: "salt456",
+                dateOfBirth: new Date("2025-10-21"),
+                name: "Test User Two",
+                //profileMediaId: "media2",
+                bio: "I am test user two",
+                verified: true,
+                protectedAccount: false,
+            },
+        });
+        await prisma.user.upsert({
+            where: { username: "test_user3" },
+            update: {},
+            create: {
+                username: "test_user3",
+                id: "789",
+                email: "test_user3@example.com",
+                password: "password456",
+                saltPassword: "salt456",
+                dateOfBirth: new Date("2025-10-21"),
+                name: "Test User Three",
+                //profileMediaId: "media2",
+                bio: "I am test user three",
+                verified: true,
+                protectedAccount: false,
+            },
+        });
 
-//     });
+    });
 
-//     afterAll(async () => {
-//         await prisma.chatGroup.deleteMany();
-//         await prisma.message.deleteMany();
-//         await prisma.chatUser.deleteMany();
-//         await prisma.chat.deleteMany();
-//         await prisma.user.deleteMany({
-//             where: { id: { in: ["123", "456", "789"] } },
-//         });
-//         await prisma.$disconnect();
-//     });
+    afterAll(async () => {
+        await prisma.chatGroup.deleteMany();
+        await prisma.message.deleteMany();
+        await prisma.chatUser.deleteMany();
+        await prisma.chat.deleteMany();
+        await prisma.user.deleteMany({
+            where: { id: { in: ["123", "456", "789"] } },
+        });
+        await prisma.$disconnect();
+    });
 
-//     beforeEach(async () => {
-//          await prisma.chatGroup.deleteMany();
-//         await prisma.message.deleteMany();
-//         await prisma.chatUser.deleteMany();
-//         await prisma.chat.deleteMany();
-//     });
+    beforeEach(async () => {
+         await prisma.chatGroup.deleteMany();
+        await prisma.message.deleteMany();
+        await prisma.chatUser.deleteMany();
+        await prisma.chat.deleteMany();
+    });
 
-//     describe("create new chat (dm - group)", () => {
-//         it("should create a new direct message chat between two users", async () => {
-//             const res = mockRes();
-//             const req: any = {body: {DMChat: true, participant_ids: ["456"]}, user: { id: "123" } };
-//             const next = jest.fn();
-//             await chatService.createChat(req, res, next);
-//             const createdChat = res.json.mock.calls[0][0];
-//             expect(res.status).toHaveBeenCalledWith(201);
-//             expect(createdChat).not.toBeNull();
-//             expect(createdChat.newChat.DMChat).toBe(true);
-//         });
+    describe("create new chat (dm - group)", () => {
+        it("should create a new direct message chat between two users", async () => {
+            const res = mockRes();
+            const req: any = {body: {DMChat: true, participant_ids: ["456"]}, user: { id: "123" } };
+            const next = jest.fn();
+            await chatService.createChat(req, res, next);
+            const createdChat = res.json.mock.calls[0][0];
+            expect(res.status).toHaveBeenCalledWith(201);
+            expect(createdChat).not.toBeNull();
+            expect(createdChat.newChat.DMChat).toBe(true);
+        });
 
-//         it("should create a new group chat with multiple users", async () => {
-//             const res = mockRes();
-//             const req: any = {body: {DMChat: false, participant_ids: ["456", "789"]}, user: { id: "123" } };
-//             const next = jest.fn();
-//             await chatService.createChat(req, res, next);
-//             const createdChat = res.json.mock.calls[0][0];
-//             expect(res.status).toHaveBeenCalledWith(201);
-//             expect(createdChat).not.toBeNull();
-//             expect(createdChat.newChat.DMChat).toBe(false);
-//         });
+        it("should create a new group chat with multiple users", async () => {
+            const res = mockRes();
+            const req: any = {body: {DMChat: false, participant_ids: ["456", "789"]}, user: { id: "123" } };
+            const next = jest.fn();
+            await chatService.createChat(req, res, next);
+            const createdChat = res.json.mock.calls[0][0];
+            expect(res.status).toHaveBeenCalledWith(201);
+            expect(createdChat).not.toBeNull();
+            expect(createdChat.newChat.DMChat).toBe(false);
+        });
 
 //         it("it should fail to create a group chat with less than three users", async () => {
 //             const res = mockRes();
@@ -137,7 +137,7 @@
 //             expect(res.status).toHaveBeenCalledWith(400);
 //             expect(res.json).toHaveBeenCalledWith({ error: 'Participant IDs are required' });
 //         });
-//     });
+    });
 
 //     describe("send a new message", () => {
 
@@ -404,4 +404,4 @@
 
 //     });
 
-// });
+});
