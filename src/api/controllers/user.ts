@@ -7,7 +7,6 @@ import { v4 as uuidv4 } from "uuid";
 import zxcvbn from "zxcvbn";
 import qrcode from "qrcode";
 import speakeasy from "speakeasy";
-import { addNotification } from "./notificationController";
 import prisma from "../../database";
 import { redisClient } from "../../config/redis";
 import fetch from "node-fetch";
@@ -18,6 +17,7 @@ import axios from "axios";
 import qs from "querystring";
 import { NotificationTitle } from "@prisma/client";
 import { getSecrets } from "@/config/secrets";
+import { addNotification } from "@/application/services/notification";
 // --- Custom Type Definitions ---
 interface LocalJwtPayload extends JwtPayload {
   Username?: string;
@@ -46,22 +46,6 @@ interface PrismaUser {
   isEmailVerified: boolean;
   otp: string | null;
 }
-
-const {
-  JWT_SECRET,
-  PEPPER,
-  DOMAIN,
-  CLIENT_DOMAIN,
-  client_id,
-  client_secret,
-  redirect_uri,
-  redirectUri,
-  google_state,
-  githubClientId,
-  githubRedirectUrl,
-  githubState,
-  FRONTEND_URL,
-} = getSecrets();
 
 function timingSafeEqual(
   a: string | Buffer | number | object,
@@ -112,6 +96,7 @@ function generateJwt({
     jti,
     devid: devid || null,
   };
+  const { JWT_SECRET } = getSecrets();
   const token: string = jwt.sign(payload, JWT_SECRET, { algorithm: "HS256" });
   return { token, jti, payload };
 }
@@ -122,6 +107,7 @@ function validateJwt(token: string): {
   err?: Error;
 } {
   try {
+    const { JWT_SECRET } = getSecrets();
     const payload: LocalJwtPayload = jwt.verify(
       token,
       JWT_SECRET
@@ -531,17 +517,11 @@ If this was not you, immediately change your password!
         ? location
         : "unknown";
 
-    await addNotification(
-      user.id as UUID,
-      {
-        title: NotificationTitle.LOGIN,
-        body: `Login from ${deviceBrowser} at ${country}`,
-        actorId: user.id as UUID,
-      },
-      (err) => {
-        if (err) throw new AppError(err, 500);
-      }
-    );
+    await addNotification(user.id as UUID, {
+      title: NotificationTitle.LOGIN,
+      body: `Login from ${deviceBrowser} at ${country}`,
+      actorId: user.id as UUID,
+    });
 
     return utils.SendRes(res, {
       user: {
@@ -850,18 +830,12 @@ If this wasn't you, secure your account immediately!
         : typeof location === "string"
         ? location
         : "unknown";
-    await addNotification(
-      user.id as UUID,
-      {
-        title: NotificationTitle.PASSWORD_CHANGED,
-        body: `Password of this account has been changed of ${deviceBrowser} at ${country}`,
-        actorId: user.id as UUID,
-        tweetId: "32423",
-      },
-      (err) => {
-        if (err) throw new AppError(err, 500);
-      }
-    );
+    await addNotification(user.id as UUID, {
+      title: NotificationTitle.PASSWORD_CHANGED,
+      body: `Password of this account has been changed of ${deviceBrowser} at ${country}`,
+      actorId: user.id as UUID,
+      tweetId: "32423",
+    });
 
     const accessObj = await utils.GenerateJwt({
       username: user.username,
@@ -1527,6 +1501,7 @@ export async function LogoutSession(
 
 export async function exchangeGithubCode(code: string) {
   try {
+    const { client_id, client_secret, redirect_uri } = getSecrets();
     const params = {
       client_id,
       client_secret,
@@ -1576,6 +1551,7 @@ export async function fetchGithubUser(accessToken: string) {
 
 export async function exchangeGoogleCode(code: string) {
   try {
+    const { client_id, client_secret, redirect_uri } = getSecrets();
     const params = {
       code,
       client_id,
@@ -1647,6 +1623,15 @@ export async function Authorize(
 ) {
   try {
     const provider = req.params?.provider;
+
+    const {
+      client_id,
+      redirectUri,
+      google_state,
+      githubClientId,
+      githubRedirectUrl,
+      githubState,
+    } = getSecrets();
 
     if (provider === "google") {
       const scope = encodeURIComponent("openid email profile");
@@ -1785,7 +1770,7 @@ If this wasn’t you, please reset your password or contact support immediately.
 `;
 
     await utils.SendEmailSmtp(res, email, emailMsg);
-
+    const { FRONTEND_URL } = getSecrets();
     const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
       token.token
     )}&refresh-token=${encodeURIComponent(
@@ -1919,7 +1904,7 @@ If this wasn’t you, please secure your account immediately.
 `;
 
     await utils.SendEmailSmtp(res, email, emailMsg);
-
+    const { FRONTEND_URL } = getSecrets();
     const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
       token.token
     )}&refresh-token=${encodeURIComponent(

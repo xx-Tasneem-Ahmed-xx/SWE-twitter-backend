@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { AppError } from "@/errors/AppError";
-import { addNotification } from "../notificationController";
 import { NotificationTitle } from "@prisma/client";
 import {
   UserInteractionParamsSchema,
@@ -16,6 +15,7 @@ import {
   getFollowersList,
   getFollowingsList,
 } from "@/application/services/userInteractions";
+import { addNotification } from "@/application/services/notification";
 
 // Follow a user using their username
 export const followUser = async (
@@ -53,22 +53,18 @@ export const followUser = async (
     );
 
     try {
-      await addNotification(
-        userToFollow.id as any,
-        {
-          title:
-            followStatus === "PENDING"
-              ? NotificationTitle.REQUEST_TO_FOLLOW
-              : NotificationTitle.FOLLOW,
-          body:
-            followStatus === "PENDING"
-              ? `${(req as any).user.username} requested to follow you`
-              : `${(req as any).user.username} started following you`,
-          actorId: currentUserId as any,
-          tweetId: undefined,
-        },
-        next
-      );
+      await addNotification(userToFollow.id as any, {
+        title:
+          followStatus === "PENDING"
+            ? NotificationTitle.REQUEST_TO_FOLLOW
+            : NotificationTitle.FOLLOW,
+        body:
+          followStatus === "PENDING"
+            ? `${(req as any).user.username} requested to follow you`
+            : `${(req as any).user.username} started following you`,
+        actorId: currentUserId as any,
+        tweetId: undefined,
+      });
     } catch (err) {
       console.error("Failed to send follow notification:", err);
     }
@@ -136,16 +132,12 @@ export const acceptFollow = async (
     await updateFollowStatus(follower.id, currentUserId);
 
     try {
-      await addNotification(
-        follower.id as any,
-        {
-          title: NotificationTitle.ACCEPTED_FOLLOW,
-          body: `${(req as any).user.username} accepted your follow request`,
-          actorId: currentUserId as any,
-          tweetId: undefined,
-        },
-        next
-      );
+      await addNotification(follower.id as any, {
+        title: NotificationTitle.ACCEPTED_FOLLOW,
+        body: `${(req as any).user.username} accepted your follow request`,
+        actorId: currentUserId as any,
+        tweetId: undefined,
+      });
     } catch (err) {
       console.error("Failed to send accepted-follow notification:", err);
     }
