@@ -1,4 +1,3 @@
-// src/application/services/secrets.ts
 import dotenv from "dotenv";
 import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
 import { AppError } from "@/errors/AppError";

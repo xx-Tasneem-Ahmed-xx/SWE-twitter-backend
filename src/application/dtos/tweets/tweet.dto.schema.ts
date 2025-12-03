@@ -33,7 +33,7 @@ const UserSchema = z.object({
 
 export const UsersResponseSchema = z.object({
   data: z.array(UserSchema),
-  nextCursor: z.string().nullable(),
+  cursor: z.string().nullable(),
 });
 
 export const CreateTweetDTOSchema = z
