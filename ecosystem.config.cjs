@@ -1,3 +1,4 @@
+// ecosystem.config.cjs
 const path = require("path");
 const dotenv = require("dotenv");
 
@@ -5,12 +6,12 @@ module.exports = {
   apps: [
     {
       name: "server",
-      script: path.join("dist", "index.js"),
+      script: "src/index.ts",
       instances: 1,
       exec_mode: "fork",
       watch: false,
-      wait_ready: true, 
-      listen_timeout: 10000,
+      interpreter: "node",
+      node_args: "-r ts-node/register -r tsconfig-paths/register",
       env: {
         NODE_ENV: "development",
         ...dotenv.config({ path: path.resolve(__dirname, ".env") }).parsed,
@@ -22,16 +23,18 @@ module.exports = {
       },
     },
     ...[
-      { name: "worker-hashtags", file: "hashtags.js" },
-      { name: "worker-trends", file: "trends.js" },
-      { name: "worker-notifications", file: "notifications.js" },
-      // add more workers here
+      { name: "worker-hashtags", file: "hashtags.ts" },
+      { name: "worker-trends", file: "trends.ts" },
+      { name: "worker-notifications", file: "notifications.ts" },
+      { name: "worker-emails", file: "Email.ts" },
     ].map((worker) => ({
       name: worker.name,
-      script: path.join("dist", "background", "workers", worker.file),
+      script: path.join("src", "background", "workers", worker.file),
       instances: 1,
       exec_mode: "fork",
       watch: false,
+      interpreter: "node",
+      node_args: "-r ts-node/register -r tsconfig-paths/register",
       env: {
         NODE_ENV: "development",
         ...dotenv.config({ path: path.resolve(__dirname, ".env") }).parsed,

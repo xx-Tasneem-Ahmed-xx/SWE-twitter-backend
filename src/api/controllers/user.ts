@@ -1146,22 +1146,7 @@ export async function ChangePassword(
       .Sendlocation(ip)
       .catch(() => null);
 
-//     const message: string = `Hi, ${user.username || "user"}
 
-// We're letting you know that the password for your account (${email}) was just changed.
-
-//  Time: ${new Date().toISOString()}
-//  Location: ${geo ? `${geo.Timezone}, ${geo.City}` : "unknown"}
-//  IP Address: ${ip}
-//  Device: ${req.get("User-Agent") || ""}
-
-// If you did NOT change your password, please secure your account immediately.
-// — The Artemisa Team
-// `;
-
-//     utils.SendEmailSmtp(res, email, message).catch(() => {
-//       throw new AppError("Failed to send password change email", 500);
-//     });
 await enqueuePasswordChangedDetailed(user.email, {
   username: user.username || "user",
   timezone: geo ? `${geo.Timezone}` : "unknown",
@@ -1170,9 +1155,7 @@ await enqueuePasswordChangedDetailed(user.email, {
   userAgent: req.get("User-Agent") || "",
 });
    
-    utils.SendEmailSmtp(res, email, message).catch(() => {
-      throw new AppError("Failed to send password change email", 500);
-    });
+   
 
     return utils.SendRes(res, {
       refresh_token: refreshObj.token,
@@ -1212,11 +1195,11 @@ export async function ChangeEmail(
     const exists = await prisma.user.findUnique({ where: { email: newEmail } });
     if (exists) throw new AppError("This email is already in use", 409);
 
-    // Generate random 6-digit code
+  
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     console.log(code);
 
-    // Store in Redis with 10 min expiration
+    
 
     await redisClient.setEx(`ChangeEmail:code:${currentEmail}`, 15 * 60, code);
     await redisClient.setEx(
@@ -1225,15 +1208,7 @@ export async function ChangeEmail(
       newEmail
     );
 
-    // Send verification email with the code
-    // const msg = `Hi ${user.name || "there"},
-    //     You requested to change your account email. Use the verification code below to confirm:
-    //     ${code}
-    //     This code will expire in 15 minutes
-    //     If you didn’t request this, please ignore this message.
-    //     -Artemsia team
-    //   `;
-    // await utils.SendEmailSmtp(res, newEmail, msg);
+   
 await enqueueEmailChangeVerification(user.email, user.name || "there", code);
     return utils.SendRes(res, {
       message: "Verification code sent successfully to your new email",
@@ -1337,7 +1312,7 @@ export async function GetUserz(
       throw new AppError("User not found", 404);
     }
 
-    // ⬇️ Fetch existing device info instead of setting it
+ 
     const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
     return utils.SendRes(res, {
       user: {
@@ -1377,7 +1352,7 @@ export async function GetUser(
       throw new AppError("User not found", 404);
     }
 
-    // ⬇️ Fetch existing device info instead of setting it
+   
     const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
     return utils.SendRes(res, {
       user: {
@@ -1552,77 +1527,34 @@ export async function exchangeGoogleCode(code: string) {
   }
 }
 
-// export async function exchangeLinkedinCode(code: string) {
-//   try {
-//     const params = {
-//       grant_type: 'authorization_code',
-//       code,
-//
-//     };
 
-//     const resp = await axios.post(
-//       'https://www.linkedin.com/oauth/v2/accessToken',
-//       qs.stringify(params),
-//       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-//     );
-
-//     return resp.data;
-//   } catch (err) {
-//     throw new AppError("Failed to exchange LinkedIn code", 500);
-//   }
-// }
-
-// export async function fetchLinkedinProfile(accessToken: string) {
-//   try {
-//     const resp = await axios.get('https://api.linkedin.com/v2/me', {
-//       headers: { Authorization: `Bearer ${accessToken}` }
-//     });
-//     return resp.data;
-//   } catch (err) {
-//     throw new AppError("Failed to fetch LinkedIn profile", 500);
-//   }
-// }
-
-// export async function fetchLinkedinEmail(accessToken: string) {
-//   try {
-//     const resp = await axios.get(
-//       'https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))',
-//       { headers: { Authorization: `Bearer ${accessToken}` } }
-//     );
-//     return resp.data;
-//   } catch (err) {
-//     throw new AppError("Failed to fetch LinkedIn email", 500);
-//   }
-// }
-/* --------------------- OAuth Controllers --------------------- */
 
 export async function exchangeGithubCodeFront(code: string) {
   try {
-    // ❌ WRONG: You were using variable names as keys
-    // GitHub expects: client_id, client_secret, redirect_uri
+    
     const {
       GITHUB_SECRET_FRONT,
       GITHUB_CLIENT_ID_FRONT,
       GITHUB_RED_URL_FRONT,
     } = getSecrets();
     const params = {
-      client_id: GITHUB_CLIENT_ID_FRONT, // ✅ Not "githubClientId"
-      client_secret: GITHUB_SECRET_FRONT, // ✅ Not "GITHUB_CLIENT_SECRET"
+      client_id: GITHUB_CLIENT_ID_FRONT, 
+      client_secret: GITHUB_SECRET_FRONT, 
       code: code,
-      redirect_uri: GITHUB_RED_URL_FRONT, // ✅ Not "redirectUri"
+      redirect_uri: GITHUB_RED_URL_FRONT, 
     };
 
-    console.log("🔍 GitHub Token Exchange Debug:");
+    console.log(" GitHub Token Exchange Debug:");
     console.log(
       "client_id:",
-      GITHUB_CLIENT_ID_FRONT ? "✅ Set" : "❌ UNDEFINED"
+      GITHUB_CLIENT_ID_FRONT ? " Set" : " UNDEFINED"
     );
     console.log(
       "client_secret:",
-      GITHUB_SECRET_FRONT ? "✅ Set" : "❌ UNDEFINED"
+      GITHUB_SECRET_FRONT ? " Set" : " UNDEFINED"
     );
     console.log("redirect_uri:", GITHUB_RED_URL_FRONT);
-    console.log("code:", code ? code.substring(0, 15) + "..." : "❌ NO CODE");
+    console.log("code:", code ? code.substring(0, 15) + "..." : " NO CODE");
 
     const resp = await axios.post(
       "https://github.com/login/oauth/access_token",
@@ -1715,24 +1647,23 @@ export async function fetchGithubUserFront(accessToken: string) {
 }
 export async function exchangeGithubCode(code: string) {
   try {
-    // ❌ WRONG: You were using variable names as keys
-    // GitHub expects: client_id, client_secret, redirect_uri
+  
     const { redirectUri, githubClientId, GITHUB_CLIENT_SECRET } = getSecrets();
     const params = {
-      client_id: githubClientId, // ✅ Not "githubClientId"
+      client_id: githubClientId, // Not "githubClientId"
       client_secret: GITHUB_CLIENT_SECRET, // ✅ Not "GITHUB_CLIENT_SECRET"
       code: code,
-      redirect_uri: redirectUri, // ✅ Not "redirectUri"
+      redirect_uri: redirectUri, // ot "redirectUri"
     };
 
     console.log("🔍 GitHub Token Exchange Debug:");
-    console.log("client_id:", githubClientId ? "✅ Set" : "❌ UNDEFINED");
+    console.log("client_id:", githubClientId ? " Set" : " UNDEFINED");
     console.log(
       "client_secret:",
-      GITHUB_CLIENT_SECRET ? "✅ Set" : "❌ UNDEFINED"
+      GITHUB_CLIENT_SECRET ? " Set" : " UNDEFINED"
     );
     console.log("redirect_uri:", redirectUri);
-    console.log("code:", code ? code.substring(0, 15) + "..." : "❌ NO CODE");
+    console.log("code:", code ? code.substring(0, 15) + "..." : " NO CODE");
 
     const resp = await axios.post(
       "https://github.com/login/oauth/access_token",
@@ -1880,7 +1811,7 @@ export async function CallbackGithubFront(
     const error = req.query.error as string;
 
     console.log("=== GitHub Callback Front ===");
-    console.log("code:", code ? code.substring(0, 10) + "..." : "❌ Missing");
+    console.log("code:", code ? code.substring(0, 10) + "..." : " Missing");
     console.log("state:", state);
     console.log("error:", error || "None");
 
@@ -1893,13 +1824,13 @@ export async function CallbackGithubFront(
       throw new AppError("Authorization code is missing", 400);
     }
 
-    // ✅ PREVENT DUPLICATE PROCESSING using Redis
+    // PREVENT DUPLICATE PROCESSING using Redis
     const codeKey = `oauth:github:code:${code}`;
     const isProcessing = await redisClient.get(codeKey);
 
     if (isProcessing) {
       console.log(
-        "⚠️ Code already being processed, ignoring duplicate request"
+        " Code already being processed, ignoring duplicate request"
       );
       return res.status(400).json({
         error: "Authorization already in progress",
@@ -1921,23 +1852,23 @@ export async function CallbackGithubFront(
       throw new AppError("Invalid state parameter - possible CSRF attack", 400);
     }
 
-    // Exchange code for access token
+    
     const tokenResp = await exchangeGithubCodeFront(code);
     const accessToken = tokenResp.access_token as string;
 
-    console.log("GITHUB TOKEN:", accessToken ? "✅ Received" : "❌ Missing");
+    console.log("GITHUB TOKEN:", accessToken ?  "Received" : " Missing");
 
     if (!accessToken) {
-      await redisClient.del(codeKey); // Clean up on error
+      await redisClient.del(codeKey); 
       throw new AppError("Failed to obtain access token from GitHub", 500);
     }
 
-    // Fetch user emails
+   
     const emails = await fetchGithubEmailsFront(accessToken);
     const primary = emails.find((e: any) => e.primary && e.verified);
 
     if (!primary) {
-      await redisClient.del(codeKey); // Clean up on error
+      await redisClient.del(codeKey); 
       throw new AppError(
         "No verified primary email found in GitHub account",
         400
@@ -1947,14 +1878,14 @@ export async function CallbackGithubFront(
     const email = primary.email as string;
     console.log("GitHub email:", email);
 
-    // Fetch user profile
+    
     const userProfile = await fetchGithubUserFront(accessToken);
     const name = userProfile.name || userProfile.login;
     const providerId = userProfile.id.toString();
 
     console.log("GitHub user:", { name, providerId });
 
-    // 🔹 Find or create user
+    
     let oauth = await prisma.oAuthAccount.findFirst({
       where: { provider: "github", providerId },
       include: { user: true },
@@ -1990,10 +1921,10 @@ export async function CallbackGithubFront(
       }
     }
 
-    // 🌍 Set Device Info
+   
     const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
 
-    // 🔑 Generate Tokens
+  
     const payload = {
       username: user.username,
       email: user.email,
@@ -2018,44 +1949,18 @@ export async function CallbackGithubFront(
       { EX: 60 * 60 * 24 * 30 }
     );
 
-    // res.cookie("refresh-token", refreshToken, {
-    //   maxAge: 1000 * 60 * 60 * 24 * 30,
-    //   httpOnly: true,
-    //   secure: true,
-    //   sameSite: 'lax', // ✅ Added for better security
-    // });
+   
 
     await prisma.user.update({
       where: { email },
       data: { tokenVersion: (user.tokenVersion || 0) + 1 },
     });
 
-    // 🌐 Get Location Info
+    
     const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
     const geo = await utils.Sendlocation(ip);
 
-    // 📧 Send Professional Login Email (non-blocking)
-//     const emailMsg = `
-// 👋 Hello, ${user.username || name}
-
-// We noticed a new login to your account via GitHub.
-
-// 🕒 Time: ${new Date().toLocaleString()}
-// 📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
-// 🌐 IP Address: ${geo.Query || ip}
-// 🖥️ Device: ${req.get("User-Agent") || "Unknown"}
-
-// Your login was successful 🎉
-
-// If this wasn't you, please reset your password or contact support immediately.
-
-// — The Artemisa Security Team 🦊
-// `;
-
-//     // ✅ Send email asynchronously (don't block the response)
-//     utils.SendEmailSmtp(res, email, emailMsg).catch(err => {
-//       console.error('Failed to send login email:', err);
-//     });
+   
 await enqueueSecurityLoginGithub(user.email, {
   username: user.username,
   name: user.name||"",
@@ -2064,11 +1969,8 @@ await enqueueSecurityLoginGithub(user.email, {
   ip: geo.Query || ip,
   userAgent: req.get("User-Agent") || "Unknown",
 });
-    const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
-    // ✅ Send email asynchronously (don't block the response)
-    utils.SendEmailSmtp(res, email, emailMsg).catch((err) => {
-      console.error("Failed to send login email:", err);
-    });
+    
+ const { FRONTEND_URL } = getSecrets();
 
     const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
       token.token
@@ -2085,20 +1987,20 @@ await enqueueSecurityLoginGithub(user.email, {
       })
     )}`;
 
-    console.log("✅ GitHub OAuth successful, redirecting to frontend");
+    console.log(" GitHub OAuth successful, redirecting to frontend");
 
-    // Clean up the Redis key
+    
     await redisClient.del(codeKey);
 
     return res.redirect(redirectUrl);
   } catch (err) {
     console.error("CallbackGithubFront err:", err);
 
-    // Clean up on error
+    
     if (code) {
       const codeKey = `oauth:github:code:${code}`;
       await redisClient.del(codeKey).catch(() => {
-        // Ignore cleanup errors
+      
       });
     }
 
@@ -2127,7 +2029,7 @@ export async function CallbackGithub(
     const name = userProfile.name || userProfile.login;
     const providerId = userProfile.id.toString();
 
-    // 🔹 Find or create user
+    
     let oauth = await prisma.oAuthAccount.findFirst({
       where: { provider: "github", providerId },
       include: { user: true },
@@ -2160,10 +2062,9 @@ export async function CallbackGithub(
       }
     }
 
-    // 🌍 Set Device Info
+    
     const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
 
-    // 🔑 Generate Tokens
     const payload = {
       username: user.username,
       email: user.email,
@@ -2199,29 +2100,10 @@ export async function CallbackGithub(
       data: { tokenVersion: (user.tokenVersion || 0) + 1 },
     });
 
-    // 🌐 Get Location Info
+    
     const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
     const geo = await utils.Sendlocation(ip);
 
-    // 📧 Send Professional Login Email
-//     const emailMsg = `
-// 👋 Hello, ${user.username || name}
-
-// We noticed a new login to your account via GitHub.
-
-// 🕒 Time: ${new Date().toLocaleString()}
-// 📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
-// 🌐 IP Address: ${geo.Query || ip}
-// 🖥️ Device: ${req.get("User-Agent") || "Unknown"}
-
-// Your login was successful 🎉
-
-// If this wasn’t you, please reset your password or contact support immediately.
-
-// — The Artemisa Security Team 🦊
-// `;
-
-//     await utils.SendEmailSmtp(res, email, emailMsg);
 await enqueueSecurityLoginGithub(user.email, {
   username: user.username,
   name: user.name||"",
@@ -2271,7 +2153,7 @@ export async function CallbackGoogle(
     const name = payload.given_name || payload.name || "unknown";
     const providerId = payload.sub.toString();
 
-    // Find or create user
+ 
     let oauth = await prisma.oAuthAccount.findFirst({
       where: { provider: "google", providerId },
       include: { user: true },
@@ -2304,10 +2186,10 @@ export async function CallbackGoogle(
       }
     }
 
-    // 🧠 Set Device Info (Geo + Device Record)
+  
     const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
 
-    // 🕒 Tokens
+    
     const payloadJwt = {
       username: user.username,
       email: user.email,
@@ -2343,27 +2225,11 @@ export async function CallbackGoogle(
       data: { tokenVersion: (user.tokenVersion || 0) + 1 },
     });
 
-    // 📧 Send Professional Login Email
+  
     const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
     const geo = await utils.Sendlocation(ip);
 
-//     const emailMsg = `
-// 👋 Hi, ${user.username || name}
 
-// We noticed a new login to your account (${email}).
-
-// 🕒 Time: ${new Date().toLocaleString()}
-// 📍 Location: ${geo.City || "Unknown"}, ${geo.Country || ""}
-// 🌐 IP Address: ${geo.Query || ip}
-// 🖥️ Device: ${req.get("User-Agent") || "Unknown"}
-
-// If this was you — awesome! You’re all set 🎉
-// If this wasn’t you, please secure your account immediately.
-
-// — The Artemisa Security Team 🌙
-// `;
-
-//     await utils.SendEmailSmtp(res, email, emailMsg);
 await enqueueSecurityLoginGoogle(user.email, {
   username: user.username,
   name: user.name||"",
@@ -2372,7 +2238,7 @@ await enqueueSecurityLoginGoogle(user.email, {
   ip: geo.Query || ip,
   userAgent: req.get("User-Agent") || "Unknown",
 });
-    await utils.SendEmailSmtp(res, email, emailMsg);
+    
     const { FRONTEND_URL } = getSecrets();
     const redirectUrl = `${FRONTEND_URL}/login/success?token=${encodeURIComponent(
       token.token
@@ -2516,7 +2382,7 @@ export const UpdateUsername = async (
 
     if (!userId) throw new AppError("Unauthorized: Missing user ID", 401);
 
-    // If username is empty or invalid, generate a default unique one
+   
 
     if (username.length < 3 || username.length > 20) {
       throw new AppError("Username must be between 3 and 20 characters", 400);
