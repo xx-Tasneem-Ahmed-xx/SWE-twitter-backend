@@ -29,6 +29,7 @@ import {
   enqueueSecurityLoginGoogle,
   
 } from "../../background/jobs/emailJobs";
+import { OAuth2Client } from "google-auth-library";
 import { addNotification } from "@/application/services/notification";
 // --- Custom Type Definitions ---
 interface LocalJwtPayload extends JwtPayload {
@@ -2281,6 +2282,103 @@ export async function CheckEmail(
     return next(err);
   }
 }
+
+export async function CallbackIOSGoogle(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) throw new AppError("idToken is required", 400);
+
+    // Verify ID token with Google
+    const { google_IOS_clientID } = getSecrets();
+    const client = new OAuth2Client(google_IOS_clientID);
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: google_IOS_clientID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload) throw new AppError("Invalid ID token", 401);
+
+    const email = payload.email!;
+    const name = payload.given_name || payload.name || "unknown";
+    const providerId = payload.sub;
+
+    // Check if user already exists with Google OAuth
+    let oauth = await prisma.oAuthAccount.findFirst({
+      where: { provider: "google", providerId },
+      include: { user: true },
+    });
+
+    let user;
+    if (oauth) {
+      user = oauth.user;
+    } else {
+      user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        const username = await utils.generateUsername(name);
+        user = await prisma.user.create({
+          data: {
+            email,
+            username,
+            name,
+            password: "",
+            saltPassword: "",
+            dateOfBirth: "2001-11-03T00:00:00.000Z",
+            oAuthAccount: {
+              create: { provider: "google", providerId },
+            },
+          },
+        });
+      } else {
+        await prisma.oAuthAccount.create({
+          data: { provider: "google", providerId, userId: user.id },
+        });
+      }
+    }
+
+    const { devid } = await utils.SetDeviceInfo(req, res, email);
+
+    const accessPayload = {
+      username: user.username,
+      email: user.email,
+      id: user.id,
+      role: "user",
+      expiresInSeconds: 3600,
+    };
+
+    const refreshPayload = {
+      ...accessPayload,
+      expiresInSeconds: 60 * 60 * 24 * 30,
+    };
+
+    const token = await utils.GenerateJwt(accessPayload);
+    const refreshToken = await utils.GenerateJwt(refreshPayload);
+
+    await redisClient.set(
+      `refresh-token:${user.email}:${devid}`,
+      refreshToken.token,
+      { EX: 60 * 60 * 24 * 30 }
+    );
+
+    return res.json({
+      token: token.token,
+      refreshToken: refreshToken.token,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+      },
+    });
+  } catch (err) {
+    console.error("LoginGoogleIOS err:", err);
+    next(err);
+  }
+}
 export async function CallbackAndroidGoogle(
   req: Request,
   res: Response,
@@ -2501,6 +2599,7 @@ const oauthController = {
   CallbackGoogle,
   CallbackGithub,
   CallbackAndroidGoogle,
+  CallbackIOSGoogle,
   CallbackGithubFront,
 };
 
