@@ -204,11 +204,11 @@ export async function generateUsername(name: string): Promise<string> {
   }
 
   for (;;) {
-    const adjective = faker.word.adjective();
+  
     const animal = faker.animal.type();
-    const unique = faker.string.alphanumeric({ length: 4 }).toLowerCase();
+    const unique = faker.string.alphanumeric({ length: 1 }).toLowerCase();
 
-    const username = `${base}_${adjective}${animal}_${unique}`;
+    const username = `${base}_${animal}${unique}`;
 
     if (!(await isTaken(username))) return username;
   }
