@@ -131,6 +131,99 @@ router.get("/callback/google", typedOauthController.CallbackGoogle);
  *         description: Internal error during token exchange, user lookup, or login email notification.
  */
 router.get("/callback/github", typedOauthController.CallbackGithub);
+/**
+ * @openapi
+ * /callback/github_front:
+ *   get:
+ *     tags:
+ *       - OAuth
+ *     summary: GitHub OAuth callback (Frontend Web)
+ *     description: >
+ *       Handles the **GitHub OAuth 2.0** login flow for **web frontend clients**.
+
+ *       This endpoint is called after the user authorizes your app on GitHub.
+ *       GitHub redirects here with a `code` and `state`.
+
+ *       The backend performs:
+ *       - Validates `error`, `code`, and `state` (CSRF protection)  
+ *       - Exchanges the authorization code for an **access token**  
+ *       - Fetches the user's GitHub emails and profile  
+ *       - Ensures the user has a verified primary email  
+ *       - Creates or links a `github` OAuth provider record  
+ *       - Generates JWT access & refresh tokens  
+ *       - Saves refresh token in Redis tied to the device  
+ *       - Logs device information + user login location  
+ *       - Sends a GitHub login security email  
+ *
+ *       **Response is NOT JSON.**  
+ *       The user is **redirected (302)** to the frontend with:
+ *       - access token  
+ *       - refresh token  
+ *       - user JSON  
+ *       all encoded in the URL query string.
+ *
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         required: true
+ *         description: >
+ *           Authorization code returned by GitHub.  
+ *           This code is exchanged for an access token.
+ *         schema:
+ *           type: string
+ *
+ *       - in: query
+ *         name: state
+ *         required: true
+ *         description: >
+ *           CSRF protection value.  
+ *           Must match the backend’s stored GitHub OAuth state.
+ *         schema:
+ *           type: string
+ *
+ *       - in: query
+ *         name: error
+ *         required: false
+ *         description: >
+ *           Error returned by GitHub when user denies permission.
+ *         schema:
+ *           type: string
+ *
+ *     responses:
+ *       302:
+ *         description: >
+ *           Redirects to the frontend login success page with query parameters:
+ *
+ *           - **token** → JWT access token  
+ *           - **refresh-token** → JWT refresh token  
+ *           - **user** → Encoded user info JSON  
+ *
+ *         headers:
+ *           Location:
+ *             description: >
+ *               Example redirect URL:  
+ *               `{FRONTEND_URL}/login/success?token={jwt}&refresh-token={jwt}&user={json}`
+ *             schema:
+ *               type: string
+ *
+ *       400:
+ *         description: >
+ *           Missing/invalid authorization code,  
+ *           GitHub OAuth `error`,  
+ *           or state mismatch (CSRF protection).
+ *
+ *       401:
+ *         description: >
+ *           Invalid or expired GitHub auth code  
+ *           OR GitHub account missing a verified primary email.
+ *
+ *       500:
+ *         description: >
+ *           Internal server error during GitHub token exchange,  
+ *           user creation, Redis operations, login email,  
+ *           or device info tracking.
+ */
+
 router.get("/callback/github_front", typedOauthController.CallbackGithubFront);
 /**
  * @openapi
