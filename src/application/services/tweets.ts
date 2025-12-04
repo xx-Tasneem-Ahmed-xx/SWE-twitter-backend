@@ -751,7 +751,7 @@ class TweetService {
     };
   }
 
-  private tweetSelectFields(userId: string) {
+  private tweetSelectFields(userId?: string | null) {
     return {
       id: true,
       content: true,
@@ -767,18 +767,22 @@ class TweetService {
       user: {
         select: this.userSelectFields(),
       },
-      tweetLikes: {
-        where: { userId },
-        select: { userId: true },
-      },
-      retweets: {
-        where: { userId },
-        select: { userId: true },
-      },
-      tweetBookmark: {
-        where: { userId },
-        select: { userId: true },
-      },
+      ...(userId
+        ? {
+            tweetLikes: {
+              where: { userId },
+              select: { userId: true },
+            },
+            retweets: {
+              where: { userId },
+              select: { userId: true },
+            },
+            tweetBookmark: {
+              where: { userId },
+              select: { userId: true },
+            },
+          }
+        : {}),
       tweetMedia: { select: { mediaId: true } },
     };
   }

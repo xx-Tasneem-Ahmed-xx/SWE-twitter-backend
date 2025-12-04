@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { HashtagTweetsQuerySchema } from "@/application/dtos/trends/trend.dto.schema";
+import { TrendCategory } from "@/application/utils/hashtag.utils";
 import {
   fetchTrends,
   fetchHashtagTweets,
@@ -15,8 +16,10 @@ export const getTrends = async (
     const limit = req.query.limit
       ? parseInt(req.query.limit as string, 10)
       : 30;
+    const category =
+      (req.query.category as TrendCategory) || TrendCategory.Global;
     const rawQuery = (req.query.q ?? req.query.query) as string | undefined;
-    const trends = await fetchTrends(limit, rawQuery);
+    const trends = await fetchTrends(limit, category, rawQuery);
     res.json(trends);
   } catch (error) {
     next(error);
