@@ -10,7 +10,7 @@ import * as utils from "@/application/utils/hashtag.utils";
 import { fetchWhoToFollow } from "@/application/services/userInteractions";
 
 // Trends configuration constants
-const TRENDS_CACHE_TTL = 60 * 2;
+const TRENDS_CACHE_TTL = 60 * 15;
 const TRENDS_LIMIT = 30;
 const TREND_PERIOD_HOURS = 24;
 const TREND_CACHE_KEY = (category: utils.TrendCategory) =>
