@@ -7,6 +7,7 @@ import { redisClient } from "@/config/redis";
 import { encoderService } from "@/application/services/encoder";
 import tweetService from "@/application/services/tweets";
 import * as utils from "@/application/utils/hashtag.utils";
+import { fetchWhoToFollow } from "@/application/services/userInteractions";
 
 // Trends configuration constants
 const TRENDS_CACHE_TTL = 60 * 2;
@@ -448,11 +449,17 @@ export const fetchCategoryData = async (
 export const fetchAllCategoriesData = async (userId: string) => {
   const categories = Object.values(utils.TrendCategory);
 
-  const results = await Promise.all(
-    categories.map((category) => fetchCategoryData(category, userId))
-  );
+  const [categoriesData, whoToFollow] = await Promise.all([
+    Promise.all(
+      categories.map((category) => fetchCategoryData(category, userId))
+    ),
+    fetchWhoToFollow(userId, 5),
+  ]);
 
-  return results;
+  return {
+    categories: categoriesData,
+    whoToFollow,
+  };
 };
 
 // -------------------- Worker Function --------------------

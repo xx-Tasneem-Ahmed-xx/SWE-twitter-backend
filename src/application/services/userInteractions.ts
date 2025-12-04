@@ -625,3 +625,47 @@ export const getMutedList = async (
   const nextCursor = await computeNextCursor(page, hasMore);
   return { users, nextCursor, hasMore };
 };
+
+// Fetch who to follow - top users by followers count
+export const fetchWhoToFollow = async (userId: string, limit: number = 30) => {
+  const users = await prisma.user.findMany({
+    where: {
+      id: { not: userId },
+      followers: {
+        none: {
+          followerId: userId,
+          status: { in: [FollowStatus.ACCEPTED, FollowStatus.PENDING] },
+        },
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      username: true,
+      bio: true,
+      profileMedia: { select: { id: true } },
+      protectedAccount: true,
+      verified: true,
+      _count: {
+        select: { followers: true },
+      },
+    },
+    orderBy: {
+      followers: { _count: "desc" },
+    },
+    take: limit,
+  });
+
+  return users.map((user) => ({
+    id: user.id,
+    name: user.name,
+    username: user.username,
+    profileMedia: user.profileMedia,
+    protectedAccount: user.protectedAccount,
+    verified: user.verified,
+    bio: user.bio,
+    followersCount: user._count.followers,
+
+    isFollowed: false,
+  }));
+};

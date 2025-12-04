@@ -49,21 +49,41 @@ export const TrendItemSchema = z.object({
   id: z.string().describe("Encoded hashtag ID").openapi({
     example: "abc123def456.sig",
   }),
-  hashtag: z.string().describe("The hashtag text without the # symbol").openapi({
-    example: "typescript",
-  }),
-  tweetCount: z.number().int().describe("Number of tweets using this hashtag in the last 24 hours").openapi({
-    example: 1234,
-  }),
-  likesCount: z.number().int().optional().describe("Total likes across all tweets with this hashtag").openapi({
-    example: 5678,
-  }),
-  score: z.number().optional().describe("Calculated trending score based on engagement and recency").openapi({
-    example: 42.5,
-  }),
-  rank: z.number().int().describe("Current ranking position (1 = most trending)").openapi({
-    example: 1,
-  }),
+  hashtag: z
+    .string()
+    .describe("The hashtag text without the # symbol")
+    .openapi({
+      example: "typescript",
+    }),
+  tweetCount: z
+    .number()
+    .int()
+    .describe("Number of tweets using this hashtag in the last 24 hours")
+    .openapi({
+      example: 1234,
+    }),
+  likesCount: z
+    .number()
+    .int()
+    .optional()
+    .describe("Total likes across all tweets with this hashtag")
+    .openapi({
+      example: 5678,
+    }),
+  score: z
+    .number()
+    .optional()
+    .describe("Calculated trending score based on engagement and recency")
+    .openapi({
+      example: 42.5,
+    }),
+  rank: z
+    .number()
+    .int()
+    .describe("Current ranking position (1 = most trending)")
+    .openapi({
+      example: 1,
+    }),
 });
 
 // Trends list response schema - fully documented with inline structure
@@ -123,6 +143,51 @@ export const CategoriesQuerySchema = z
   })
   .openapi("ExploreQuery");
 
+// Who to follow user schema
+export const WhoToFollowUserSchema = z.object({
+  id: z.string().describe("User ID").openapi({ example: "user123" }),
+  name: z
+    .string()
+    .nullable()
+    .describe("User's display name")
+    .openapi({ example: "John Doe" }),
+  username: z
+    .string()
+    .describe("User's @username")
+    .openapi({ example: "johndoe" }),
+  profileMedia: z
+    .object({ id: z.string() })
+    .nullable()
+    .optional()
+    .describe("User's profile picture")
+    .openapi({
+      example: { id: "media123" },
+    }),
+  protectedAccount: z
+    .boolean()
+    .describe("Whether the account is protected")
+    .openapi({ example: false }),
+  verified: z
+    .boolean()
+    .describe("Whether the account is verified")
+    .openapi({ example: true }),
+  bio: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("User's bio")
+    .openapi({ example: "Tech enthusiast and blogger." }),
+  followersCount: z
+    .number()
+    .int()
+    .describe("Number of followers")
+    .openapi({ example: 12500 }),
+  isFollowed: z
+    .boolean()
+    .describe("Whether the current user follows this account (false always)")
+    .openapi({ example: false }),
+});
+
 // Category data response schema (single category)
 export const SingleCategoryResponseDataSchema = z
   .object({
@@ -147,33 +212,55 @@ export const SingleCategoryResponseDataSchema = z
 
 // Response for all categories
 export const AllCategoriesResponseSchema = z
-  .array(SingleCategoryResponseDataSchema)
+  .object({
+    categories: z.array(SingleCategoryResponseDataSchema).openapi({
+      description: "Array of trending data for each category",
+    }),
+    whoToFollow: z.array(WhoToFollowUserSchema).openapi({
+      description: "Top 5 users to follow (shared across all categories)",
+    }),
+  })
   .openapi("AllCategoriesResponse", {
-    description: "Trending data for all categories",
-    example: [
-      {
-        category: "global",
-        trends: [],
-        viralTweets: [],
-        updatedAt: "2024-12-04T10:30:00.000Z",
-      },
-      {
-        category: "news",
-        trends: [],
-        viralTweets: [],
-        updatedAt: "2024-12-04T10:30:00.000Z",
-      },
-      {
-        category: "sports",
-        trends: [],
-        viralTweets: [],
-        updatedAt: "2024-12-04T10:30:00.000Z",
-      },
-      {
-        category: "entertainment",
-        trends: [],
-        viralTweets: [],
-        updatedAt: "2024-12-04T10:30:00.000Z",
-      },
-    ],
+    description:
+      "Trending data for all categories with who to follow suggestions",
+    example: {
+      categories: [
+        {
+          category: "global",
+          trends: [],
+          viralTweets: [],
+          updatedAt: "2024-12-04T10:30:00.000Z",
+        },
+        {
+          category: "news",
+          trends: [],
+          viralTweets: [],
+          updatedAt: "2024-12-04T10:30:00.000Z",
+        },
+        {
+          category: "sports",
+          trends: [],
+          viralTweets: [],
+          updatedAt: "2024-12-04T10:30:00.000Z",
+        },
+        {
+          category: "entertainment",
+          trends: [],
+          viralTweets: [],
+          updatedAt: "2024-12-04T10:30:00.000Z",
+        },
+      ],
+      whoToFollow: [
+        {
+          id: "user123",
+          name: "John Doe",
+          username: "johndoe",
+          profileMedia: { id: "media123" },
+          protectedAccount: false,
+          verified: true,
+          followersCount: 12500,
+          isFollowed: false,
+        },
+      ],
+    },
   });

@@ -8,6 +8,7 @@ import {
   CategoriesQuerySchema,
   SingleCategoryResponseDataSchema,
   AllCategoriesResponseSchema,
+  WhoToFollowUserSchema,
 } from "@/application/dtos/trends/trend.dto.schema";
 
 export function registerHashtagAndTrendsDocs(registry: OpenAPIRegistry) {
@@ -21,6 +22,7 @@ export function registerHashtagAndTrendsDocs(registry: OpenAPIRegistry) {
     "SingleCategoryResponseData",
     SingleCategoryResponseDataSchema
   );
+  registry.register("WhoToFollowUser", WhoToFollowUserSchema);
   registry.register("AllCategoriesResponse", AllCategoriesResponseSchema);
 
   registry.registerPath({
