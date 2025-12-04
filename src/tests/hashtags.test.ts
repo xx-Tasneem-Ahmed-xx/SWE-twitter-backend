@@ -204,7 +204,7 @@ describe("Hashtags autocomplete & trends service", () => {
 
   // Ensure that autocomplete returns matching hashtags ordered by tweet count
   test("autocomplete includes zero-count matches and orders by count desc", async () => {
-    const result = await hashtagsService.fetchTrends(10, "p");
+    const result = await hashtagsService.fetchTrends(10, "global", "p");
     expect(result).toBeDefined();
     const names = result.trends.map((t: any) => t.hashtag);
 
@@ -231,7 +231,7 @@ describe("Hashtags autocomplete & trends service", () => {
   });
 
   test("autocomplete 'pan' returns pancakes as top match", async () => {
-    const res = await hashtagsService.fetchTrends(5, "pan");
+    const res = await hashtagsService.fetchTrends(5, "global", "pan");
     const names = res.trends.map((t: any) => t.hashtag);
     expect(names.length).toBeGreaterThan(0);
     expect(names[0]).toBe("pancakes");
@@ -301,7 +301,7 @@ describe("Hashtags autocomplete & trends service", () => {
 
     // Recalculate trends only for the two tags we just created so the comparison
     // is deterministic and not influenced by cached/global trends.
-    const trendsPair = await hashtagsService.calculateTrends(24, {
+    const trendsPair = await hashtagsService.calculateTrends(24, "global", {
       matchingIds: [highId, manyId],
       limit: 50,
     });
@@ -377,7 +377,7 @@ describe("Hashtags autocomplete & trends service", () => {
 
     // Recalculate trends only for the two tags we just created so the comparison
     // is deterministic and not influenced by cached/global trends.
-    const trendsPair2 = await hashtagsService.calculateTrends(24, {
+    const trendsPair2 = await hashtagsService.calculateTrends(24, "global", {
       matchingIds: [smallId, bigId],
       limit: 50,
     });
@@ -392,8 +392,8 @@ describe("Hashtags autocomplete & trends service", () => {
 
   // Ensure that cached trends are used when no query is provided
   test("no query uses cached/global trends when available", async () => {
-    await hashtagsService.calculateAndCacheTrends();
-    const cached = await hashtagsService.fetchTrends(10);
+    await hashtagsService.calculateAndCacheTrends(24, "global");
+    const cached = await hashtagsService.fetchTrends(10, "global");
     expect(cached).toBeDefined();
     expect(Array.isArray(cached.trends)).toBe(true);
   });
