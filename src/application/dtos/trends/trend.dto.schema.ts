@@ -1,6 +1,7 @@
 import z from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { TweetResponsesSchema } from "@/application/dtos/tweets/tweet.dto.schema";
+import { T } from "@faker-js/faker/dist/airline-DF6RqYmq";
 
 extendZodWithOpenApi(z);
 
@@ -45,63 +46,43 @@ export const HashtagTweetsQuerySchema = z
 
 // Individual trend item schema (for internal use only, not registered in OpenAPI)
 export const TrendItemSchema = z.object({
-  id: z.string(),
-  hashtag: z.string(),
-  tweetCount: z.number().int(),
-  likesCount: z.number().int().optional(),
-  score: z.number().optional(),
-  rank: z.number().int(),
+  id: z.string().describe("Encoded hashtag ID").openapi({
+    example: "abc123def456.sig",
+  }),
+  hashtag: z.string().describe("The hashtag text without the # symbol").openapi({
+    example: "typescript",
+  }),
+  tweetCount: z.number().int().describe("Number of tweets using this hashtag in the last 24 hours").openapi({
+    example: 1234,
+  }),
+  likesCount: z.number().int().optional().describe("Total likes across all tweets with this hashtag").openapi({
+    example: 5678,
+  }),
+  score: z.number().optional().describe("Calculated trending score based on engagement and recency").openapi({
+    example: 42.5,
+  }),
+  rank: z.number().int().describe("Current ranking position (1 = most trending)").openapi({
+    example: 1,
+  }),
 });
 
 // Trends list response schema - fully documented with inline structure
 export const TrendsResponseSchema = z
   .object({
-    trends: z
-      .array(
-        z.object({
-          id: z.string().openapi({
-            description: "Encoded hashtag ID (use this for fetching tweets)",
-            example: "eyJoYXNoSWQiOiIxMjM0In0.signature",
-          }),
-          hashtag: z.string().openapi({
-            description: "The hashtag text without # symbol",
-            example: "typescript",
-          }),
-          tweetCount: z.number().int().openapi({
-            description:
-              "Number of tweets with this hashtag in the last 24 hours",
-            example: 1234,
-          }),
-          likesCount: z.number().int().openapi({
-            description:
-              "Total number of likes across tweets with this hashtag in the last 24 hours",
-            example: 2400,
-          }),
-          score: z.number().openapi({
-            description:
-              "Combined normalized score (0-1) using 70% tweet count and 30% likes to rank trends",
-            example: 0.8723,
-          }),
-          rank: z.number().int().openapi({
-            description: "Position in trending list (1-30)",
-            example: 1,
-          }),
-        })
-      )
-      .openapi({
-        description:
-          "Array of trending hashtags, sorted by popularity (rank 1-30)",
-        example: [
-          {
-            id: "abc123.sig",
-            hashtag: "typescript",
-            tweetCount: 1234,
-            rank: 1,
-          },
-          { id: "def456.sig", hashtag: "javascript", tweetCount: 987, rank: 2 },
-          { id: "ghi789.sig", hashtag: "nodejs", tweetCount: 654, rank: 3 },
-        ],
-      }),
+    trends: z.array(TrendItemSchema).openapi({
+      description:
+        "Array of trending hashtags, sorted by popularity (rank 1-30)",
+      example: [
+        {
+          id: "abc123.sig",
+          hashtag: "typescript",
+          tweetCount: 1234,
+          rank: 1,
+        },
+        { id: "def456.sig", hashtag: "javascript", tweetCount: 987, rank: 2 },
+        { id: "ghi789.sig", hashtag: "nodejs", tweetCount: 654, rank: 3 },
+      ],
+    }),
     updatedAt: z.string().datetime().openapi({
       description:
         "ISO 8601 timestamp of when trends were last calculated (updated every 30 minutes)",
@@ -128,4 +109,71 @@ export const HashtagTweetsResponseSchema = z
   })
   .openapi("HashtagTweetsResponse", {
     description: "Paginated list of tweets for a hashtag",
+  });
+
+// Query parameters for explore endpoints
+export const CategoriesQuerySchema = z
+  .object({
+    category: z
+      .enum(["global", "news", "sports", "entertainment"])
+      .optional()
+      .describe(
+        "Category to filter by. If not provided for /explore, returns all categories."
+      ),
+  })
+  .openapi("ExploreQuery");
+
+// Category data response schema (single category)
+export const SingleCategoryResponseDataSchema = z
+  .object({
+    category: z.enum(["global", "news", "sports", "entertainment"]).openapi({
+      description: "The category name",
+      example: "sports",
+    }),
+    trends: z.array(TrendItemSchema).openapi({
+      description: "Array of trending hashtags for this category",
+    }),
+    viralTweets: z.array(TweetResponsesSchema).openapi({
+      description: "Top 5 viral tweets from this category",
+    }),
+    updatedAt: z.string().datetime().openapi({
+      description: "ISO 8601 timestamp of when data was last updated",
+      example: "2024-12-04T10:30:00.000Z",
+    }),
+  })
+  .openapi("CategoryData", {
+    description: "Trending data for a specific category",
+  });
+
+// Response for all categories
+export const AllCategoriesResponseSchema = z
+  .array(SingleCategoryResponseDataSchema)
+  .openapi("AllCategoriesResponse", {
+    description: "Trending data for all categories",
+    example: [
+      {
+        category: "global",
+        trends: [],
+        viralTweets: [],
+        updatedAt: "2024-12-04T10:30:00.000Z",
+      },
+      {
+        category: "news",
+        trends: [],
+        viralTweets: [],
+        updatedAt: "2024-12-04T10:30:00.000Z",
+      },
+      {
+        category: "sports",
+        trends: [],
+        viralTweets: [],
+        updatedAt: "2024-12-04T10:30:00.000Z",
+      },
+      {
+        category: "entertainment",
+        trends: [],
+        viralTweets: [],
+        updatedAt: "2024-12-04T10:30:00.000Z",
+      },
+    ],
   });
