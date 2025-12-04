@@ -3,9 +3,7 @@ import { loadSecrets } from "@/config/secrets";
 import { prisma } from "@/prisma/client";
 import { Tweet, TweetType, ReplyControl } from "@prisma/client";
 let connectToDatabase: any, tweetService: any;
-jest.mock("@/api/controllers/notificationController", () => ({
-  addNotification: jest.fn(),
-}));
+
 beforeAll(async () => {
   await initRedis();
   await loadSecrets();

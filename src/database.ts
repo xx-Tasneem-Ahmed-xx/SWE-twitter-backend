@@ -61,4 +61,8 @@ export async function createSampleUser() {
   }
 }
 
+(prisma as any).connectToDatabase = connectToDatabase;
+(prisma as any).disconnectFromDatabase = disconnectFromDatabase;
+(prisma as any).createSampleUser = createSampleUser;
+
 export default prisma;

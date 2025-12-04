@@ -22,28 +22,28 @@ router.patch(
   "/:id",
   updateUserValidator,
   validateRequest,
-  ensureOwner("id"),       // TODO WHEN AUTH WORKS
+  ensureOwner("id"),
   updateUserProfile
 );
 
 router.patch(
   "/profile-picture/:userId/:mediaId",
-  ensureOwner("userId"), // TODO WHEN AUTH WORKS
+  ensureOwner("userId"),
   updateUserProfilePicture
 );
 router.delete(
   "/profile-picture/:userId",
-  ensureOwner("userId"), // TODO WHEN AUTH WORKS
+  ensureOwner("userId"),
   deleteUserProfilePicture
 );
 router.patch(
   "/banner/:userId/:mediaId",
-  ensureOwner("userId"), // TODO WHEN AUTH WORKS
+  ensureOwner("userId"),
   updateUserBanner
 );
 router.delete(
   "/banner/:userId",
-  ensureOwner("userId"), // TODO WHEN AUTH WORKS
+  ensureOwner("userId"),
   deleteUserBanner
 );
 router.post("/fcm-token",addFcmToken);

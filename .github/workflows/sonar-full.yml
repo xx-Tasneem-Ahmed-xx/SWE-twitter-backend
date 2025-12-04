@@ -16,7 +16,9 @@ jobs:
           node-version: 20
 
       - run: npm install
-      - run: npm test --if-present
+      
+      - name: Run Tests
+        run: npm run test:coverage
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v6

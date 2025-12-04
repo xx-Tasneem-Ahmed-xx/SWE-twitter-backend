@@ -1,3 +1,19 @@
+jest.mock("@/api/controllers/notificationController", () => ({
+  getNotificationList: jest.fn(),
+  getUnseenNotificationsCount: jest.fn(),
+  getUnseenNotifications: jest.fn(),
+  markNotificationsAsRead: jest.fn(),
+  addNotification: jest.fn(),
+}));
+
+jest.mock("../api/controllers/notificationController", () => ({
+  getNotificationList: jest.fn(),
+  getUnseenNotificationsCount: jest.fn(),
+  getUnseenNotifications: jest.fn(),
+  markNotificationsAsRead: jest.fn(),
+  addNotification: jest.fn(),
+}));
+
 import { initRedis } from "@/config/redis";
 import { loadSecrets } from "@/config/secrets";
 import { prisma, FollowStatus } from "@/prisma/client";
