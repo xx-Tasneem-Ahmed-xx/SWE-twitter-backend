@@ -1,10 +1,7 @@
 export const redisClient = {
-  // connect: jest.fn().mockResolvedValue(true),
-  // disconnect: jest.fn().mockResolvedValue(true),
-  // ping: jest.fn().mockResolvedValue("PONG"),
-  // get: jest.fn().mockResolvedValue(null),
-  // set: jest.fn().mockResolvedValue("OK"),
-  // del: jest.fn().mockResolvedValue(1),
-  // flushAll: jest.fn().mockResolvedValue("OK"),
+  connect: jest.fn().mockResolvedValue(true),
+  on: jest.fn(),
+  set: jest.fn().mockResolvedValue(true),
+  get: jest.fn().mockResolvedValue(null),
+  del: jest.fn().mockResolvedValue(1),
 };
-export default redisClient;

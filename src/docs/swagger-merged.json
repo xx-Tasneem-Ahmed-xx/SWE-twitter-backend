@@ -215,32 +215,8 @@
             "format": "date-time",
             "example": "2024-01-15T10:30:45.123Z"
           },
-<<<<<<< HEAD
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Message"
-            }
-          },
-          "chatUsers": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatUserRelation"
-            }
-          },
-          "chatGroup": {
-            "$ref": "#/components/schemas/ChatGroup"
-          },
-          "unseenMessagesCount": {
-            "type": "number"
-=======
           "index": {
             "$ref": "#/components/schemas/IndexStats"
->>>>>>> 1b728d85513c2d98930098dbf05e13115df218df
           }
         }
       },
@@ -269,8 +245,6 @@
             }
           }
         }
-<<<<<<< HEAD
-=======
       },
       "NotFound": {
         "description": "Resource not found.",
@@ -291,7 +265,6 @@
             }
           }
         }
->>>>>>> 1b728d85513c2d98930098dbf05e13115df218df
       }
     }
   },
@@ -481,14 +454,14 @@
                         ]
                       }
                     },
-                    "nextCursor": {
+                    "cursor": {
                       "type": "string",
                       "nullable": true
                     }
                   },
                   "required": [
                     "data",
-                    "nextCursor"
+                    "cursor"
                   ]
                 }
               }
@@ -1671,14 +1644,14 @@
                         ]
                       }
                     },
-                    "nextCursor": {
+                    "cursor": {
                       "type": "string",
                       "nullable": true
                     }
                   },
                   "required": [
                     "data",
-                    "nextCursor"
+                    "cursor"
                   ]
                 }
               }
@@ -2685,14 +2658,14 @@
                                     ]
                                   }
                                 },
-                                "nextCursor": {
+                                "cursor": {
                                   "type": "string",
                                   "nullable": true
                                 }
                               },
                               "required": [
                                 "data",
-                                "nextCursor"
+                                "cursor"
                               ]
                             }
                           },
@@ -2957,14 +2930,14 @@
                                   ]
                                 }
                               },
-                              "nextCursor": {
+                              "cursor": {
                                 "type": "string",
                                 "nullable": true
                               }
                             },
                             "required": [
                               "data",
-                              "nextCursor"
+                              "cursor"
                             ]
                           }
                         },
@@ -3219,14 +3192,14 @@
                                   ]
                                 }
                               },
-                              "nextCursor": {
+                              "cursor": {
                                 "type": "string",
                                 "nullable": true
                               }
                             },
                             "required": [
                               "data",
-                              "nextCursor"
+                              "cursor"
                             ]
                           }
                         },
@@ -3800,7 +3773,7 @@
     "/api/hashtags/trends": {
       "get": {
         "summary": "Get trending hashtags",
-        "description": "Returns the top trending hashtags based on tweet count in the last 24 hours",
+        "description": "Returns the top trending hashtags based on tweet count in the last 24 hours.\n\nIf the optional `q` query parameter is provided, the endpoint performs a case-insensitive prefix autocomplete search and returns matching hashtags ordered by recent popularity (last 24 hours). When `q` is absent, the endpoint returns the cached global trends (calculated in the background).",
         "tags": [
           "Hashtags"
         ],
@@ -3816,6 +3789,16 @@
             "required": false,
             "description": "Number of trends to return (max: 30)",
             "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Optional prefix query string for autocompletion/search (case-insensitive). When provided, endpoint returns matching hashtags ordered by recent popularity."
+            },
+            "required": false,
+            "description": "Optional prefix query string for autocompletion/search (case-insensitive). When provided, endpoint returns matching hashtags ordered by recent popularity.",
+            "name": "q",
             "in": "query"
           }
         ],
@@ -3952,11 +3935,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-<<<<<<< HEAD
-                        "default": "2025-11-20T08:32:33.964Z"
-=======
-                        "default": "2025-11-21T17:08:33.460Z"
->>>>>>> 1b728d85513c2d98930098dbf05e13115df218df
+                        "default": "2025-12-04T08:47:00.284Z"
                       },
                       "userId": {
                         "type": "string",
@@ -4181,11 +4160,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-<<<<<<< HEAD
-                            "default": "2025-11-20T08:32:33.964Z"
-=======
-                            "default": "2025-11-21T17:08:33.460Z"
->>>>>>> 1b728d85513c2d98930098dbf05e13115df218df
+                            "default": "2025-12-04T08:47:00.284Z"
                           },
                           "userId": {
                             "type": "string",
@@ -9437,7 +9412,7 @@
       }
     },
     "/authorize/{provider}": {
-      "get": {
+      "post": {
         "tags": [
           "OAuth"
         ],
@@ -9472,7 +9447,7 @@
       }
     },
     "/callback/google": {
-      "get": {
+      "post": {
         "tags": [
           "OAuth"
         ],
@@ -9511,7 +9486,7 @@
       }
     },
     "/callback/github": {
-      "get": {
+      "post": {
         "tags": [
           "OAuth"
         ],
@@ -9550,7 +9525,7 @@
       }
     },
     "/callback/android_google": {
-      "get": {
+      "post": {
         "tags": [
           "OAuth"
         ],

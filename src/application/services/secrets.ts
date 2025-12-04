@@ -15,7 +15,11 @@ async function loadAwsSecrets(): Promise<Record<string, string>> {
 
   const redisValue = await redisClient.get(REDIS_SECRET_CACHE_KEY);
   if (redisValue) {
-    return JSON.parse(redisValue);
+    if (typeof redisValue === "string") {
+      return JSON.parse(redisValue);
+    }
+    // some Redis clients may return an already-parsed object; coerce to the expected type
+    return redisValue as Record<string, string>;
   }
 
   const secretName = process.env.AWS_MAIN_SECRET_NAME;
