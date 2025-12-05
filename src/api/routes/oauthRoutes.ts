@@ -191,7 +191,87 @@ router.get("/callback/github_front", typedOauthController.CallbackGithubFront);
  *         description: Internal server error during token validation, user creation, or login email process.
  */
 router.post("/callback/android_google", typedOauthController.CallbackAndroidGoogle);
+/**
+ * @openapi
+ * /callback/ios_google:
+ *   post:
+ *     tags:
+ *       - OAuth
+ *     summary: iOS Google OAuth callback
+ *     description: >
+ *       Handles Google Sign-In for **iOS mobile apps**.
 
+ *       iOS uses the **GoogleSignIn iOS SDK**, which returns an **ID token**
+ *       directly to the application — NOT an authorization code.
+
+ *       The iOS app sends that **ID token** to this backend endpoint.
+
+ *       This endpoint:
+ *       - Verifies the ID token with Google  
+ *       - Confirms the token audience matches the **iOS client ID**  
+ *       - Extracts user info (email, name, sub)  
+ *       - Creates a new user or links an existing Google provider account  
+ *       - Generates JWT access & refresh tokens  
+ *       - Saves refresh token in Redis with device binding  
+ *       - Logs login location + device info  
+ *
+ *       **This endpoint returns JSON (not redirect)**  
+ *       because iOS apps handle the tokens directly inside the app.
+ *
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - idToken
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *                 description: >
+ *                   Google ID token returned from the iOS GoogleSignIn SDK.
+ *                   This is a JWT, not an authorization code.
+ *
+ *     responses:
+ *       200:
+ *         description: >
+ *           Successful Google OAuth login.  
+ *           Returns access token, refresh token, and user info.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     dateOfBirth:
+ *                       type: string
+
+ *       400:
+ *         description: Missing idToken or malformed token.
+ *
+ *       401:
+ *         description: Token verification failed — invalid signature or wrong audience.
+ *
+ *       500:
+ *         description: Internal server error during token validation, user creation, or Redis operations.
+ */
+
+router.post("/callback/ios_google",typedOauthController.CallbackIOSGoogle);
 // router.get("/callback/facebook", typedOauthController.CallbackFacebook);
 // router.get("/callback/linkedin", typedOauthController.CallbackLinkedin);
 

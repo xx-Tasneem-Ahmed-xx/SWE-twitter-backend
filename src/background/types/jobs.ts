@@ -1,4 +1,5 @@
 import { NotificationTitle } from "@prisma/client";
+import type { EmailTemplateType } from "../../application/utils/tweets/emailTemplates";
 
 export type HashtagJobData = {
   tweetId: string;
@@ -14,3 +15,16 @@ export type NotificationJobData = {
   title: NotificationTitle;
   tweetId?: string;
 };
+
+
+
+
+
+
+
+export interface EmailJobData {
+  to: string;
+  subject: string;
+  message: string;
+  templateType?: EmailTemplateType;
+}

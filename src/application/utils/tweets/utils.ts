@@ -800,10 +800,10 @@ export async function ValidatePassword(password: string): Promise<string> {
     else sym++;
   }
 
-  if (lower < 3) return "password should contain atleast 3 lower case char";
-  if (upper < 3) return "password should contain atleast 3 upper case char";
-  if (sym < 3) return "password should contain atleast 3 symbol ";
-  if (num < 3) return "password should contain atleast 3 num";
+  if (lower < 1) return "password should contain atleast 1 lower case char";
+  if (upper < 1) return "password should contain atleast 1 upper case char";
+  if (sym < 1) return "password should contain atleast 1 symbol ";
+  if (num < 1) return "password should contain atleast 1 num";
 
   // check Pwned Passwords via k-anonymity (sha1 range API)
   const sha1sum: string = crypto
