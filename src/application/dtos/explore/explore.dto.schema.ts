@@ -24,3 +24,10 @@ export const ExploreServiceSchema = z.object({
   limit: z.coerce.number().min(1).max(40).default(20),
   cursor: z.object({ id: z.uuid(), score: z.coerce.number() }).optional(),
 });
+
+export const CategoriesResponseSchema = z.array(
+  z.object({
+    id: z.uuid(),
+    name: z.string(),
+  })
+);

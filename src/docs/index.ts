@@ -17,9 +17,10 @@ import { registerChatDocs } from "@/docs/chats";
 import { registerMediaDocs } from "@/docs/media";
 import { registerUserDocs } from "@/docs/users";
 import { registerNotificationDocs } from "@/docs/notification";
-
+import { registerExploreDocs } from "@/docs//explore";
 const registry = new OpenAPIRegistry();
 registerTweetDocs(registry);
+registerExploreDocs(registry);
 registerTimelineAndExploreDocs(registry);
 registerUserInteractionsDocs(registry);
 registerHashtagAndTrendsDocs(registry);
