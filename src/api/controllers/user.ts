@@ -17,6 +17,7 @@ import axios from "axios";
 import qs from "querystring";
 import { NotificationTitle } from "@prisma/client";
 import { getSecrets } from "../../config/secrets";
+import dayjs from "dayjs";
 import {
   enqueueVerifyEmail,
   enqueueWelcomeEmail,
@@ -320,13 +321,17 @@ export async function SetPassword(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { email, password } = req.body;
+    const { email, password,confirmPassword } = req.body;
 
     if (!email || !password) {
       throw new AppError("Email and password are required", 400);
     }
 
-   
+   if (confirmPassword!=password){
+    throw new AppError("password and confirm must be the same",400);
+   }
+    const passValidation = await utils.ValidatePassword(password);
+    if (passValidation !== "0") throw new AppError(passValidation, 400);
 
     const salt: string = crypto.randomBytes(16).toString("hex");
     const hashed: string = await utils.HashPassword(password, salt);
@@ -390,6 +395,45 @@ export async function SetPassword(
     next(err);
   }
 }
+export async function SetBirthDate(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = (req as any).user.id;
+    const { day, month, year } = req.body;
+
+    if (!day || !month || !year) {
+      throw new AppError("Day, month, and year are required", 400);
+    }
+
+    const date = dayjs(`${year}-${month}-${day}`, "YYYY-M-D");
+    if (!date.isValid()) throw new AppError("Invalid date", 400);
+    if (date.isAfter(dayjs())) throw new AppError("Date cannot be in the future", 400);
+
+    const age = dayjs().diff(date, "year");
+    if (age < 13) throw new AppError("User too young", 400);
+    if (age > 120) throw new AppError("Unrealistic age", 400);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        dateOfBirth: date.toDate(),
+      },
+    });
+
+    return utils.SendRes(res, {
+      message: "Birth date set successfully",
+      user: {
+        id: updatedUser.id,
+        dateOfBirth: updatedUser.dateOfBirth,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
 export async function FinalizeSignup(
   req: Request,
   res: Response,
@@ -401,6 +445,8 @@ export async function FinalizeSignup(
     if (!email || !password) {
       throw new AppError("Email and password are required", 400);
     }
+    const passValidation = await utils.ValidatePassword(password);
+    if (passValidation !== "0") throw new AppError(passValidation, 400);
 
     const userJson: string | null = await redisClient.get(
       `Signup:verified:${email}`
@@ -414,7 +460,7 @@ export async function FinalizeSignup(
 
     const username = await utils.generateUsername(input.name);
     console.log(username);
-
+  
     const salt: string = crypto.randomBytes(16).toString("hex");
     const hashed: string = await utils.HashPassword(password, salt);
 
@@ -2679,6 +2725,7 @@ const authController = {
   Create,
   SetPassword,
   Verify_signup_email,
+  SetBirthDate,
   UpdateUsername,
   Login,
   ForgetPassword,

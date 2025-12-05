@@ -1485,7 +1485,8 @@ router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
  *         (or any OAuth provider) to create a password for "reauthentication"
  *         flows (similar to Twitter’s re-auth page).
  *         The endpoint:
- *         - Validates `email` and `password`
+ *         - Validates `email`, `password`, and `confirmPassword`
+ *         - Checks matching passwords
  *         - Generates salt + hash
  *         - Stores password history
  *         - Updates device info
@@ -1502,12 +1503,16 @@ router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
  *               required:
  *                 - email
  *                 - password
+ *                 - confirmPassword
  *               properties:
  *                 email:
  *                   type: string
  *                   format: email
  *                   example: "test@example.com"
  *                 password:
+ *                   type: string
+ *                   example: "MyStrongPassword123!"
+ *                 confirmPassword:
  *                   type: string
  *                   example: "MyStrongPassword123!"
  *
@@ -1570,7 +1575,7 @@ router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
  *                         example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *
  *         "400":
- *           description: Missing email or password
+ *           description: Missing or invalid fields
  *           content:
  *             application/json:
  *               schema:
@@ -1581,7 +1586,7 @@ router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
  *                     example: error
  *                   message:
  *                     type: string
- *                     example: Email and password are required
+ *                     example: Passwords do not match
  *
  *         "404":
  *           description: User not found
@@ -1611,9 +1616,82 @@ router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);
  *                     type: string
  *                     example: Something went wrong
  */
+
 router.post("/setpassword", typedAuthController.SetPassword); //tested
 //temp routes for searchEngine
-
+/**
+ * @swagger
+ * paths:
+ *   /set-birthdate:
+ *     post:
+ *       tags:
+ *         - User
+ *       summary: Set or update the user's birth date
+ *       description: >
+ *         Allows a logged-in user to set or update their birth date. Validates
+ *         day, month, and year. Ensures age is between 13 and 120 and date is not in the future.
+ *       security:
+ *         - bearerAuth: []  # Assuming you use JWT auth
+ *       requestBody:
+ *         required: true
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required:
+ *                 - day
+ *                 - month
+ *                 - year
+ *               properties:
+ *                 day:
+ *                   type: number
+ *                   example: 12
+ *                 month:
+ *                   type: number
+ *                   example: 3
+ *                 year:
+ *                   type: number
+ *                   example: 2004
+ *       responses:
+ *         "200":
+ *           description: Birth date set successfully
+ *           content:
+ *             application/json:
+ *               schema:
+ *                 type: object
+ *                 properties:
+ *                   message:
+ *                     type: string
+ *                     example: Birth date set successfully
+ *                   user:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: c1ab23d9-e1b8-4a7c-b5bf-2e93fdb02f57
+ *                       dateOfBirth:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2004-03-12T00:00:00.000Z"
+ *         "400":
+ *           description: Invalid or missing input
+ *           content:
+ *             application/json:
+ *               schema:
+ *                 type: object
+ *                 properties:
+ *                   status:
+ *                     type: string
+ *                     example: error
+ *                   message:
+ *                     type: string
+ *                     example: User too young
+ *         "401":
+ *           description: Unauthorized (user not logged in)
+ *         "500":
+ *           description: Internal server error
+ */
+router.post("/set-birthdate", Auth(), typedAuthController.SetBirthDate); //tested
 
 
 
