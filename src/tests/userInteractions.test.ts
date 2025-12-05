@@ -263,7 +263,7 @@ describe("User Interactions Service", () => {
       );
       await expect(
         userInteractionsService.createFollowRelation("123", "456", "ACCEPTED")
-      ).rejects.toThrow("Already following this user");
+      ).rejects.toThrow("You are already following this user");
     });
   });
 
@@ -754,7 +754,7 @@ describe("User Interactions Service", () => {
           "456",
           "ACCEPTED"
         )
-      ).rejects.toThrow("Already following this user");
+      ).rejects.toThrow("You are already following this user");
     });
   });
 
