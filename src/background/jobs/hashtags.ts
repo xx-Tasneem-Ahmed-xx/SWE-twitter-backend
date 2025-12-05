@@ -40,7 +40,7 @@ export async function enqueueTrendUpdateJob(payload: TrendUpdateJobData) {
     removeOnComplete: { count: 100 },
     removeOnFail: { count: 100 },
     repeat: {
-      pattern: "*/30 * * * *", // Every 30 minutes (cron format)
+      pattern: "*/15 * * * *", // Every 15 minutes (cron format)
     },
   });
 }

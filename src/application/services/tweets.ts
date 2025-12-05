@@ -734,7 +734,7 @@ export class TweetService {
     return where;
   }
 
-  private userSelectFields(viewerId: string) {
+  private userSelectFields(viewerId?: string) {
     return {
       id: true,
       name: true,
@@ -742,13 +742,15 @@ export class TweetService {
       profileMedia: { select: { id: true } },
       protectedAccount: true,
       verified: true,
-      _count: {
-        select: { followers: { where: { followerId: viewerId } } },
-      },
+      _count: viewerId
+        ? {
+            select: { followers: { where: { followerId: viewerId } } },
+          }
+        : undefined,
     };
   }
 
-  private tweetSelectFields(userId: string) {
+  private tweetSelectFields(userId?: string) {
     return {
       id: true,
       content: true,
@@ -764,18 +766,22 @@ export class TweetService {
       user: {
         select: this.userSelectFields(userId),
       },
-      tweetLikes: {
-        where: { userId },
-        select: { userId: true },
-      },
-      retweets: {
-        where: { userId },
-        select: { userId: true },
-      },
-      tweetBookmark: {
-        where: { userId },
-        select: { userId: true },
-      },
+      ...(userId
+        ? {
+            tweetLikes: {
+              where: { userId },
+              select: { userId: true },
+            },
+            retweets: {
+              where: { userId },
+              select: { userId: true },
+            },
+            tweetBookmark: {
+              where: { userId },
+              select: { userId: true },
+            },
+          }
+        : {}),
       tweetMedia: {
         select: {
           media: { select: { id: true, type: true, name: true, size: true } },
