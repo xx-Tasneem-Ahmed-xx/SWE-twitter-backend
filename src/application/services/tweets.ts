@@ -23,7 +23,6 @@ import {
   SearchTab,
 } from "@/application/dtos/tweets/tweet.dto.schema";
 import { SearchParams } from "@/types/types";
-import { encoderService } from "@/application/services/encoder";
 import {
   enqueueCategorizeTweetJob,
   enqueueHashtagJob,
@@ -99,11 +98,41 @@ class TweetService {
     await tx.tweetMedia.createMany({ data });
   }
 
+  // private isFollowed(users: any[]) {
+  //   return users.map((u) => {
+  //     const { followers, ...restUser } = u ?? {};
+  //     const isFollowed = followers?.length > 0;
+  //     return {
+  //       user: {
+  //         ...restUser,
+  //         isFollowed,
+  //       },
+  //     };
+  //   });
+  // }
+  // private formatUser(users: any) {
+  //   return users.map((u) => {
+  //     const { _count, ...restUser } = u ?? {};
+  //     return {
+  //       ...restUser,
+  //       isFollowed: _count.followers > 0,
+  //     };
+  //   });
+  // }
+  private formatUser(user: any) {
+    const { _count, ...restUser } = user ?? {};
+    return {
+      ...restUser,
+      isFollowed: _count.followers > 0,
+    };
+  }
   private checkUserInteractions(tweets: any[]) {
     return tweets.map((t) => {
-      const { tweetLikes, retweets, tweetBookmark, ...tweet } = t;
+      const { tweetLikes, retweets, tweetBookmark, user, ...tweet } = t;
+
       return {
         ...tweet,
+        user: this.formatUser(user),
         isLiked: tweetLikes.length > 0,
         isRetweeted: retweets.length > 0,
         isBookmarked: tweetBookmark.length > 0,
@@ -280,7 +309,7 @@ class TweetService {
       where: { tweetId },
       select: {
         user: {
-          select: this.userSelectFields(),
+          select: this.userSelectFields(dto.userId),
         },
         createdAt: true,
         userId: true,
@@ -303,7 +332,9 @@ class TweetService {
       dto.limit,
       (record) => ({ userId: record.userId, createdAt: record.createdAt })
     );
-    const data = paginatedRecords.map((retweet) => ({ ...retweet.user }));
+    const data = paginatedRecords.map((retweet) =>
+      this.formatUser(retweet.user)
+    );
 
     return {
       data,
@@ -511,7 +542,7 @@ class TweetService {
       where: { tweetId },
       select: {
         user: {
-          select: this.userSelectFields(),
+          select: this.userSelectFields(dto.userId),
         },
         createdAt: true,
         userId: true,
@@ -536,7 +567,7 @@ class TweetService {
     );
 
     return {
-      data: paginatedRecords.map((record) => ({ ...record.user })),
+      data: paginatedRecords.map((record) => this.formatUser(record.user)),
       cursor,
     };
   }
@@ -642,7 +673,7 @@ class TweetService {
 
   async searchTweets(dto: SearchServiceDTO) {
     const parsedDTO = SearchServiceSchema.parse(dto);
-
+    
     const wherePrismaFilter = this.generateFilter(
       parsedDTO.query,
       parsedDTO.userId,
@@ -724,7 +755,7 @@ class TweetService {
     return where;
   }
 
-  private userSelectFields() {
+  private userSelectFields(viewerId: string) {
     return {
       id: true,
       name: true,
@@ -732,6 +763,9 @@ class TweetService {
       profileMedia: { select: { id: true } },
       protectedAccount: true,
       verified: true,
+      _count: {
+        select: { followers: { where: { followerId: viewerId } } },
+      },
     };
   }
 
@@ -749,7 +783,7 @@ class TweetService {
       parentId: true,
       userId: true,
       user: {
-        select: this.userSelectFields(),
+        select: this.userSelectFields(userId),
       },
       tweetLikes: {
         where: { userId },
@@ -763,7 +797,11 @@ class TweetService {
         where: { userId },
         select: { userId: true },
       },
-      tweetMedia: { select: { mediaId: true } },
+      tweetMedia: {
+        select: {
+          media: { select: { id: true, type: true, name: true, size: true } },
+        },
+      },
     };
   }
 }
