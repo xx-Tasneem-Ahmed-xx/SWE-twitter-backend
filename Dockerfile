@@ -23,5 +23,5 @@ COPY ecosystem.config.cjs ./ecosystem.config.cjs
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "pm2 start ecosystem.config.cjs && npm start"]
+CMD ["pm2-runtime", "ecosystem.config.cjs"]
 

@@ -1,4 +1,5 @@
 import { prisma, ReplyControl } from "@/prisma/client";
+import { encoderService } from "../services/encoder";
 
 export const validToRetweetOrQuote = async (parentTweetId: string) => {
   const rightToTweet = await prisma.tweet.findUnique({
@@ -90,4 +91,21 @@ const evaluateReplyControl = async (
     default:
       return false;
   }
+};
+
+export const updateCursor = <T>(
+  records: T[],
+  limit: number,
+  getCursorFn: (record: T) => Record<string, any>
+) => {
+  const hasNextPage = records.length > limit;
+  const paginatedRecords = hasNextPage ? records.slice(0, -1) : records;
+
+  const lastRecord = paginatedRecords[paginatedRecords.length - 1];
+  const cursor = lastRecord ? getCursorFn(lastRecord) : null;
+
+  return {
+    paginatedRecords,
+    cursor: hasNextPage ? encoderService.encode(cursor) : null,
+  };
 };
