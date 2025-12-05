@@ -40,6 +40,15 @@ export const RESPONSES = {
       message: "Can't mute blocked users /users who blocked you",
       status: 403,
     },
+    BLOCKED_FOLLOWERS: {
+      message: "Cannot view followers of blocked users or who have blocked you",
+      status: 403,
+    },
+    BLOCKED_FOLLOWINGS: {
+      message:
+        "Cannot view followings of blocked users or who have blocked you",
+      status: 403,
+    },
 
     // Authorization Errors
     UNAUTHORIZED: {

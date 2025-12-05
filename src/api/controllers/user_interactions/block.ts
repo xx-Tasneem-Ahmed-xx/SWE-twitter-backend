@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
-import { AppError } from "@/errors/AppError";
+import * as responseUtils from "@/application/utils/response.utils";
 import {
   checkBlockStatus,
   getBlockedList,
   createBlockRelation,
   removeBlockRelation,
-} from "../../../application/services/userInteractions";
+} from "@/application/services/userInteractions";
 import {
   parseUsernameParam,
   getUserListHandler as getListHandler,
@@ -24,15 +24,12 @@ export const blockUser = async (
     const userToBlock = await resolveUsernameToId(username);
 
     if (userToBlock.id === currentUserId)
-      throw new AppError("Cannot block yourself", 400);
+      responseUtils.throwError("CANNOT_BLOCK_SELF");
     const isBlocked = await checkBlockStatus(currentUserId, userToBlock.id);
-    if (isBlocked)
-      throw new AppError("You are already blocking this user", 400);
+    if (isBlocked) responseUtils.throwError("ALREADY_BLOCKING");
 
     await createBlockRelation(currentUserId, userToBlock.id);
-    return res.status(201).json({
-      message: "User blocked successfully",
-    });
+    return responseUtils.sendResponse(res, "USER_BLOCKED");
   } catch (error) {
     next(error);
   }
@@ -50,12 +47,10 @@ export const unblockUser = async (
     const userToUnBlock = await resolveUsernameToId(username);
 
     const isBlocked = await checkBlockStatus(currentUserId, userToUnBlock.id);
-    if (!isBlocked) throw new AppError("You have not blocked this user", 400);
+    if (!isBlocked) responseUtils.throwError("NOT_BLOCKED");
 
     await removeBlockRelation(currentUserId, userToUnBlock.id);
-    return res.status(200).json({
-      message: "User unblocked successfully",
-    });
+    return responseUtils.sendResponse(res, "USER_UNBLOCKED");
   } catch (error) {
     next(error);
   }

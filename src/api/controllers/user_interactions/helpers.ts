@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
-import { AppError } from "@/errors/AppError";
+import * as responseUtils from "@/application/utils/response.utils";
 import {
   UserInteractionParamsSchema,
   UserInteractionQuerySchema,
@@ -77,10 +77,9 @@ export const getFollowListHandler = async (
 
     const isBlocked = await checkBlockFn(user.id, currentUserId);
     if (isBlocked) {
-      throw new AppError(
-        `Cannot view ${listType} of blocked users or who have blocked you`,
-        403
-      );
+      const errorKey =
+        listType === "followers" ? "BLOCKED_FOLLOWERS" : "BLOCKED_FOLLOWINGS";
+      responseUtils.throwError(errorKey);
     }
 
     const { cursor, limit } = parseCursorQuery(req);

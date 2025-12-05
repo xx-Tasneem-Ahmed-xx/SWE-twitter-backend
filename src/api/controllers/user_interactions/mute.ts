@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
-import { AppError } from "@/errors/AppError";
+import * as responseUtils from "@/application/utils/response.utils";
 import {
   checkBlockStatus,
   checkMuteStatus,
@@ -25,19 +25,15 @@ export const muteUser = async (
     const userToMute = await resolveUsernameToId(username);
 
     if (userToMute.id === currentUserId)
-      throw new AppError("Cannot mute yourself", 400);
+      responseUtils.throwError("CANNOT_MUTE_SELF");
+
     const isMuted = await checkMuteStatus(currentUserId, userToMute.id);
-    if (isMuted) throw new AppError("You are already muting this user", 400);
+    if (isMuted) responseUtils.throwError("ALREADY_MUTING");
+
     const isBlocked = await checkBlockStatus(currentUserId, userToMute.id);
-    if (isBlocked)
-      throw new AppError(
-        "Can't mute blocked users /users who blocked you",
-        403
-      );
+    if (isBlocked) responseUtils.throwError("MUTE_BLOCKED_USER");
     await createMuteRelation(currentUserId, userToMute.id);
-    return res.status(201).json({
-      message: "User muted successfully",
-    });
+    return responseUtils.sendResponse(res, "USER_MUTED");
   } catch (error) {
     next(error);
   }
@@ -55,12 +51,10 @@ export const unmuteUser = async (
     const userToUnmute = await resolveUsernameToId(username);
 
     const isMuted = await checkMuteStatus(currentUserId, userToUnmute.id);
-    if (!isMuted) throw new AppError("You are not muting this user", 400);
+    if (!isMuted) responseUtils.throwError("NOT_MUTING");
 
     await removeMuteRelation(currentUserId, userToUnmute.id);
-    return res.status(200).json({
-      message: "User unmuted successfully",
-    });
+    return responseUtils.sendResponse(res, "USER_UNMUTED");
   } catch (error) {
     next(error);
   }
