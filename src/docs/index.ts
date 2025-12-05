@@ -1,5 +1,5 @@
-import path from "path";
-import fs from "fs";
+import path from "node:path";
+import fs from "node:fs";
 import swaggerJsdoc from "swagger-jsdoc";
 import {
   OpenAPIRegistry,
@@ -78,12 +78,12 @@ const jsdocSpec = swaggerJsdoc(jsdocOptions) as OpenAPIObject;
 const mergedDoc: OpenAPIObject = {
   ...zodDoc,
   paths: {
-    ...(zodDoc.paths || {}),
-    ...(jsdocSpec.paths || {}),
+    ...zodDoc.paths,
+    ...jsdocSpec.paths,
   },
   components: {
-    ...(zodDoc.components || {}),
-    ...(jsdocSpec.components || {}),
+    ...zodDoc.components,
+    ...jsdocSpec.components,
   },
 };
 
