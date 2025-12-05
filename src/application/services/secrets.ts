@@ -3,7 +3,7 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
-import { AppError } from "@/errors/AppError";
+import * as responseUtils from "@/application/utils/response.utils";
 import { redisClient } from "../../config/redis";
 
 dotenv.config();
@@ -30,7 +30,7 @@ async function loadAwsSecrets(): Promise<Record<string, string>> {
     if (process.env.NODE_ENV === "test") {
       return {};
     }
-    throw new AppError("Missing AWS_MAIN_SECRET_NAME in environment variables");
+    responseUtils.throwError("MISSING_AWS_MAIN_SECRET_NAME");
   }
 
   const region = process.env.AWS_REGION;

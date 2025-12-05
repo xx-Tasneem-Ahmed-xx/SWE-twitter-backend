@@ -49,6 +49,22 @@ export const RESPONSES = {
         "Cannot view followings of blocked users or who have blocked you",
       status: 403,
     },
+    FAILED_TO_CREATE_BLOCK: {
+      message: "Failed to create block relation",
+      status: 500,
+    },
+    FAILED_TO_REMOVE_BLOCK: {
+      message: "Failed to remove block relation",
+      status: 500,
+    },
+    FAILED_TO_CREATE_MUTE: {
+      message: "Failed to create mute relation",
+      status: 500,
+    },
+    FAILED_TO_REMOVE_MUTE: {
+      message: "Failed to remove mute relation",
+      status: 500,
+    },
 
     // Authorization Errors
     UNAUTHORIZED: {
@@ -96,6 +112,15 @@ export const RESPONSES = {
     FORBIDDEN_UPDATE_OWN_PROFILE_PICTURE: {
       message: "Forbidden: you can only update your own profile picture",
       status: 403,
+    },
+    DEFAULT_PROFILE_PIC_ID_MISSING: {
+      message:
+        "DEFAULT_PROFILE_PIC_ID is missing from environment variables or AWS secrets",
+      status: 500,
+    },
+    USER_ALREADY_HAS_DEFAULT_PICTURE: {
+      message: "User already has the default profile picture",
+      status: 400,
     },
 
     // Registration/Signup Errors
@@ -326,6 +351,12 @@ export const RESPONSES = {
       status: 500,
     },
 
+    // AWS/Configuration Errors
+    MISSING_AWS_MAIN_SECRET_NAME: {
+      message: "Missing AWS_MAIN_SECRET_NAME in environment variables",
+      status: 500,
+    },
+
     // Chat/Message Errors
     CHAT_ID_REQUIRED: { message: "Chat ID is required", status: 400 },
     INVALID_CHAT_ID: { message: "invalid chatId", status: 404 },
@@ -352,6 +383,27 @@ export const RESPONSES = {
     MISSING_CHAT_ID_OR_RECIPIENT_ID: {
       message: "missing chatId or recipientId",
       status: 400,
+    },
+
+    // Tweet Errors
+    INVALID_ID: { message: "Invalid ID", status: 400 },
+    TWEET_NOT_FOUND: { message: "Tweet not found", status: 404 },
+    CANNOT_QUOTE_PROTECTED_TWEET: {
+      message: "You cannot quote a protected tweet",
+      status: 403,
+    },
+    CANNOT_REPLY_TO_TWEET: {
+      message: "You cannot reply to this tweet",
+      status: 403,
+    },
+    CANNOT_RETWEET_PROTECTED_TWEET: {
+      message: "You cannot retweet a protected tweet",
+      status: 403,
+    },
+    TWEET_ALREADY_LIKED: { message: "Tweet already liked", status: 409 },
+    TWEET_NOT_LIKED_YET: {
+      message: "You haven't liked this tweet yet",
+      status: 409,
     },
 
     // Media Errors
