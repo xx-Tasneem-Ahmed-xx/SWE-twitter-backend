@@ -323,7 +323,7 @@ class TweetService {
       dto.limit,
       (record) => ({ userId: record.userId, createdAt: record.createdAt })
     );
-    const data = paginatedRecords.map((retweet) => ({ ...retweet.user }));
+    const data = paginatedRecords.map((retweet) => ({ ...retweet.user as any }));
 
     return {
       data,

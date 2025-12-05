@@ -246,7 +246,7 @@ export const fetchTrends = async (
   const cached = await redisClient.get(TRENDS_CACHE_KEY);
   if (cached) {
     try {
-      const data = JSON.parse(cached);
+      const data = JSON.parse(cached as any);
       return {
         trends: data.trends.slice(0, limit),
         updatedAt: data.updatedAt,
@@ -260,7 +260,7 @@ export const fetchTrends = async (
   await calculateAndCacheTrends(TREND_PERIOD_HOURS);
   const newCached = await redisClient.get(TRENDS_CACHE_KEY);
   if (newCached) {
-    const data = JSON.parse(newCached);
+    const data = JSON.parse(newCached as any);
     return {
       trends: data.trends.slice(0, limit),
       updatedAt: data.updatedAt,

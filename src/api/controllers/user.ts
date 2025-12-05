@@ -267,7 +267,7 @@ export async function Verify_signup_email(
       throw new AppError("Email and code are required", 400);
     }
 
-    const stored: string | null = await redisClient.get(`Signup:code:${email}`);
+    const stored: any = await redisClient.get(`Signup:code:${email}`);
 
     if (!stored) {
       throw new AppError(
@@ -280,7 +280,7 @@ export async function Verify_signup_email(
       throw new AppError("Verification code is incorrect", 401);
     }
 
-    const userJson: string | null = await redisClient.get(
+    const userJson: any= await redisClient.get(
       `Signup:user:${email}`
     );
 
@@ -314,7 +314,7 @@ export async function FinalizeSignup(
       throw new AppError("Email and password are required", 400);
     }
 
-    const userJson: string | null = await redisClient.get(
+    const userJson: any = await redisClient.get(
       `Signup:verified:${email}`
     );
 
