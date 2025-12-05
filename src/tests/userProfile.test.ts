@@ -2,19 +2,61 @@ import { prisma } from "@/prisma/client";
 import { UserService } from "@/application/services/user.service";
 import { connectToDatabase } from "@/database";
 import { OSType } from "@prisma/client";
+import { getKey } from "@/application/services/secrets";
+
+// Define a variable to hold the ID of the default profile picture,
+// which will be set in beforeAll using the mocked getKey.
+let DEFAULT_PROFILE_PIC_ID: string;
+
+jest.mock("@/application/services/secrets", () => ({
+  getKey: jest.fn(),
+}));
+
+// Set up the mock for the key. We'll use this key name consistently.
+(getKey as jest.Mock).mockImplementation((keyName: string) => {
+  if (keyName === "DEFAULT_PROFILE_PIC_ID") {
+    return Promise.resolve("default_pic_123"); // Consistent mock return value
+  }
+  return Promise.resolve(null);
+});
 
 const userService = new UserService();
 
 describe("UserService", () => {
   beforeAll(async () => {
+    // 1. Resolve the default ID before connecting and cleaning up
+    DEFAULT_PROFILE_PIC_ID =
+      (await getKey("DEFAULT_PROFILE_PIC_ID")) ?? "default_profile_pic_id";
+
     await connectToDatabase();
     console.log("Running UserService tests with real database connection");
 
     // Clean up any old data
-    await prisma.follow.deleteMany({});
+    await prisma.follow.deleteMany({
+      where: {
+        OR: [
+          {
+            followerId: { in: ["u1", "u2", "u3"] },
+            followingId: { in: ["u1", "u2", "u3"] },
+          },
+        ],
+      },
+    });
     await prisma.fcmToken.deleteMany({});
-    await prisma.user.deleteMany({});
+    await prisma.user.deleteMany({ where: { id: { in: ["u1", "u2", "u3"] } } });
     await prisma.media.deleteMany({});
+
+    // creat default profile picture
+    await prisma.media.create({
+      data: {
+        // 2. Use the resolved constant
+        id: DEFAULT_PROFILE_PIC_ID,
+        name: "Default Profile Picture",
+        keyName: "default_profile_pic",
+        type: "IMAGE", // must match MediaType enum
+        size: 0,
+      },
+    });
 
     // create media
     await prisma.media.createMany({
@@ -96,9 +138,18 @@ describe("UserService", () => {
   });
 
   afterAll(async () => {
-    await prisma.follow.deleteMany({});
+    await prisma.follow.deleteMany({
+      where: {
+        OR: [
+          {
+            followerId: { in: ["u1", "u2", "u3"] },
+            followingId: { in: ["u1", "u2", "u3"] },
+          },
+        ],
+      },
+    });
     await prisma.fcmToken.deleteMany({});
-    await prisma.user.deleteMany({});
+    await prisma.user.deleteMany({ where: { id: { in: ["u1", "u2", "u3"] } } });
     await prisma.media.deleteMany({});
     await prisma.$disconnect();
   });
@@ -169,8 +220,12 @@ describe("UserService", () => {
     });
 
     it("should exclude the viewer from results", async () => {
-      const result = await userService.searchUsers("sara", "u3");
+      // NOTE: Querying for "sara" will likely return all users except "u3" because no users match "sara".
+      // The original user list includes: mohammed_hany (u1), ahmed_samir (u2), salma_adel (u3).
+      // Since "sara" doesn't match any, this test seems intended to test the exclusion logic.
+      const result = await userService.searchUsers("samir", "u3");
       expect(result.users.some((u) => u.id === "u3")).toBe(false);
+      expect(result.users.some((u) => u.id === "u2")).toBe(true); // check if ahmed_samir is present
     });
 
     it("should return empty result for unmatched query", async () => {
@@ -207,15 +262,25 @@ describe("UserService", () => {
   });
 
   //TODO: update this test after implementing deleteProfilePhoto
-  // describe("deleteProfilePhoto", () => {
-  //   it("should remove profile photo (set to null)", async () => {
-  //     await userService.updateProfilePhoto("u2", "profile2");
-  //     const updated = await userService.deleteProfilePhoto("u2");
-  //     expect(updated.profileMediaId).toBeNull();
-  //     const saved = await prisma.user.findUnique({ where: { id: "u2" } });
-  //     expect(saved?.profileMediaId).toBeNull();
-  //   });
-  // });
+  describe("deleteProfilePhoto", () => {
+    it("should set profile photo to DEFAULT_PROFILE_PIC_ID", async () => {
+      // Arrange
+      // NOTE: Removed the redundant definition of DEFAULT_ID and mocking of getKey here.
+      // DEFAULT_PROFILE_PIC_ID is set in beforeAll and getKey is mocked globally.
+
+      // ensure user has a non-default profile picture
+      await userService.updateProfilePhoto("u2", "profile1"); // Use existing media ID
+
+      // Act
+      const updated = await userService.deleteProfilePhoto("u2");
+
+      // Assert
+      expect(updated.profileMediaId).toBe(DEFAULT_PROFILE_PIC_ID);
+
+      const saved = await prisma.user.findUnique({ where: { id: "u2" } });
+      expect(saved?.profileMediaId).toBe(DEFAULT_PROFILE_PIC_ID);
+    });
+  });
 
   // ===================== updateProfileBanner / deleteProfileBanner =====================
   describe("updateProfileBanner", () => {

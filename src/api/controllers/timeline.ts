@@ -8,7 +8,6 @@ const svc = new TimelineService();
 export class TimelineController {
   async getTimeline(req: Request, res: Response, next: NextFunction) {
     try {
-      //TODO: WHEN LOGIN WORKS
       const userId = (req as any).user?.id;
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       // const userId = "00505325-856b-4569-9529-210a1b255989"; // "Jerry Donnelly"
@@ -26,7 +25,6 @@ export class TimelineController {
 
   async getForYou(req: Request, res: Response, next: NextFunction) {
     try {
-      //TODO: WHEN LOGIN WORKS
       const userId = (req as any).user?.id;
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       // const userId = "00505325-856b-4569-9529-210a1b255989"; // "Charlotte Kuvalis II"
