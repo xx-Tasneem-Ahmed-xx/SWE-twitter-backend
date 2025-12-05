@@ -46,7 +46,7 @@ const config: Config = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
     "^src/docs/(.*)$": "<rootDir>/__mocks__/src/docs/$1",
-    "^@/client$": "<rootDir>/__mocks__/prismaMock.ts",
+    "^firebase-admin$": "<rootDir>/src/__mocks__/firebase-admin.ts",
   },
 };
 
