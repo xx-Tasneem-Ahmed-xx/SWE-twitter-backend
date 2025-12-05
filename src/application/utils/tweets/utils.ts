@@ -275,7 +275,7 @@ export async function Attempts(
       return true;
     }
 
-    const num = parseInt(numStr as any, 10);
+    const num = parseInt(numStr, 10);
     if (isNaN(num)) {
       SendError(res, 500, "Invalid number format in Redis");
       return true;
@@ -341,7 +341,7 @@ export async function IncrAttempts(
       // create a key with small TTL (matching Go's behavior, Go used 5s in some places; adapt as required)
       await redisClient.set(`Login:fail:${email}`, "0", { EX: 300 });
     }
-    const numStr: any  = await redisClient.get(`Login:fail:${email}`);
+    const numStr: string | null = await redisClient.get(`Login:fail:${email}`);
     if (!numStr) {
       SendError(res, 500, "something just went wrong");
       return false;
@@ -413,7 +413,7 @@ export async function ResetAttempts(
   email: string
 ): Promise<boolean> {
   try {
-    const blocked: any= await redisClient.get(
+    const blocked: string | null = await redisClient.get(
       `reset:block:${email}`
     );
     if (blocked === "1") {
@@ -427,7 +427,7 @@ export async function ResetAttempts(
     const exists: number = await redisClient.exists(`reset:fail:${email}`);
     if (!exists) return false;
 
-    const numStr: any= await redisClient.get(`reset:fail:${email}`);
+    const numStr: string | null = await redisClient.get(`reset:fail:${email}`);
     const num: number = parseInt(numStr || "0", 10);
     const ttl: number = await _getTTL(`reset:fail:${email}`);
 
@@ -483,7 +483,7 @@ export async function IncrResetAttempts(
     if (!exists) {
       await redisClient.set(`reset:fail:${email}`, "0", { EX: 300 });
     }
-    const numStr: any = await redisClient.get(`reset:fail:${email}`);
+    const numStr: string | null = await redisClient.get(`reset:fail:${email}`);
     if (!numStr) {
       SendError(res, 500, "something just went wrong");
       return false;

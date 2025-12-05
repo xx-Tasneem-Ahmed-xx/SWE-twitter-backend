@@ -285,29 +285,25 @@ export class TweetService {
   async getRetweets(tweetId: string, dto: InteractionsCursorServiceDTO) {
     await this.validateId(tweetId);
     const retweeters = await prisma.retweet.findMany({
-      where: ( {
-        tweetId,
-        ...(dto.cursor && {
-          OR: [
-            { createdAt: { lt: dto.cursor.createdAt } },
-            {
-              AND: [
-                { createdAt: dto.cursor.createdAt },
-                { userId: { lt: dto.cursor.userId } },
-              ],
-            },
-          ],
-        }),
-      } as any),
-      select: ( {
+      where: { tweetId },
+      select: {
         user: {
           select: this.userSelectFields(dto.userId),
         },
         createdAt: true,
         userId: true,
-      } as any ),
-      orderBy: [{ createdAt: "desc" }, { userId: "desc" }] as any,
+      },
+      orderBy: [{ createdAt: "desc" }, { userId: "desc" }],
       take: dto.limit + 1,
+      ...(dto.cursor && {
+        cursor: {
+          userId_createdAt: {
+            userId: dto.cursor.userId,
+            createdAt: dto.cursor.createdAt,
+          },
+        },
+        skip: 1,
+      }),
     });
 
     const { cursor, paginatedRecords } = updateCursor(
@@ -404,30 +400,28 @@ export class TweetService {
   }
 
   async getLikedTweets(dto: InteractionsCursorServiceDTO) {
-    const where: any = { userId: dto.userId };
-    if (dto.cursor) {
-      where.OR = [
-        { createdAt: { lt: dto.cursor.createdAt } },
-        {
-          AND: [
-            { createdAt: dto.cursor.createdAt },
-            { userId: { lt: dto.cursor.userId } },
-          ],
-        },
-      ];
-    }
-
     const tweetLikes = await prisma.tweetLike.findMany({
-      where,
-      include: {
+      where: { userId: dto.userId },
+      select: {
         tweet: {
           select: {
             ...this.tweetSelectFields(dto.userId),
           },
         },
+        createdAt: true,
+        userId: true,
       },
-      orderBy: [{ createdAt: "desc" }, { userId: "desc" }] as any,
+      orderBy: [{ createdAt: "desc" }, { userId: "desc" }],
       take: dto.limit + 1,
+      ...(dto.cursor && {
+        cursor: {
+          userId_createdAt: {
+            userId: dto.userId,
+            createdAt: dto.cursor.createdAt,
+          },
+        },
+        skip: 1,
+      }),
     });
 
     const { cursor, paginatedRecords } = updateCursor(
