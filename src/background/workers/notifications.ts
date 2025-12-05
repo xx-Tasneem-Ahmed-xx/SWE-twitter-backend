@@ -1,15 +1,15 @@
 import { Worker } from "bullmq";
-import { redisClient, initRedis } from "@/config/redis";
-import { bullRedisConfig } from "@/background/config/redis";
+import { redisClient, initRedis } from "../../config/redis";
+import { bullRedisConfig } from "../config/redis";
 import { prisma } from "@/prisma/client";
-import { loadSecrets } from "@/config/secrets";
+import { loadSecrets } from "../../config/secrets";
 
 async function startWorker() {
   await initRedis();
   await loadSecrets();
 
   const { sendOverSocket, sendOverFCM } = await import(
-    "@/application/services/notification"
+    "../../application/services/notification"
   );
 
   enum notificationBodies {

@@ -16,7 +16,7 @@ import { AppError } from "@/errors/AppError";
 import axios from "axios";
 import qs from "querystring";
 import { NotificationTitle } from "@prisma/client";
-import { getSecrets } from "@/config/secrets";
+import { getSecrets } from "../../config/secrets";
 import {
   enqueueVerifyEmail,
   enqueueWelcomeEmail,
@@ -30,7 +30,7 @@ import {
   
 } from "../../background/jobs/emailJobs";
 import { OAuth2Client } from "google-auth-library";
-import { addNotification } from "@/application/services/notification";
+import { addNotification } from "../../application/services/notification";
 // --- Custom Type Definitions ---
 interface LocalJwtPayload extends JwtPayload {
   Username?: string;
@@ -314,7 +314,82 @@ export async function Verify_signup_email(
     next(err);
   }
 }
+export async function SetPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { email, password } = req.body;
 
+    if (!email || !password) {
+      throw new AppError("Email and password are required", 400);
+    }
+
+   
+
+    const salt: string = crypto.randomBytes(16).toString("hex");
+    const hashed: string = await utils.HashPassword(password, salt);
+
+   
+   const user = (await prisma.user.findUnique({
+      where: { email },
+    })) as PrismaUser;
+    if (!user) throw new AppError("User not found", 404);
+
+
+    await utils.AddPasswordHistory(hashed, user.id);
+ 
+
+    const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
+
+    const { token: accessToken, jti } = await utils.GenerateJwt({
+      username: user.username,
+      email: user.email,
+      id: user.id,
+      role: "user",
+      expiresInSeconds: 60 * 60,
+      version: 0,
+      devid,
+    });
+
+    const { token: refreshToken } = await utils.GenerateJwt({
+      username: user.username,
+      email: user.email,
+      id: user.id,
+      role: "user",
+      expiresInSeconds: 60 * 60 * 24 * 30,
+      version: 0,
+      devid,
+    });
+
+    await redisClient.set(`refreshToken:${user.id}`, refreshToken, {
+      EX: 60 * 60 * 24 * 30,
+    });
+    await utils.SetSession(req, user.id, jti);
+
+
+
+    return utils.SendRes(res, {
+      message: "set password correctly",
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        dateOfBirth: user.dateOfBirth,
+        isEmailVerified: user.isEmailVerified,
+      },
+      device: deviceRecord,
+      tokens: {
+        accessToken,
+        refreshToken,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
 export async function FinalizeSignup(
   req: Request,
   res: Response,
@@ -1508,23 +1583,37 @@ export async function LogoutSession(
 export async function exchangeGoogleCode(code: string) {
   try {
     const { client_id, client_secret, redirect_uri } = getSecrets();
-    const params = {
-      code,
-      client_id,
-      client_secret,
-      redirect_uri,
-      grant_type: "authorization_code",
-    };
 
-    const resp = await axios.post(
-      "https://oauth2.googleapis.com/token",
-      new URLSearchParams(params).toString(),
-      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-    );
- console.log("Google token response:", resp.data);
+    console.log("=== Google EXCHANGE START ===");
+    console.log("code:", code?.slice(0, 10) + "...");
+    console.log("client_id:", client_id);
+    console.log("redirect_uri:", redirect_uri);
+
+    const params = new URLSearchParams();
+    params.append("code", code);
+    params.append("client_id", client_id);
+    params.append("client_secret", client_secret);
+    params.append("redirect_uri", redirect_uri);
+    params.append("grant_type", "authorization_code");
+
+    const resp = await axios({
+      method: "post",
+      url: "https://oauth2.googleapis.com/token",
+      data: params.toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      timeout: 10000, // 10s timeout
+    });
+
+    console.log("Google token response:", resp.data);
     return resp.data;
-  } catch (err) {
-    throw new AppError("Failed to exchange Google code", 500);
+  } catch (err: any) {
+    console.log("🔥 AXIOS ERROR RAW:", err.toJSON ? err.toJSON() : err.message);
+    throw new AppError(
+      "Failed to exchange Google code: " + JSON.stringify(err?.response?.data || err.message),
+      500
+    );
   }
 }
 
@@ -1930,12 +2019,14 @@ export async function CallbackGithubFront(
       username: user.username,
       email: user.email,
       id: user.id,
+          version: user.tokenVersion || 0,
       role: "user",
       expiresInSeconds: 60 * 60,
     };
     const payload2 = {
       username: user.username,
       email: user.email,
+          version: user.tokenVersion || 0,
       id: user.id,
       role: "user",
       expiresInSeconds: 60 * 60 * 24 * 30,
@@ -1952,10 +2043,10 @@ export async function CallbackGithubFront(
 
    
 
-    await prisma.user.update({
-      where: { email },
-      data: { tokenVersion: (user.tokenVersion || 0) + 1 },
-    });
+    // await prisma.user.update({
+    //   where: { email },
+    //   data: { tokenVersion: (user.tokenVersion || 0) + 1 },
+    // });
 
     
     const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
@@ -2140,10 +2231,18 @@ export async function CallbackGoogle(
   res: Response,
   next: NextFunction
 ) {
+   const code = req.query.code as string;
   try {
-    const code = req.query.code as string;
-    if (!code) throw new AppError("Authorization code is missing", 400);
+   
+    
+    const state = req.query.state as string;
+    const error = req.query.error as string;
 
+    console.log("=== Google Callback Front ===");
+    console.log("code:", code ? code.substring(0, 10) + "..." : " Missing");
+    console.log("state:", state);
+    console.log("error:", error || "None");
+    if (!code) throw new AppError("Authorization code is missing", 400);
     const tokenObj = await exchangeGoogleCode(code);
     const idToken = tokenObj.id_token as string;
     const parts = idToken.split(".");
@@ -2195,6 +2294,7 @@ export async function CallbackGoogle(
       username: user.username,
       email: user.email,
       id: user.id,
+          version: user.tokenVersion || 0,
       role: "user",
       expiresInSeconds: 60 * 60,
     };
@@ -2202,6 +2302,7 @@ export async function CallbackGoogle(
       username: user.username,
       email: user.email,
       id: user.id,
+          version: user.tokenVersion || 0,
       role: "user",
       expiresInSeconds: 60 * 60 * 24 * 30,
     };
@@ -2215,16 +2316,22 @@ export async function CallbackGoogle(
       { EX: 60 * 60 * 24 * 30 }
     );
 
-    res.cookie("refresh-token", refreshToken, {
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-      httpOnly: true,
-      secure: true,
-    });
+res.cookie("refresh-token", refreshToken.token, {
+  maxAge: 1000 * 60 * 60 * 24 * 30,
+  httpOnly: true,
+  secure: true,
+});
 
-    await prisma.user.update({
-      where: { email },
-      data: { tokenVersion: (user.tokenVersion || 0) + 1 },
-    });
+res.cookie("access-token", token.token, {
+  maxAge: 1000 * 60 * 60,
+  httpOnly: true,
+  secure: true,
+});
+
+    // await prisma.user.update({
+    //   where: { email },
+    //   data: { tokenVersion: (user.tokenVersion || 0) + 1 },
+    // });
 
   
     const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
@@ -2346,6 +2453,7 @@ export async function CallbackIOSGoogle(
       email: user.email,
       id: user.id,
       role: "user",
+          version: user.tokenVersion || 0,
       expiresInSeconds: 3600,
     };
 
@@ -2434,6 +2542,7 @@ export async function CallbackAndroidGoogle(
       username: user.username,
       email: user.email,
       id: user.id,
+          version: user.tokenVersion || 0,
       role: "user",
       expiresInSeconds: 3600,
     };
@@ -2568,6 +2677,7 @@ export const UpdateUsername = async (
 
 const authController = {
   Create,
+  SetPassword,
   Verify_signup_email,
   UpdateUsername,
   Login,

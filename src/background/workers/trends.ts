@@ -1,9 +1,9 @@
 import { Worker } from "bullmq";
-import { bullRedisConfig } from "@/background/config/redis";
-import { calculateAndCacheTrends } from "@/application/services/hashtags";
-import type { TrendUpdateJobData } from "@/background/types/jobs";
-import { loadSecrets } from "@/config/secrets";
-import { initRedis } from "@/config/redis";
+import { bullRedisConfig } from "../config/redis";
+import { calculateAndCacheTrends } from "../../application/services/hashtags";
+import type { TrendUpdateJobData } from "../types/jobs";
+import { loadSecrets } from "../../config/secrets";
+import { initRedis } from "../../config/redis";
 
 async function startWorker() {
   await initRedis();

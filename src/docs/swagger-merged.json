@@ -3935,7 +3935,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-12-04T19:00:19.006Z"
+                        "default": "2025-12-05T13:30:36.193Z"
                       },
                       "userId": {
                         "type": "string",
@@ -4160,7 +4160,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-12-04T19:00:19.006Z"
+                            "default": "2025-12-05T13:30:36.193Z"
                           },
                           "userId": {
                             "type": "string",
@@ -8448,6 +8448,183 @@
           },
           "500": {
             "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/setpassword": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Set a password for an existing OAuth user",
+        "description": "This endpoint allows a user who originally logged in via Google/GitHub (or any OAuth provider) to create a password for \"reauthentication\" flows (similar to Twitter’s re-auth page). The endpoint: - Validates `email` and `password` - Generates salt + hash - Stores password history - Updates device info - Generates access & refresh tokens - Creates a session (via JTI) - Returns complete user data + tokens + device info\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "test@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "MyStrongPassword123!"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password set successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "set password correctly"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "c1ab23d9-e1b8-4a7c-b5bf-2e93fdb02f57"
+                        },
+                        "username": {
+                          "type": "string",
+                          "example": "hosam_dev"
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "Hossam Elden"
+                        },
+                        "email": {
+                          "type": "string",
+                          "example": "test@example.com"
+                        },
+                        "dateOfBirth": {
+                          "type": "string",
+                          "format": "date",
+                          "example": "2004-03-12"
+                        },
+                        "isEmailVerified": {
+                          "type": "boolean",
+                          "example": true
+                        }
+                      }
+                    },
+                    "device": {
+                      "type": "object",
+                      "description": "Device record created during login",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "ip": {
+                          "type": "string"
+                        },
+                        "userAgent": {
+                          "type": "string"
+                        },
+                        "location": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "tokens": {
+                      "type": "object",
+                      "properties": {
+                        "accessToken": {
+                          "type": "string",
+                          "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                        },
+                        "refreshToken": {
+                          "type": "string",
+                          "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing email or password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Email and password are required"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User not found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Something went wrong"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

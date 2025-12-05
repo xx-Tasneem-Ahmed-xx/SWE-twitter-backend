@@ -1,4 +1,4 @@
-import { getKeys } from "@/application/services/secrets";
+import { getKeys } from "../application/services/secrets";
 
 let secretValues: Secrets | null = null;
 

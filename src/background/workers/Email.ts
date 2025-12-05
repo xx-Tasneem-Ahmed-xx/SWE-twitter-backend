@@ -9,9 +9,9 @@ import type { EmailJobData } from "../types/jobs";
 // GLOBAL project secrets
 
 
-import { loadSecrets, getSecrets } from "@config/secrets";
-import { initRedis } from "@config/redis";
-import { bullRedisConfig } from "@background/config/redis";
+import { loadSecrets, getSecrets } from "../../config/secrets";
+import { initRedis } from "../../config/redis";
+import { bullRedisConfig } from "../config/redis";
 
 
 import nodemailer from "nodemailer";
