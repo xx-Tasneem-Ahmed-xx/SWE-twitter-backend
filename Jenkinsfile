@@ -125,9 +125,6 @@ pipeline {
                 container('nodejs') {
                     script {
                         sh '''
-                            echo "Installing Prisma"
-                            npm install prisma
-                             
                             echo "Running Prisma migrations..."
                             npx prisma migrate deploy --config prisma/prisma.config.ts
                             
