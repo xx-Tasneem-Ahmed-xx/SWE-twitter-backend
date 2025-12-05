@@ -132,6 +132,7 @@ model Tweet {
   repliesCount   Int          @default(0)
   quotesCount    Int          @default(0)
   replyControl   ReplyControl @default(EVERYONE)
+  score          Float        @default(0)
   parentId       String?
   tweetType      TweetType
 
@@ -148,7 +149,6 @@ model Tweet {
   Notification    Notification[]
   notInteresteds  NotInterested[]
   spamReports     SpamReport[]
-  category        Category[]
   tweetCategories TweetCategory[]
 
   @@unique([lastActivityAt, id])
@@ -418,7 +418,6 @@ model Category {
   name            String          @unique
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
-  tweets          Tweet[]
   users           User[]          @relation("UserPreferredCategories")
   tweetCategories TweetCategory[]
 }
@@ -431,7 +430,7 @@ model TweetCategory {
   category Category @relation(fields: [categoryId], references: [id])
 
   @@id([tweetId, categoryId])
-  @@map("tweet_categories")
+  @@map("tweetCategories")
 }
 
 enum ReplyControl {
