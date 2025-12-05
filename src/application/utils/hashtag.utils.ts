@@ -84,7 +84,10 @@ export const calculateTrendScores = (
 export const sortAndTake = <T extends { score: number }>(
   entries: T[],
   limit: number
-) => entries.sort((a, b) => b.score - a.score).slice(0, limit);
+) => {
+  const sorted = entries.sort((a, b) => b.score - a.score);
+  return sorted.slice(0, limit);
+};
 
 // Map hashId + data -> TrendData
 export const mapToTrendData = async (

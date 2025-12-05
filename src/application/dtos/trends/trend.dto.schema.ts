@@ -1,7 +1,6 @@
 import z from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { TweetResponsesSchema } from "@/application/dtos/tweets/tweet.dto.schema";
-import { T } from "@faker-js/faker/dist/airline-DF6RqYmq";
 
 extendZodWithOpenApi(z);
 
@@ -103,7 +102,7 @@ export const TrendsResponseSchema = z
         { id: "ghi789.sig", hashtag: "nodejs", tweetCount: 654, rank: 3 },
       ],
     }),
-    updatedAt: z.string().datetime().openapi({
+    updatedAt: z.string().openapi({
       description:
         "ISO 8601 timestamp of when trends were last calculated (updated every 30 minutes)",
       example: "2024-11-18T10:30:00.000Z",

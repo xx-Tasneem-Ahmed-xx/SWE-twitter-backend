@@ -20,7 +20,7 @@ export const getTrends = async (
       : 30;
     const category = TrendCategory.Global;
     const rawQuery = (req.query.q ?? req.query.query) as string | undefined;
-    const trends = await fetchTrends(limit, category, rawQuery);
+    const trends = await fetchTrends(rawQuery, category, limit);
     res.json(trends);
   } catch (error) {
     next(error);
