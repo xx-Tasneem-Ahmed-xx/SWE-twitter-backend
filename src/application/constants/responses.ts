@@ -56,7 +56,7 @@ export const RESPONSES = {
       status: 401,
     },
     UNAUTHORIZED_ACCESS: { message: "Unauthorized access", status: 401 },
-    UNAUTHORIZED_USER_NOT_AUTHENTICATED: {
+    UNAUTHORIZED_USER: {
       message: "Unauthorized: user not authenticated",
       status: 401,
     },
@@ -77,6 +77,7 @@ export const RESPONSES = {
     NOT_FOUND: { message: "User not found", status: 404 },
     CONFLICT: { message: "Conflict occurred", status: 409 },
     INVALID_SEARCH_QUERY: { message: "Invalid search query", status: 400 },
+    INVALID_HASHTAG_ID: { message: "Invalid hashtag ID", status: 400 },
     INVALID_QUERY_PARAMETERS: {
       message: "Invalid query parameters",
       status: 400,

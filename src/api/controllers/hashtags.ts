@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { HashtagTweetsQuerySchema } from "@/application/dtos/trends/trend.dto.schema";
 import { TrendCategory } from "@/application/utils/hashtag.utils";
+import * as responseUtils from "@/application/utils/response.utils";
 import {
   fetchTrends,
   fetchHashtagTweets,
@@ -39,7 +40,7 @@ export const getHashtagTweets = async (
     // Decode the hashtag ID
     const hashtagId = encoderService.decode<string>(id);
     if (!hashtagId) {
-      throw new Error("Invalid hashtag ID");
+      responseUtils.throwError("INVALID_HASHTAG_ID");
     }
 
     const queryResult = HashtagTweetsQuerySchema.safeParse(req.query);
@@ -53,7 +54,7 @@ export const getHashtagTweets = async (
     }>(cursor);
 
     const tweets = await fetchHashtagTweets(
-      hashtagId,
+      hashtagId!,
       currentUserId,
       decodedCursor ?? null,
       limit
