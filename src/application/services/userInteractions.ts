@@ -1,5 +1,5 @@
 import { prisma, FollowStatus } from "@/prisma/client";
-import { AppError } from "@/errors/AppError";
+import * as responseUtils from "@/application/utils/response.utils";
 import { addNotification } from "./notification";
 import { NotificationTitle } from "@prisma/client";
 
@@ -22,7 +22,7 @@ export const createFollowRelation = async (
     });
   } catch (error: any) {
     if (error?.code === "P2002") {
-      throw new AppError("Already following this user", 400);
+      responseUtils.throwError("ALREADY_FOLLOWING");
     }
     throw error;
   }
@@ -452,7 +452,7 @@ export const createBlockRelation = async (
     });
   } catch (error) {
     console.error("Create block relation error:", error);
-    throw new AppError("Failed to create block relation", 500);
+    responseUtils.throwError("FAILED_TO_CREATE_BLOCK");
   }
 };
 
@@ -472,7 +472,7 @@ export const removeBlockRelation = async (
     });
   } catch (error) {
     console.error("Remove block relation error:", error);
-    throw new AppError("Failed to remove block relation", 500);
+    responseUtils.throwError("FAILED_TO_REMOVE_BLOCK");
   }
 };
 
@@ -514,7 +514,7 @@ export const createMuteRelation = async (muterId: string, mutedId: string) => {
     });
   } catch (error) {
     console.error("Mute user error:", error);
-    throw new AppError("Failed to create mute relation", 500);
+    responseUtils.throwError("FAILED_TO_CREATE_MUTE");
   }
 };
 
@@ -531,7 +531,7 @@ export const removeMuteRelation = async (muterId: string, mutedId: string) => {
     });
   } catch (error) {
     console.error("Remove mute relation error:", error);
-    throw new AppError("Failed to remove mute relation", 500);
+    responseUtils.throwError("FAILED_TO_REMOVE_MUTE");
   }
 };
 

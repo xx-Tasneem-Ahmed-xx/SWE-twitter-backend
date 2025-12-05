@@ -1,15 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../../database";
+import * as responseUtils from "@/application/utils/response.utils";
 import {
   ChatInput,
   chatGroupUpdate,
-  MessageData,
   newMessageInput,
 } from "../../application/dtos/chat/messages.dto";
-import { MediaType } from "@/prisma/client";
 import { socketService } from "@/app";
 import { sendPushNotification } from "@/application/services/FCMService";
-import { AppError } from "@/errors/AppError";
 
 const getUnseenMessagesCountofChat = async (chatId: string, userId: string) => {
   try {
@@ -24,7 +22,10 @@ const getUnseenMessagesCountofChat = async (chatId: string, userId: string) => {
   } catch (error) {}
 };
 
-export const CreateChatFun = async (DMChat: boolean, participant_ids: string[]) => {
+export const CreateChatFun = async (
+  DMChat: boolean,
+  participant_ids: string[]
+) => {
   try {
     //ceating DM chat
     const newChat = await prisma.chat.create({
@@ -88,7 +89,7 @@ export const getChatInfo = async (
   try {
     const chatId = req.params.chatId;
     if (!chatId) {
-      throw new AppError("Chat ID is required", 400);
+      responseUtils.throwError("CHAT_ID_REQUIRED");
     }
 
     const chatInfo = await prisma.chat.findUnique({
@@ -138,7 +139,7 @@ export const getChatInfo = async (
     });
 
     if (!chatInfo) {
-      throw new AppError("invalid chatId", 404);
+      responseUtils.throwError("INVALID_CHAT_ID");
     }
     res.status(200).json(chatInfo);
   } catch (error) {
@@ -158,13 +159,13 @@ export const getChatMessages = async (
       lastMessageTimestamp?: string;
     };
     if (!chatId || !lastMessageTimestamp) {
-      throw new AppError("Chat ID and lastMessage timestamp are required", 400);
+      responseUtils.throwError("CHAT_ID_AND_LASTMESSAGE_REQUIRED");
     }
     const chatExists = await prisma.chat.findUnique({
       where: { id: chatId },
     });
     if (!chatExists) {
-      throw new AppError("invalid chatId", 404);
+      responseUtils.throwError("INVALID_CHAT_ID");
     }
     const messages = await prisma.message.findMany({
       where: {
@@ -206,7 +207,7 @@ export const getUserChats = async (
   try {
     const userId = (req as any).user.id;
     if (!userId) {
-      throw new AppError("User ID is required", 400);
+      responseUtils.throwError("USER_ID_REQUIRED");
     }
     const userChatsID = await prisma.chatUser.findMany({
       where: {
@@ -299,21 +300,18 @@ export const createChat = async (
       participant_ids.length === 0 ||
       participant_ids === undefined
     ) {
-      throw new AppError("Missing chat type or participants id", 400);
+      responseUtils.throwError("MISSING_CHAT_TYPE_OR_PARTICIPANTS");
     }
 
     if (participant_ids.length < 2 && DMChat === false) {
-      throw new AppError(
-        "At least two participants are required to create a chat group",
-        400
-      );
+      responseUtils.throwError("PARTICIPANTS_REQUIRED_FOR_GROUP_CHAT");
     }
     for (const id of participant_ids) {
       const user = await prisma.user.findUnique({
         where: { id: id },
       });
       if (!user) {
-        throw new AppError(`User with ID ${id} not found`, 404);
+        responseUtils.throwError("USER_NOT_FOUND_WITH_ID");
       }
     }
     participant_ids.push(userId as string);
@@ -323,12 +321,12 @@ export const createChat = async (
         chatUsers: {
           every: {
             userId: {
-                in: participant_ids,
-              },
+              in: participant_ids,
             },
           },
         },
-      });
+      },
+    });
     if (oldChat) {
       return res.status(200).json({ newChat: oldChat });
     }
@@ -370,9 +368,9 @@ export const deleteChat = async (
         });
       });
 
-      res.status(200).json({ message: "Chat deleted successfully" });
+      return responseUtils.sendResponse(res, "CHAT_DELETED");
     } else {
-      throw new AppError("Chat ID is required", 400);
+      responseUtils.throwError("CHAT_ID_REQUIRED");
     }
   } catch (error) {
     console.error("Error deleting chat:", error);
@@ -393,19 +391,19 @@ export const updateChatGroup = async (
         where: { chatId: chatId },
       });
       if (!existingChatGroup) {
-        throw new AppError("invalid chatId", 404);
+        responseUtils.throwError("INVALID_CHAT_ID");
       }
       const updatedChatGroup = await prisma.chatGroup.update({
         where: { chatId: chatId },
         data: {
-          name: name || existingChatGroup.name,
-          description: description || existingChatGroup.description,
-          photoId: photo || existingChatGroup.photoId,
+          name: name || existingChatGroup!.name,
+          description: description || existingChatGroup!.description,
+          photoId: photo || existingChatGroup!.photoId,
         },
       });
       res.status(200).json({ updatedChatGroup });
     } else {
-      throw new AppError("Chat ID is required", 400);
+      responseUtils.throwError("CHAT_ID_REQUIRED");
     }
   } catch (error) {
     console.error("Error updating chat group:", error);
@@ -421,7 +419,7 @@ export const addMessageToChat = async (
     const recipientId = (messageInput.recipientId as Array<string>) || [];
     const chatId = messageInput.chatId;
     if (!messageInput.data || !messageInput.data.content) {
-      throw new AppError("Message content is required", 400);
+      responseUtils.throwError("MESSAGE_CONTENT_REQUIRED");
     }
     let chat: any;
     if (!chatId && recipientId.length > 0) {
@@ -451,17 +449,17 @@ export const addMessageToChat = async (
         where: { id: chatId },
       });
       if (!chat) {
-        throw new AppError("invalid chatId", 404);
+        responseUtils.throwError("INVALID_CHAT_ID");
       }
     } else {
-      throw new AppError("missing chatId or recipientId", 400);
+      responseUtils.throwError("MISSING_CHAT_ID_OR_RECIPIENT_ID");
     }
 
     let newMessage = await prisma.message.create({
       data: {
         chatId: chat.id,
         userId: userId,
-        content: messageInput.data.content,
+        content: messageInput.data.content!,
         status: "SENT",
       },
     });
@@ -535,12 +533,12 @@ export const addMessageToChat = async (
       if (fcmTokens && fcmTokens.length > 0) {
         const notificationPayload = {
           title: `New message from ${createdMessage.user?.name || "Someone"}`,
-          body: messageInput.data.content,
+          body: messageInput.data.content!,
         };
         const dataPayload = {
           chatId: createdMessage.chatId,
           messageId: createdMessage.id,
-          content: messageInput.data.content,
+          content: messageInput.data.content!,
           senderId: userId,
         } as Record<string, string>;
         const tokensToDelete = await sendPushNotification(
@@ -616,7 +614,7 @@ export const getUnseenMessagesCount = async (
       );
       res.status(200).json({ unseenMessagesCount: unseenMessagesCount });
     } else {
-      throw new AppError("Chat ID is required", 400);
+      responseUtils.throwError("CHAT_ID_REQUIRED");
     }
   } catch (error) {
     console.error("Error fetching unseen messages count:", error);

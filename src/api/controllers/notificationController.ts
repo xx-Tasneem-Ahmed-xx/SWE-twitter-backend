@@ -1,20 +1,9 @@
 import { NextFunction, Request, Response } from "express";
 import { prisma } from "@/prisma/client";
 import { NotificationInputSchema } from "@/application/dtos/notification/notification.dto.schema";
-import { socketService } from "../../app";
-import { sendPushNotification } from "@/application/services/FCMService";
-import { UUID } from "crypto";
-import { z } from "zod";
-import { NotificationTitle } from "@prisma/client";
-import { AppError } from "@/errors/AppError";
-import type { NotificationJobData } from "@/background/types/jobs";
-import { redisClient } from "@/config/redis";
-import { enqueueNewNotificationJob } from "@/background/jobs/notificationsJob";
-import {
-  addNotification,
-  sendOverFCM,
-  sendOverSocket,
-} from "@/application/services/notification";
+import * as responseUtils from "@/application/utils/response.utils";
+import { addNotification } from "@/application/services/notification";
+
 export const getNotificationList = async (
   req: Request,
   res: Response,
@@ -26,7 +15,7 @@ export const getNotificationList = async (
       where: { id: userId },
     });
     if (!user) {
-      throw new AppError("Unauthorized", 401);
+      responseUtils.throwError("UNAUTHORIZED_ACCESS");
     }
     await prisma.user.update({
       where: { id: userId },
@@ -64,10 +53,10 @@ export const getUnseenNotificationsCount = async (
     });
 
     if (!user) {
-      throw new AppError("Unauthorized", 401);
+      responseUtils.throwError("UNAUTHORIZED_ACCESS");
     }
 
-    const unseenCount = user.unseenNotificationCount || 0;
+    const unseenCount = user!.unseenNotificationCount || 0;
     return res.status(200).json({ unseenCount });
   } catch (error) {
     next(error);
@@ -82,7 +71,7 @@ export const getUnseenNotifications = async (
   try {
     const userId = (req as any).user.id;
     if (!userId) {
-      throw new AppError("Unauthorized", 401);
+      responseUtils.throwError("UNAUTHORIZED_USER");
     }
     await prisma.user.update({
       where: { id: userId },
@@ -139,7 +128,7 @@ export const addNotificationController = async (
 
     await addNotification(recipientId, data);
 
-    res.status(200).json({ message: "Notification sent successfully" });
+    return responseUtils.sendResponse(res, "NOTIFICATION_SENT");
   } catch (error) {
     next(error);
   }
