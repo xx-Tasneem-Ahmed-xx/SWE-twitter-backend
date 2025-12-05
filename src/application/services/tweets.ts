@@ -31,7 +31,7 @@ import { Prisma } from "@prisma/client";
 import { UUID } from "node:crypto";
 import { addNotification } from "./notification";
 
-class TweetService {
+export class TweetService {
   private async validateId(id: string) {
     if (!id || typeof id !== "string") {
       throw new AppError("Invalid ID", 400);
@@ -440,7 +440,7 @@ class TweetService {
 
   async getTweetReplies(tweetId: string, dto: TweetCursorServiceDTO) {
     const replies = await prisma.tweet.findMany({
-      where: { parentId: tweetId },
+      where: { parentId: tweetId, tweetType: "REPLY" },
       select: {
         ...this.tweetSelectFields(dto.userId),
       },
