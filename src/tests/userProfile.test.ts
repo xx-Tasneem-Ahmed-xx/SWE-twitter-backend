@@ -25,15 +25,25 @@ const userService = new UserService();
 describe("UserService", () => {
   beforeAll(async () => {
     // 1. Resolve the default ID before connecting and cleaning up
-    DEFAULT_PROFILE_PIC_ID = await getKey("DEFAULT_PROFILE_PIC_ID");
+    DEFAULT_PROFILE_PIC_ID =
+      (await getKey("DEFAULT_PROFILE_PIC_ID")) ?? "default_profile_pic_id";
 
     await connectToDatabase();
     console.log("Running UserService tests with real database connection");
 
     // Clean up any old data
-    await prisma.follow.deleteMany({});
+    await prisma.follow.deleteMany({
+      where: {
+        OR: [
+          {
+            followerId: { in: ["u1", "u2", "u3"] },
+            followingId: { in: ["u1", "u2", "u3"] },
+          },
+        ],
+      },
+    });
     await prisma.fcmToken.deleteMany({});
-    await prisma.user.deleteMany({});
+    await prisma.user.deleteMany({ where: { id: { in: ["u1", "u2", "u3"] } } });
     await prisma.media.deleteMany({});
 
     // creat default profile picture
@@ -128,9 +138,18 @@ describe("UserService", () => {
   });
 
   afterAll(async () => {
-    await prisma.follow.deleteMany({});
+    await prisma.follow.deleteMany({
+      where: {
+        OR: [
+          {
+            followerId: { in: ["u1", "u2", "u3"] },
+            followingId: { in: ["u1", "u2", "u3"] },
+          },
+        ],
+      },
+    });
     await prisma.fcmToken.deleteMany({});
-    await prisma.user.deleteMany({});
+    await prisma.user.deleteMany({ where: { id: { in: ["u1", "u2", "u3"] } } });
     await prisma.media.deleteMany({});
     await prisma.$disconnect();
   });
