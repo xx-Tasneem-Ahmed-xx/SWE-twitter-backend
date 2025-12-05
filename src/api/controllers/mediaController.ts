@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import prisma from "../../database";
 import { MediaType } from "@prisma/client";
 import { storageService } from "../../app";
-import { AppError } from "@/errors/AppError";
+import * as responseUtils from "@/application/utils/response.utils";
 
 export const requestToUploadMedia = async (
   req: Request,
@@ -34,9 +34,9 @@ export const requestToDownloadMedia = async (
       where: { id: mediaId },
     });
     if (!media) {
-      throw new AppError("Media not found", 404);
+      responseUtils.throwError("MEDIA_NOT_FOUND");
     }
-    const downloadUrl = await storageService.getDownloadUrl(media.keyName);
+    const downloadUrl = await storageService.getDownloadUrl(media!.keyName);
     return res.status(200).json({ url: downloadUrl });
   } catch (error) {
     console.error("Error downloading media:", error);
@@ -68,7 +68,7 @@ export const confirmMediaUpload = async (
       });
       return res.status(200).json({ newMedia });
     } else {
-      throw new AppError("Media not found", 404);
+      responseUtils.throwError("MEDIA_NOT_FOUND");
     }
   } catch (error: any) {
     console.error("Error confirming media upload:", error);
@@ -87,25 +87,23 @@ export const addMediaTotweet = async (
       mediaIds?: string[];
     };
     if (!tweetId) {
-      throw new AppError("tweetId is required", 400);
+      responseUtils.throwError("TWEET_ID_REQUIRED");
     }
 
     const ids: string[] = Array.isArray(mediaIds) ? mediaIds : [];
     if (ids.length === 0) {
-      throw new AppError("mediaIds must be a non-empty array", 400);
+      responseUtils.throwError("MEDIA_IDS_MUST_BE_NON_EMPTY_ARRAY");
     }
 
     for (const id of ids) {
       await prisma.tweetMedia.create({
         data: {
-          tweetId,
+          tweetId: tweetId!,
           mediaId: id,
         },
       });
     }
-    return res
-      .status(200)
-      .json({ message: "Media added to tweet successfully" });
+    return responseUtils.sendResponse(res, "MEDIA_ADDED_TO_TWEET");
   } catch (error) {
     console.error("Error adding media to tweet:", error);
     next(error);
@@ -124,25 +122,23 @@ export const addMediaToMessage = async (
     };
 
     if (!messageId) {
-      throw new AppError("messageId is required", 400);
+      responseUtils.throwError("MESSAGE_ID_REQUIRED");
     }
 
     const ids: string[] = Array.isArray(mediaIds) ? mediaIds : [];
     if (ids.length === 0) {
-      throw new AppError("mediaIds must be a non-empty array", 400);
+      responseUtils.throwError("MEDIA_IDS_MUST_BE_NON_EMPTY_ARRAY");
     }
 
     for (const id of ids) {
       await prisma.messageMedia.create({
         data: {
-          messageId,
+          messageId: messageId!,
           mediaId: id,
         },
       });
     }
-    return res
-      .status(200)
-      .json({ message: "Media added to message successfully" });
+    return responseUtils.sendResponse(res, "MEDIA_ADDED_TO_MESSAGE");
   } catch (error) {
     console.error("Error adding media to message:", error);
     next(error);
@@ -157,13 +153,13 @@ export const getTweetMedia = async (
   try {
     const { tweetId } = req.params;
     if (!tweetId) {
-      throw new AppError("tweetId is required", 400);
+      responseUtils.throwError("TWEET_ID_REQUIRED");
     }
     const media = await prisma.media.findMany({
       where: { tweetMedia: { some: { tweetId } } },
     });
     if (!media) {
-      throw new AppError("No media found for this tweet", 404);
+      responseUtils.throwError("NO_MEDIA_FOUND_FOR_TWEET");
     }
     res.status(200).json(media);
   } catch (error) {
@@ -180,13 +176,13 @@ export const getMessageMedia = async (
   try {
     const { messageId } = req.params;
     if (!messageId) {
-      throw new AppError("messageId is required", 400);
+      responseUtils.throwError("MESSAGE_ID_REQUIRED");
     }
     const media = await prisma.media.findMany({
       where: { messageMedia: { some: { messageId } } },
     });
     if (!media) {
-      throw new AppError("No media found for this message", 404);
+      responseUtils.throwError("NO_MEDIA_FOUND_FOR_MESSAGE");
     }
     res.status(200).json(media);
   } catch (error) {

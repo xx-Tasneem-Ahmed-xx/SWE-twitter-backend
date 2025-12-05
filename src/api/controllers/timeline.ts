@@ -1,4 +1,3 @@
-// src/api/controllers/timeline.controller.ts
 import { Request, Response, NextFunction } from "express";
 import * as responseUtils from "@/application/utils/response.utils";
 import { TimelineService } from "@/application/services/timeline";

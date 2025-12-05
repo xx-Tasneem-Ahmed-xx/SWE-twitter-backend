@@ -337,6 +337,14 @@ export const RESPONSES = {
       message: "Missing chat type or participants id",
       status: 400,
     },
+    PARTICIPANTS_REQUIRED_FOR_GROUP_CHAT: {
+      message: "At least two participants are required to create a chat group",
+      status: 400,
+    },
+    USER_NOT_FOUND_WITH_ID: {
+      message: "User with specified ID not found",
+      status: 404,
+    },
     MESSAGE_CONTENT_REQUIRED: {
       message: "Message content is required",
       status: 400,
