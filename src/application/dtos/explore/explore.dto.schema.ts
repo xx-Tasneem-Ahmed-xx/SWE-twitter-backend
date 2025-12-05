@@ -17,3 +17,10 @@ export const CategoryCursorSchema = z.object({
   limit: z.coerce.number().min(1).max(40).default(20),
   cursor: z.object({ id: z.uuid() }).optional(),
 });
+
+export const ExploreServiceSchema = z.object({
+  userId: z.uuid(),
+  categoryId: z.uuid().optional(),
+  limit: z.coerce.number().min(1).max(40).default(20),
+  cursor: z.object({ id: z.uuid(), score: z.coerce.number() }).optional(),
+});
