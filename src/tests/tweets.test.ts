@@ -99,8 +99,10 @@ describe("Tweets Service", () => {
     await prisma.follow.deleteMany();
     await prisma.tweet.deleteMany({
       where: {
-        userId: { in: ["123", "456", "789"] },
-        id: { notIn: [publicTweet.id, protectedTweet.id] },
+        AND: [
+          { userId: { in: ["123", "456", "789"] } },
+          { id: { notIn: [publicTweet.id, protectedTweet.id] } },
+        ],
       },
     });
   });
