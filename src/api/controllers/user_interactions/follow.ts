@@ -1,10 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { AppError } from "@/errors/AppError";
-import {
-  UserInteractionParamsSchema,
-  UserInteractionQuerySchema,
-} from "@/application/dtos/userInteractions/userInteraction.dto.schema";
+import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 import {
   createFollowRelationAndNotify,
   removeFollowRelation,
@@ -14,6 +11,7 @@ import {
   getFollowersList,
   getFollowingsList,
 } from "@/application/services/userInteractions";
+import { getFollowListHandler } from "./helpers";
 
 // Follow a user using their username
 export const followUser = async (
@@ -162,41 +160,15 @@ export const getFollowers = async (
   res: Response,
   next: NextFunction
 ) => {
-  try {
-    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
-    if (!paramsResult.success) throw paramsResult.error;
-    const { username } = paramsResult.data;
-    const currentUserId = (req as any).user.id;
-    const user = await resolveUsernameToId(username);
-
-    const isBlocked = await checkBlockStatus(user.id, currentUserId);
-    if (isBlocked)
-      throw new AppError(
-        "Cannot view followers of blocked users or who have blocked you",
-        403
-      );
-
-    const queryResult = UserInteractionQuerySchema.safeParse(req.query);
-    if (!queryResult.success) throw queryResult.error;
-    const { cursor, limit } = queryResult.data;
-
-    let cursorId: string | undefined;
-    if (cursor) {
-      const decodedUsername = Buffer.from(cursor, "base64").toString("utf8");
-      const resolved = await resolveUsernameToId(decodedUsername);
-      cursorId = resolved.id;
-    }
-
-    const followersData = await getFollowersList(
-      user.id,
-      currentUserId,
-      cursorId,
-      limit
-    );
-    return res.status(200).json(followersData);
-  } catch (error) {
-    next(error);
-  }
+  return getFollowListHandler(
+    req,
+    res,
+    next,
+    "followers",
+    getFollowersList,
+    getFollowingsList,
+    checkBlockStatus
+  );
 };
 
 // Get a list of followings for a user by their username
@@ -205,40 +177,13 @@ export const getFollowings = async (
   res: Response,
   next: NextFunction
 ) => {
-  try {
-    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
-    if (!paramsResult.success) throw paramsResult.error;
-    const { username } = paramsResult.data;
-    const currentUserId = (req as any).user.id;
-    const user = await resolveUsernameToId(username);
-
-    const isBlocked = await checkBlockStatus(user.id, currentUserId);
-    if (isBlocked)
-      throw new AppError(
-        "Cannot view followings of blocked users or who have blocked you",
-        403
-      );
-
-    const queryResult = UserInteractionQuerySchema.safeParse(req.query);
-    if (!queryResult.success) throw queryResult.error;
-    const { cursor, limit } = queryResult.data;
-
-    let cursorId: string | undefined;
-    if (cursor) {
-      const decodedUsername = Buffer.from(cursor, "base64").toString("utf8");
-      const resolved = await resolveUsernameToId(decodedUsername);
-      cursorId = resolved.id;
-    }
-
-    const followingsData = await getFollowingsList(
-      user.id,
-      currentUserId,
-      cursorId,
-      limit
-    );
-
-    return res.status(200).json(followingsData);
-  } catch (error) {
-    next(error);
-  }
+  return getFollowListHandler(
+    req,
+    res,
+    next,
+    "followings",
+    getFollowersList,
+    getFollowingsList,
+    checkBlockStatus
+  );
 };

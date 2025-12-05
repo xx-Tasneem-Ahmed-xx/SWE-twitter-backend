@@ -2,15 +2,15 @@ import { Request, Response, NextFunction } from "express";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { AppError } from "@/errors/AppError";
 import {
-  UserInteractionParamsSchema,
-  UserInteractionQuerySchema,
-} from "@/application/dtos/userInteractions/userInteraction.dto.schema";
-import {
   checkBlockStatus,
   getBlockedList,
   createBlockRelation,
   removeBlockRelation,
 } from "../../../application/services/userInteractions";
+import {
+  parseUsernameParam,
+  getUserListHandler as getListHandler,
+} from "./helpers";
 
 // Block a user using their username
 export const blockUser = async (
@@ -19,9 +19,7 @@ export const blockUser = async (
   next: NextFunction
 ) => {
   try {
-    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
-    if (!paramsResult.success) throw paramsResult.error;
-    const { username } = paramsResult.data;
+    const username = parseUsernameParam(req);
     const currentUserId = (req as any).user.id;
     const userToBlock = await resolveUsernameToId(username);
 
@@ -47,9 +45,7 @@ export const unblockUser = async (
   next: NextFunction
 ) => {
   try {
-    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
-    if (!paramsResult.success) throw paramsResult.error;
-    const { username } = paramsResult.data;
+    const username = parseUsernameParam(req);
     const currentUserId = (req as any).user.id;
     const userToUnBlock = await resolveUsernameToId(username);
 
@@ -71,28 +67,5 @@ export const getBlockedUsers = async (
   res: Response,
   next: NextFunction
 ) => {
-  try {
-    const currentUserId = (req as any).user.id;
-
-    const queryResult = UserInteractionQuerySchema.safeParse(req.query);
-    if (!queryResult.success) throw queryResult.error;
-    const { cursor, limit } = queryResult.data;
-
-    let cursorId: string | undefined;
-    if (cursor) {
-      const decodedUsername = Buffer.from(cursor, "base64").toString("utf8");
-      const resolved = await resolveUsernameToId(decodedUsername);
-      cursorId = resolved.id;
-    }
-
-    const blockedUsersData = await getBlockedList(
-      currentUserId,
-      cursorId,
-      limit
-    );
-
-    return res.status(200).json(blockedUsersData);
-  } catch (error) {
-    next(error);
-  }
+  return getListHandler(req, res, next, getBlockedList);
 };
