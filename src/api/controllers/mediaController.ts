@@ -56,8 +56,7 @@ export const confirmMediaUpload = async (
     if (metadata) {
       const name = keyName.split("-")[2] || "unknown";
       const type =
-        (metadata.ContentType?.split("/")[0].toUpperCase() as MediaType) ||
-        "OTHER";
+        (metadata.ContentType?.split("/")[0].toUpperCase() as MediaType) ;
       const newMedia = await prisma.media.create({
         data: {
           name: name,
