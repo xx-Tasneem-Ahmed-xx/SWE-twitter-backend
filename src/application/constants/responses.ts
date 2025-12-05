@@ -520,5 +520,11 @@ export const RESPONSES = {
       message: "Notification sent successfully",
       status: 200,
     },
+
+    // Explore/Categories
+    CATEGORIES_SAVED: {
+      message: "Preferred categories saved successfully!",
+      status: 200,
+    },
   },
 };
