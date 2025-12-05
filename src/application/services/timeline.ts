@@ -18,7 +18,7 @@ export async function cacheSet(key: string, value: any, ttlSeconds = 60) {
 // --- END: Original Redis/Cache Utils ---
 
 /* ---------------------------
- * Types & DTOs (Modified to include parentTweet)
+ * Types & DTOs
  * --------------------------- */
 
 interface UserMediaDTO {
@@ -38,7 +38,6 @@ interface UserDTO {
   };
 }
 
-// NEW: Define the type for the embedded parent tweet
 interface EmbeddedTweetDTO {
   id: string;
   content: string | null;
@@ -72,7 +71,7 @@ interface TimelineItemDTO {
   isBookmarked: boolean;
   score: number;
   reasons: string[];
-  parentTweet?: EmbeddedTweetDTO | null; // ADDED
+  parentTweet?: EmbeddedTweetDTO | null;
 
   retweets?: {
     data: {
@@ -147,12 +146,12 @@ const CONFIG = {
  * Math / Helpers
  * --------------------------- */
 
-function recencyScore(createdAt: Date, halfLifeHours: number) {
+export function recencyScore(createdAt: Date, halfLifeHours: number) {
   const ageHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
   return Math.pow(2, -ageHours / halfLifeHours);
 }
 
-function baseEngagementScore_FY(tweet: {
+export function baseEngagementScore_FY(tweet: {
   likes: number;
   rts: number;
   replies: number;
@@ -164,7 +163,7 @@ function baseEngagementScore_FY(tweet: {
   );
 }
 
-function baseEngagementScore_F(t: {
+export function baseEngagementScore_F(t: {
   likes: number;
   rts: number;
   replies: number;
@@ -178,7 +177,7 @@ function baseEngagementScore_F(t: {
   );
 }
 
-function gaussianNoise(std = CONFIG.randomNoiseStddev) {
+export function gaussianNoise(std = CONFIG.randomNoiseStddev) {
   const u1 = Math.random() || 1e-9;
   const u2 = Math.random() || 1e-9;
   const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
@@ -186,7 +185,7 @@ function gaussianNoise(std = CONFIG.randomNoiseStddev) {
 }
 
 // MODIFIED: Added `parentTweetData` parameter
-function mapToDTO(
+export function mapToDTO(
   row: any,
   score = 0,
   reasons: string[] = [],
@@ -201,7 +200,7 @@ function mapToDTO(
     ? new Date(row.createdAt).toISOString()
     : new Date().toISOString();
 
-  // Handle User Object (User object is expected to be present on the row now)
+  // Handle User Object
   const userData = row.user ?? {
     id: row.userId,
     username: row.username,
@@ -290,7 +289,7 @@ function mapToDTO(
     isBookmarked: isBookmarked,
     score: Number(row._score ?? score),
     reasons: row._reasons ?? reasons,
-    parentTweet: embeddedParent, // ADDED
+    parentTweet: embeddedParent,
   };
 }
 
@@ -298,7 +297,6 @@ function mapToDTO(
  * Service Utilities
  * --------------------------- */
 
-// Define the structure for the interaction data that the map holds
 interface InteractionData {
   isLiked: boolean;
   isRetweeted: boolean;
@@ -307,8 +305,6 @@ interface InteractionData {
 }
 type InteractionMap = Map<string, InteractionData>;
 
-// Helper to get interaction status and Media IDs for a list of Tweet IDs
-// MODIFIED: Explicitly define the return type as Promise<InteractionMap>
 async function getTweetInteractionAndMedia(
   tweetIds: string[],
   userId: string
@@ -335,7 +331,6 @@ async function getTweetInteractionAndMedia(
         WHERE t.id IN (${tweetIdPlaceholder})
     `;
 
-  // Initialize the map explicitly with the correct type
   const interactionMap: InteractionMap = new Map<string, InteractionData>();
   for (const row of rawInteractionData) {
     interactionMap.set(row.id, {
@@ -349,18 +344,15 @@ async function getTweetInteractionAndMedia(
   return interactionMap;
 }
 
-// Helper to fetch the data for the embedded Parent Tweet
-async function fetchEmbeddedParentTweet(
+export async function fetchEmbeddedParentTweet(
   parentId: string,
   currentUserId: string
 ) {
-  // 1. Fetch Interactions and Media IDs for the single parent
   const interactionMap = await getTweetInteractionAndMedia(
     [parentId],
     currentUserId
   );
 
-  // Error fixed by explicit typing of InteractionMap:
   const interactions = interactionMap.get(parentId) ?? {
     isLiked: false,
     isRetweeted: false,
@@ -368,7 +360,6 @@ async function fetchEmbeddedParentTweet(
     mediaIds: [],
   };
 
-  // 2. Fetch full Parent Tweet + User data
   const parentTweet = await prisma.tweet.findUnique({
     where: { id: parentId },
     include: {
@@ -388,7 +379,6 @@ async function fetchEmbeddedParentTweet(
 
   if (!parentTweet) return null;
 
-  // 3. Merge data into a simplified object suitable for embedding
   return {
     ...parentTweet,
     isLiked: interactions.isLiked,
@@ -398,8 +388,7 @@ async function fetchEmbeddedParentTweet(
   };
 }
 
-// Function to fetch full Tweet/User data from candidate IDs and embed parents
-async function fetchFullTweetData(
+export async function fetchFullTweetData(
   candidateRows: any[],
   currentUserId: string
 ): Promise<any[]> {
@@ -435,7 +424,6 @@ async function fetchFullTweetData(
   const parentIdsToEmbed = new Set<string>();
   for (const c of candidateRows) {
     if (c.parentId && (c.tweetType === "QUOTE" || c.tweetType === "REPLY")) {
-      // Only fetch parent if it wasn't already fetched as a primary candidate
       if (!fullTweetMap.has(c.parentId)) {
         parentIdsToEmbed.add(c.parentId);
       }
@@ -464,12 +452,10 @@ async function fetchFullTweetData(
       mediaIds: [],
     };
 
-    // Check if parent was fetched for embedding (Step 3)
     let embeddedParentData = c.parentId
       ? parentTweetMap.get(c.parentId)
       : undefined;
 
-    // Check if parent was included as a primary candidate (Step 2)
     if (!embeddedParentData && c.parentId && fullTweetMap.has(c.parentId)) {
       embeddedParentData = fullTweetMap.get(c.parentId);
     }
@@ -496,7 +482,7 @@ async function fetchFullTweetData(
  * --------------------------- */
 export class TimelineService {
   /**
-   * getTimeline (Following Feed)
+   * getTimeline
    */
   async getTimeline(params: TimelineParams): Promise<TimelineResponse> {
     const limit = params.limit ?? 20;
@@ -925,7 +911,7 @@ export class TimelineService {
       notInterestedTweetIds = [];
     }
 
-    // 5) Author reputation (graceful) - FIX APPLIED HERE
+    // 5) Author reputation (graceful) - FIX: Explicitly defined Map type
     let authorReputation: Map<string, number> = new Map<string, number>();
     try {
       const reputations = (prisma as any).authorReputation?.findMany
