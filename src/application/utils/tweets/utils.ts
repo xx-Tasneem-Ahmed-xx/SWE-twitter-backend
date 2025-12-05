@@ -9,6 +9,7 @@ import { redisClient } from "@/config/redis";
 import { Request, Response } from "express";
 import { AppError } from "@/errors/AppError";
 import { getSecrets } from "@/config/secrets";
+import { encoderService } from "@/application/services/encoder";
 
 const uuidv4 = async () => {
   const { v4 } = await import("uuid");
