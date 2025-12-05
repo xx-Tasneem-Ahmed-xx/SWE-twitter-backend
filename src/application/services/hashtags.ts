@@ -340,8 +340,9 @@ export const getTrendsFromQuery = async (
 async function extendTweetsWithUserInteractions(tweets: any[], userId: string) {
   if (!tweets.length) return tweets;
   const tweetIds = tweets.map((tweet: any) => tweet.id);
+  const tweetAuthorIds = tweets.map((tweet: any) => tweet.userId);
 
-  const [likes, retweets, bookmarks] = await Promise.all([
+  const [likes, retweets, bookmarks, follows] = await Promise.all([
     prisma.tweetLike.findMany({
       where: { userId, tweetId: { in: tweetIds } },
       select: { tweetId: true, userId: true },
@@ -354,6 +355,14 @@ async function extendTweetsWithUserInteractions(tweets: any[], userId: string) {
       where: { userId, tweetId: { in: tweetIds } },
       select: { tweetId: true, userId: true },
     }),
+    prisma.follow.findMany({
+      where: {
+        followerId: userId,
+        followingId: { in: tweetAuthorIds },
+        status: "ACCEPTED",
+      },
+      select: { followingId: true },
+    }),
   ]);
 
   const likesMap = new Map(likes.map((like) => [like.tweetId, like]));
@@ -363,6 +372,7 @@ async function extendTweetsWithUserInteractions(tweets: any[], userId: string) {
   const bookmarksMap = new Map(
     bookmarks.map((bookmark) => [bookmark.tweetId, bookmark])
   );
+  const followsSet = new Set(follows.map((follow) => follow.followingId));
 
   const extendedTweets = tweets.map((tweet: any) => ({
     ...tweet,
@@ -371,6 +381,12 @@ async function extendTweetsWithUserInteractions(tweets: any[], userId: string) {
     tweetBookmark: bookmarksMap.has(tweet.id)
       ? [bookmarksMap.get(tweet.id)]
       : [],
+    user: tweet.user
+      ? {
+          ...tweet.user,
+          isFollowed: followsSet.has(tweet.userId),
+        }
+      : tweet.user,
   }));
 
   return (tweetService as any).checkUserInteractions(extendedTweets);

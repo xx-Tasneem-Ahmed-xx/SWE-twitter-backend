@@ -5,6 +5,7 @@ import {
 import { encoderService } from "@/application/services/encoder";
 import { ExploreService } from "@/application/services/explore";
 import { Request, Response, NextFunction } from "express";
+import * as responseUtils from "@/application/utils/response.utils";
 
 export class ExploreController {
   private exploreService: ExploreService;
@@ -49,7 +50,7 @@ export class ExploreController {
         userId,
         parsedPayload
       );
-      return res.status(200).json("Preferred categories saved successfully!");
+      return responseUtils.sendResponse(res, "CATEGORIES_SAVED");
     } catch (error) {
       next(error);
     }

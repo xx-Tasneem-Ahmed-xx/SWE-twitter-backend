@@ -8,6 +8,7 @@ import {
 } from "@/application/dtos/tweets/tweet.dto.schema";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { Request, Response, NextFunction } from "express";
+import * as responseUtils from "@/application/utils/response.utils";
 import tweetService from "@/application/services/tweets";
 import { encoderService } from "@/application/services/encoder";
 
@@ -87,7 +88,7 @@ export class TweetController {
     try {
       const { id } = req.params;
       await tweetService.deleteTweet(id);
-      res.status(200).json("Tweet deleted successfuly");
+      return responseUtils.sendResponse(res, "TWEET_DELETED");
     } catch (error) {
       next(error);
     }
@@ -121,7 +122,7 @@ export class TweetController {
       const userId = (req as any).user.id;
       const { id } = req.params;
       await tweetService.deleteRetweet(userId, id);
-      res.status(200).json("Retweet deleted successfuly");
+      return responseUtils.sendResponse(res, "RETWEET_DELETED");
     } catch (error) {
       next(error);
     }
@@ -131,7 +132,7 @@ export class TweetController {
       const { id } = req.params;
       const { content } = req.body;
       await tweetService.updateTweet(id, content);
-      res.status(200).json("Tweet updated successfully");
+      return responseUtils.sendResponse(res, "TWEET_UPDATED");
     } catch (error) {
       next(error);
     }
@@ -167,7 +168,7 @@ export class TweetController {
       const userId = (req as any).user.id;
       const { id } = req.params;
       await tweetService.likeTweet(userId, id);
-      res.status(200).json("Tweet liked successfully");
+      return responseUtils.sendResponse(res, "TWEET_LIKED");
     } catch (error) {
       next(error);
     }
@@ -178,7 +179,7 @@ export class TweetController {
       const userId = (req as any).user.id;
       const { id } = req.params;
       await tweetService.deleteLike(userId, id);
-      res.status(200).json("Tweet unliked successfully");
+      return responseUtils.sendResponse(res, "TWEET_UNLIKED");
     } catch (error) {
       next(error);
     }
