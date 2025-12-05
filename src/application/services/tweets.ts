@@ -2,6 +2,7 @@ import { prisma, TweetType } from "@/prisma/client";
 import {
   validToRetweetOrQuote,
   validToReply,
+  updateCursor,
 } from "@/application/utils/tweet.utils";
 import {
   CreateReplyOrQuoteServiceDTO,
@@ -22,7 +23,6 @@ import {
   SearchTab,
 } from "@/application/dtos/tweets/tweet.dto.schema";
 import { SearchParams } from "@/types/types";
-import { encoderService } from "@/application/services/encoder";
 import {
   enqueueCategorizeTweetJob,
   enqueueHashtagJob,
@@ -31,7 +31,7 @@ import { Prisma } from "@prisma/client";
 import { UUID } from "node:crypto";
 import { addNotification } from "./notification";
 
-class TweetService {
+export class TweetService {
   private async validateId(id: string) {
     if (!id || typeof id !== "string") {
       throw new AppError("Invalid ID", 400);
@@ -64,7 +64,7 @@ class TweetService {
 
     if (mentionedUsers.length === 0) return;
 
-    mentionedUsers.map((user) =>
+    mentionedUsers.forEach((user) =>
       addNotification(user.id as UUID, {
         title: "MENTION",
         body: "mentioned you",
@@ -98,28 +98,20 @@ class TweetService {
     await tx.tweetMedia.createMany({ data });
   }
 
-  private updateCursor<T>(
-    records: T[],
-    limit: number,
-    getCursorFn: (record: T) => Record<string, any>
-  ) {
-    const hasNextPage = records.length > limit;
-    const paginatedRecords = hasNextPage ? records.slice(0, -1) : records;
-
-    const lastRecord = paginatedRecords[paginatedRecords.length - 1];
-    const cursor = lastRecord ? getCursorFn(lastRecord) : null;
-
+  private formatUser(user: any) {
+    const { _count, ...restUser } = user ?? {};
     return {
-      paginatedRecords,
-      cursor: hasNextPage ? encoderService.encode(cursor) : null,
+      ...restUser,
+      isFollowed: (_count?.followers ?? 0) > 0,
     };
   }
-
   private checkUserInteractions(tweets: any[]) {
     return tweets.map((t) => {
-      const { tweetLikes, retweets, tweetBookmark, ...tweet } = t;
+      const { tweetLikes, retweets, tweetBookmark, user, ...tweet } = t;
+
       return {
         ...tweet,
+        user: this.formatUser(user),
         isLiked: tweetLikes.length > 0,
         isRetweeted: retweets.length > 0,
         isBookmarked: tweetBookmark.length > 0,
@@ -296,7 +288,7 @@ class TweetService {
       where: { tweetId },
       select: {
         user: {
-          select: this.userSelectFields(),
+          select: this.userSelectFields(dto.userId),
         },
         createdAt: true,
         userId: true,
@@ -314,12 +306,14 @@ class TweetService {
       }),
     });
 
-    const { cursor, paginatedRecords } = this.updateCursor(
+    const { cursor, paginatedRecords } = updateCursor(
       retweeters,
       dto.limit,
       (record) => ({ userId: record.userId, createdAt: record.createdAt })
     );
-    const data = paginatedRecords.map((retweet) => ({ ...retweet.user }));
+    const data = paginatedRecords.map((retweet) =>
+      this.formatUser(retweet.user)
+    );
 
     return {
       data,
@@ -430,7 +424,7 @@ class TweetService {
       }),
     });
 
-    const { cursor, paginatedRecords } = this.updateCursor(
+    const { cursor, paginatedRecords } = updateCursor(
       tweetLikes,
       dto.limit,
       (record) => ({ userId: record.userId, createdAt: record.createdAt })
@@ -446,7 +440,7 @@ class TweetService {
 
   async getTweetReplies(tweetId: string, dto: TweetCursorServiceDTO) {
     const replies = await prisma.tweet.findMany({
-      where: { parentId: tweetId },
+      where: { parentId: tweetId, tweetType: "REPLY" },
       select: {
         ...this.tweetSelectFields(dto.userId),
       },
@@ -454,7 +448,7 @@ class TweetService {
       take: dto.limit + 1,
       ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
     });
-    const { cursor, paginatedRecords } = this.updateCursor(
+    const { cursor, paginatedRecords } = updateCursor(
       replies,
       dto.limit,
       (record) => ({ id: record.id, createdAt: record.createdAt })
@@ -527,7 +521,7 @@ class TweetService {
       where: { tweetId },
       select: {
         user: {
-          select: this.userSelectFields(),
+          select: this.userSelectFields(dto.userId),
         },
         createdAt: true,
         userId: true,
@@ -545,14 +539,14 @@ class TweetService {
       }),
     });
 
-    const { cursor, paginatedRecords } = this.updateCursor(
+    const { cursor, paginatedRecords } = updateCursor(
       records,
       dto.limit,
       (record) => ({ userId: record.userId, createdAt: record.createdAt })
     );
 
     return {
-      data: paginatedRecords.map((record) => ({ ...record.user })),
+      data: paginatedRecords.map((record) => this.formatUser(record.user)),
       cursor,
     };
   }
@@ -593,7 +587,7 @@ class TweetService {
       ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
     });
 
-    const { cursor, paginatedRecords } = this.updateCursor(
+    const { cursor, paginatedRecords } = updateCursor(
       tweets,
       dto.limit,
       (record) => ({ id: record.id, createdAt: record.createdAt })
@@ -618,7 +612,7 @@ class TweetService {
       ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
     });
 
-    const { cursor, paginatedRecords } = this.updateCursor(
+    const { cursor, paginatedRecords } = updateCursor(
       tweets,
       dto.limit,
       (record) => ({ id: record.id, createdAt: record.createdAt })
@@ -740,7 +734,7 @@ class TweetService {
     return where;
   }
 
-  private userSelectFields() {
+  private userSelectFields(viewerId?: string) {
     return {
       id: true,
       name: true,
@@ -748,10 +742,15 @@ class TweetService {
       profileMedia: { select: { id: true } },
       protectedAccount: true,
       verified: true,
+      _count: viewerId
+        ? {
+            select: { followers: { where: { followerId: viewerId } } },
+          }
+        : undefined,
     };
   }
 
-  private tweetSelectFields(userId?: string | null) {
+  private tweetSelectFields(userId?: string) {
     return {
       id: true,
       content: true,
@@ -765,7 +764,7 @@ class TweetService {
       parentId: true,
       userId: true,
       user: {
-        select: this.userSelectFields(),
+        select: this.userSelectFields(userId),
       },
       ...(userId
         ? {
@@ -783,7 +782,11 @@ class TweetService {
             },
           }
         : {}),
-      tweetMedia: { select: { mediaId: true } },
+      tweetMedia: {
+        select: {
+          media: { select: { id: true, type: true, name: true, size: true } },
+        },
+      },
     };
   }
 }
