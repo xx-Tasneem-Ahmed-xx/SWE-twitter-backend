@@ -98,27 +98,6 @@ class TweetService {
     await tx.tweetMedia.createMany({ data });
   }
 
-  // private isFollowed(users: any[]) {
-  //   return users.map((u) => {
-  //     const { followers, ...restUser } = u ?? {};
-  //     const isFollowed = followers?.length > 0;
-  //     return {
-  //       user: {
-  //         ...restUser,
-  //         isFollowed,
-  //       },
-  //     };
-  //   });
-  // }
-  // private formatUser(users: any) {
-  //   return users.map((u) => {
-  //     const { _count, ...restUser } = u ?? {};
-  //     return {
-  //       ...restUser,
-  //       isFollowed: _count.followers > 0,
-  //     };
-  //   });
-  // }
   private formatUser(user: any) {
     const { _count, ...restUser } = user ?? {};
     return {
@@ -673,7 +652,7 @@ class TweetService {
 
   async searchTweets(dto: SearchServiceDTO) {
     const parsedDTO = SearchServiceSchema.parse(dto);
-    
+
     const wherePrismaFilter = this.generateFilter(
       parsedDTO.query,
       parsedDTO.userId,
