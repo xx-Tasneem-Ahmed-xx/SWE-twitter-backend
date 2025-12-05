@@ -102,7 +102,7 @@ export class TweetService {
     const { _count, ...restUser } = user ?? {};
     return {
       ...restUser,
-      isFollowed: _count.followers > 0,
+      isFollowed: (_count?.followers ?? 0) > 0,
     };
   }
   private checkUserInteractions(tweets: any[]) {
