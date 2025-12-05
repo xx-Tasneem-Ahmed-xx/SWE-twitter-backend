@@ -1,6 +1,5 @@
 import { NotificationTitle } from "@prisma/client";
 
-
 export type HashtagJobData = {
   tweetId: string;
   content: string;

@@ -1,6 +1,15 @@
+jest.mock("@/api/controllers/notificationController", () => ({
+  getNotificationList: jest.fn(),
+  getUnseenNotificationsCount: jest.fn(),
+  getUnseenNotifications: jest.fn(),
+  markNotificationsAsRead: jest.fn(),
+  addNotification: jest.fn(),
+}));
+
 import { initRedis } from "@/config/redis";
 import { loadSecrets } from "@/config/secrets";
 import { prisma, FollowStatus } from "@/prisma/client";
+
 let connectToDatabase: any;
 let userInteractionsService: any;
 let resolveUsernameToId: any;
@@ -696,6 +705,288 @@ describe("User Interactions Service", () => {
       expect(mutedUser.isFollower).toBe(false);
       expect(mutedUser.youRequested).toBe(false);
       expect(mutedUser.followStatus).toBe(FollowStatus.ACCEPTED);
+    });
+  });
+
+  describe("createFollowRelationAndNotify", () => {
+    it("should create an accepted follow relation", async () => {
+      const follow =
+        await userInteractionsService.createFollowRelationAndNotify(
+          "123",
+          "456",
+          "ACCEPTED",
+          "test_user1"
+        );
+
+      expect(follow).not.toBeNull();
+      expect(follow.followerId).toBe("123");
+      expect(follow.followingId).toBe("456");
+      expect(follow.status).toBe(FollowStatus.ACCEPTED);
+    });
+
+    it("should create a pending follow relation", async () => {
+      const follow =
+        await userInteractionsService.createFollowRelationAndNotify(
+          "123",
+          "456",
+          "PENDING",
+          "test_user1"
+        );
+
+      expect(follow).not.toBeNull();
+      expect(follow.followerId).toBe("123");
+      expect(follow.followingId).toBe("456");
+      expect(follow.status).toBe(FollowStatus.PENDING);
+    });
+
+    it("should throw error if already following", async () => {
+      // Create initial follow
+      await userInteractionsService.createFollowRelationAndNotify(
+        "123",
+        "456",
+        "ACCEPTED"
+      );
+
+      // Try to follow again
+      await expect(
+        userInteractionsService.createFollowRelationAndNotify(
+          "123",
+          "456",
+          "ACCEPTED"
+        )
+      ).rejects.toThrow("Already following this user");
+    });
+  });
+
+  describe("updateFollowStatusAndNotify", () => {
+    it("should update follow status to ACCEPTED", async () => {
+      // First create a pending follow
+      await userInteractionsService.createFollowRelation(
+        "123",
+        "456",
+        "PENDING"
+      );
+
+      const updated = await userInteractionsService.updateFollowStatusAndNotify(
+        "123",
+        "456",
+        "test_user2"
+      );
+
+      expect(updated).not.toBeNull();
+      expect(updated.status).toBe(FollowStatus.ACCEPTED);
+      expect(updated.followerId).toBe("123");
+      expect(updated.followingId).toBe("456");
+    });
+
+    it("should update multiple pending follow requests", async () => {
+      // Create pending follows
+      await userInteractionsService.createFollowRelation(
+        "123",
+        "456",
+        "PENDING"
+      );
+      await userInteractionsService.createFollowRelation(
+        "789",
+        "456",
+        "PENDING"
+      );
+
+      // Accept first request
+      const updated1 =
+        await userInteractionsService.updateFollowStatusAndNotify("123", "456");
+      expect(updated1.status).toBe(FollowStatus.ACCEPTED);
+
+      // Accept second request
+      const updated2 =
+        await userInteractionsService.updateFollowStatusAndNotify("789", "456");
+      expect(updated2.status).toBe(FollowStatus.ACCEPTED);
+    });
+  });
+
+  describe("removeBlockRelation", () => {
+    it("should successfully remove a block relation", async () => {
+      // First create a block
+      await userInteractionsService.createBlockRelation("123", "456");
+
+      // Verify block exists
+      const blockExists = await userInteractionsService.checkBlockStatus(
+        "123",
+        "456"
+      );
+      expect(blockExists).toBe(true);
+
+      // Remove the block
+      await userInteractionsService.removeBlockRelation("123", "456");
+
+      // Verify block is removed
+      const blockStillExists = await userInteractionsService.checkBlockStatus(
+        "123",
+        "456"
+      );
+      expect(blockStillExists).toBe(false);
+    });
+
+    it("should throw error when trying to remove non-existent block", async () => {
+      await expect(
+        userInteractionsService.removeBlockRelation("123", "999")
+      ).rejects.toThrow("Failed to remove block relation");
+    });
+  });
+
+  describe("isAlreadyFollowingBatch", () => {
+    it("should return empty set for empty array", async () => {
+      const result = await userInteractionsService.isAlreadyFollowingBatch(
+        "123",
+        []
+      );
+
+      expect(result).toBeInstanceOf(Set);
+      expect(result.size).toBe(0);
+    });
+
+    it("should return set of following user IDs", async () => {
+      // Create some follow relations
+      await userInteractionsService.createFollowRelation(
+        "123",
+        "456",
+        "ACCEPTED"
+      );
+      await userInteractionsService.createFollowRelation(
+        "123",
+        "789",
+        "ACCEPTED"
+      );
+
+      const result = await userInteractionsService.isAlreadyFollowingBatch(
+        "123",
+        ["456", "789", "999"]
+      );
+
+      expect(result).toBeInstanceOf(Set);
+      expect(result.size).toBe(2);
+      expect(result.has("456")).toBe(true);
+      expect(result.has("789")).toBe(true);
+      expect(result.has("999")).toBe(false);
+    });
+
+    it("should filter by status when provided", async () => {
+      // Create different status follows
+      await userInteractionsService.createFollowRelation(
+        "123",
+        "456",
+        "ACCEPTED"
+      );
+      await userInteractionsService.createFollowRelation(
+        "123",
+        "789",
+        "PENDING"
+      );
+
+      // Check only ACCEPTED
+      const acceptedResult =
+        await userInteractionsService.isAlreadyFollowingBatch(
+          "123",
+          ["456", "789"],
+          FollowStatus.ACCEPTED
+        );
+
+      expect(acceptedResult.size).toBe(1);
+      expect(acceptedResult.has("456")).toBe(true);
+      expect(acceptedResult.has("789")).toBe(false);
+
+      // Check only PENDING
+      const pendingResult =
+        await userInteractionsService.isAlreadyFollowingBatch(
+          "123",
+          ["456", "789"],
+          FollowStatus.PENDING
+        );
+
+      expect(pendingResult.size).toBe(1);
+      expect(pendingResult.has("456")).toBe(false);
+      expect(pendingResult.has("789")).toBe(true);
+    });
+
+    it("should handle null or undefined followingIds gracefully", async () => {
+      const result = await userInteractionsService.isAlreadyFollowingBatch(
+        "123",
+        null as any
+      );
+
+      expect(result).toBeInstanceOf(Set);
+      expect(result.size).toBe(0);
+    });
+  });
+
+  describe("fetchWhoToFollow", () => {
+    it("should return users not already followed", async () => {
+      // User 123 follows user 456
+      await userInteractionsService.createFollowRelation(
+        "123",
+        "456",
+        "ACCEPTED"
+      );
+
+      const result = await userInteractionsService.fetchWhoToFollow("123", 5);
+
+      expect(result).toBeDefined();
+      expect(Array.isArray(result)).toBe(true);
+      // Should not include user 456 (already followed) or user 123 (self)
+      const userIds = result.map((u: any) => u.id);
+      expect(userIds).not.toContain("123");
+      expect(userIds).not.toContain("456");
+    });
+
+    it("should respect the limit parameter", async () => {
+      const result = await userInteractionsService.fetchWhoToFollow("123", 2);
+
+      expect(result).toBeDefined();
+      expect(result.length).toBeLessThanOrEqual(2);
+    });
+
+    it("should return users with correct format", async () => {
+      const result = await userInteractionsService.fetchWhoToFollow("123", 5);
+
+      if (result.length > 0) {
+        const user = result[0];
+        expect(user).toHaveProperty("id");
+        expect(user).toHaveProperty("name");
+        expect(user).toHaveProperty("username");
+        expect(user).toHaveProperty("bio");
+        expect(user).toHaveProperty("profileMedia");
+        expect(user).toHaveProperty("verified");
+        expect(user).toHaveProperty("followersCount");
+        expect(user).toHaveProperty("isFollowed");
+        expect(user.isFollowed).toBe(false);
+      }
+    });
+
+    it("should exclude users with pending follow requests", async () => {
+      // User 123 sent pending request to user 789
+      await userInteractionsService.createFollowRelation(
+        "123",
+        "789",
+        "PENDING"
+      );
+
+      const result = await userInteractionsService.fetchWhoToFollow("123", 10);
+
+      const userIds = result.map((u: any) => u.id);
+      expect(userIds).not.toContain("789");
+    });
+
+    it("should return users sorted by follower count", async () => {
+      const result = await userInteractionsService.fetchWhoToFollow("123", 10);
+
+      // Verify sorting by follower count (descending)
+      if (result.length > 1) {
+        for (let i = 0; i < result.length - 1; i++) {
+          expect(result[i].followersCount).toBeGreaterThanOrEqual(
+            result[i + 1].followersCount
+          );
+        }
+      }
     });
   });
 });

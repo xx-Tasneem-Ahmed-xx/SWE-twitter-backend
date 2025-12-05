@@ -16,6 +16,20 @@ export async function enqueueHashtagJob(payload: HashtagJobData) {
   });
 }
 
+export async function enqueueCategorizeTweetJob(payload: HashtagJobData) {
+  await hashtagsQueue.add("categorize-tweet", payload, {
+    attempts: 5,
+    backoff: {
+      type: "exponential",
+      delay: 3000,
+    },
+    delay: 0,
+    lifo: false,
+    removeOnComplete: { age: 3600, count: 500 }, // 1 hour
+    removeOnFail: { age: 86400, count: 500 }, // 24 hours
+  });
+}
+
 export async function enqueueTrendUpdateJob(payload: TrendUpdateJobData) {
   await trendsQueue.add("calculate", payload, {
     attempts: 3,
@@ -26,7 +40,7 @@ export async function enqueueTrendUpdateJob(payload: TrendUpdateJobData) {
     removeOnComplete: { count: 100 },
     removeOnFail: { count: 100 },
     repeat: {
-      pattern: "*/30 * * * *", // Every 30 minutes (cron format)
+      pattern: "*/15 * * * *", // Every 15 minutes (cron format)
     },
   });
 }
