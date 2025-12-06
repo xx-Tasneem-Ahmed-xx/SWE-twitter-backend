@@ -1,5 +1,6 @@
 jest.mock("@/api/controllers/notificationController", () => ({
   getNotificationList: jest.fn(),
+  getMentionNotifications: jest.fn(),
   getUnseenNotificationsCount: jest.fn(),
   getUnseenNotifications: jest.fn(),
   markNotificationsAsRead: jest.fn(),
