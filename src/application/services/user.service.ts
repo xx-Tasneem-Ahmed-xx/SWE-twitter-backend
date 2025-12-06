@@ -1,7 +1,7 @@
 import prisma from "../../database";
 import { UpdateUserProfileDTO, UserProfileResponseDTO } from "../dtos/user.dto";
 import { OSType } from "@prisma/client";
-import { AppError } from "@/errors/AppError";
+import * as responseUtils from "@/application/utils/response.utils";
 import bcrypt from "bcrypt";
 import { getKey } from "@/application/services/secrets";
 
@@ -139,10 +139,7 @@ export class UserService {
         where: { username: data.username },
       });
       if (existingUser && existingUser.id !== id) {
-        throw new AppError(
-          "Username already exists. Please choose another.",
-          400
-        );
+        responseUtils.throwError("USERNAME_ALREADY_TAKEN");
       }
     }
 
@@ -364,10 +361,7 @@ export class UserService {
     const defaultProfilePicId = await getKey(DEFAULT_PROFILE_PIC_ID);
 
     if (!defaultProfilePicId) {
-      throw new AppError(
-        "DEFAULT_PROFILE_PIC_ID is missing from environment variables or AWS secrets",
-        500
-      );
+      responseUtils.throwError("DEFAULT_PROFILE_PIC_ID_MISSING");
     }
 
     // 2) Fetch user to check if they already have default pic
@@ -377,12 +371,12 @@ export class UserService {
     });
 
     if (!user) {
-      throw new AppError("User not found", 404);
+      responseUtils.throwError("NOT_FOUND");
     }
 
     // Prevent deleting the default picture again
-    if (user.profileMediaId === defaultProfilePicId) {
-      throw new AppError("User already has the default profile picture", 400);
+    if (user!.profileMediaId === defaultProfilePicId) {
+      responseUtils.throwError("USER_ALREADY_HAS_DEFAULT_PICTURE");
     }
 
     // 3) Update user's profile photo to the default one

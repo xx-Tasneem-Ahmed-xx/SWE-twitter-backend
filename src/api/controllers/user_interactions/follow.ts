@@ -1,10 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
-import { AppError } from "@/errors/AppError";
-import {
-  UserInteractionParamsSchema,
-  UserInteractionQuerySchema,
-} from "@/application/dtos/userInteractions/userInteraction.dto.schema";
+import * as responseUtils from "@/application/utils/response.utils";
+import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 import {
   createFollowRelationAndNotify,
   removeFollowRelation,
@@ -14,6 +11,7 @@ import {
   getFollowersList,
   getFollowingsList,
 } from "@/application/services/userInteractions";
+import { getFollowListHandler } from "./helpers";
 
 // Follow a user using their username
 export const followUser = async (
@@ -29,20 +27,15 @@ export const followUser = async (
     const userToFollow = await resolveUsernameToId(username);
 
     if (userToFollow.id === currentUserId)
-      throw new AppError("Cannot follow yourself", 400);
+      responseUtils.throwError("CANNOT_FOLLOW_SELF");
     const isBlocked = await checkBlockStatus(currentUserId, userToFollow.id);
-    if (isBlocked)
-      throw new AppError(
-        "Cannot follow a user you have blocked or who has blocked you",
-        403
-      );
+    if (isBlocked) responseUtils.throwError("CANNOT_FOLLOW_BLOCKED_USER");
+
     const existingFollow = await isAlreadyFollowing(
       currentUserId,
       userToFollow.id
     );
-    if (existingFollow)
-      throw new AppError("You are already following this user", 400);
-
+    if (existingFollow) responseUtils.throwError("ALREADY_FOLLOWING");
     const followStatus = userToFollow.protectedAccount ? "PENDING" : "ACCEPTED";
     await createFollowRelationAndNotify(
       currentUserId,
@@ -51,11 +44,10 @@ export const followUser = async (
       (req as any).user.username
     );
 
-    const statusCode = userToFollow.protectedAccount ? 202 : 201;
-    const message = userToFollow.protectedAccount
-      ? "Follow request sent"
-      : "Successfully followed user";
-    return res.status(statusCode).json({ message });
+    const key = userToFollow.protectedAccount
+      ? "FOLLOW_REQUEST_SENT"
+      : "SUCCESSFULLY_FOLLOWED_USER";
+    return responseUtils.sendResponse(res, key);
   } catch (error) {
     next(error);
   }
@@ -78,16 +70,14 @@ export const unfollowUser = async (
       currentUserId,
       userToUnfollow.id
     );
-    if (!existingFollow)
-      throw new AppError("You are not following this user", 400);
+    if (!existingFollow) responseUtils.throwError("NOT_FOLLOWING_USER");
 
     await removeFollowRelation(currentUserId, userToUnfollow.id);
-    const statusCode = existingFollow.status === "PENDING" ? 202 : 200;
-    const message =
-      existingFollow.status === "PENDING"
-        ? "Follow request cancelled"
-        : "Successfully unfollowed user";
-    return res.status(statusCode).json({ message });
+    const key =
+      existingFollow?.status === "PENDING"
+        ? "FOLLOW_REQUEST_CANCELLED"
+        : "UNFOLLOWED_USER";
+    return responseUtils.sendResponse(res, key);
   } catch (error) {
     next(error);
   }
@@ -107,19 +97,16 @@ export const acceptFollow = async (
     const follower = await resolveUsernameToId(username);
 
     const existingFollow = await isAlreadyFollowing(follower.id, currentUserId);
-    if (!existingFollow) throw new AppError("No follow request found", 404);
-    if (existingFollow.status === "ACCEPTED")
-      throw new AppError("Follow request already accepted", 409);
+    if (!existingFollow) responseUtils.throwError("NO_FOLLOW_REQUEST_FOUND");
+    if (existingFollow?.status === "ACCEPTED")
+      responseUtils.throwError("FOLLOW_ALREADY_ACCEPTED");
 
     await updateFollowStatusAndNotify(
       follower.id,
       currentUserId,
       (req as any).user.username
     );
-
-    return res.status(200).json({
-      message: "Follow request accepted",
-    });
+    responseUtils.sendResponse(res, "FOLLOW_REQUEST_ACCEPTED");
   } catch (error) {
     next(error);
   }
@@ -140,17 +127,14 @@ export const declineFollow = async (
     const follower = await resolveUsernameToId(username);
 
     const existingFollow = await isAlreadyFollowing(follower.id, currentUserId);
-    if (!existingFollow) throw new AppError("No follow request found", 404);
+    if (!existingFollow) responseUtils.throwError("NO_FOLLOW_REQUEST_FOUND");
 
     await removeFollowRelation(follower.id, currentUserId);
-    const statusCode = existingFollow.status === "PENDING" ? 202 : 200;
-    const message =
-      existingFollow.status === "PENDING"
-        ? "Follow request declined"
-        : "Follower removed";
-    return res.status(statusCode).json({
-      message,
-    });
+    const key =
+      existingFollow?.status === "PENDING"
+        ? "FOLLOW_REQUEST_DECLINED"
+        : "UNFOLLOWED_USER";
+    responseUtils.sendResponse(res, key);
   } catch (error) {
     next(error);
   }
@@ -162,41 +146,15 @@ export const getFollowers = async (
   res: Response,
   next: NextFunction
 ) => {
-  try {
-    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
-    if (!paramsResult.success) throw paramsResult.error;
-    const { username } = paramsResult.data;
-    const currentUserId = (req as any).user.id;
-    const user = await resolveUsernameToId(username);
-
-    const isBlocked = await checkBlockStatus(user.id, currentUserId);
-    if (isBlocked)
-      throw new AppError(
-        "Cannot view followers of blocked users or who have blocked you",
-        403
-      );
-
-    const queryResult = UserInteractionQuerySchema.safeParse(req.query);
-    if (!queryResult.success) throw queryResult.error;
-    const { cursor, limit } = queryResult.data;
-
-    let cursorId: string | undefined;
-    if (cursor) {
-      const decodedUsername = Buffer.from(cursor, "base64").toString("utf8");
-      const resolved = await resolveUsernameToId(decodedUsername);
-      cursorId = resolved.id;
-    }
-
-    const followersData = await getFollowersList(
-      user.id,
-      currentUserId,
-      cursorId,
-      limit
-    );
-    return res.status(200).json(followersData);
-  } catch (error) {
-    next(error);
-  }
+  return getFollowListHandler(
+    req,
+    res,
+    next,
+    "followers",
+    getFollowersList,
+    getFollowingsList,
+    checkBlockStatus
+  );
 };
 
 // Get a list of followings for a user by their username
@@ -205,40 +163,13 @@ export const getFollowings = async (
   res: Response,
   next: NextFunction
 ) => {
-  try {
-    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
-    if (!paramsResult.success) throw paramsResult.error;
-    const { username } = paramsResult.data;
-    const currentUserId = (req as any).user.id;
-    const user = await resolveUsernameToId(username);
-
-    const isBlocked = await checkBlockStatus(user.id, currentUserId);
-    if (isBlocked)
-      throw new AppError(
-        "Cannot view followings of blocked users or who have blocked you",
-        403
-      );
-
-    const queryResult = UserInteractionQuerySchema.safeParse(req.query);
-    if (!queryResult.success) throw queryResult.error;
-    const { cursor, limit } = queryResult.data;
-
-    let cursorId: string | undefined;
-    if (cursor) {
-      const decodedUsername = Buffer.from(cursor, "base64").toString("utf8");
-      const resolved = await resolveUsernameToId(decodedUsername);
-      cursorId = resolved.id;
-    }
-
-    const followingsData = await getFollowingsList(
-      user.id,
-      currentUserId,
-      cursorId,
-      limit
-    );
-
-    return res.status(200).json(followingsData);
-  } catch (error) {
-    next(error);
-  }
+  return getFollowListHandler(
+    req,
+    res,
+    next,
+    "followings",
+    getFollowersList,
+    getFollowingsList,
+    checkBlockStatus
+  );
 };

@@ -18,7 +18,7 @@ export const registerTimelineAndExploreDocs = (registry: OpenAPIRegistry) => {
     summary: "Get tweets or trends by category",
     description:
       "Fetch public tweets or trending content filtered by category (sports, news, or entertainment).",
-    tags: ["Timeline and Explore"],
+    tags: ["Timeline"],
     request: { params: CategoryParams, query: CursorDTOSchema },
     responses: {
       200: {
@@ -42,7 +42,7 @@ export const registerTimelineAndExploreDocs = (registry: OpenAPIRegistry) => {
     summary: "Get personalized recommended tweets",
     description:
       "Fetch tweets recommended to the user based on interests, engagement history, and trending content. Requires authentication.",
-    tags: ["Timeline and Explore"],
+    tags: ["Timeline"],
     security: [{ bearerAuth: [] }],
     request: { query: CursorDTOSchema },
     responses: {
@@ -66,7 +66,7 @@ export const registerTimelineAndExploreDocs = (registry: OpenAPIRegistry) => {
     path: "/api/home/timeline",
     summary: "Get timeline tweets",
     description: "Fetches tweets from users the current user follows.",
-    tags: ["Timeline and Explore"],
+    tags: ["Timeline"],
     request: { query: CursorDTOSchema },
     responses: {
       200: {

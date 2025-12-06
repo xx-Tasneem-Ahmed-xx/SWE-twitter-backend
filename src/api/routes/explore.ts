@@ -7,8 +7,9 @@ const exploreController = new ExploreController();
 router.route("/categories").get(exploreController.getCategories);
 
 router
-  .route("/preferred-categories")
-  .post(exploreController.saveUserPreferredCategories);
+.route("/preferred-categories")
+.post(exploreController.saveUserPreferredCategories);
 
+router.route("/").get(exploreController.getFeed);
 
 export default router;
