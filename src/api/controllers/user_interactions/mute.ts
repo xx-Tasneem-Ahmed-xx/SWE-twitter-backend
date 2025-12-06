@@ -1,10 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
-import { AppError } from "@/errors/AppError";
-import {
-  UserInteractionParamsSchema,
-  UserInteractionQuerySchema,
-} from "@/application/dtos/userInteractions/userInteraction.dto.schema";
+import * as responseUtils from "@/application/utils/response.utils";
 import {
   checkBlockStatus,
   checkMuteStatus,
@@ -12,6 +8,10 @@ import {
   removeMuteRelation,
   getMutedList,
 } from "@/application/services/userInteractions";
+import {
+  parseUsernameParam,
+  getUserListHandler as getListHandler,
+} from "./helpers";
 
 // mute a user using their username
 export const muteUser = async (
@@ -20,26 +20,20 @@ export const muteUser = async (
   next: NextFunction
 ) => {
   try {
-    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
-    if (!paramsResult.success) throw paramsResult.error;
-    const { username } = paramsResult.data;
+    const username = parseUsernameParam(req);
     const currentUserId = (req as any).user.id;
     const userToMute = await resolveUsernameToId(username);
 
     if (userToMute.id === currentUserId)
-      throw new AppError("Cannot mute yourself", 400);
+      responseUtils.throwError("CANNOT_MUTE_SELF");
+
     const isMuted = await checkMuteStatus(currentUserId, userToMute.id);
-    if (isMuted) throw new AppError("You are already muting this user", 400);
+    if (isMuted) responseUtils.throwError("ALREADY_MUTING");
+
     const isBlocked = await checkBlockStatus(currentUserId, userToMute.id);
-    if (isBlocked)
-      throw new AppError(
-        "Can't mute blocked users /users who blocked you",
-        403
-      );
+    if (isBlocked) responseUtils.throwError("MUTE_BLOCKED_USER");
     await createMuteRelation(currentUserId, userToMute.id);
-    return res.status(201).json({
-      message: "User muted successfully",
-    });
+    return responseUtils.sendResponse(res, "USER_MUTED");
   } catch (error) {
     next(error);
   }
@@ -52,19 +46,15 @@ export const unmuteUser = async (
   next: NextFunction
 ) => {
   try {
-    const paramsResult = UserInteractionParamsSchema.safeParse(req.params);
-    if (!paramsResult.success) throw paramsResult.error;
-    const { username } = paramsResult.data;
+    const username = parseUsernameParam(req);
     const currentUserId = (req as any).user.id;
     const userToUnmute = await resolveUsernameToId(username);
 
     const isMuted = await checkMuteStatus(currentUserId, userToUnmute.id);
-    if (!isMuted) throw new AppError("You are not muting this user", 400);
+    if (!isMuted) responseUtils.throwError("NOT_MUTING");
 
     await removeMuteRelation(currentUserId, userToUnmute.id);
-    return res.status(200).json({
-      message: "User unmuted successfully",
-    });
+    return responseUtils.sendResponse(res, "USER_UNMUTED");
   } catch (error) {
     next(error);
   }
@@ -76,22 +66,5 @@ export const getMutedUsers = async (
   res: Response,
   next: NextFunction
 ) => {
-  try {
-    const currentUserId = (req as any).user.id;
-    const queryResult = UserInteractionQuerySchema.safeParse(req.query);
-    if (!queryResult.success) throw queryResult.error;
-
-    const { cursor, limit } = queryResult.data;
-    let cursorId: string | undefined;
-    if (cursor) {
-      const decodedUsername = Buffer.from(cursor, "base64").toString("utf-8");
-      const resolved = await resolveUsernameToId(decodedUsername);
-      cursorId = resolved.id;
-    }
-    const mutedUsersData = await getMutedList(currentUserId, cursorId, limit);
-
-    return res.status(200).json(mutedUsersData);
-  } catch (error) {
-    next(error);
-  }
+  return getListHandler(req, res, next, getMutedList);
 };

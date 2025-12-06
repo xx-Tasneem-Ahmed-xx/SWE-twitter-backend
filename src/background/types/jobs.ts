@@ -1,6 +1,4 @@
-import { NotificationInputSchema } from "@/application/dtos/notification/notification.dto.schema";
 import { NotificationTitle } from "@prisma/client";
-
 
 export type HashtagJobData = {
   tweetId: string;
@@ -9,6 +7,10 @@ export type HashtagJobData = {
 
 export type TrendUpdateJobData = {
   periodHours: number;
+};
+
+export type ExploreJobData = {
+  tweetId: string;
 };
 
 export type NotificationJobData = {

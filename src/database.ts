@@ -1,21 +1,7 @@
-import { PrismaClient } from "@prisma/client";
 import { getSecrets } from "./config/secrets";
+import { prisma as clientPrisma } from "@/prisma/client";
 
-// Singleton pattern to prevent multiple Prisma instances
-declare global {
-  var __prisma: PrismaClient | undefined;
-}
-
-// Only create Prisma instance once
-const prisma =
-  globalThis.__prisma ||
-  new PrismaClient({
-    log: ["error", "warn"],
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalThis.__prisma = prisma;
-}
+const prisma = clientPrisma;
 
 export async function connectToDatabase() {
   try {
@@ -74,5 +60,9 @@ export async function createSampleUser() {
     throw error;
   }
 }
+
+(prisma as any).connectToDatabase = connectToDatabase;
+(prisma as any).disconnectFromDatabase = disconnectFromDatabase;
+(prisma as any).createSampleUser = createSampleUser;
 
 export default prisma;

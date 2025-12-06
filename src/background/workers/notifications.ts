@@ -1,85 +1,107 @@
 import { Worker } from "bullmq";
+import { redisClient, initRedis } from "@/config/redis";
 import { bullRedisConfig } from "@/background/config/redis";
 import { prisma } from "@/prisma/client";
-import type { NotificationJobData } from "@/background/types/jobs";
-import { redisClient } from "@/config/redis";
-import {
-  sendOverSocket,
-  sendOverFCM,
-} from "@/application/services/notification";
+import { loadSecrets } from "@/config/secrets";
 
-enum notificationBodies {
-  LIKE = "liked your tweet",
-  REPLY = "replied to your tweet",
-  RETWEET = "retweeted your tweet",
-  QUOTE = "quoted your tweet",
-  MENTION = "mentioned you in a tweet",
+async function startWorker() {
+  await initRedis();
+  await loadSecrets();
+
+  const { sendOverSocket, sendOverFCM } = await import(
+    "@/application/services/notification"
+  );
+
+  enum notificationBodies {
+    LIKE = "liked your tweet",
+    REPLY = "replied to your tweet",
+    RETWEET = "retweeted your tweet",
+    QUOTE = "quoted your tweet",
+    MENTION = "mentioned you in a tweet",
+  }
+
+  const worker = new Worker(
+    "notifications",
+    async (job) => {
+      const { recipientId, title, tweetId } = job.data;
+      const key = `notifications:${recipientId}-${title}-tweet:${tweetId}`;
+
+      const items = await redisClient.lRange(key, 0, -1);
+      if (items.length === 0) {
+        return;
+      }
+      let newNotification;
+      if (items.length === 1) {
+        const notification = JSON.parse(items[0]);
+        newNotification = await prisma.notification.create({
+          data: notification,
+          include: {
+            actor: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                profileMediaId: true,
+              },
+            },
+          },
+        });
+      } else {
+        const notifications = items.map((x) => JSON.parse(x));
+        const firstActor = await prisma.user.findUnique({
+          where: { id: notifications[0].actorId },
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            profileMediaId: true,
+          },
+        });
+        const aggregatedNotification = {
+          userId: recipientId,
+          title: title,
+          body: `${firstActor?.name} + ${notifications.length - 1} others ${
+            notificationBodies[title as keyof typeof notificationBodies]
+          }`,
+          tweetId: notifications[0].tweetId,
+          actorId: firstActor?.id!,
+          isRead: false,
+        };
+        newNotification = await prisma.notification.create({
+          data: aggregatedNotification,
+          include: {
+            actor: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                profileMediaId: true,
+              },
+            },
+          },
+        });
+      }
+      sendOverSocket(recipientId, newNotification);
+      await sendOverFCM(
+        recipientId,
+        newNotification.title,
+        newNotification.body,
+        { newNotification }
+      );
+      await redisClient.del(key);
+    },
+    { connection: bullRedisConfig }
+  );
+  worker.on("completed", (job) => {
+    console.log(`Job ${job.id} completed`);
+  });
+
+  worker.on("failed", (job, err) => {
+    console.error(`Job ${job?.id} failed:`, err);
+  });
 }
 
-new Worker(
-  "notificationBufferQueue",
-  async (job) => {
-    const { recipientId, title, tweetId } = job.data;
-    const key = `notifications:${recipientId}-${title}-tweet:${tweetId}`;
-
-    const items = await redisClient.lRange(key, 0, -1);
-    if (items.length === 0) {
-      return;
-    }
-    let newNotification;
-    if (items.length === 1) {
-      const notification = JSON.parse(items[0]);
-      newNotification = await prisma.notification.create({
-        data: notification,
-        include: {
-          actor: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              profileMediaId: true,
-            },
-          },
-        },
-      });
-    } else {
-      const notifications = items.map((x) => JSON.parse(x));
-      const firstActor = await prisma.user.findUnique({
-        where: { id: notifications[0].actorId },
-        select: { id: true, name: true, username: true, profileMediaId: true },
-      });
-      const aggregatedNotification = {
-        userId: recipientId,
-        title: title,
-        body: `${firstActor?.name} + ${notifications.length - 1} others ${
-          notificationBodies[title as keyof typeof notificationBodies]
-        }`,
-        tweetId: notifications[0].tweetId,
-        actorId: firstActor?.id!,
-        isRead: false,
-      };
-      newNotification = await prisma.notification.create({
-        data: aggregatedNotification,
-        include: {
-          actor: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              profileMediaId: true,
-            },
-          },
-        },
-      });
-    }
-    sendOverSocket(recipientId, newNotification);
-    await sendOverFCM(
-      recipientId,
-      newNotification.title,
-      newNotification.body,
-      { newNotification }
-    );
-    await redisClient.del(key);
-  },
-  { connection: bullRedisConfig }
-);
+startWorker().catch((err) => {
+  console.error("Worker (notifications) failed to start:", err);
+  throw err;
+});

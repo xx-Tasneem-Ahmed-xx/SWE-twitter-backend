@@ -1,5 +1,7 @@
 import { prisma, FollowStatus } from "@/prisma/client";
-import { AppError } from "@/errors/AppError";
+import * as responseUtils from "@/application/utils/response.utils";
+import { addNotification } from "./notification";
+import { NotificationTitle } from "@prisma/client";
 
 // Create a follow relationship
 export const createFollowRelation = async (
@@ -20,10 +22,48 @@ export const createFollowRelation = async (
     });
   } catch (error: any) {
     if (error?.code === "P2002") {
-      throw new AppError("Already following this user", 400);
+      responseUtils.throwError("ALREADY_FOLLOWING");
     }
     throw error;
   }
+};
+
+// Create follow relation then trigger notification (service-level helper)
+export const createFollowRelationAndNotify = async (
+  followerId: string,
+  followingId: string,
+  followStatus: string,
+  actorUsername?: string
+) => {
+  const follow = await createFollowRelation(
+    followerId,
+    followingId,
+    followStatus
+  );
+
+  // fire notification, but don't let it break the main flow
+  try {
+    const title =
+      followStatus === "PENDING"
+        ? NotificationTitle.REQUEST_TO_FOLLOW
+        : NotificationTitle.FOLLOW;
+    const body =
+      followStatus === "PENDING"
+        ? `requested to follow you`
+        : `started following you`;
+
+    // fire notification (async) - errors handled by try/catch
+    await addNotification(followingId as any, {
+      title,
+      body,
+      actorId: followerId,
+      tweetId: undefined,
+    });
+  } catch (err) {
+    console.error("Failed to send follow notification:", err);
+  }
+
+  return follow;
 };
 
 // Remove a follow relationship
@@ -57,6 +97,29 @@ export const updateFollowStatus = async (
       status: FollowStatus.ACCEPTED,
     },
   });
+};
+
+// Update follow status (from PENDING to ACCEPTED) and notify the follower
+export const updateFollowStatusAndNotify = async (
+  followerId: string,
+  followingId: string,
+  actorUsername?: string
+) => {
+  const updated = await updateFollowStatus(followerId, followingId);
+
+  try {
+    const body = `accepted your follow request`;
+    await addNotification(followerId as any, {
+      title: NotificationTitle.ACCEPTED_FOLLOW,
+      body,
+      actorId: followingId,
+      tweetId: undefined,
+    });
+  } catch (err) {
+    console.error("Failed to send accepted-follow notification:", err);
+  }
+
+  return updated;
 };
 
 // Check if user is already following another user and return the relationship with status if found
@@ -118,6 +181,16 @@ type UserData = {
   verified: boolean;
 };
 
+// Standard user selection fields for list queries
+const USER_SELECT_FIELDS = {
+  id: true,
+  username: true,
+  name: true,
+  bio: true,
+  verified: true,
+  profileMediaId: true,
+} as const;
+
 // Helper function to check follow relationships between users and current user
 const checkMutualFollowStatus = async (
   userIds: string[],
@@ -151,13 +224,24 @@ const checkMutualFollowStatus = async (
 };
 
 // Helper function to format user data for response
+type FormatUserOptions = {
+  isFollowing?: boolean;
+  isFollower?: boolean;
+  youRequested?: boolean;
+  followStatus?: FollowStatus | "NONE";
+};
+
 const formatUserForResponse = (
   user: UserData,
-  isFollowing: boolean = false,
-  isFollower: boolean = false,
-  youRequested: boolean = false,
-  followStatus: FollowStatus | "NONE" = "NONE"
+  options: FormatUserOptions = {}
 ) => {
+  const {
+    isFollowing = false,
+    isFollower = false,
+    youRequested = false,
+    followStatus = "NONE",
+  } = options;
+
   return {
     username: user.username,
     name: user.name,
@@ -168,7 +252,7 @@ const formatUserForResponse = (
     isFollower,
     youRequested,
     followStatus,
-  } as any;
+  };
 };
 
 // Helper to compute the nextCursor (username-base64) from the last row of a page
@@ -219,29 +303,32 @@ const getRelationToTargetStatuses = async (
   return m;
 };
 
-// Get followers list by status (followers or requests)
-export const getFollowersList = async (
-  userId: string,
-  currentUserId: string,
-  followStatus: FollowStatus,
-  cursorId?: string,
-  limit: number = 30
-) => {
+// Generic helper to fetch paginated user lists with relationship data
+type UserListOptions = {
+  where: any;
+  currentUserId: string;
+  targetUserId: string;
+  relationDirection?: "EtoT" | "TtoE";
+  includeRelationships?: boolean;
+  cursorId?: string;
+  limit?: number;
+};
+
+const fetchPaginatedUserList = async ({
+  where,
+  currentUserId,
+  targetUserId,
+  relationDirection = "EtoT",
+  includeRelationships = true,
+  cursorId,
+  limit = 30,
+}: UserListOptions) => {
   const effectiveLimit = Math.min(Math.max(limit, 1), 100);
   const take = effectiveLimit + 1; // fetch one extra to detect hasMore
 
   const q: any = {
-    where: {
-      followings: { some: { followingId: userId } },
-    },
-    select: {
-      id: true,
-      username: true,
-      name: true,
-      bio: true,
-      verified: true,
-      profileMediaId: true,
-    },
+    where,
+    select: USER_SELECT_FIELDS,
     orderBy: { id: "asc" },
     take,
   };
@@ -255,39 +342,62 @@ export const getFollowersList = async (
   const hasMore = rows.length === take;
   const page = hasMore ? rows.slice(0, -1) : rows;
 
-  const userIds = page.map((u: any) => u.id);
-  const { followedByCurrentUserSet, followingCurrentUserSet } =
-    await checkMutualFollowStatus(userIds, currentUserId);
+  let users;
+  if (includeRelationships) {
+    const userIds = page.map((u: any) => u.id);
+    const { followedByCurrentUserSet, followingCurrentUserSet } =
+      await checkMutualFollowStatus(userIds, currentUserId);
 
-  const pendingRequestsSentByCurrentUserSet = await isAlreadyFollowingBatch(
-    currentUserId,
-    userIds,
-    FollowStatus.PENDING
-  );
-
-  // compute relationToTarget for followers list: returned user (E) -> target (userId)
-  const relationMap = await getRelationToTargetStatuses(
-    userIds,
-    userId,
-    "EtoT"
-  );
-
-  const users = page.map((user: any) => {
-    const isFollowing = followedByCurrentUserSet.has(user.id);
-    const isFollower = followingCurrentUserSet.has(user.id);
-    const youRequested = pendingRequestsSentByCurrentUserSet.has(user.id);
-    const followStatus = (relationMap.get(user.id) as FollowStatus) ?? "NONE";
-    return formatUserForResponse(
-      user,
-      isFollowing,
-      isFollower,
-      youRequested,
-      followStatus
+    const pendingRequestsSentByCurrentUserSet = await isAlreadyFollowingBatch(
+      currentUserId,
+      userIds,
+      FollowStatus.PENDING
     );
-  });
+
+    const relationMap = await getRelationToTargetStatuses(
+      userIds,
+      targetUserId,
+      relationDirection
+    );
+
+    users = page.map((user: any) => {
+      const isFollowing = followedByCurrentUserSet.has(user.id);
+      const isFollower = followingCurrentUserSet.has(user.id);
+      const youRequested = pendingRequestsSentByCurrentUserSet.has(user.id);
+      const followStatus = (relationMap.get(user.id) as FollowStatus) ?? "NONE";
+      return formatUserForResponse(user, {
+        isFollowing,
+        isFollower,
+        youRequested,
+        followStatus,
+      });
+    });
+  } else {
+    users = page.map((user: any) => formatUserForResponse(user));
+  }
 
   const nextCursor = await computeNextCursor(page, hasMore);
   return { users, nextCursor, hasMore };
+};
+
+// Get followers list by status (followers or requests)
+export const getFollowersList = async (
+  userId: string,
+  currentUserId: string,
+  cursorId?: string,
+  limit: number = 30
+) => {
+  return fetchPaginatedUserList({
+    where: {
+      followings: { some: { followingId: userId } },
+    },
+    currentUserId,
+    targetUserId: userId,
+    relationDirection: "EtoT",
+    includeRelationships: true,
+    cursorId,
+    limit,
+  });
 };
 
 // Get list of followings with mutual follow information
@@ -297,69 +407,19 @@ export const getFollowingsList = async (
   cursorId?: string,
   limit: number = 30
 ) => {
-  const effectiveLimit = Math.min(Math.max(limit, 1), 100);
-  const take = effectiveLimit + 1;
-
-  const q: any = {
+  return fetchPaginatedUserList({
     where: {
       followers: {
         some: { followerId: userId },
       },
     },
-    select: {
-      id: true,
-      username: true,
-      name: true,
-      bio: true,
-      verified: true,
-      profileMediaId: true,
-    },
-    orderBy: { id: "asc" },
-    take,
-  };
-
-  if (cursorId) {
-    q.cursor = { id: cursorId };
-    q.skip = 1;
-  }
-
-  const rows = await prisma.user.findMany(q);
-  const hasMore = rows.length === take;
-  const page = hasMore ? rows.slice(0, -1) : rows;
-
-  const userIds = page.map((u: any) => u.id);
-  const { followedByCurrentUserSet, followingCurrentUserSet } =
-    await checkMutualFollowStatus(userIds, currentUserId);
-
-  const pendingRequestsSentByCurrentUserSet = await isAlreadyFollowingBatch(
     currentUserId,
-    userIds,
-    FollowStatus.PENDING
-  );
-
-  // compute relationToTarget for followings list: target (userId) -> returned user (E)
-  const relationMap = await getRelationToTargetStatuses(
-    userIds,
-    userId,
-    "TtoE"
-  );
-
-  const users = page.map((user: any) => {
-    const isFollowing = followedByCurrentUserSet.has(user.id);
-    const isFollower = followingCurrentUserSet.has(user.id);
-    const youRequested = pendingRequestsSentByCurrentUserSet.has(user.id);
-    const followStatus = (relationMap.get(user.id) as FollowStatus) ?? "NONE";
-    return formatUserForResponse(
-      user,
-      isFollowing,
-      isFollower,
-      youRequested,
-      followStatus
-    );
+    targetUserId: userId,
+    relationDirection: "TtoE",
+    includeRelationships: true,
+    cursorId,
+    limit,
   });
-
-  const nextCursor = await computeNextCursor(page, hasMore);
-  return { users, nextCursor, hasMore };
 };
 
 // Block a user
@@ -392,7 +452,7 @@ export const createBlockRelation = async (
     });
   } catch (error) {
     console.error("Create block relation error:", error);
-    throw new AppError("Failed to create block relation", 500);
+    responseUtils.throwError("FAILED_TO_CREATE_BLOCK");
   }
 };
 
@@ -412,7 +472,7 @@ export const removeBlockRelation = async (
     });
   } catch (error) {
     console.error("Remove block relation error:", error);
-    throw new AppError("Failed to remove block relation", 500);
+    responseUtils.throwError("FAILED_TO_REMOVE_BLOCK");
   }
 };
 
@@ -422,36 +482,14 @@ export const getBlockedList = async (
   cursorId?: string,
   limit: number = 30
 ) => {
-  const effectiveLimit = Math.min(Math.max(limit, 1), 100);
-  const take = effectiveLimit + 1;
-
-  const q: any = {
+  return fetchPaginatedUserList({
     where: { blocked: { some: { blockerId } } },
-    select: {
-      id: true,
-      username: true,
-      name: true,
-      bio: true,
-      verified: true,
-      profileMediaId: true,
-    },
-    orderBy: { id: "asc" },
-    take,
-  };
-  if (cursorId) {
-    q.cursor = { id: cursorId };
-    q.skip = 1;
-  }
-
-  const rows = await prisma.user.findMany(q);
-  const hasMore = rows.length === take;
-  const page = hasMore ? rows.slice(0, -1) : rows;
-  const users = page.map((user: any) =>
-    formatUserForResponse(user, false, false, false)
-  );
-  const nextCursor = await computeNextCursor(page, hasMore);
-
-  return { users, nextCursor, hasMore };
+    currentUserId: blockerId,
+    targetUserId: blockerId,
+    includeRelationships: false,
+    cursorId,
+    limit,
+  });
 };
 
 // check if user is muted by muterId
@@ -476,7 +514,7 @@ export const createMuteRelation = async (muterId: string, mutedId: string) => {
     });
   } catch (error) {
     console.error("Mute user error:", error);
-    throw new AppError("Failed to create mute relation", 500);
+    responseUtils.throwError("FAILED_TO_CREATE_MUTE");
   }
 };
 
@@ -493,7 +531,7 @@ export const removeMuteRelation = async (muterId: string, mutedId: string) => {
     });
   } catch (error) {
     console.error("Remove mute relation error:", error);
-    throw new AppError("Failed to remove mute relation", 500);
+    responseUtils.throwError("FAILED_TO_REMOVE_MUTE");
   }
 };
 
@@ -503,33 +541,57 @@ export const getMutedList = async (
   cursorId?: string,
   limit: number = 30
 ) => {
-  const effectiveLimit = Math.min(Math.max(limit, 1), 100);
-  const take = effectiveLimit + 1;
-
-  const q: any = {
+  return fetchPaginatedUserList({
     where: { muted: { some: { muterId } } },
+    currentUserId: muterId,
+    targetUserId: muterId,
+    relationDirection: "TtoE",
+    includeRelationships: true,
+    cursorId,
+    limit,
+  });
+};
+
+// Fetch who to follow - top users by followers count
+export const fetchWhoToFollow = async (userId: string, limit: number = 30) => {
+  const users = await prisma.user.findMany({
+    where: {
+      id: { not: userId },
+      followers: {
+        none: {
+          followerId: userId,
+          status: { in: [FollowStatus.ACCEPTED, FollowStatus.PENDING] },
+        },
+      },
+    },
     select: {
       id: true,
-      username: true,
       name: true,
+      username: true,
       bio: true,
+      profileMedia: { select: { id: true } },
+      protectedAccount: true,
       verified: true,
-      profileMediaId: true,
+      _count: {
+        select: { followers: true },
+      },
     },
-    orderBy: { id: "asc" },
-    take,
-  };
-  if (cursorId) {
-    q.cursor = { id: cursorId };
-    q.skip = 1;
-  }
+    orderBy: {
+      followers: { _count: "desc" },
+    },
+    take: limit,
+  });
 
-  const rows = await prisma.user.findMany(q);
-  const hasMore = rows.length === take;
-  const page = hasMore ? rows.slice(0, -1) : rows;
-  const users = page.map((user: any) =>
-    formatUserForResponse(user, false, false, false)
-  );
-  const nextCursor = await computeNextCursor(page, hasMore);
-  return { users, nextCursor, hasMore };
+  return users.map((user) => ({
+    id: user.id,
+    name: user.name,
+    username: user.username,
+    profileMedia: user.profileMedia,
+    protectedAccount: user.protectedAccount,
+    verified: user.verified,
+    bio: user.bio,
+    followersCount: user._count.followers,
+
+    isFollowed: false,
+  }));
 };

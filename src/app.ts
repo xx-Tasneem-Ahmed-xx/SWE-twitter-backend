@@ -12,23 +12,32 @@ import ChatRouter from "@/api/routes/chatRoutes";
 import notificationRoutes from "@/api/routes/notificationRoutes";
 import mediaRouter from "@/api/routes/media";
 import tweetRoutes from "@/api/routes/tweets";
+import exploreRoutes from "@/api/routes/explore";
 import timelineRoutes from "@/api/routes/timeline";
 import userInteractionsRoutes from "@/api/routes/userInteractions";
 import userRouter from "@/api/routes/user.routes";
 import hashtagsRoutes from "@/api/routes/hashtags";
 import { errorHandler } from "@/api/middlewares/errorHandler";
-import  authRoutes  from "@/api/routes/authRoutes";
+import authRoutes from "@/api/routes/authRoutes";
 import Auth from "@/api/middlewares/Auth";
 import oauthRoutes from "./api/routes/oauthRoutes";
 import { S3Client } from "@aws-sdk/client-s3";
 import { StorageSystem } from "@/application/services/storeageSystem";
-import {admin, initializeFirebase} from './application/services/firebaseInitializer'
+import {
+  admin,
+  initializeFirebase,
+} from "./application/services/firebaseInitializer";
 import cookieParser from "cookie-parser";
 import { initializeSearchEngine } from "./api/controllers/SearchEngine";
 import { no } from "zod/v4/locales";
-import { Crawler, Parser, Indexer, SearchEngine } from './api/controllers/SearchEngine';
+import {
+  Crawler,
+  Parser,
+  Indexer,
+  SearchEngine,
+} from "./api/controllers/SearchEngine";
 // Type assertion for GeoGurd
-import { apiRoutes } from './api/routes/searchRoutes';
+import { apiRoutes } from "./api/routes/searchRoutes";
 import { PrismaClient } from "@prisma/client";
 import { getKey } from "./application/services/secrets";
 import { SSErequest } from "./application/services/ServerSideEvents";
@@ -61,10 +70,13 @@ export { socketService };
 
 initializeSearchEngine()
   .then(({ crawler, parser, indexer, searchEngine, persistence }) => {
-    app.use('/api', apiRoutes(crawler, parser, indexer, searchEngine, persistence));
+    app.use(
+      "/api",
+      apiRoutes(crawler, parser, indexer, searchEngine, persistence)
+    );
   })
   .catch((err) => {
-    console.error('Failed to initialize search engine:', err);
+    console.error("Failed to initialize search engine:", err);
   });
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
@@ -80,6 +92,7 @@ app.use("/api/notifications", notificationRoutes);
 
 app.use("/api/tweets", tweetRoutes);
 app.use("/api/home", timelineRoutes);
+app.use("/api/explore", exploreRoutes);
 app.use("/api/users", userRouter);
 app.use("/api/hashtags", hashtagsRoutes);
 app.use("/api", userInteractionsRoutes);

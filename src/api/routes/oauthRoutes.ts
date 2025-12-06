@@ -24,7 +24,7 @@ const router: Router = express.Router();
 /**
  * @openapi
  * /authorize/{provider}:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
  *     summary: Start OAuth 2.0 authorization flow
@@ -51,7 +51,7 @@ router.get("/authorize/:provider", typedOauthController.Authorize);
 /**
  * @openapi
  * /callback/google:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
  *     summary: Google OAuth callback
@@ -93,7 +93,7 @@ router.get("/callback/google", typedOauthController.CallbackGoogle);
 /**
  * @openapi
  * /callback/github:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
  *     summary: GitHub OAuth callback
@@ -131,10 +131,11 @@ router.get("/callback/google", typedOauthController.CallbackGoogle);
  *         description: Internal error during token exchange, user lookup, or login email notification.
  */
 router.get("/callback/github", typedOauthController.CallbackGithub);
+router.get("/callback/github_front", typedOauthController.CallbackGithubFront);
 /**
  * @openapi
  * /callback/android_google:
- *   get:
+ *   post:
  *     tags:
  *       - OAuth
  *     summary: Android Google OAuth callback
@@ -189,7 +190,7 @@ router.get("/callback/github", typedOauthController.CallbackGithub);
  *       500:
  *         description: Internal server error during token validation, user creation, or login email process.
  */
-router.get("/callback/android_google", typedOauthController.CallbackAndroidGoogle);
+router.post("/callback/android_google", typedOauthController.CallbackAndroidGoogle);
 
 // router.get("/callback/facebook", typedOauthController.CallbackFacebook);
 // router.get("/callback/linkedin", typedOauthController.CallbackLinkedin);

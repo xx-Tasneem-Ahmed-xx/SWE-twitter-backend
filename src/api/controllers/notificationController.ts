@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { prisma } from "@/prisma/client";
 import { NotificationInputSchema } from "@/application/dtos/notification/notification.dto.schema";
+import * as responseUtils from "@/application/utils/response.utils";
 import { socketService } from "../../app";
 import { sendPushNotification } from "@/application/services/FCMService";
 import { UUID } from "crypto";
@@ -15,6 +16,7 @@ import {
   sendOverFCM,
   sendOverSocket,
 } from "@/application/services/notification";
+
 export const getNotificationList = async (
   req: Request,
   res: Response,
@@ -26,7 +28,7 @@ export const getNotificationList = async (
       where: { id: userId },
     });
     if (!user) {
-      throw new AppError("Unauthorized", 401);
+      responseUtils.throwError("UNAUTHORIZED_ACCESS");
     }
     await prisma.user.update({
       where: { id: userId },
@@ -86,10 +88,10 @@ export const getUnseenNotificationsCount = async (
     });
 
     if (!user) {
-      throw new AppError("Unauthorized", 401);
+      responseUtils.throwError("UNAUTHORIZED_ACCESS");
     }
 
-    const unseenCount = user.unseenNotificationCount || 0;
+    const unseenCount = user!.unseenNotificationCount || 0;
     return res.status(200).json({ unseenCount });
   } catch (error) {
     next(error);
@@ -104,7 +106,7 @@ export const getUnseenNotifications = async (
   try {
     const userId = (req as any).user.id;
     if (!userId) {
-      throw new AppError("Unauthorized", 401);
+      responseUtils.throwError("UNAUTHORIZED_USER");
     }
     await prisma.user.update({
       where: { id: userId },
@@ -145,12 +147,14 @@ export const markNotificationsAsRead = async (userId: string) => {
   }
 };
 
-export const addNotification = async (
-  recipientId: UUID,
-  notificationData: z.infer<typeof NotificationInputSchema>,
+export const addNotificationController = async (
+  req: Request,
+  res: Response,
   next: NextFunction
 ) => {
   try {
+    const recipientId = req.params.recipientId;
+    const notificationData = req.body;
     const data = NotificationInputSchema.parse(notificationData);
     const systemRelevantTitles: NotificationTitle[] = [
       NotificationTitle.PASSWORD_CHANGED,

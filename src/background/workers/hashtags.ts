@@ -3,32 +3,66 @@ import { bullRedisConfig } from "@/background/config/redis";
 import { attachHashtagsToTweet } from "@/application/services/hashtags";
 import { prisma } from "@/prisma/client";
 import type { HashtagJobData } from "@/background/types/jobs";
+import { loadSecrets } from "@/config/secrets";
+import { initRedis } from "@/config/redis";
 
-// Hashtag extraction worker
-const hashtagWorker = new Worker<HashtagJobData>(
-  "hashtags",
-  async (job) => {
-    const { tweetId, content } = job.data;
+async function startWorker() {
+  await initRedis();
+  await loadSecrets();
 
-    await prisma.$transaction(async (tx) => {
-      await attachHashtagsToTweet(tweetId, content, tx);
-    });
-    return;
-  },
-  {
-    connection: bullRedisConfig,
-    concurrency: 5,
-  }
-);
+  const hashtagWorker = new Worker<HashtagJobData>(
+    "hashtags",
+    async (job) => {
+      switch (job.name) {
+        case "extract": {
+          const { tweetId, content } = job.data;
 
-hashtagWorker.on("completed", (job) => {
-  console.log(
-    `[hashtags.worker] completed job ${job.id} tweetId=${job.data.tweetId}`
+          await prisma.$transaction(async (tx) => {
+            await attachHashtagsToTweet(tweetId, content, tx);
+          });
+
+          break;
+        }
+
+        case "categorize-tweet": {
+          const { tweetId, content } = job.data;
+          const { default: tweetService } = await import(
+            "@/application/services/tweets"
+          );
+
+          await prisma.$transaction(async (tx) => {
+            await tweetService.categorizeTweet(tweetId, content, tx);
+          });
+
+          break;
+        }
+
+        default:
+          throw new Error(`Unknown job: ${job.name}`);
+      }
+    },
+    {
+      connection: bullRedisConfig,
+      concurrency: 8,
+    }
   );
-});
-hashtagWorker.on("failed", (job, err) => {
-  console.error(`[hashtags.worker] failed job ${job?.id}`, err);
-});
-hashtagWorker.on("error", (err) => {
-  console.error("[hashtags.worker] worker error", err);
+
+  hashtagWorker.on("completed", (job) => {
+    console.log(
+      `[hashtags.worker] completed ${job.name} : ${job.id} tweetId=${job.data.tweetId}`
+    );
+  });
+
+  hashtagWorker.on("failed", (job, err) => {
+    console.error(`[hashtags.worker] failed job ${job?.id}`, err);
+  });
+
+  hashtagWorker.on("error", (err) => {
+    console.error("[hashtags.worker] worker error", err);
+  });
+}
+
+startWorker().catch((err) => {
+  console.error("[hashtags.worker] failed to start", err);
+  process.exit(1);
 });

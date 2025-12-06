@@ -14,5 +14,4 @@ export async function initRedis() {
   console.log("Redis is ready");
 }
 
-
 export { redisClient };

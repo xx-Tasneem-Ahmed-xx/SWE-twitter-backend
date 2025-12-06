@@ -1,9 +1,7 @@
-import { prisma, ReplyControl } from "@/prisma/client";
+import { prisma } from "@/prisma/client";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
-
-//import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import fetch, { Response as FetchResponse } from "node-fetch";
 import zxcvbn from "zxcvbn";
@@ -11,31 +9,13 @@ import { redisClient } from "@/config/redis";
 import { Request, Response } from "express";
 import { AppError } from "@/errors/AppError";
 import { getSecrets } from "@/config/secrets";
+import { encoderService } from "@/application/services/encoder";
 
 const uuidv4 = async () => {
   const { v4 } = await import("uuid");
   return v4();
 };
 
-export const validToRetweetOrQuote = async (parentTweetId: string) => {
-  const rightToTweet = await prisma.tweet.findUnique({
-    where: { id: parentTweetId },
-    select: { user: { select: { protectedAccount: true } } },
-  });
-  return rightToTweet ? !rightToTweet.user.protectedAccount : false;
-};
-
-export const isFollower = async (followerId: string, followingId: string) => {
-  const row = await prisma.follow.findUnique({
-    where: {
-      followerId_followingId: {
-        followerId,
-        followingId,
-      },
-    },
-  });
-  return !!row;
-};
 export const resolveUsernameToId = async (username: string) => {
   const user = await prisma.user.findUnique({
     where: { username },
@@ -44,84 +24,6 @@ export const resolveUsernameToId = async (username: string) => {
   if (!user?.id) throw new AppError("User not found", 404);
   return user;
 };
-
-export const isVerified = async (id: string) => {
-  const user = await prisma.user.findUnique({
-    where: { id },
-    select: { verified: true },
-  });
-
-  return user?.verified ?? false;
-};
-
-export const isMentioned = async (
-  mentionedId: string,
-  mentionerId: string,
-  tweetId: string
-) => {
-  const row = prisma.mention.findUnique({
-    where: {
-      tweetId_mentionerId_mentionedId: { tweetId, mentionerId, mentionedId },
-    },
-  });
-  return !!row;
-};
-
-export const validToReply = async (id: string, userId: string) => {
-  if (!id || !userId) return false;
-
-  const tweet = await prisma.tweet.findUnique({
-    where: { id },
-    select: {
-      userId: true,
-      user: { select: { protectedAccount: true } },
-      replyControl: true,
-    },
-  });
-  if (!tweet) return false;
-
-  const protectedAccount = tweet?.user?.protectedAccount ?? false;
-  const replyControl = await evaluateReplyControl(
-    id,
-    tweet.replyControl,
-    tweet.userId,
-    userId
-  );
-  if (protectedAccount) {
-    const follows = await isFollower(userId, tweet.userId);
-    return follows && replyControl;
-  }
-  return replyControl;
-};
-
-const evaluateReplyControl = async (
-  tweetId: string,
-  type: ReplyControl,
-  replieeId: string,
-  replierId: string
-) => {
-  switch (type) {
-    case "EVERYONE":
-      return true;
-
-    case "FOLLOWINGS":
-      return isFollower(replierId, replieeId);
-
-    case "VERIFIED":
-      return isVerified(replierId);
-
-    case "MENTIONED":
-      return isMentioned(replierId, replieeId, tweetId);
-    default:
-      return false;
-  }
-};
-//////////////////HOSSAM///////////////////////////
-// utils.ts (ESM) - Prisma + Redis version of your Go utils package
-// npm install jsonwebtoken bcryptjs uuid node-fetch zxcvbn qrcode speakeasy nodemailer @prisma/client
-// You will also need: npm install -D @types/express @types/jsonwebtoken @types/bcryptjs @types/uuid @types/node-fetch @types/nodemailer @types/zxcvbn
-
-// --- Custom Type Definitions ---
 
 // Define the structure of the payload you put into the JWT
 export interface JwtUserPayload extends JwtPayload {
@@ -159,9 +61,6 @@ export interface UserSession {
   DeviceInfoId: string | null;
   ExpireAt: string;
 }
-
-const { JWT_SECRET, PEPPER, COOKIE_DOMAIN, Mail_email, Mail_password } =
-  getSecrets();
 
 /* ------------------------------ Generic response helpers ------------------------------ */
 
@@ -237,6 +136,7 @@ export async function GenerateJwt({
     jti,
     devid,
   };
+  const { JWT_SECRET } = getSecrets();
   const token: string = jwt.sign(payload, JWT_SECRET, { algorithm: "HS256" });
   return { token, jti, payload };
 }
@@ -251,6 +151,7 @@ export function ValidateToken(tokenString: string): {
 } {
   try {
     //console.log("Token:", token);
+    const { JWT_SECRET } = getSecrets();
 
     // We assert the type to our custom payload interface
     const payload: JwtUserPayload = jwt.verify(
@@ -269,6 +170,7 @@ export async function HashPassword(
   password: string,
   salt: string
 ): Promise<string> {
+  const { PEPPER } = getSecrets();
   return await bcrypt.hash(password + PEPPER + salt, 10);
 }
 
@@ -278,6 +180,7 @@ export async function CheckPass(
   salt: string
 ): Promise<boolean> {
   try {
+    const { PEPPER } = getSecrets();
     return await bcrypt.compare(password + PEPPER + salt, hashed);
   } catch {
     return false;
@@ -380,7 +283,6 @@ export async function Attempts(
 
     const ttl = await _getTTL(`Login:fail:${email}`);
 
-    // 🧱 Web CAPTCHA logic
     if (clientType === "web") {
       if (num === 3) {
         await redisClient.set(`Login:fail:${email}`, String(num + 1), {
@@ -401,7 +303,6 @@ export async function Attempts(
       }
     }
 
-    // 🧱 Universal lock logic (web + mobile)
     if (num >= 5) {
       await SendEmail_FAILED_LOGIN(res, email).catch(console.error);
       await redisClient.set(`Login:block:${email}`, "1", { EX: 15 * 60 });
@@ -438,7 +339,7 @@ export async function IncrAttempts(
     const exists: number = await redisClient.exists(`Login:fail:${email}`);
     if (!exists) {
       // create a key with small TTL (matching Go's behavior, Go used 5s in some places; adapt as required)
-      await redisClient.set(`Login:fail:${email}`, "0", { EX: 5 });
+      await redisClient.set(`Login:fail:${email}`, "0", { EX: 300 });
     }
     const numStr: string | null = await redisClient.get(`Login:fail:${email}`);
     if (!numStr) {
@@ -448,7 +349,7 @@ export async function IncrAttempts(
     const num: number = parseInt(numStr.trim(), 10) || 0;
     const next: number = num + 1;
     const ttl: number = await _getTTL(`Login:fail:${email}`);
-    const newTTL: number = ttl > 0 ? ttl : 5;
+    const newTTL: number = ttl > 0 ? ttl : 300;
     await redisClient.set(`Login:fail:${email}`, String(next), { EX: newTTL });
     return true;
   } catch (err) {
@@ -580,7 +481,7 @@ export async function IncrResetAttempts(
   try {
     const exists: number = await redisClient.exists(`reset:fail:${email}`);
     if (!exists) {
-      await redisClient.set(`reset:fail:${email}`, "0", { EX: 5 });
+      await redisClient.set(`reset:fail:${email}`, "0", { EX: 300 });
     }
     const numStr: string | null = await redisClient.get(`reset:fail:${email}`);
     if (!numStr) {
@@ -591,7 +492,7 @@ export async function IncrResetAttempts(
     const next: number = num + 1;
     const ttl: number = await _getTTL(`reset:fail:${email}`);
     await redisClient.set(`reset:fail:${email}`, String(next), {
-      EX: ttl > 0 ? ttl : 5,
+      EX: ttl > 0 ? ttl : 300,
     });
     return true;
   } catch (err) {
@@ -610,6 +511,8 @@ export async function SendEmailSmtp(
   message: string
 ): Promise<Response<any> | void> {
   try {
+    const { Mail_email, Mail_password } = getSecrets();
+
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,
@@ -666,15 +569,11 @@ export async function Sendlocation(
     }
     const target: string =
       ip.includes("127.0.0.1") || ip.includes("::1") ? "8.8.8.8" : ip;
-    // console.log("🌍 Sending location request for:", target);
     const resp: FetchResponse = await fetch(`http://ip-api.com/json/${target}`);
-    // console.log("🌎 Geo API status:", resp.status);
     if (!resp.ok) throw new Error("failed to fetch geo info");
     const data: any = await resp.json();
-    // console.log("🌎 Geo API raw data:", data);
     if (!data || data.status !== "success")
       throw new Error("failed to get geo info");
-    // normalize to GeoData fields used previously
     return {
       Query: data.query,
       Country: data.country,
@@ -710,7 +609,7 @@ export async function SendEmail_FAILED_LOGIN(
 
 We noticed multiple failed login attempts on your account using the email: ${email}.
 
-📍 Location Details:
+ Location Details:
 - IP Address: ${geo?.Query || ipAddr}
 - Country: ${geo?.Country || ""}
 - Region: ${geo?.RegionName || ""}
@@ -718,7 +617,7 @@ We noticed multiple failed login attempts on your account using the email: ${ema
 - ISP: ${geo?.ISP || ""}
 - Organization: ${geo?.Org || ""}
 - Timezone: ${geo?.Timezone || ""}
-🕒 Time: ${new Date().toISOString()}
+Time: ${new Date().toISOString()}
 
 As a security precaution, we’ve temporarily blocked login from this IP for 15 minutes.
 
@@ -744,15 +643,15 @@ export async function SendEmail(res: Response, email: string): Promise<void> {
       "0.0.0.0";
     const geo: GeoData | null = await Sendlocation(ipAddr).catch(() => null);
     const user = await prisma.user.findUnique({ where: { email } });
-    const message: string = `Subject: 🎉 Welcome to Racist Team, ${
+    const message: string = `Subject: Welcome to Racist Team, ${
       user?.username || ""
     }!
 
-Hello ${user?.username || ""} 👋,
+Hello ${user?.username || ""},
 
 Welcome aboard! Your account with the email: ${email} has just been created successfully.
 
-🗺️ Location at Signup:
+ Location at Signup:
 - IP Address: ${geo?.Query || ipAddr}
 - Country: ${geo?.Country || ""}
 - Region: ${geo?.RegionName || ""}
@@ -761,7 +660,7 @@ Welcome aboard! Your account with the email: ${email} has just been created succ
 - Organization: ${geo?.Org || ""}
 - Timezone: ${geo?.Timezone || ""}
 
-🕒 Signup Time: ${new Date().toISOString()}
+Signup Time: ${new Date().toISOString()}
 
 Cheers,
 The Racist Team
@@ -867,7 +766,7 @@ export async function VerifEmailHelper(
 
 We received a request to change the email address associated with your account. To confirm this change and verify your new email address, please use the verification code below:
 
-🔐 Verification Code: ${code}
+ Verification Code: ${code}
 
 This code is valid for the next 10 minutes.
 
@@ -985,7 +884,6 @@ export async function SetSession(
     };
 
     const key: string = `User:sessions:${userId}:${jti}`;
-    // console.log("Storing session in Redis key:", key, "session:", session);
     // Push new session into Redis list (acts like array)
     await redisClient.rPush(key, JSON.stringify(session));
 

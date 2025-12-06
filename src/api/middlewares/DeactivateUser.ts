@@ -37,7 +37,7 @@ export default function DeactivateUser() {
   return async function (req: RequestWithAuthId, res: Response, next: NextFunction): Promise<void | Response> {
     try {
       // Safely access req.user.id or req.body.id
-      const id: string | undefined = req.user?.id ?? (req.body && Number(req.body.id));
+      const id: any = req.user?.id ?? (req.body && Number(req.body.id));
       if (!id) return utils.SendError(res, 401, "unauthorized");
 
       // Assuming db.User.update is available and returns [affectedCount: number]

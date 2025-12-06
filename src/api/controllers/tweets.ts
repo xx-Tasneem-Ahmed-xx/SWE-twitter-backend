@@ -8,6 +8,7 @@ import {
 } from "@/application/dtos/tweets/tweet.dto.schema";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { Request, Response, NextFunction } from "express";
+import * as responseUtils from "@/application/utils/response.utils";
 import tweetService from "@/application/services/tweets";
 import { encoderService } from "@/application/services/encoder";
 
@@ -87,7 +88,7 @@ export class TweetController {
     try {
       const { id } = req.params;
       await tweetService.deleteTweet(id);
-      res.status(200).json("Tweet deleted successfuly");
+      return responseUtils.sendResponse(res, "TWEET_DELETED");
     } catch (error) {
       next(error);
     }
@@ -121,7 +122,7 @@ export class TweetController {
       const userId = (req as any).user.id;
       const { id } = req.params;
       await tweetService.deleteRetweet(userId, id);
-      res.status(200).json("Retweet deleted successfuly");
+      return responseUtils.sendResponse(res, "RETWEET_DELETED");
     } catch (error) {
       next(error);
     }
@@ -131,7 +132,7 @@ export class TweetController {
       const { id } = req.params;
       const { content } = req.body;
       await tweetService.updateTweet(id, content);
-      res.status(200).json("Tweet updated successfully");
+      return responseUtils.sendResponse(res, "TWEET_UPDATED");
     } catch (error) {
       next(error);
     }
@@ -140,9 +141,21 @@ export class TweetController {
   async getTweetReplies(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
+      const userId = (req as any).user.id;
+      const decodedCursor = encoderService.decode<{
+        createdAt: string;
+        id: string;
+      }>(req.query.cursor as string);
+      
+      const parsedDTO = TweetCursorServiceSchema.parse({
+        userId,
+        limit: req.query.limit,
+        cursor: decodedCursor ?? undefined,
+      });
+
       const replies = await tweetService.getTweetReplies(
         id,
-        (req as any).user.id
+        parsedDTO
       );
       res.status(200).json(replies);
     } catch (error) {
@@ -155,7 +168,7 @@ export class TweetController {
       const userId = (req as any).user.id;
       const { id } = req.params;
       await tweetService.likeTweet(userId, id);
-      res.status(200).json("Tweet liked successfully");
+      return responseUtils.sendResponse(res, "TWEET_LIKED");
     } catch (error) {
       next(error);
     }
@@ -166,7 +179,7 @@ export class TweetController {
       const userId = (req as any).user.id;
       const { id } = req.params;
       await tweetService.deleteLike(userId, id);
-      res.status(200).json("Tweet unliked successfully");
+      return responseUtils.sendResponse(res, "TWEET_UNLIKED");
     } catch (error) {
       next(error);
     }
@@ -233,7 +246,7 @@ export class TweetController {
 
       const { id: userId } = await resolveUsernameToId(username);
       const decodedCursor = encoderService.decode<{
-        lastActivityAt: string;
+        createdAt: string;
         id: string;
       }>(query.cursor as string);
 
@@ -243,7 +256,7 @@ export class TweetController {
         cursor: decodedCursor ?? undefined,
       });
 
-      const tweets = await tweetService.getUserTweets(parsedDTO,currentUserId);
+      const tweets = await tweetService.getUserTweets(parsedDTO, currentUserId);
       res.status(200).json(tweets);
     } catch (error) {
       next(error);
@@ -257,7 +270,7 @@ export class TweetController {
 
       const { id: userId } = await resolveUsernameToId(username);
       const decodedCursor = encoderService.decode<{
-        lastActivityAt: string;
+        createdAt: string;
         id: string;
       }>(query.cursor as string);
 
