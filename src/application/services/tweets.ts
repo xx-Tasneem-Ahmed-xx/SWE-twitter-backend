@@ -30,6 +30,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { UUID } from "node:crypto";
 import { addNotification } from "./notification";
+import { enqueueUpdateScroeJob } from "@/background/jobs/explore";
 
 export class TweetService {
   private async validateId(id: string) {
@@ -117,6 +118,44 @@ export class TweetService {
         isBookmarked: tweetBookmark.length > 0,
       };
     });
+  }
+  
+  public async normalizeTweetsAndRetweets(
+    dto: TweetCursorServiceDTO,
+    currentUserId: string,
+    tweets: any[]
+  ) {
+    const retweetedTweets = await prisma.retweet.findMany({
+      where: { userId: dto.userId },
+      select: {
+        createdAt: true,
+        tweet: {
+          select: this.tweetSelectFields(currentUserId),
+        },
+      },
+      orderBy: [{ createdAt: "desc" }, { userId: "desc" }],
+      take: dto.limit + 1,
+      ...(dto.cursor && {
+        cursor: {
+          userId_createdAt: {
+            userId: dto.userId,
+            createdAt: dto.cursor.createdAt,
+          },
+        },
+        skip: 1,
+      }),
+    });
+
+    const normalizedRetweets = retweetedTweets.map((r) => ({
+      ...r.tweet,
+      createdAt: r.createdAt,
+      retweeter: this.formatUser(tweets[0].user),
+    }));
+
+    const allTweets = [...tweets, ...normalizedRetweets]
+      .slice(0, dto.limit + 1)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return allTweets;
   }
 
   async createTweet(dto: CreateTweetServiceDto) {
@@ -244,6 +283,8 @@ export class TweetService {
         tweetId: reply.id,
         content: reply.content,
       }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
+
+      enqueueUpdateScroeJob({ tweetId: dto.parentId });
 
       addNotification(parent.userId as UUID, {
         title: "REPLY",
@@ -579,16 +620,20 @@ export class TweetService {
   async getUserTweets(dto: TweetCursorServiceDTO, currentUserId: string) {
     const tweets = await prisma.tweet.findMany({
       where: { userId: dto.userId },
-      select: {
-        ...this.tweetSelectFields(currentUserId),
-      },
+      select: this.tweetSelectFields(currentUserId),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
       ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
     });
 
+    const normalizedTweets = await this.normalizeTweetsAndRetweets(
+      dto,
+      currentUserId,
+      tweets
+    );
+
     const { cursor, paginatedRecords } = updateCursor(
-      tweets,
+      normalizedTweets,
       dto.limit,
       (record) => ({ id: record.id, createdAt: record.createdAt })
     );
