@@ -105,7 +105,7 @@ export class TweetService {
       isFollowed: (_count?.followers ?? 0) > 0,
     };
   }
-  private checkUserInteractions(tweets: any[]) {
+  public checkUserInteractions(tweets: any[]) {
     return tweets.map((t) => {
       const { tweetLikes, retweets, tweetBookmark, user, ...tweet } = t;
 
@@ -642,9 +642,14 @@ export class TweetService {
     await tx.tweet.update({
       where: { id },
       data: {
-        category: {
+        tweetCategories: {
           set: [],
-          connect: categoryRecords.map((category) => ({ id: category.id })),
+          connect: categoryRecords.map((category) => ({
+            tweetId_categoryId: {
+              categoryId: category.id,
+              tweetId: id,
+            },
+          })),
         },
       },
     });
@@ -750,7 +755,7 @@ export class TweetService {
     };
   }
 
-  private tweetSelectFields(userId?: string) {
+  public tweetSelectFields(userId?: string) {
     return {
       id: true,
       content: true,
