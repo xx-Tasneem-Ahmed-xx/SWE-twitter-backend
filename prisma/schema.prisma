@@ -398,8 +398,8 @@ model NotInterested {
   userId    String
   tweetId   String
 
-  user  User  @relation(fields: [userId], references: [id])
-  tweet Tweet @relation(fields: [tweetId], references: [id])
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
 }
 
 model SpamReport {
@@ -409,8 +409,8 @@ model SpamReport {
   reporterId String
   tweetId    String
 
-  reporter User  @relation(fields: [reporterId], references: [id])
-  tweet    Tweet @relation(fields: [tweetId], references: [id])
+  reporter User  @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  tweet    Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
 }
 
 model Category {
@@ -426,8 +426,8 @@ model TweetCategory {
   tweetId    String
   categoryId String
 
-  tweet    Tweet    @relation(fields: [tweetId], references: [id])
-  category Category @relation(fields: [categoryId], references: [id])
+  tweet    Tweet    @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@id([tweetId, categoryId])
   @@map("tweetCategories")
