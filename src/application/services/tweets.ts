@@ -119,7 +119,7 @@ export class TweetService {
       };
     });
   }
-  
+
   public async normalizeTweetsAndRetweets(
     dto: TweetCursorServiceDTO,
     currentUserId: string,
@@ -684,19 +684,12 @@ export class TweetService {
 
     if (categoryRecords.length === 0) return;
 
-    await tx.tweet.update({
-      where: { id },
-      data: {
-        tweetCategories: {
-          set: [],
-          connect: categoryRecords.map((category) => ({
-            tweetId_categoryId: {
-              categoryId: category.id,
-              tweetId: id,
-            },
-          })),
-        },
-      },
+    await tx.tweetCategory.createMany({
+      data: categoryRecords.map((cat) => ({
+        tweetId: id,
+        categoryId: cat.id,
+      })),
+      skipDuplicates: true,
     });
   }
 
