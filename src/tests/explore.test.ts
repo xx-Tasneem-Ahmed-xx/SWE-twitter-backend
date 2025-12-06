@@ -20,9 +20,10 @@ beforeAll(async () => {
   connectToDatabase = (await import("@/database")).connectToDatabase;
 });
 let user: User, mutedUser: User, blockedUser: User;
-const CAT1 = "550e8400-e29b-41d4-a716-446655440001";
-const CAT2 = "550e8400-e29b-41d4-a716-446655440002";
-const CAT3 = "550e8400-e29b-41d4-a716-446655440003";
+
+const CAT1 = "sports";
+const CAT2 = "news";
+const CAT3 = "tech";
 
 describe("ExploreService", () => {
   beforeAll(async () => {
@@ -73,7 +74,7 @@ describe("ExploreService", () => {
       where: { id: { in: [user.id, mutedUser.id, blockedUser.id] } },
     });
     await prisma.category.deleteMany({
-      where: { id: { in: [CAT1, CAT2, CAT3] } },
+      where: { name: { in: [CAT1, CAT2, CAT3] } },
     });
     await prisma.tweet.deleteMany({
       where: { userId: { in: [user.id, mutedUser.id, blockedUser.id] } },
@@ -83,21 +84,21 @@ describe("ExploreService", () => {
 
   beforeEach(async () => {
     await prisma.category.upsert({
-      where: { id: CAT1 },
-      update: { name: "Sports" },
-      create: { id: CAT1, name: "Sports" },
+      where: { name: CAT1 },
+      update: {},
+      create: { name: CAT1 },
     });
 
     await prisma.category.upsert({
-      where: { id: CAT2 },
-      update: { name: "Music" },
-      create: { id: CAT2, name: "Music" },
+      where: { name: CAT2 },
+      update: {},
+      create: { name: CAT2 },
     });
 
     await prisma.category.upsert({
-      where: { id: CAT3 },
-      update: { name: "Tech" },
-      create: { id: CAT3, name: "Tech" },
+      where: { name: CAT3 },
+      update: {},
+      create: { name: CAT3 },
     });
   });
 
@@ -135,7 +136,7 @@ describe("ExploreService", () => {
 
   describe("saveUserPreferredCategories", () => {
     it("should save one preferred category", async () => {
-      const dto = { categoryIds: [CAT1] };
+      const dto = { categories: [CAT1] };
       const result = await exploreService.saveUserPreferredCategories(
         user.id,
         dto
@@ -147,11 +148,13 @@ describe("ExploreService", () => {
         where: { id: user.id },
         include: { preferredCategories: true },
       });
-      expect(updatedUser?.preferredCategories.map((c) => c.id)).toContain(CAT1);
+      expect(updatedUser?.preferredCategories.map((c) => c.name)).toContain(
+        CAT1
+      );
     });
 
     it("should save multiple preferred categories", async () => {
-      const dto = { categoryIds: [CAT1, CAT2] };
+      const dto = { categories: [CAT1, CAT2] };
       await exploreService.saveUserPreferredCategories(user.id, dto);
 
       const updatedUser = await prisma.user.findUnique({
@@ -162,7 +165,7 @@ describe("ExploreService", () => {
     });
 
     it("should throw ZodError if no categories provided", async () => {
-      const dto = { categoryIds: [] };
+      const dto = { categories: [] };
 
       await expect(
         exploreService.saveUserPreferredCategories(user.id, dto)
@@ -170,14 +173,14 @@ describe("ExploreService", () => {
     });
 
     it("should throw error if category does not exist", async () => {
-      const dto = { categoryIds: ["nonexistent"] };
+      const dto = { categories: ["nonexistent"] };
       await expect(
         exploreService.saveUserPreferredCategories(user.id, dto)
       ).rejects.toThrow();
     });
 
     it("should throw error if user does not exist", async () => {
-      const dto = { categoryIds: [CAT1] };
+      const dto = { categories: [CAT1] };
       await expect(
         exploreService.saveUserPreferredCategories("fake-user", dto)
       ).rejects.toThrow();
@@ -193,7 +196,9 @@ describe("ExploreService", () => {
           userId: user.id,
           tweetType: "TWEET",
           score: 10,
-          tweetCategories: { create: { categoryId: CAT1 } },
+          tweetCategories: {
+            create: [{ category: { connect: { name: CAT1 } } }],
+          },
         },
       });
 
@@ -212,7 +217,9 @@ describe("ExploreService", () => {
           userId: user.id,
           tweetType: "TWEET",
           score: 5,
-          tweetCategories: { create: { categoryId: CAT1 } },
+          tweetCategories: {
+            create: [{ category: { connect: { name: CAT1 } } }],
+          },
         },
       });
       await prisma.tweet.create({
@@ -222,18 +229,20 @@ describe("ExploreService", () => {
           userId: user.id,
           tweetType: "TWEET",
           score: 5,
-          tweetCategories: { create: { categoryId: CAT2 } },
+          tweetCategories: {
+            create: [{ category: { connect: { name: CAT2 } } }],
+          },
         },
       });
 
       const result = await exploreService.getFeed({
         userId: user.id,
         limit: 10,
-        categoryId: CAT1,
+        category: CAT1,
       });
       for (const tweet of result.data) {
-        const ids = tweet.tweetCategories.map((c: any) => c.categoryId);
-        expect(ids).toContain(CAT1);
+        const names = tweet.tweetCategories.map((c: any) => c.category.name);
+        expect(names).toContain(CAT1);
       }
     });
 

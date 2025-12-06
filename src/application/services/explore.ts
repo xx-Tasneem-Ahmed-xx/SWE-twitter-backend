@@ -40,13 +40,13 @@ export class ExploreService {
     userId: string,
     dto: PreferredCategorieDTO
   ) {
-    PreferredCategoriesSchema.parse(dto)
+    PreferredCategoriesSchema.parse(dto);
     return await prisma.user.update({
       where: { id: userId },
       data: {
         preferredCategories: {
           set: [],
-          connect: dto.categoryIds.map((id) => ({ id })),
+          connect: dto.categories.map((name) => ({ name })),
         },
       },
       select: { id: true },
@@ -63,8 +63,8 @@ export class ExploreService {
           { spamReports: { none: { reporterId: dto.userId } } },
         ],
 
-        ...(dto.categoryId && {
-          tweetCategories: { some: { categoryId: dto.categoryId } },
+        ...(dto.category && {
+          tweetCategories: { some: { category: { name: dto.category } } },
         }),
       },
       orderBy: [{ score: "desc" }, { id: "desc" }],

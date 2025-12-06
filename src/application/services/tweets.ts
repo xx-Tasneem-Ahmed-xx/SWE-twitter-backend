@@ -831,7 +831,9 @@ export class TweetService {
           media: { select: { id: true, type: true, name: true, size: true } },
         },
       },
-      tweetCategories: { select: { categoryId: true } },
+      tweetCategories: {
+        select: { category: { select: { name: true } } },
+      },
     };
   }
 }
