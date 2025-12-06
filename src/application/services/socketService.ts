@@ -206,7 +206,7 @@ export class SocketService {
     this.io.to(recipientId).emit("new-message", message);
   }
 
-  public sendDletedChatToUser(recipientId: string, chatId: string): void {
+  public sendDeletedChatToUser(recipientId: string, chatId: string): void {
     this.io.to(recipientId).emit("chat-deleted", { chatId });
   }
 

@@ -5,7 +5,6 @@ import {
     getUnseenNotifications,
     getMentionNotifications,
 } from "@/api/controllers/notificationController";
-import { no } from "zod/v4/locales";
 
 
 const notificationRoutes = router();

@@ -386,10 +386,9 @@ export const deleteChat = async (
       //send this event to notify the other users about deleted chat
       for (const chatUser of chatUsers) {
         if (chatUser.userId !== (req as any).user.id) {
-          socketService.sendDletedChatToUser(chatUser.userId, chatId);
+          socketService.sendDeletedChatToUser(chatUser.userId, chatId);
         }
       }
-      socketService.sendDletedChatToUser((req as any).user.id, chatId);
 
       return responseUtils.sendResponse(res, "CHAT_DELETED");
     } else {
