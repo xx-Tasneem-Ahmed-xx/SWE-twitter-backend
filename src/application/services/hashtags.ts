@@ -200,9 +200,11 @@ export async function calculateViralTweets(
     ...(category === utils.TrendCategory.Global
       ? {}
       : {
-          category: {
+          tweetCategories: {
             some: {
-              name: category,
+              category: {
+                name: category,
+              },
             },
           },
         }),
