@@ -787,11 +787,13 @@ export class TweetService {
             },
           }
         : {}),
+      hashtags: { select: { hashId: true } },
       tweetMedia: {
         select: {
           media: { select: { id: true, type: true, name: true, size: true } },
         },
       },
+      tweetCategories: { select: { categoryId: true } },
     };
   }
 }
