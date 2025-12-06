@@ -10,6 +10,8 @@ import { MediaType } from "@/prisma/client";
 import { socketService } from "@/app";
 import { sendPushNotification } from "@/application/services/FCMService";
 import { AppError } from "@/errors/AppError";
+import { any } from "zod";
+import { get } from "http";
 
 const getUnseenMessagesCountofChat = async (chatId: string, userId: string) => {
   try {
@@ -170,7 +172,7 @@ export const getChatMessages = async (
       where: {
         chatId: chatId,
         createdAt: {
-          gt: lastMessageTimestamp,
+          lt: lastMessageTimestamp,
         },
       },
       include: {
@@ -269,6 +271,10 @@ export const getUserChats = async (
 export const updateMessageStatus = async (chatId: string, userId: string) => {
   try {
     if (chatId) {
+      const unseenMessagesCount = await getUnseenMessagesCountofChat(chatId, userId);
+      if (unseenMessagesCount === 0) {
+        return true;
+      }
       await prisma.message.updateMany({
         where: {
           chatId: chatId,
@@ -279,6 +285,16 @@ export const updateMessageStatus = async (chatId: string, userId: string) => {
           status: "READ",
         },
       });
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          unseenChatCount: { decrement: 1 },
+        },
+      });
+      socketService.sendUnseenChatsCount(
+        userId,
+        updatedUser.unseenChatCount
+      );
       return true;
     }
   } catch (error) {
@@ -323,12 +339,12 @@ export const createChat = async (
         chatUsers: {
           every: {
             userId: {
-                in: participant_ids,
-              },
+              in: participant_ids,
             },
           },
         },
-      });
+      },
+    });
     if (oldChat) {
       return res.status(200).json({ newChat: oldChat });
     }
@@ -349,14 +365,14 @@ export const deleteChat = async (
   try {
     const chatId = req.params.chatId;
     if (chatId) {
-      // Use transaction to ensure data consistency
+      const chatUsers = await prisma.chatUser.findMany({
+        where: { chatId: chatId },
+      });
       await prisma.$transaction(async (tx) => {
-        // First, delete all messages in the chat
         await tx.message.deleteMany({
           where: { chatId: chatId },
         });
 
-        // Then, delete all chat users relationships
         await tx.chatUser.deleteMany({
           where: { chatId: chatId },
         });
@@ -364,11 +380,17 @@ export const deleteChat = async (
           where: { chatId: chatId },
         });
 
-        // Finally, delete the chat
         await tx.chat.delete({
           where: { id: chatId },
         });
       });
+      //send this event to notify the other users about deleted chat
+      for (const chatUser of chatUsers) {
+        if (chatUser.userId !== (req as any).user.id) {
+          socketService.sendDletedChatToUser(chatUser.userId, chatId);
+        }
+      }
+      socketService.sendDletedChatToUser((req as any).user.id, chatId);
 
       res.status(200).json({ message: "Chat deleted successfully" });
     } else {
@@ -494,6 +516,7 @@ export const addMessageToChat = async (
           select: {
             id: true,
             name: true,
+            username: true,
           },
         },
         messageMedia: {
@@ -512,8 +535,10 @@ export const addMessageToChat = async (
         recipient
       );
       if (unseenMessagesCount == null) continue;
+      //check if this is the first unseen message in this chat to increment unseenChatCount
+      let updatedUser = null;
       if ((unseenMessagesCount ?? 0) - 1 <= 0) {
-        await prisma.user.update({
+        const updatedUser = await prisma.user.update({
           where: { id: recipient },
           data: {
             unseenChatCount: { increment: 1 },
@@ -522,7 +547,14 @@ export const addMessageToChat = async (
       }
       //to handle website socket message sending
       if (socketService.checkSocketStatus(recipient)) {
-        socketService.sendMessageToChat(recipient, createdMessage);
+        socketService.sendMessageToChat(recipient, {
+          createdMessage,
+          unseenMessagesCount: unseenMessagesCount,
+        });
+        socketService.sendUnseenChatsCount(
+          recipient,
+          (updatedUser as any)?.unseenChatCount || 0
+        );
       }
       //handle offline user notification
       const userFCMTokens = await prisma.fcmToken.findMany({
@@ -542,6 +574,8 @@ export const addMessageToChat = async (
           messageId: createdMessage.id,
           content: messageInput.data.content,
           senderId: userId,
+          unseenChatCount: (updatedUser as any)?.unseenChatCount || 0,
+          unseenMessagesCount: unseenMessagesCount.toString(),
         } as Record<string, string>;
         const tokensToDelete = await sendPushNotification(
           fcmTokens,

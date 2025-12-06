@@ -52,6 +52,28 @@ export const getNotificationList = async (
   }
 };
 
+export const getMentionNotifications = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = (req as any).user.id;
+    await prisma.user.update({
+      where: { id: userId },
+      data: { unseenNotificationCount: 0 },
+    });
+    const mentionNotifications = await prisma.notification.findMany({
+      where: { userId, title: NotificationTitle.MENTION},
+      orderBy: { createdAt: "desc" },
+    });
+    return res.status(200).json({ mentionNotifications });
+  } catch (error) {
+    console.error("Error fetching mention notifications:", error);
+    next(error);
+  }
+};
+
 export const getUnseenNotificationsCount = async (
   req: Request,
   res: Response,
@@ -99,28 +121,24 @@ export const getUnseenNotifications = async (
   }
 };
 
-export const markNotificationsAsRead = async (notificationId: string) => {
+export const markNotificationsAsRead = async (userId: string) => {
   try {
-    const userId = (
-      await prisma.notification.findUnique({
-        where: { id: notificationId },
-        select: { userId: true },
-      })
-    )?.userId;
-    const updatedNotification = await prisma.notification.update({
-      where: { id: notificationId },
+   
+    await prisma.notification.updateMany({
+      where: { userId, isRead: false },
       data: { isRead: true },
     });
-    if (updatedNotification) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          unseenNotificationCount: {
-            decrement: 1,
-          },
-        },
-      });
-    }
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        unseenNotificationCount: 0
+      },
+    });
+    socketService.sendUnseenNotificationsCount(
+      userId,
+      0
+    );
+    return;
   } catch (error) {
     console.error("Error marking notifications as read:", error);
     return error;
@@ -220,10 +238,16 @@ export const addNotification = async (
         );
       }
     }
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: recipientId },
       data: { unseenNotificationCount: { increment: 1 } },
+
     });
+    socketService.sendUnseenNotificationsCount(
+      recipientId,
+      updatedUser.unseenNotificationCount || 0
+    );
+
   } catch (error) {
     next(error);
   }

@@ -31,6 +31,7 @@ import { Crawler, Parser, Indexer, SearchEngine } from './api/controllers/Search
 import { apiRoutes } from './api/routes/searchRoutes';
 import { PrismaClient } from "@prisma/client";
 import { getKey } from "./application/services/secrets";
+import { SSErequest } from "./application/services/ServerSideEvents";
 const app = express();
 app.use(cors());
 app.use(helmet());
@@ -70,6 +71,8 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use("/api/auth", authRoutes);
 app.use("/oauth2", oauthRoutes);
 app.use(Auth());
+
+app.get('/events', SSErequest);
  
 app.use("/api/dm", ChatRouter);
 app.use("/api/media", mediaRouter);
