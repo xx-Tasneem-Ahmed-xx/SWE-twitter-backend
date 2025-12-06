@@ -6,6 +6,7 @@ import {
 } from "@/application/dtos/explore/explore.dto";
 import { updateCursor } from "@/application/utils/tweet.utils";
 import tweetService from "@/application/services/tweets";
+import { PreferredCategoriesSchema } from "../dtos/explore/explore.dto.schema";
 
 export class ExploreService {
   private static instance: ExploreService;
@@ -39,6 +40,7 @@ export class ExploreService {
     userId: string,
     dto: PreferredCategorieDTO
   ) {
+    PreferredCategoriesSchema.parse(dto)
     return await prisma.user.update({
       where: { id: userId },
       data: {
