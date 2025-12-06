@@ -3,7 +3,6 @@ import {
     getNotificationList,
     getUnseenNotificationsCount,
     getUnseenNotifications,
-    markNotificationsAsRead,
     getMentionNotifications,
 } from "@/api/controllers/notificationController";
 import { no } from "zod/v4/locales";

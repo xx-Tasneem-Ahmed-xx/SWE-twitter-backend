@@ -537,7 +537,7 @@ export const addMessageToChat = async (
       //check if this is the first unseen message in this chat to increment unseenChatCount
       let updatedUser = null;
       if ((unseenMessagesCount ?? 0) - 1 <= 0) {
-        const updatedUser = await prisma.user.update({
+        updatedUser = await prisma.user.update({
           where: { id: recipient },
           data: {
             unseenChatCount: { increment: 1 },

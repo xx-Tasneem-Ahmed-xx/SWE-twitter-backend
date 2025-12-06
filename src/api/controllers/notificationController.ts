@@ -61,10 +61,6 @@ export const getMentionNotifications = async (
 ) => {
   try {
     const userId = (req as any).user.id;
-    await prisma.user.update({
-      where: { id: userId },
-      data: { unseenNotificationCount: 0 },
-    });
     const mentionNotifications = await prisma.notification.findMany({
       where: { userId, title: NotificationTitle.MENTION},
       orderBy: { createdAt: "desc" },
