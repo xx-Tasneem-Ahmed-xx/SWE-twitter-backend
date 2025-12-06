@@ -34,4 +34,5 @@ export class newMessageInput {
   data!: MessageData;
   recipientId?: string[];
   chatId?: string;
+  createdAt!: Date;
 }
