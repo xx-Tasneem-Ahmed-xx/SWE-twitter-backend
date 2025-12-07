@@ -2,7 +2,6 @@ import {
   CreateTweetDTOSchema,
   CursorDTOSchema,
   SearchDTOSchema,
-  StringSchema,
   TweetListResponseSchema,
   TweetResponsesSchema,
   TweetSummaryResponse,

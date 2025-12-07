@@ -64,7 +64,6 @@ const TweetMediaSchema = z
 
 export const UpdateTweetSchema = z
   .object({
-    userId: z.uuid(),
     content: StringSchema.optional(),
     replyControl: z.enum(ReplyControl).optional(),
     tweetMedia: TweetMediaSchema,

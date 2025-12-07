@@ -1,11 +1,11 @@
 import {
   InteractionsCursorServiceSchema,
   TweetCursorServiceSchema,
+  UpdateTweetServiceSchema,
 } from "@/application/dtos/tweets/service/tweets.dto.schema";
 import {
   CreateTweetDTOSchema,
   SearchDTOSchema,
-  UpdateTweetSchema,
 } from "@/application/dtos/tweets/tweet.dto.schema";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { Request, Response, NextFunction } from "express";
@@ -133,7 +133,10 @@ export class TweetController {
       const { id } = req.params;
       const userId = (req as any).user.id;
       const payload = req.body;
-      const parsedPayload = UpdateTweetSchema.parse({ userId, ...payload });
+      const parsedPayload = UpdateTweetServiceSchema.parse({
+        userId,
+        ...payload,
+      });
       await tweetService.updateTweet(id, parsedPayload);
       return responseUtils.sendResponse(res, "TWEET_UPDATED");
     } catch (error) {
@@ -141,7 +144,11 @@ export class TweetController {
     }
   }
 
-  async getTweetReplies(req: Request, res: Response, next: NextFunction) {
+  async getTweetRepliesOrQuotes(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const { id } = req.params;
       const userId = (req as any).user.id;
@@ -150,13 +157,18 @@ export class TweetController {
         id: string;
       }>(req.query.cursor as string);
 
+      let tweetType: "REPLY" | "QUOTE";
+      if (req.route.path.includes("quotes")) tweetType = "QUOTE";
+      else tweetType = "REPLY";
+
       const parsedDTO = TweetCursorServiceSchema.parse({
         userId,
+        tweetType,
         limit: req.query.limit,
         cursor: decodedCursor ?? undefined,
       });
 
-      const replies = await tweetService.getTweetReplies(id, parsedDTO);
+      const replies = await tweetService.getTweetRepliesOrQuotes(id, parsedDTO);
       res.status(200).json(replies);
     } catch (error) {
       next(error);

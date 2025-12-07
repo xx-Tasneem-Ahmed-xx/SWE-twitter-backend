@@ -11,6 +11,7 @@ import {
   InteractionsCursorServiceDTO,
   SearchServiceDTO,
   TweetCursorServiceDTO,
+  UpdateTweetServiceDTO,
 } from "@/application/dtos/tweets/service/tweets.dto";
 import * as responseUtils from "@/application/utils/response.utils";
 import {
@@ -31,7 +32,6 @@ import { Prisma } from "@prisma/client";
 import { UUID } from "node:crypto";
 import { addNotification } from "./notification";
 import { enqueueUpdateScroeJob } from "@/background/jobs/explore";
-import { UpdateTweetDTO } from "../dtos/tweets/tweet.dto";
 
 export class TweetService {
   private async validateId(id: string) {
@@ -375,7 +375,7 @@ export class TweetService {
     return this.checkUserInteractions([tweet])[0];
   }
 
-  async updateTweet(id: string, dto: UpdateTweetDTO) {
+  async updateTweet(id: string, dto: UpdateTweetServiceDTO) {
     await this.validateId(id);
     const tweet = await prisma.tweet.findUnique({
       where: { id, userId: dto.userId },
@@ -509,9 +509,9 @@ export class TweetService {
     };
   }
 
-  async getTweetReplies(tweetId: string, dto: TweetCursorServiceDTO) {
+  async getTweetRepliesOrQuotes(tweetId: string, dto: TweetCursorServiceDTO) {
     const replies = await prisma.tweet.findMany({
-      where: { parentId: tweetId, tweetType: "REPLY" },
+      where: { parentId: tweetId, tweetType: dto.tweetType },
       select: {
         ...this.tweetSelectFields(dto.userId),
       },

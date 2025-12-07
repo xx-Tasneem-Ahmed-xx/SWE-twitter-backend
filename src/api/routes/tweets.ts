@@ -15,7 +15,9 @@ router.route("/users/:username").get(tweetController.getUserTweets);
 
 router.route("/search").get(tweetController.searchTweets);
 
-router.route("/users/:username/mentioned").get(tweetController.getMentionedTweets);
+router
+  .route("/users/:username/mentioned")
+  .get(tweetController.getMentionedTweets);
 
 router
   .route("/:id")
@@ -31,11 +33,12 @@ router
 
 router
   .route("/:id/quotes")
+  .get(tweetController.getTweetRepliesOrQuotes)
   .post(validateBody(CreateTweetDTOSchema), tweetController.createQuote);
 
 router
   .route("/:id/replies")
-  .get(tweetController.getTweetReplies)
+  .get(tweetController.getTweetRepliesOrQuotes)
   .post(validateBody(CreateTweetDTOSchema), tweetController.createReply);
 
 router

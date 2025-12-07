@@ -625,7 +625,7 @@ describe("Tweets Service", () => {
           },
         }),
       ]);
-      const res = await tweetService.getTweetReplies(publicTweet.id, {
+      const res = await tweetService.getTweetRepliesOrQuotes(publicTweet.id, {
         userId: "123",
         limit: 10,
       });
