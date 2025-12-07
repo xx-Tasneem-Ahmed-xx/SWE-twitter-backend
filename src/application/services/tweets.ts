@@ -12,7 +12,7 @@ import {
   SearchServiceDTO,
   TweetCursorServiceDTO,
 } from "@/application/dtos/tweets/service/tweets.dto";
-import { AppError } from "@/errors/AppError";
+import * as responseUtils from "@/application/utils/response.utils";
 import {
   generateTweetCategory,
   generateTweetSumamry,
@@ -34,10 +34,10 @@ import { addNotification } from "./notification";
 export class TweetService {
   private async validateId(id: string) {
     if (!id || typeof id !== "string") {
-      throw new AppError("Invalid ID", 400);
+      responseUtils.throwError("INVALID_ID");
     }
     const tweet = await prisma.tweet.findUnique({ where: { id } });
-    if (!tweet) throw new AppError("Tweet not found", 404);
+    if (!tweet) responseUtils.throwError("TWEET_NOT_FOUND");
   }
 
   private async saveMentionedUsersTx(
@@ -105,7 +105,7 @@ export class TweetService {
       isFollowed: (_count?.followers ?? 0) > 0,
     };
   }
-  private checkUserInteractions(tweets: any[]) {
+  public checkUserInteractions(tweets: any[]) {
     return tweets.map((t) => {
       const { tweetLikes, retweets, tweetBookmark, user, ...tweet } = t;
 
@@ -155,7 +155,7 @@ export class TweetService {
   async createQuote(dto: CreateReplyOrQuoteServiceDTO) {
     await this.validateId(dto.parentId);
     const valid = await validToRetweetOrQuote(dto.parentId);
-    if (!valid) throw new AppError("You cannot quote a protected tweet", 403);
+    if (!valid) responseUtils.throwError("CANNOT_QUOTE_PROTECTED_TWEET");
 
     return await prisma.$transaction(async (tx) => {
       const quote = await tx.tweet.create({
@@ -207,7 +207,7 @@ export class TweetService {
   async createReply(dto: CreateReplyOrQuoteServiceDTO) {
     await this.validateId(dto.parentId);
     const valid = await validToReply(dto.parentId, dto.userId);
-    if (!valid) throw new AppError("You cannot reply to this tweet", 403);
+    if (!valid) responseUtils.throwError("CANNOT_REPLY_TO_TWEET");
 
     return await prisma.$transaction(async (tx) => {
       const reply = await tx.tweet.create({
@@ -259,7 +259,7 @@ export class TweetService {
   async createRetweet(dto: CreateReTweetServiceDto) {
     await this.validateId(dto.parentId);
     const valid = await validToRetweetOrQuote(dto.parentId);
-    if (!valid) throw new AppError("You cannot retweet a protected tweet", 403);
+    if (!valid) responseUtils.throwError("CANNOT_RETWEET_PROTECTED_TWEET");
 
     return await prisma.$transaction(async (tx) => {
       const retweet = await tx.retweet.create({
@@ -327,7 +327,7 @@ export class TweetService {
       where: { id },
       select: this.tweetSelectFields(userId),
     });
-    if (!tweet) throw new AppError("Tweet not found", 404);
+    if (!tweet) responseUtils.throwError("TWEET_NOT_FOUND");
     return this.checkUserInteractions([tweet])[0];
   }
 
@@ -347,19 +347,19 @@ export class TweetService {
       select: { parentId: true, tweetType: true },
     });
 
-    if (!tweet) throw new AppError("Tweet not found", 404);
+    if (!tweet) responseUtils.throwError("TWEET_NOT_FOUND");
 
-    if (!tweet.parentId)
+    if (!tweet!.parentId)
       return prisma.$transaction([
         prisma.retweet.deleteMany({ where: { tweetId: id } }),
         prisma.tweet.delete({ where: { id } }),
       ]);
 
-    if (tweet.tweetType === "REPLY")
-      return this.deleteReply(id, tweet.parentId);
+    if (tweet!.tweetType === "REPLY")
+      return this.deleteReply(id, tweet!.parentId);
 
-    if (tweet.tweetType === "QUOTE")
-      return this.deleteQuote(id, tweet.parentId);
+    if (tweet!.tweetType === "QUOTE")
+      return this.deleteQuote(id, tweet!.parentId);
   }
 
   private async deleteReply(id: string, parentId: string) {
@@ -464,13 +464,13 @@ export class TweetService {
   async likeTweet(userId: string, tweetId: string) {
     await this.validateId(tweetId);
     const tweet = await prisma.tweet.findUnique({ where: { id: tweetId } });
-    if (!tweet) throw new AppError("Tweet not found", 404);
+    if (!tweet) responseUtils.throwError("TWEET_NOT_FOUND");
 
     const existingLike = await prisma.tweetLike.findUnique({
       where: { userId_tweetId: { userId, tweetId } },
     });
 
-    if (existingLike) throw new AppError("Tweet already liked", 409);
+    if (existingLike) responseUtils.throwError("TWEET_ALREADY_LIKED");
     return await prisma.$transaction(async (tx) => {
       const parent = await tx.tweet.update({
         where: { id: tweetId },
@@ -501,7 +501,7 @@ export class TweetService {
     });
 
     if (!existingLike) {
-      throw new AppError("You haven't liked this tweet yet", 409);
+      responseUtils.throwError("TWEET_NOT_LIKED_YET");
     }
 
     return prisma.$transaction([
@@ -559,7 +559,7 @@ export class TweetService {
       select: { content: true },
     });
 
-    if (!tweet) throw new AppError("Tweet not found", 404);
+    if (!tweet) responseUtils.throwError("TWEET_NOT_FOUND");
 
     const existingSummary = await prisma.tweetSummary.findUnique({
       where: { tweetId },
@@ -568,7 +568,7 @@ export class TweetService {
 
     if (existingSummary) return existingSummary;
 
-    const summary = await generateTweetSumamry(tweet.content);
+    const summary = await generateTweetSumamry(tweet!.content);
     await prisma.tweetSummary.create({ data: { tweetId, summary } });
 
     return {
@@ -642,9 +642,14 @@ export class TweetService {
     await tx.tweet.update({
       where: { id },
       data: {
-        category: {
+        tweetCategories: {
           set: [],
-          connect: categoryRecords.map((category) => ({ id: category.id })),
+          connect: categoryRecords.map((category) => ({
+            tweetId_categoryId: {
+              categoryId: category.id,
+              tweetId: id,
+            },
+          })),
         },
       },
     });
@@ -750,7 +755,7 @@ export class TweetService {
     };
   }
 
-  private tweetSelectFields(userId?: string) {
+  public tweetSelectFields(userId?: string) {
     return {
       id: true,
       content: true,
@@ -782,11 +787,13 @@ export class TweetService {
             },
           }
         : {}),
+      hashtags: { select: { hashId: true } },
       tweetMedia: {
         select: {
           media: { select: { id: true, type: true, name: true, size: true } },
         },
       },
+      tweetCategories: { select: { categoryId: true } },
     };
   }
 }

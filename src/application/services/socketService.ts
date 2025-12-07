@@ -165,7 +165,7 @@ export class SocketService {
 
     socket.on("open-notification", async (data: { notificationId: string }) => {
       try {
-        await markNotificationsAsRead(data.notificationId);
+        await markNotificationsAsRead(userId);
       } catch (error) {
         console.error("Error marking notification as read:", error);
       }
@@ -194,8 +194,20 @@ export class SocketService {
     this.io.to(recipientId).emit("notification", notification);
   }
 
+  public sendUnseenNotificationsCount(recipientId: string, count: number): void {
+    this.io.to(recipientId).emit("unseen-notifications-count", { count });
+  }     
+
+   public sendUnseenChatsCount(recipientId: string, count: number): void {
+    this.io.to(recipientId).emit("unseen-chats-count", { count });
+  }     
+
   public sendMessageToChat(recipientId: string, message: any): void {
     this.io.to(recipientId).emit("new-message", message);
+  }
+
+  public sendDeletedChatToUser(recipientId: string, chatId: string): void {
+    this.io.to(recipientId).emit("chat-deleted", { chatId });
   }
 
   public getConnectedUsersCount(): number {

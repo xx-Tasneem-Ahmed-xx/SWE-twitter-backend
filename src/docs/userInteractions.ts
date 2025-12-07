@@ -3,6 +3,7 @@ import {
   UserInteractionParamsSchema,
   UserInteractionQuerySchema,
   FollowsListResponseSchema,
+  SuggestedFollowsResponseSchema,
 } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 
 export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
@@ -109,6 +110,27 @@ export const registerUserInteractionsDocs = (registry: OpenAPIRegistry) => {
       },
       403: { description: "Can't view followings of blocked / blocking users" },
       404: { description: "User not found" },
+      500: { description: "Internal server error" },
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/api/followings/suggested",
+    summary: "Get suggested users to follow",
+    description:
+      "Returns a list of users that the current user might want to follow, sorted by follower count. Excludes users the current user is already following or has sent a follow request to.",
+    tags: ["User Interactions"],
+    responses: {
+      200: {
+        description: "Suggested users fetched successfully",
+        content: {
+          "application/json": {
+            schema: SuggestedFollowsResponseSchema,
+          },
+        },
+      },
+      401: { description: "Unauthorized - user not authenticated" },
       500: { description: "Internal server error" },
     },
   });

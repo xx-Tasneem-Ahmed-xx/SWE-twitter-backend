@@ -1,13 +1,15 @@
+import { Request, Response, NextFunction } from "express";
 import {
   CategoryCursorSchema,
+  ExploreServiceSchema,
   PreferredCategoriesSchema,
 } from "@/application/dtos/explore/explore.dto.schema";
 import { encoderService } from "@/application/services/encoder";
 import { ExploreService } from "@/application/services/explore";
-import { Request, Response, NextFunction } from "express";
+import * as responseUtils from "@/application/utils/response.utils";
 
 export class ExploreController {
-  private exploreService: ExploreService;
+  private readonly exploreService: ExploreService;
 
   constructor() {
     this.exploreService = ExploreService.getInstance();
@@ -49,19 +51,29 @@ export class ExploreController {
         userId,
         parsedPayload
       );
-      return res.status(200).json("Preferred categories saved successfully!");
+      return responseUtils.sendResponse(res, "CATEGORIES_SAVED");
     } catch (error) {
       next(error);
     }
   };
 
-  public getExploreFeed = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) => {
+  public getFeed = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const query = req.query;
       const userId = (req as any).user.id;
+      const decodedCursor = encoderService.decode<{
+        id: string;
+        score: number;
+      }>(query.cursor as string);
+
+      const parsedDTO = ExploreServiceSchema.parse({
+        userId,
+        limit: query.limit,
+        cursor: decodedCursor ?? undefined,
+        categoryId: query.categoryId ? String(query.categoryId) : undefined,
+      });
+      const feed = await this.exploreService.getFeed(parsedDTO);
+      res.status(200).json(feed);
     } catch (error) {
       next(error);
     }
