@@ -680,6 +680,39 @@ export class TweetService {
     };
   }
 
+  async getUserMedias(dto: TweetCursorServiceDTO) {
+    const tweetsWithMedia = await prisma.tweet.findMany({
+      where: {
+        userId: dto.userId,
+        ...(dto.tweetType && { tweetType: dto.tweetType }),
+        tweetMedia: { some: {} },
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        tweetMedia: {
+          select: {
+            media: { select: this.mediaSelectFields() },
+          },
+        },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: dto.limit + 1,
+      ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
+    });
+
+    const { cursor, paginatedRecords } = updateCursor(
+      tweetsWithMedia,
+      dto.limit,
+      (record) => ({ id: record.id, createdAt: record.createdAt })
+    );
+
+    return {
+      data: paginatedRecords,
+      cursor,
+    };
+  }
+
   async getMentionedTweets(dto: TweetCursorServiceDTO) {
     const tweets = await prisma.tweet.findMany({
       where: {
@@ -828,7 +861,14 @@ export class TweetService {
         : undefined,
     };
   }
-
+  public mediaSelectFields() {
+    return {
+      id: true,
+      type: true,
+      name: true,
+      size: true,
+    };
+  }
   public tweetSelectFields(userId?: string) {
     return {
       id: true,
@@ -863,9 +903,7 @@ export class TweetService {
         : {}),
       hashtags: { select: { hashId: true } },
       tweetMedia: {
-        select: {
-          media: { select: { id: true, type: true, name: true, size: true } },
-        },
+        select: { media: { select: this.mediaSelectFields() } },
       },
       tweetCategories: {
         select: { category: { select: { name: true } } },

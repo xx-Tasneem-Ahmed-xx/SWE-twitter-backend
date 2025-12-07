@@ -12,7 +12,7 @@ import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 import { listErrors } from "@/docs/errors";
 import { TweetIdParams, UsernameParams } from "@/docs/utils/utils";
-import { TweetType } from "@prisma/client";
+import { MediaType, TweetType } from "@prisma/client";
 const errors = listErrors();
 
 function registerSubList(
@@ -375,6 +375,48 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
         content: {
           "application/json": {
             schema: TweetListResponseSchema,
+          },
+        },
+      },
+      ...errors,
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/api/tweets/users/{username}/medias",
+    summary: "Get all media included in a user's tweets",
+    description:
+      "Returns all media attached to tweets of the specified user. Supports cursor-based pagination.",
+    tags: ["Tweets"],
+    request: {
+      params: z.object({ username: z.string() }),
+      query: CursorDTOSchema,
+    },
+    responses: {
+      200: {
+        description: "Tweet media fetched successfully",
+        content: {
+          "application/json": {
+            schema: z.object({
+              data: z.array(
+                z.object({
+                  id: z.uuid(),
+                  createdAt: z.string(),
+                  tweetMedia: z.array(
+                    z.object({
+                      media: z.object({
+                        id: z.uuid(),
+                        type: z.enum(MediaType),
+                        name: z.string(),
+                        size: z.number(),
+                      }),
+                    })
+                  ),
+                })
+              ),
+              cursor: z.string().nullable(),
+            }),
           },
         },
       },

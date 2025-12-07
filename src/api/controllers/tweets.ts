@@ -276,6 +276,27 @@ export class TweetController {
     }
   }
 
+  async getUserMedias(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { username } = req.params;
+      const { id: userId } = await resolveUsernameToId(username);
+      const decodedCursor = encoderService.decode<{
+        createdAt: string;
+        id: string;
+      }>(req.query.cursor as string);
+
+      const parsedDTO = TweetCursorServiceSchema.parse({
+        userId,
+        limit: req.query.limit,
+        cursor: decodedCursor ?? undefined,
+      });
+      const medias = await tweetService.getUserMedias(parsedDTO);
+      res.status(200).json(medias);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getMentionedTweets(req: Request, res: Response, next: NextFunction) {
     try {
       const { username } = req.params;
