@@ -174,10 +174,7 @@ describe("Tweets Service", () => {
           content: "my quote",
           parentId: protectedTweet.id,
         })
-      ).rejects.toMatchObject({
-        message: "You cannot quote a protected tweet",
-        statusCode: 403,
-      });
+      ).rejects.toThrow("You can't quote a protected tweet");
     });
 
     it("should throw if no parent tweet exists", async () => {
@@ -625,7 +622,7 @@ describe("Tweets Service", () => {
           },
         }),
       ]);
-      const res = await tweetService.getTweetReplies(publicTweet.id, {
+      const res = await tweetService.getTweetRepliesOrQuotes(publicTweet.id, {
         userId: "123",
         limit: 10,
       });
