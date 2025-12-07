@@ -31,11 +31,11 @@ export class TweetController {
     try {
       const parentId = req.params.id;
       const userId = (req as any).user.id;
-      const retweet = await tweetService.createRetweet({
+      await tweetService.createRetweet({
         parentId,
         userId: userId,
       });
-      res.status(201).json(retweet);
+      return responseUtils.sendResponse(res, "RETWEET_CREATED");
     } catch (error) {
       next(error);
     }
