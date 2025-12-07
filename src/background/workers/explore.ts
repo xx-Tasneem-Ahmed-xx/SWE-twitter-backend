@@ -2,22 +2,36 @@ import { Worker } from "bullmq";
 import { bullRedisConfig } from "@/background/config/redis";
 import { loadSecrets } from "@/config/secrets";
 import { initRedis } from "@/config/redis";
-import { ExploreJobData } from "../types/jobs";
-import tweetService from "@/application/services/tweets";
+import { ExploreJobData, TweetScoreUpdate } from "../types/jobs";
+import { enqueueRefreshFeedJob } from "../jobs/explore";
 
 async function startWorker() {
   await initRedis();
   await loadSecrets();
-  const exploreWorker = new Worker<ExploreJobData>(
+  const exploreWorker = new Worker<TweetScoreUpdate | ExploreJobData>(
     "explore",
     async (job) => {
+      const { ExploreService } = await import("@/application/services/explore");
+      const exploreService = ExploreService.getInstance();
       switch (job.name) {
         case "update-score": {
-          const { tweetId } = job.data;
-          await tweetService.calculateTweetScore(tweetId);
+          if ("tweetId" in job.data)
+            await exploreService.calculateTweetScore(job.data.tweetId);
+
           break;
         }
-
+        case "refresh-feed": {
+          if ("userId" in job.data) {
+            const userId = job.data.userId;
+            await exploreService.getFeed({
+              userId,
+              limit: 50,
+              forceRefresh: true,
+            });
+            await enqueueRefreshFeedJob({ userId });
+          }
+          break;
+        }
         default:
           break;
       }
@@ -29,8 +43,9 @@ async function startWorker() {
   );
 
   exploreWorker.on("completed", (job) => {
-    console.log(`Updated score for tweet ${job.data.tweetId}`);
+    console.log(`completed ${job.name} : ${job.id}`);
   });
+
   exploreWorker.on("failed", (job, err) => {
     console.error(`Failed job ${job?.id}`, err);
   });

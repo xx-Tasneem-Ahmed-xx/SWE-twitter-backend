@@ -551,7 +551,7 @@ export class TweetService {
       await tx.tweetLike.create({
         data: { userId, tweetId },
       });
-      enqueueUpdateScroeJob({ tweetId: tweetId });
+      enqueueUpdateScroeJob({ tweetId });
       addNotification(parent.userId as UUID, {
         title: "LIKE",
         body: "liked your post",
@@ -743,6 +743,11 @@ export class TweetService {
     tweetContent: string,
     tx: Prisma.TransactionClient
   ) {
+    const tweetExists = await tx.tweet.findUnique({ where: { id } });
+    if (!tweetExists) {
+      console.warn(`Tweet ${id} not found, skipping categorization`);
+      return;
+    }
     const categories = await generateTweetCategory(tweetContent);
     const categoryRecords = await tx.category.findMany({
       where: {
@@ -759,41 +764,6 @@ export class TweetService {
         categoryId: cat.id,
       })),
       skipDuplicates: true,
-    });
-  }
-
-  async calculateTweetScore(tweetId: string) {
-    const W_LIKES = 0.2;
-    const W_RETWEETS = 0.5;
-    const W_QUOTES = 0.5;
-    const W_REPLIES = 0.3;
-    const TAU_HOURS = 48;
-    
-    const tweet = await prisma.tweet.findUnique({
-      where: { id: tweetId },
-      select: {
-        createdAt: true,
-        likesCount: true,
-        retweetCount: true,
-        quotesCount: true,
-        repliesCount: true,
-      },
-    });
-    if (!tweet) return;
-
-    const ageHours =
-      (Date.now() - new Date(tweet.createdAt).getTime()) / (1000 * 60 * 60);
-
-    const score =
-      (W_LIKES * tweet.likesCount +
-        W_RETWEETS * tweet.retweetCount +
-        W_QUOTES * tweet.quotesCount +
-        W_REPLIES * tweet.repliesCount) *
-      Math.exp(-(ageHours / TAU_HOURS));
-
-    await prisma.tweet.update({
-      where: { id: tweetId },
-      data: { score },
     });
   }
 

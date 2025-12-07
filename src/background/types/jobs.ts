@@ -10,6 +10,10 @@ export type TrendUpdateJobData = {
 };
 
 export type ExploreJobData = {
+  userId: string;
+};
+
+export type TweetScoreUpdate = {
   tweetId: string;
 };
 
