@@ -53,6 +53,30 @@ export const CreateTweetDTOSchema = z
   })
   .openapi("CreateTweetDTO");
 
+const TweetMediaSchema = z
+  .array(z.uuid())
+  .max(4)
+  .optional()
+  .refine(
+    (arr) => !arr || new Set(arr).size === arr.length,
+    "Duplicate media IDs are not allowed"
+  );
+
+export const UpdateTweetSchema = z
+  .object({
+    userId: z.uuid(),
+    content: StringSchema.optional(),
+    replyControl: z.enum(ReplyControl).optional(),
+    tweetMedia: TweetMediaSchema,
+  })
+  .refine(
+    (data) => data.content || data.replyControl || data.tweetMedia?.length,
+    {
+      message:
+        "At least one field (content, replyControl or tweetMedia) must be provided",
+    }
+  );
+
 export const TweetResponsesSchema = z.object({
   id: z.uuid(),
   content: StringSchema,
@@ -65,14 +89,7 @@ export const TweetResponsesSchema = z.object({
   parentId: z.uuid().nullable().optional(),
   tweetType: z.enum(TweetType),
   user: UserSchema,
-  tweetMedia: z
-    .array(z.uuid())
-    .max(4)
-    .optional()
-    .refine(
-      (arr) => !arr || new Set(arr).size === arr.length,
-      "Duplicate media IDs are not allowed"
-    ),
+  tweetMedia: TweetMediaSchema,
   hashtags: z.array(z.string()).optional(),
   tweetCategories: CategoriesResponseSchema.optional(),
   isLiked: z.boolean(),

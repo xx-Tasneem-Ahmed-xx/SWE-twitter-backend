@@ -5,6 +5,7 @@ import {
 import {
   CreateTweetDTOSchema,
   SearchDTOSchema,
+  UpdateTweetSchema,
 } from "@/application/dtos/tweets/tweet.dto.schema";
 import { resolveUsernameToId } from "@/application/utils/tweets/utils";
 import { Request, Response, NextFunction } from "express";
@@ -130,8 +131,10 @@ export class TweetController {
   async updateTweet(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const { content } = req.body;
-      await tweetService.updateTweet(id, content);
+      const userId = (req as any).user.id;
+      const payload = req.body;
+      const parsedPayload = UpdateTweetSchema.parse({ userId, ...payload });
+      await tweetService.updateTweet(id, parsedPayload);
       return responseUtils.sendResponse(res, "TWEET_UPDATED");
     } catch (error) {
       next(error);

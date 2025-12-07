@@ -405,6 +405,14 @@ export const RESPONSES = {
       message: "You haven't liked this tweet yet",
       status: 409,
     },
+    TWEET_UPDATE_FIELDS: {
+      message: "No fields to update for tweet",
+      status: 400,
+    },
+    TWEET_OWNER_ACCESS: {
+      message: "The tweet owner only can perform this action",
+      status: 403,
+    },
 
     // Media Errors
     MEDIA_NOT_FOUND: { message: "Media not found", status: 404 },

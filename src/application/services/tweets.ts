@@ -31,6 +31,7 @@ import { Prisma } from "@prisma/client";
 import { UUID } from "node:crypto";
 import { addNotification } from "./notification";
 import { enqueueUpdateScroeJob } from "@/background/jobs/explore";
+import { UpdateTweetDTO } from "../dtos/tweets/tweet.dto";
 
 export class TweetService {
   private async validateId(id: string) {
@@ -374,11 +375,35 @@ export class TweetService {
     return this.checkUserInteractions([tweet])[0];
   }
 
-  async updateTweet(id: string, content: string) {
+  async updateTweet(id: string, dto: UpdateTweetDTO) {
     await this.validateId(id);
+    const tweet = await prisma.tweet.findUnique({
+      where: { id, userId: dto.userId },
+      select: { id: true },
+    });
+    if (!tweet) responseUtils.throwError("TWEET_OWNER_ACCESS");
+
+    const data: any = {};
+    if (dto.content !== undefined) data.content = dto.content;
+    if (dto.replyControl !== undefined) data.replyControl = dto.replyControl;
+    if (dto.tweetMedia !== undefined) {
+      await prisma.tweetMedia.deleteMany({
+        where: { tweetId: id },
+      });
+
+      data.tweetMedia = {
+        create: dto.tweetMedia.map((mediaId) => ({
+          mediaId,
+        })),
+      };
+    }
+
+    if (Object.keys(data).length === 0)
+      responseUtils.throwError("TWEET_UPDATE_FIELDS");
+
     return prisma.tweet.update({
       where: { id },
-      data: { content },
+      data,
       select: { id: true },
     });
   }

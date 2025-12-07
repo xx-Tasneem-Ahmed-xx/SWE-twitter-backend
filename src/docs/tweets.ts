@@ -6,6 +6,7 @@ import {
   TweetListResponseSchema,
   TweetResponsesSchema,
   TweetSummaryResponse,
+  UpdateTweetSchema,
   UsersResponseSchema,
 } from "@/application/dtos/tweets/tweet.dto.schema";
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
@@ -178,9 +179,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
         required: true,
         content: {
           "application/json": {
-            schema: z.object({
-              content: StringSchema,
-            }),
+            schema: UpdateTweetSchema,
           },
         },
       },
