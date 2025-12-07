@@ -70,7 +70,7 @@ export class ExploreController {
         userId,
         limit: query.limit,
         cursor: decodedCursor ?? undefined,
-        categoryId: query.categoryId ? String(query.categoryId) : undefined,
+        category: query.category ? String(query.category) : undefined,
       });
       const feed = await this.exploreService.getFeed(parsedDTO);
       res.status(200).json(feed);

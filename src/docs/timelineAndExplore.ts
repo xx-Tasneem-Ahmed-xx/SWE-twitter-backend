@@ -1,7 +1,10 @@
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 import { listErrors } from "@/docs/errors";
-import { CursorDTOSchema, timelineResponeSchema } from "@/application/dtos/tweets/tweet.dto.schema";
+import {
+  CursorDTOSchema,
+  timelineResponeSchema,
+} from "@/application/dtos/tweets/tweet.dto.schema";
 
 const errors = listErrors();
 
@@ -12,30 +15,6 @@ const CategoryParams = z.object({
 });
 
 export const registerTimelineAndExploreDocs = (registry: OpenAPIRegistry) => {
-  registry.registerPath({
-    method: "get",
-    path: "/api/explore/${category}",
-    summary: "Get tweets or trends by category",
-    description:
-      "Fetch public tweets or trending content filtered by category (sports, news, or entertainment).",
-    tags: ["Timeline"],
-    request: { params: CategoryParams, query: CursorDTOSchema },
-    responses: {
-      200: {
-        description: "Successfully retrieved tweets for the category",
-        content: {
-          "application/json": {
-            schema: z.object({
-              category: z.string(),
-              tweets: z.array(z.array(timelineResponeSchema)),
-            }),
-          },
-        },
-      },
-      ...errors,
-    },
-  });
-
   registry.registerPath({
     method: "get",
     path: "/api/home/for-you",
