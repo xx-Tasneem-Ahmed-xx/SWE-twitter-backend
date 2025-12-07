@@ -82,7 +82,7 @@ const initialUsers: User[] = [
 
 describe("UserService", () => {
   beforeAll(async () => {
-    DEFAULT_PROFILE_PIC_ID = await getKey("DEFAULT_PROFILE_PIC_ID");
+     DEFAULT_PROFILE_PIC_ID = await getKey("DEFAULT_PROFILE_PIC_ID") as string;
     await connectToDatabase();
     console.log("Running UserService tests with real database connection");
 
@@ -425,6 +425,7 @@ it("should throw if adding invalid token", async () => {
 });
 
 import { userController } from "../api/controllers/user.controller";
+import { string } from "zod";
 
 describe("UserController edge cases", () => {
   const req: any = { params: {}, body: {}, user: { id: "u1" } };

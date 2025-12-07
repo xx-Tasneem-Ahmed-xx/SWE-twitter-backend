@@ -1,15 +1,18 @@
+import { initEncoderService } from "@/application/services/encoder";
+import tweetService from "@/application/services/tweets";
 import { initRedis } from "@/config/redis";
 import { loadSecrets } from "@/config/secrets";
 import { prisma } from "@/prisma/client";
 import { Tweet, TweetType, ReplyControl } from "@prisma/client";
-let connectToDatabase: any, tweetService: any;
+let connectToDatabase: any;
 
 beforeAll(async () => {
   await initRedis();
   await loadSecrets();
+  await initEncoderService();
   connectToDatabase = (await import("@/database")).connectToDatabase;
-  tweetService = (await import("@/application/services/tweets")).default;
 });
+
 describe("Tweets Service", () => {
   let publicTweet: Tweet;
   let protectedTweet: Tweet;
@@ -94,6 +97,14 @@ describe("Tweets Service", () => {
   beforeEach(async () => {
     await prisma.mention.deleteMany();
     await prisma.follow.deleteMany();
+    await prisma.tweet.deleteMany({
+      where: {
+        AND: [
+          { userId: { in: ["123", "456", "789"] } },
+          { id: { notIn: [publicTweet.id, protectedTweet.id] } },
+        ],
+      },
+    });
   });
 
   afterAll(async () => {
@@ -429,6 +440,356 @@ describe("Tweets Service", () => {
         message: "Tweet not found",
         statusCode: 404,
       });
+    });
+  });
+
+  describe("deleteTweet", () => {
+    it("should delete an existing tweet", async () => {
+      const tweet = await prisma.tweet.create({
+        data: { content: "hello", tweetType: "TWEET", userId: "123" },
+      });
+
+      await tweetService.deleteTweet(tweet.id);
+      const result = await prisma.tweet.findUnique({
+        where: { id: tweet.id },
+      });
+      expect(result).toBe(null);
+    });
+
+    it("should delete an existing reply and decrement reply count of parent tweet", async () => {
+      const tweet = await prisma.tweet.create({
+        data: { content: "hello", tweetType: "TWEET", userId: "123" },
+      });
+
+      const reply = await prisma.tweet.create({
+        data: {
+          content: "reply",
+          tweetType: "REPLY",
+          userId: "456",
+          parentId: tweet.id,
+        },
+      });
+      await prisma.tweet.update({
+        where: { id: tweet.id },
+        data: { repliesCount: { increment: 1 } },
+      });
+      await tweetService.deleteTweet(reply.id);
+      const result = await prisma.tweet.findUnique({
+        where: { id: reply.id },
+      });
+      expect(result).toBe(null);
+      const parent = await prisma.tweet.findUnique({
+        where: { id: tweet.id },
+        select: { repliesCount: true },
+      });
+      expect(parent?.repliesCount).toBe(0);
+    });
+
+    it("should delete an existing quote and decrement quote count of parent tweet", async () => {
+      const tweet = await prisma.tweet.create({
+        data: { content: "hello", tweetType: "TWEET", userId: "123" },
+      });
+
+      const quote = await prisma.tweet.create({
+        data: {
+          content: "quote",
+          tweetType: "QUOTE",
+          userId: "456",
+          parentId: tweet.id,
+        },
+      });
+      await prisma.tweet.update({
+        where: { id: tweet.id },
+        data: { quotesCount: { increment: 1 } },
+      });
+      await tweetService.deleteTweet(quote.id);
+      const result = await prisma.tweet.findUnique({
+        where: { id: quote.id },
+      });
+      expect(result).toBe(null);
+      const parent = await prisma.tweet.findUnique({
+        where: { id: tweet.id },
+        select: { quotesCount: true },
+      });
+      expect(parent?.quotesCount).toBe(0);
+    });
+
+    it("should delete an existing retweet and decrement retweet count of parent tweet", async () => {
+      const tweet = await prisma.tweet.create({
+        data: { content: "hello", tweetType: "TWEET", userId: "123" },
+      });
+
+      await prisma.retweet.create({
+        data: { tweetId: tweet.id, userId: "456" },
+      });
+      await prisma.tweet.update({
+        where: { id: tweet.id },
+        data: { retweetCount: { increment: 1 } },
+      });
+      await tweetService.deleteRetweet("456", tweet.id);
+      const result = await prisma.retweet.findUnique({
+        where: { userId_tweetId: { userId: "456", tweetId: tweet.id } },
+      });
+      expect(result).toBe(null);
+      const parent = await prisma.tweet.findUnique({
+        where: { id: tweet.id },
+        select: { retweetCount: true },
+      });
+      expect(parent?.retweetCount).toBe(0);
+    });
+
+    it("should throw if tweet id is invalid", async () => {
+      await expect(
+        tweetService.deleteTweet("bla bla bla")
+      ).rejects.toMatchObject({
+        message: "Tweet not found",
+        statusCode: 404,
+      });
+    });
+  });
+
+  describe("getLikedTweets", () => {
+    it("should get user's liked tweets", async () => {
+      const [tweet1, tweet2, tweet3] = await Promise.all([
+        prisma.tweet.create({
+          data: { content: "tweet one", userId: "456", tweetType: "TWEET" },
+        }),
+        prisma.tweet.create({
+          data: { content: "tweet two", userId: "789", tweetType: "QUOTE" },
+        }),
+        prisma.tweet.create({
+          data: { content: "tweet three", userId: "123", tweetType: "REPLY" },
+        }),
+      ]);
+      await prisma.tweetLike.createMany({
+        data: [
+          {
+            userId: "123",
+            tweetId: tweet1.id,
+            createdAt: new Date("2025-12-05T10:00:00Z"),
+          },
+          {
+            userId: "123",
+            tweetId: tweet2.id,
+            createdAt: new Date("2025-12-05T10:05:00Z"),
+          },
+          {
+            userId: "123",
+            tweetId: tweet3.id,
+            createdAt: new Date("2025-12-05T10:10:00Z"),
+          },
+        ],
+      });
+
+      const res = await tweetService.getLikedTweets({
+        userId: "123",
+        limit: 10,
+      });
+      const likedIds = res.data.map((like) => like.id);
+
+      expect(likedIds).toEqual(
+        expect.arrayContaining([tweet1.id, tweet2.id, tweet3.id])
+      );
+      expect(res.data).toHaveLength(3);
+    });
+  });
+
+  describe("getTweetReplies", () => {
+    it("should get all replies for a tweet", async () => {
+      await prisma.tweet.deleteMany({
+        where: { tweetType: "REPLY", parentId: publicTweet.id },
+      });
+      const [reply1, reply2, reply3] = await Promise.all([
+        prisma.tweet.create({
+          data: {
+            content: "reply one",
+            userId: "456",
+            tweetType: "REPLY",
+            parentId: publicTweet.id,
+          },
+        }),
+        prisma.tweet.create({
+          data: {
+            content: "reply two",
+            userId: "789",
+            tweetType: "REPLY",
+            parentId: publicTweet.id,
+          },
+        }),
+        prisma.tweet.create({
+          data: {
+            content: "reply three",
+            userId: "123",
+            tweetType: "REPLY",
+            parentId: publicTweet.id,
+          },
+        }),
+      ]);
+      const res = await tweetService.getTweetReplies(publicTweet.id, {
+        userId: "123",
+        limit: 10,
+      });
+
+      const repliesIds = res.data.map((reply) => reply.id);
+
+      expect(repliesIds).toEqual(
+        expect.arrayContaining([reply1.id, reply2.id, reply3.id])
+      );
+      expect(res.data).toHaveLength(3);
+    });
+  });
+
+  describe("likeTweet", () => {
+    it("should like a tweet and update likes count of parent", async () => {
+      await tweetService.likeTweet("456", publicTweet.id);
+
+      const updatedtweet = await prisma.tweet.findUnique({
+        where: { id: publicTweet.id },
+      });
+      expect(updatedtweet?.likesCount).toBe(1);
+      const res = await prisma.tweetLike.findUnique({
+        where: { userId_tweetId: { userId: "456", tweetId: publicTweet.id } },
+      });
+      expect(res).toBeDefined();
+    });
+    it("should throw when liking an already liked tweet", async () => {
+      await expect(
+        tweetService.likeTweet("456", publicTweet.id)
+      ).rejects.toMatchObject({
+        message: "Tweet already liked",
+        statusCode: 409,
+      });
+    });
+  });
+
+  describe("deleteLike", () => {
+    it("should delete a like on a tweet", async () => {
+      await tweetService.deleteLike("456", publicTweet.id);
+
+      const res = await prisma.tweetLike.findUnique({
+        where: { userId_tweetId: { userId: "456", tweetId: publicTweet.id } },
+      });
+      expect(res).toBeNull();
+    });
+
+    it("should throw when deleting a non existent like", async () => {
+      await expect(
+        tweetService.deleteLike("456", publicTweet.id)
+      ).rejects.toMatchObject({
+        message: "You haven't liked this tweet yet",
+        statusCode: 409,
+      });
+    });
+  });
+
+  describe("getLikers", () => {
+    it("should return likers of a tweet", async () => {
+      await prisma.tweetLike.createMany({
+        data: [
+          { userId: "123", tweetId: publicTweet.id },
+          { userId: "456", tweetId: publicTweet.id },
+          { userId: "789", tweetId: publicTweet.id },
+        ],
+      });
+
+      const res = await tweetService.getLikers(publicTweet.id, {
+        limit: 10,
+        userId: "123",
+      });
+      const likersIds = res.data.map((like) => like.id);
+
+      expect(likersIds).toEqual(expect.arrayContaining(["123", "456", "789"]));
+      expect(res.data).toHaveLength(3);
+    });
+  });
+
+  describe("getUserTweets", () => {
+    it("should return all tweet for a user", async () => {
+      const [quote, reply] = await Promise.all([
+        prisma.tweet.create({
+          data: { userId: "456", content: "bla bla bla", tweetType: "QUOTE" },
+        }),
+        prisma.tweet.create({
+          data: { userId: "456", content: "bla bla bla", tweetType: "REPLY" },
+        }),
+      ]);
+
+      const res = await tweetService.getUserTweets(
+        {
+          userId: "456",
+          limit: 10,
+        },
+        "123"
+      );
+
+      const tweetIds = res.data.map((tweet) => tweet.id);
+
+      expect(tweetIds).toEqual(
+        expect.arrayContaining([reply.id, quote.id, protectedTweet.id])
+      );
+      expect(res.data).toHaveLength(3);
+    });
+  });
+
+  describe("getMentionedTweets", () => {
+    it("should return tweets where the user is mentioned", async () => {
+      const [tweet1, tweet2, tweet3] = await Promise.all([
+        prisma.tweet.create({
+          data: { content: "tweet one", userId: "123", tweetType: "TWEET" },
+        }),
+        prisma.tweet.create({
+          data: { content: "tweet two", userId: "456", tweetType: "TWEET" },
+        }),
+        prisma.tweet.create({
+          data: { content: "tweet three", userId: "789", tweetType: "TWEET" },
+        }),
+      ]);
+
+      await prisma.mention.createMany({
+        data: [
+          { mentionedId: "123", mentionerId: "123", tweetId: tweet1.id },
+          { mentionedId: "123", mentionerId: "456", tweetId: tweet2.id },
+          { mentionedId: "123", mentionerId: "789", tweetId: tweet3.id },
+        ],
+      });
+
+      const res = await tweetService.getMentionedTweets({
+        userId: "123",
+        limit: 10,
+      });
+
+      const mentionedIds = res.data.map((t: any) => t.id);
+
+      expect(mentionedIds).toEqual(
+        expect.arrayContaining([tweet1.id, tweet2.id, tweet3.id])
+      );
+      expect(mentionedIds).toHaveLength(3);
+    });
+
+    it("should respect limit and return a cursor for pagination", async () => {
+      const [tweet1, tweet2] = await Promise.all([
+        prisma.tweet.create({
+          data: { content: "tweet one", userId: "456", tweetType: "TWEET" },
+        }),
+        prisma.tweet.create({
+          data: { content: "tweet two", userId: "789", tweetType: "TWEET" },
+        }),
+      ]);
+
+      await prisma.mention.createMany({
+        data: [
+          { mentionedId: "123", mentionerId: "456", tweetId: tweet1.id },
+          { mentionedId: "123", mentionerId: "789", tweetId: tweet2.id },
+        ],
+      });
+
+      const res = await tweetService.getMentionedTweets({
+        userId: "123",
+        limit: 1,
+      });
+
+      expect(res.data).toHaveLength(1);
+      expect(res.cursor).toBeDefined();
     });
   });
 });

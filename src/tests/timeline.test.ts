@@ -225,13 +225,15 @@ describe("TimelineService", () => {
       const genericCandidates = mockQueryRawCandidates(29, 1000);
 
       // Mock $queryRaw
-      mockQueryRawFn.mockImplementation((strings, ...values) => {
-        const query = strings.join("");
-        if (query.includes('FROM "Follow" f1 JOIN "Follow" f2')) {
-          return Promise.resolve([{ followingId: mockTwoHopId }]);
+      mockQueryRawFn.mockImplementation(
+        (strings: TemplateStringsArray, ...values: unknown[]) => {
+          const query = strings.join("");
+          if (query.includes('FROM "Follow" f1 JOIN "Follow" f2')) {
+            return Promise.resolve([{ followingId: mockTwoHopId }]);
+          }
+          return Promise.resolve([followedCandidate, ...genericCandidates]);
         }
-        return Promise.resolve([followedCandidate, ...genericCandidates]);
-      });
+      );
     });
 
     it("should return a feed with both items and recommendations fields populated", async () => {
@@ -381,7 +383,7 @@ describe("ForYou – scoring, hydration, and edge cases", () => {
   it("should not crash when author reputation is missing or null", async () => {
     const candidate = mockRawCandidate("t-rnull", "rep-null");
     // remove reputation field
-    delete candidate.reputation;
+    delete (candidate as any).reputation;
 
     mockQueryRawFn.mockResolvedValue([candidate]);
 

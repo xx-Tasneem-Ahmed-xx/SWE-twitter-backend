@@ -5,6 +5,10 @@ import {
   HashtagTweetsQuerySchema,
   TrendsResponseSchema,
   HashtagTweetsResponseSchema,
+  CategoriesQuerySchema,
+  SingleCategoryResponseDataSchema,
+  AllCategoriesResponseSchema,
+  WhoToFollowUserSchema,
 } from "@/application/dtos/trends/trend.dto.schema";
 
 export function registerHashtagAndTrendsDocs(registry: OpenAPIRegistry) {
@@ -13,6 +17,13 @@ export function registerHashtagAndTrendsDocs(registry: OpenAPIRegistry) {
   registry.register("HashtagTweetsQuery", HashtagTweetsQuerySchema);
   registry.register("TrendsResponse", TrendsResponseSchema);
   registry.register("HashtagTweetsResponse", HashtagTweetsResponseSchema);
+  registry.register("CategoriesQuery", CategoriesQuerySchema);
+  registry.register(
+    "SingleCategoryResponseData",
+    SingleCategoryResponseDataSchema
+  );
+  registry.register("WhoToFollowUser", WhoToFollowUserSchema);
+  registry.register("AllCategoriesResponse", AllCategoriesResponseSchema);
 
   registry.registerPath({
     method: "get",
@@ -32,6 +43,9 @@ export function registerHashtagAndTrendsDocs(registry: OpenAPIRegistry) {
             schema: TrendsResponseSchema,
           },
         },
+      },
+      400: {
+        description: "Invalid category parameter",
       },
     },
   });
@@ -64,6 +78,45 @@ export function registerHashtagAndTrendsDocs(registry: OpenAPIRegistry) {
       },
       404: {
         description: "Hashtag not found",
+      },
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/api/hashtags/categories",
+    summary: "Get trending data by category",
+    description:
+      "Returns trending hashtags and viral tweets.\n\n" +
+      "**With `category` parameter:** Returns trends and viral tweets for that specific category (global, news, sports, or entertainment).\n\n" +
+      "**Without `category` parameter:** Returns trends and viral tweets for ALL categories.\n\n" +
+      "Data is cached and updated every constant interval by a background worker.",
+    tags: ["Hashtags"],
+    request: {
+      query: CategoriesQuerySchema,
+    },
+    responses: {
+      200: {
+        description: "Trending data - either single category or all categories",
+        content: {
+          "application/json": {
+            schema: z.union([
+              SingleCategoryResponseDataSchema,
+              AllCategoriesResponseSchema,
+            ]),
+          },
+        },
+      },
+      400: {
+        description: "Invalid category parameter",
+        content: {
+          "application/json": {
+            schema: z.object({
+              error: z.string(),
+              message: z.string(),
+            }),
+          },
+        },
       },
     },
   });
