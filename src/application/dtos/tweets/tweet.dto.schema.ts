@@ -1,6 +1,7 @@
 import z from "zod";
 import { ReplyControl, TweetType } from "@/prisma/client";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { CategoriesResponseSchema } from "../explore/explore.dto.schema";
 
 extendZodWithOpenApi(z);
 
@@ -29,6 +30,7 @@ const UserSchema = z.object({
   profileMedia: z.object({ id: z.uuid() }),
   verified: z.boolean(),
   protectedAccount: z.boolean(),
+  isFollowed: z.boolean(),
 });
 
 export const UsersResponseSchema = z.object({
@@ -63,7 +65,7 @@ export const TweetResponsesSchema = z.object({
   parentId: z.uuid().nullable().optional(),
   tweetType: z.enum(TweetType),
   user: UserSchema,
-  mediaIds: z
+  tweetMedia: z
     .array(z.uuid())
     .max(4)
     .optional()
@@ -71,9 +73,16 @@ export const TweetResponsesSchema = z.object({
       (arr) => !arr || new Set(arr).size === arr.length,
       "Duplicate media IDs are not allowed"
     ),
+  hashtags: z.array(z.string()).optional(),
+  tweetCategories: CategoriesResponseSchema.optional(),
   isLiked: z.boolean(),
   isRetweeted: z.boolean(),
   isBookmarked: z.boolean(),
+});
+
+export const TweetListResponseSchema = z.object({
+  data: z.array(TweetResponsesSchema),
+  cursor: z.string().nullable(),
 });
 
 export const timelineResponeSchema = TweetResponsesSchema.extend({

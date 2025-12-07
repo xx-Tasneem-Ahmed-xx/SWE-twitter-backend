@@ -4,6 +4,7 @@ import {
   SearchDTOSchema,
   TimelineSchema,
 } from "@/application/dtos/tweets/tweet.dto.schema";
+import { TweetType } from "@prisma/client";
 
 export const createTweetServiceSchema = CreateTweetDTOSchema.extend({
   userId: z.uuid(),
@@ -31,6 +32,7 @@ const CursorServiceSchema = z.object({
 });
 
 export const TweetCursorServiceSchema = CursorServiceSchema.extend({
+  tweetType: z.enum(TweetType).optional(),
   cursor: z.object({ createdAt: z.coerce.date(), id: z.uuid() }).optional(),
 });
 

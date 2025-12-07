@@ -3,6 +3,7 @@ import {
   CursorDTOSchema,
   SearchDTOSchema,
   StringSchema,
+  TweetListResponseSchema,
   TweetResponsesSchema,
   TweetSummaryResponse,
   UsersResponseSchema,
@@ -11,6 +12,7 @@ import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 import { listErrors } from "@/docs/errors";
 import { TweetIdParams, UsernameParams } from "@/docs/utils/utils";
+import { TweetType } from "@prisma/client";
 const errors = listErrors();
 
 function registerSubList(
@@ -138,7 +140,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
         description: "List of quoters",
         content: {
           "application/json": {
-            schema: z.array(TweetResponsesSchema),
+            schema: TweetListResponseSchema,
           },
         },
       },
@@ -213,7 +215,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     registry,
     "replies",
     "Replies under the tweet",
-    z.array(TweetResponsesSchema),
+    TweetListResponseSchema,
     "Tweets"
   );
 
@@ -231,7 +233,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
         description: "Mentioned tweets fetched successfully",
         content: {
           "application/json": {
-            schema: z.array(TweetResponsesSchema),
+            schema: TweetListResponseSchema,
           },
         },
       },
@@ -280,7 +282,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
         description: "Liked tweets fetched successfully",
         content: {
           "application/json": {
-            schema: z.array(TweetResponsesSchema),
+            schema: TweetListResponseSchema,
           },
         },
       },
@@ -348,7 +350,7 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
         description: "List of matching tweets",
         content: {
           "application/json": {
-            schema: TweetResponsesSchema,
+            schema: TweetListResponseSchema,
           },
         },
         ...errors,
@@ -360,18 +362,21 @@ export const registerTweetDocs = (registry: OpenAPIRegistry) => {
     method: "get",
     path: "/api/tweets/users/{username}",
     summary: "Get user's tweets",
-    description: "Returns all tweets authored by the specified user.",
+    description:
+      "Returns all tweets or replies authored by the specified user.",
     tags: ["Tweets"],
     request: {
       params: UsernameParams,
-      query: CursorDTOSchema,
+      query: CursorDTOSchema.extend({
+        tweetType: z.enum(TweetType),
+      }),
     },
     responses: {
       200: {
         description: "Tweets retrieved successfully",
         content: {
           "application/json": {
-            schema: z.array(TweetResponsesSchema),
+            schema: TweetListResponseSchema,
           },
         },
       },
