@@ -146,17 +146,14 @@ export class TweetController {
         createdAt: string;
         id: string;
       }>(req.query.cursor as string);
-      
+
       const parsedDTO = TweetCursorServiceSchema.parse({
         userId,
         limit: req.query.limit,
         cursor: decodedCursor ?? undefined,
       });
 
-      const replies = await tweetService.getTweetReplies(
-        id,
-        parsedDTO
-      );
+      const replies = await tweetService.getTweetReplies(id, parsedDTO);
       res.status(200).json(replies);
     } catch (error) {
       next(error);
@@ -252,6 +249,7 @@ export class TweetController {
 
       const parsedDTO = TweetCursorServiceSchema.parse({
         userId,
+        tweetType: query.tweetType,
         limit: query.limit,
         cursor: decodedCursor ?? undefined,
       });
