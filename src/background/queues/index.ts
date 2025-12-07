@@ -16,4 +16,5 @@ function createQueue(name: string, options: Partial<QueueOptions> = {}) {
 
 export const hashtagsQueue = createQueue("hashtags");
 export const trendsQueue = createQueue("trends");
+export const exploreQueue = createQueue("explore");
 export const notificationsQueue = createQueue("notifications");

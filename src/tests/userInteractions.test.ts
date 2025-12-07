@@ -1,5 +1,6 @@
 jest.mock("@/api/controllers/notificationController", () => ({
   getNotificationList: jest.fn(),
+  getMentionNotifications: jest.fn(),
   getUnseenNotificationsCount: jest.fn(),
   getUnseenNotifications: jest.fn(),
   markNotificationsAsRead: jest.fn(),
@@ -263,7 +264,7 @@ describe("User Interactions Service", () => {
       );
       await expect(
         userInteractionsService.createFollowRelation("123", "456", "ACCEPTED")
-      ).rejects.toThrow("Already following this user");
+      ).rejects.toThrow("You are already following this user");
     });
   });
 
@@ -754,7 +755,7 @@ describe("User Interactions Service", () => {
           "456",
           "ACCEPTED"
         )
-      ).rejects.toThrow("Already following this user");
+      ).rejects.toThrow("You are already following this user");
     });
   });
 

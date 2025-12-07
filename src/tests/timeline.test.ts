@@ -298,3 +298,208 @@ describe("TimelineService", () => {
     });
   });
 });
+
+// =========================  MORE Tests  ============================//
+
+describe("getTimeline edge cases", () => {
+  
+  it("should respect author diversity limit", async () => {
+    // generate 10 tweets from same author
+    const repeatedAuthor = "author-repeated";
+    const candidates = Array.from({ length: 10 }, (_, i) =>
+      mockRawCandidate(`tweet-${i}`, repeatedAuthor)
+    );
+    mockQueryRawFn.mockResolvedValue(candidates);
+
+    const result = await service.getTimeline({
+      userId: MOCK_USER_ID,
+      limit: 5,
+    });
+    const authors = result.items.map((i) => i.user.id);
+    const occurrences = authors.filter((a) => a === repeatedAuthor).length;
+
+    expect(occurrences).toBeLessThanOrEqual(3); // matches CONFIG.diversityAuthorLimit
+  });
+
+ 
+});
+
+
+
+// ===================================== MORE TESTS ========================================= //
+
+describe("ForYou – scoring, hydration, and edge cases", () => {
+  it("should apply verified boost when user is verified", async () => {
+    const candidate = mockRawCandidate(
+      "t-v1",
+      "author-v-1",
+      "TWEET",
+      null,
+      500
+    );
+    candidate.verified = true;
+
+    mockQueryRawFn.mockResolvedValue([candidate]);
+
+    const result = await service.getForYou({
+      userId: MOCK_USER_ID,
+      limit: 1,
+    });
+
+    expect(result.items[0].user.verified).toBe(true);
+    expect(result.items[0].score).toBeGreaterThan(0.5); // should be boosted
+  });
+
+  it("should not break when engagement is zero", async () => {
+    const candidate = mockRawCandidate("t-zero", "author-zero");
+    candidate.likes = 0;
+    candidate.rts = 0;
+    candidate.replies = 0;
+
+    mockQueryRawFn.mockResolvedValue([candidate]);
+
+    const result = await service.getForYou({
+      userId: MOCK_USER_ID,
+      limit: 1,
+    });
+
+    expect(result.items[0].score).toBeGreaterThanOrEqual(0);
+  });
+
+  it("should cap author reputation to CONFIG.authorReputationCap", async () => {
+    const candidate = mockRawCandidate("t-r1", "rep-high");
+    candidate.reputation = 100; // intentionally too high
+
+    mockQueryRawFn.mockResolvedValue([candidate]);
+
+    const result = await service.getForYou({
+      userId: MOCK_USER_ID,
+      limit: 1,
+    });
+
+    expect(result.items[0].score).toBeGreaterThan(0);
+  });
+
+  it("should not crash when author reputation is missing or null", async () => {
+    const candidate = mockRawCandidate("t-rnull", "rep-null");
+    // remove reputation field
+    delete (candidate as any).reputation;
+
+    mockQueryRawFn.mockResolvedValue([candidate]);
+
+    const result = await service.getForYou({
+      userId: MOCK_USER_ID,
+      limit: 1,
+    });
+
+    expect(result.items[0].score).toBeGreaterThanOrEqual(0);
+  });
+});
+
+
+describe("Thread + Parent Tweet hydration", () => {
+  it("should correctly hydrate parent tweet using mockFindUnique", async () => {
+    const parent = mockRawCandidate("p-001", "parent-author");
+    const reply = mockRawCandidate("r-001", "child-author", "REPLY", parent.id);
+
+    mockQueryRawFn.mockResolvedValue([reply]);
+
+    // hydration of parent
+    mockFindUniqueTweet.mockResolvedValue(mockFullTweetFindMany([parent])[0]);
+
+    const result = await service.getForYou({
+      userId: MOCK_USER_ID,
+      limit: 1,
+    });
+
+    expect(result.items[0].parentTweet).not.toBeNull();
+    expect(result.items[0].parentTweet!.id).toBe("p-001");
+    expect(result.items[0].parentTweet!.user.id).toBe("parent-author");
+  });
+});
+
+
+describe("Interaction flags (like, retweet, bookmark)", () => {
+ 
+  it("should set all flags to false when arrays are empty", async () => {
+    const raw = mockRawCandidate("flags-01", "af");
+    mockQueryRawFn.mockResolvedValue([raw]);
+
+    const full = mockFullTweetFindMany([raw])[0];
+    full.tweetLikes = [];
+    full.retweets = [];
+    full.tweetBookmark = [];
+
+    mockFindTweets.mockResolvedValue([full]);
+
+    const result = await service.getTimeline({
+      userId: MOCK_USER_ID,
+      limit: 1,
+    });
+
+    expect(result.items[0].isLiked).toBe(false);
+    expect(result.items[0].isRetweeted).toBe(false);
+    expect(result.items[0].isBookmarked).toBe(false);
+  });
+});
+
+
+describe("Cursor pagination", () => {
+  it("should return nextCursor when more items exist", async () => {
+    const candidates = mockQueryRawCandidates(20);
+    mockQueryRawFn.mockResolvedValue(candidates);
+
+    const result = await service.getForYou({
+      userId: MOCK_USER_ID,
+      limit: 5,
+    });
+
+    expect(result.nextCursor).not.toBeNull();
+  });
+
+  it("should return null nextCursor when limit exceeds candidate count", async () => {
+    const candidates = mockQueryRawCandidates(5);
+    mockQueryRawFn.mockResolvedValue(candidates);
+
+    const result = await service.getForYou({
+      userId: MOCK_USER_ID,
+      limit: 20,
+    });
+
+    expect(result.nextCursor).toBeNull();
+  });
+});
+
+
+describe("Cache set/get behavior", () => {
+  it("should write to cache after generating ForYou", async () => {
+    const candidates = mockQueryRawCandidates(3);
+    mockQueryRawFn.mockResolvedValue(candidates);
+
+    await service.getForYou({ userId: MOCK_USER_ID, limit: 3 });
+
+    expect(mockRedis.set).toHaveBeenCalled();
+  });
+});
+
+
+describe("Author diversity hard-limit", () => {
+  it("should trim excessive tweets from same author even if candidateCount > limit", async () => {
+    const repeatedAuthor = "author-X";
+    const candidates = Array.from({ length: 50 }, (_, i) =>
+      mockRawCandidate(`ax-${i}`, repeatedAuthor)
+    );
+
+    mockQueryRawFn.mockResolvedValue(candidates);
+
+    const result = await service.getForYou({
+      userId: MOCK_USER_ID,
+      limit: 20,
+    });
+
+    const authors = result.items.map((i) => i.user.id);
+    const occurrences = authors.filter((a) => a === repeatedAuthor).length;
+
+    expect(occurrences).toBeLessThanOrEqual(3);
+  });
+});

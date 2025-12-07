@@ -120,23 +120,7 @@ describe("chat service", () => {
             expect(createdChat.newChat.DMChat).toBe(false);
         });
 
-//         it("it should fail to create a group chat with less than three users", async () => {
-//             const res = mockRes();
-//             const req: any = {body: {DMChat: false, participant_ids: ["456"]}, user: { id: "123" } };
-//             const next = jest.fn();
-//             await chatService.createChat(req, res, next);
-//             expect(res.status).toHaveBeenCalledWith(400);
-//             expect(res.json).toHaveBeenCalledWith({ error: 'At least two participants are required to create a chat' });
-//         });
 
-//         it("it should fail to create a chat with empty participant list", async () => {
-//             const res = mockRes();
-//             const req: any = {body: {DMChat: true, participant_ids: []}, user: { id: "123" } };
-//             const next = jest.fn();
-//             await chatService.createChat(req, res, next);
-//             expect(res.status).toHaveBeenCalledWith(400);
-//             expect(res.json).toHaveBeenCalledWith({ error: 'Participant IDs are required' });
-//         });
     });
 
 //     describe("send a new message", () => {

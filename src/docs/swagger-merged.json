@@ -3812,6 +3812,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid category parameter"
           }
         }
       }
@@ -3877,6 +3880,74 @@
         }
       }
     },
+    "/api/hashtags/categories": {
+      "get": {
+        "summary": "Get trending data by category",
+        "description": "Returns trending hashtags and viral tweets.\n\n**With `category` parameter:** Returns trends and viral tweets for that specific category (global, news, sports, or entertainment).\n\n**Without `category` parameter:** Returns trends and viral tweets for ALL categories.\n\nData is cached and updated every constant interval by a background worker.",
+        "tags": [
+          "Hashtags"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "global",
+                "news",
+                "sports",
+                "entertainment"
+              ],
+              "description": "Category to filter by. If not provided for /explore, returns all categories."
+            },
+            "required": false,
+            "description": "Category to filter by. If not provided for /explore, returns all categories.",
+            "name": "category",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trending data - either single category or all categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/CategoryData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AllCategoriesResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid category parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/notifications": {
       "get": {
         "summary": "Get list of notifications for the authenticated user",
@@ -3935,7 +4006,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-12-05T14:03:52.028Z"
+                        "default": "2025-12-07T14:51:12.420Z"
                       },
                       "userId": {
                         "type": "string",
@@ -4160,7 +4231,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-12-05T14:03:52.028Z"
+                            "default": "2025-12-07T14:51:12.420Z"
                           },
                           "userId": {
                             "type": "string",

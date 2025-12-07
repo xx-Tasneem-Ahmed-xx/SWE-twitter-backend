@@ -1,13 +1,6 @@
 jest.mock("@/api/controllers/notificationController", () => ({
   getNotificationList: jest.fn(),
-  getUnseenNotificationsCount: jest.fn(),
-  getUnseenNotifications: jest.fn(),
-  markNotificationsAsRead: jest.fn(),
-  addNotification: jest.fn(),
-}));
-
-jest.mock("../api/controllers/notificationController", () => ({
-  getNotificationList: jest.fn(),
+  getMentionNotifications: jest.fn(),
   getUnseenNotificationsCount: jest.fn(),
   getUnseenNotifications: jest.fn(),
   markNotificationsAsRead: jest.fn(),
@@ -37,10 +30,10 @@ describe("Hashtags autocomplete & trends service", () => {
   const TEST_USER_ID = "tags_test_user";
   const HASH_IDS = ["h_tags_1", "h_tags_2", "h_tags_3"];
   const TWEET_IDS: string[] = [];
+  const DYNAMIC_TEST_IDS: string[] = [];
 
   beforeAll(async () => {
     await connectToDatabase();
-    // Ensure any leftover test hashtag rows are removed so tests run from a clean state.
     await prisma.hash.deleteMany({
       where: {
         tag_text: {
@@ -190,16 +183,57 @@ describe("Hashtags autocomplete & trends service", () => {
     await prisma.tweetHash.deleteMany({
       where: { tweetId: { in: TWEET_IDS } },
     });
+
+    await prisma.tweetCategory.deleteMany({
+      where: { tweetId: { in: TWEET_IDS } },
+    });
+
     await prisma.tweet.deleteMany({ where: { id: { in: TWEET_IDS } } });
+
     await prisma.hash.deleteMany({ where: { id: { in: HASH_IDS } } });
+
+    await prisma.hash.deleteMany({
+      where: {
+        tag_text: {
+          in: [
+            "pry_for_nonempty_test",
+            "pancakes",
+            "python",
+            "highlikes",
+            "manytweets",
+            "smalllikes",
+            "bigcount",
+            "uniquetag1",
+            "uniquetag2",
+          ],
+        },
+      },
+    });
+
     await prisma.user.deleteMany({ where: { id: TEST_USER_ID } });
-    // Clean up any cached global trends so test hashtags don't leak into runtime
+
     try {
-      await redisClient.del("trends:global");
+      const redisKeys = [
+        "trends:global",
+        "trends:category:global",
+        "trends:category:news",
+        "trends:category:sports",
+        "trends:category:entertainment",
+        "trends:viral:category:global",
+        "trends:viral:category:news",
+        "trends:viral:category:sports",
+        "trends:viral:category:entertainment",
+      ];
+
+      for (const key of redisKeys) {
+        await redisClient.del(key);
+      }
     } catch (err) {
-      // ignore cache cleanup errors in test teardown
       console.warn("Failed to clear trends cache during test teardown:", err);
     }
+
+    await prisma.$disconnect();
+    await redisClient.quit();
   });
 
   // Ensure that autocomplete returns matching hashtags ordered by tweet count
@@ -241,49 +275,30 @@ describe("Hashtags autocomplete & trends service", () => {
     // create two tags: one with a single high-like tweet, another with many low-like tweets
     const highId = "h_tags_high";
     const manyId = "h_tags_many";
-    await prisma.hash.upsert({
-      where: { tag_text: "highlikes" },
-      update: {},
-      create: { id: highId, tag_text: "highlikes" },
-    });
-    await prisma.hash.upsert({
-      where: { tag_text: "manytweets" },
-      update: {},
-      create: { id: manyId, tag_text: "manytweets" },
-    });
+    const testTweetIds: string[] = [];
+    const testHashIds = [highId, manyId];
 
-    const now = new Date();
-    const high = await prisma.tweet.create({
-      data: {
-        id: "t_high_1",
-        userId: TEST_USER_ID,
-        content: "highlikes",
-        createdAt: now,
-        lastActivityAt: now,
-        likesCount: 100,
-        retweetCount: 0,
-        repliesCount: 0,
-        quotesCount: 0,
-        replyControl: "EVERYONE",
-        tweetType: "TWEET",
-      },
-    });
-    TWEET_IDS.push(high.id);
-    await prisma.tweetHash.create({
-      data: { tweetId: high.id, hashId: highId },
-    });
+    try {
+      await prisma.hash.upsert({
+        where: { tag_text: "highlikes" },
+        update: {},
+        create: { id: highId, tag_text: "highlikes" },
+      });
+      await prisma.hash.upsert({
+        where: { tag_text: "manytweets" },
+        update: {},
+        create: { id: manyId, tag_text: "manytweets" },
+      });
 
-    // many low-like tweets
-    const manyTweets: string[] = [];
-    for (let i = 0; i < 5; i++) {
-      const t = await prisma.tweet.create({
+      const now = new Date();
+      const high = await prisma.tweet.create({
         data: {
-          id: `t_many_${i}`,
+          id: "t_high_1",
           userId: TEST_USER_ID,
-          content: `manytweets ${i}`,
+          content: "highlikes",
           createdAt: now,
           lastActivityAt: now,
-          likesCount: 1,
+          likesCount: 100,
           retweetCount: 0,
           repliesCount: 0,
           quotesCount: 0,
@@ -291,81 +306,99 @@ describe("Hashtags autocomplete & trends service", () => {
           tweetType: "TWEET",
         },
       });
-      manyTweets.push(t.id);
+      testTweetIds.push(high.id);
+      TWEET_IDS.push(high.id);
       await prisma.tweetHash.create({
-        data: { tweetId: t.id, hashId: manyId },
+        data: { tweetId: high.id, hashId: highId },
+      });
+
+      // many low-like tweets
+      const manyTweets: string[] = [];
+      for (let i = 0; i < 5; i++) {
+        const t = await prisma.tweet.create({
+          data: {
+            id: `t_many_${i}`,
+            userId: TEST_USER_ID,
+            content: `manytweets ${i}`,
+            createdAt: now,
+            lastActivityAt: now,
+            likesCount: 1,
+            retweetCount: 0,
+            repliesCount: 0,
+            quotesCount: 0,
+            replyControl: "EVERYONE",
+            tweetType: "TWEET",
+          },
+        });
+        manyTweets.push(t.id);
+        testTweetIds.push(t.id);
+        await prisma.tweetHash.create({
+          data: { tweetId: t.id, hashId: manyId },
+        });
+      }
+      TWEET_IDS.push(...manyTweets);
+      HASH_IDS.push(highId, manyId);
+
+      // Recalculate trends only for the two tags we just created so the comparison
+      // is deterministic and not influenced by cached/global trends.
+      const trendsPair = await hashtagsService.calculateTrends(
+        "global",
+        {
+          matchingIds: [highId, manyId],
+          limit: 50,
+        },
+        24
+      );
+      const names = trendsPair.map((t: any) => t.hashtag);
+      const idxHigh = names.indexOf("highlikes");
+      const idxMany = names.indexOf("manytweets");
+      expect(idxHigh).toBeGreaterThanOrEqual(0);
+      expect(idxMany).toBeGreaterThanOrEqual(0);
+      // Current scoring weights tweets more than likes in aggregate normalization,
+      // so many low-like tweets are expected to outrank a single very-high-like tweet.
+      expect(idxMany).toBeLessThan(idxHigh);
+    } finally {
+      // Cleanup: remove test data created in this test
+      await prisma.tweetHash.deleteMany({
+        where: { tweetId: { in: testTweetIds } },
+      });
+      await prisma.tweet.deleteMany({
+        where: { id: { in: testTweetIds } },
+      });
+      await prisma.hash.deleteMany({
+        where: { id: { in: testHashIds } },
       });
     }
-    TWEET_IDS.push(...manyTweets);
-    HASH_IDS.push(highId, manyId);
-
-    // Recalculate trends only for the two tags we just created so the comparison
-    // is deterministic and not influenced by cached/global trends.
-    const trendsPair = await hashtagsService.calculateTrends(
-      "global",
-      {
-        matchingIds: [highId, manyId],
-        limit: 50,
-      },
-      24
-    );
-    const names = trendsPair.map((t: any) => t.hashtag);
-    const idxHigh = names.indexOf("highlikes");
-    const idxMany = names.indexOf("manytweets");
-    expect(idxHigh).toBeGreaterThanOrEqual(0);
-    expect(idxMany).toBeGreaterThanOrEqual(0);
-    // Current scoring weights tweets more than likes in aggregate normalization,
-    // so many low-like tweets are expected to outrank a single very-high-like tweet.
-    expect(idxMany).toBeLessThan(idxHigh);
   });
 
   test("likes insufficient to overcome many tweets count", async () => {
     // create two tags: one with a single moderate-like tweet, another with many moderate tweets
     const smallId = "h_tags_smalllikes";
     const bigId = "h_tags_bigcount";
-    await prisma.hash.upsert({
-      where: { tag_text: "smalllikes" },
-      update: {},
-      create: { id: smallId, tag_text: "smalllikes" },
-    });
-    await prisma.hash.upsert({
-      where: { tag_text: "bigcount" },
-      update: {},
-      create: { id: bigId, tag_text: "bigcount" },
-    });
+    const testTweetIds: string[] = [];
+    const testHashIds = [smallId, bigId];
 
-    const now = new Date();
-    const solo = await prisma.tweet.create({
-      data: {
-        id: "t_small_1",
-        userId: TEST_USER_ID,
-        content: "smalllikes",
-        createdAt: now,
-        lastActivityAt: now,
-        likesCount: 20,
-        retweetCount: 0,
-        repliesCount: 0,
-        quotesCount: 0,
-        replyControl: "EVERYONE",
-        tweetType: "TWEET",
-      },
-    });
-    TWEET_IDS.push(solo.id);
-    await prisma.tweetHash.create({
-      data: { tweetId: solo.id, hashId: smallId },
-    });
+    try {
+      await prisma.hash.upsert({
+        where: { tag_text: "smalllikes" },
+        update: {},
+        create: { id: smallId, tag_text: "smalllikes" },
+      });
+      await prisma.hash.upsert({
+        where: { tag_text: "bigcount" },
+        update: {},
+        create: { id: bigId, tag_text: "bigcount" },
+      });
 
-    // create many tweets with modest likes such that total weight beats the single 20-like tweet
-    const bigTweets: string[] = [];
-    for (let i = 0; i < 10; i++) {
-      const t = await prisma.tweet.create({
+      const now = new Date();
+      const solo = await prisma.tweet.create({
         data: {
-          id: `t_big_${i}`,
+          id: "t_small_1",
           userId: TEST_USER_ID,
-          content: `bigcount ${i}`,
+          content: "smalllikes",
           createdAt: now,
           lastActivityAt: now,
-          likesCount: 3,
+          likesCount: 20,
           retweetCount: 0,
           repliesCount: 0,
           quotesCount: 0,
@@ -373,29 +406,67 @@ describe("Hashtags autocomplete & trends service", () => {
           tweetType: "TWEET",
         },
       });
-      bigTweets.push(t.id);
-      await prisma.tweetHash.create({ data: { tweetId: t.id, hashId: bigId } });
-    }
-    TWEET_IDS.push(...bigTweets);
-    HASH_IDS.push(smallId, bigId);
+      testTweetIds.push(solo.id);
+      TWEET_IDS.push(solo.id);
+      await prisma.tweetHash.create({
+        data: { tweetId: solo.id, hashId: smallId },
+      });
 
-    // Recalculate trends only for the two tags we just created so the comparison
-    // is deterministic and not influenced by cached/global trends.
-    const trendsPair2 = await hashtagsService.calculateTrends(
-      "global",
-      {
-        matchingIds: [smallId, bigId],
-        limit: 50,
-      },
-      24
-    );
-    const names2 = trendsPair2.map((t: any) => t.hashtag);
-    const idxSmall = names2.indexOf("smalllikes");
-    const idxBig = names2.indexOf("bigcount");
-    expect(idxSmall).toBeGreaterThanOrEqual(0);
-    expect(idxBig).toBeGreaterThanOrEqual(0);
-    // Expect bigcount (many tweets) to outrank smalllikes despite individual likes
-    expect(idxBig).toBeLessThan(idxSmall);
+      // create many tweets with modest likes such that total weight beats the single 20-like tweet
+      const bigTweets: string[] = [];
+      for (let i = 0; i < 10; i++) {
+        const t = await prisma.tweet.create({
+          data: {
+            id: `t_big_${i}`,
+            userId: TEST_USER_ID,
+            content: `bigcount ${i}`,
+            createdAt: now,
+            lastActivityAt: now,
+            likesCount: 3,
+            retweetCount: 0,
+            repliesCount: 0,
+            quotesCount: 0,
+            replyControl: "EVERYONE",
+            tweetType: "TWEET",
+          },
+        });
+        bigTweets.push(t.id);
+        testTweetIds.push(t.id);
+        await prisma.tweetHash.create({
+          data: { tweetId: t.id, hashId: bigId },
+        });
+      }
+      TWEET_IDS.push(...bigTweets);
+      HASH_IDS.push(smallId, bigId);
+
+      // Recalculate trends only for the two tags we just created so the comparison
+      // is deterministic and not influenced by cached/global trends.
+      const trendsPair2 = await hashtagsService.calculateTrends(
+        "global",
+        {
+          matchingIds: [smallId, bigId],
+          limit: 50,
+        },
+        24
+      );
+      const names2 = trendsPair2.map((t: any) => t.hashtag);
+      const idxSmall = names2.indexOf("smalllikes");
+      const idxBig = names2.indexOf("bigcount");
+      expect(idxSmall).toBeGreaterThanOrEqual(0);
+      expect(idxBig).toBeGreaterThanOrEqual(0);
+      // Expect bigcount (many tweets) to outrank smalllikes despite individual likes
+      expect(idxBig).toBeLessThan(idxSmall);
+    } finally {
+      await prisma.tweetHash.deleteMany({
+        where: { tweetId: { in: testTweetIds } },
+      });
+      await prisma.tweet.deleteMany({
+        where: { id: { in: testTweetIds } },
+      });
+      await prisma.hash.deleteMany({
+        where: { id: { in: testHashIds } },
+      });
+    }
   });
 
   // Ensure that cached trends are used when no query is provided
@@ -516,7 +587,6 @@ describe("Hashtags autocomplete & trends service", () => {
 
   // Test fetchHashtagTweets
   test("fetchHashtagTweets returns paginated tweets for a hashtag", async () => {
-    // Get the first hashtag we created
     const hash = await prisma.hash.findFirst({
       where: { tag_text: "pancakes" },
     });
@@ -700,15 +770,22 @@ describe("Hashtags autocomplete & trends service", () => {
   test("createMissingHashes creates new hashtags", async () => {
     const newTags = ["uniquetag1", "uniquetag2"];
 
-    await prisma.$transaction(async (tx) => {
-      await hashtagsService.createMissingHashes(tx, newTags);
-    });
+    try {
+      await prisma.$transaction(async (tx) => {
+        await hashtagsService.createMissingHashes(tx, newTags);
+      });
 
-    const created = await prisma.hash.findMany({
-      where: { tag_text: { in: newTags } },
-    });
+      const created = await prisma.hash.findMany({
+        where: { tag_text: { in: newTags } },
+      });
 
-    expect(created.length).toBe(2);
+      expect(created.length).toBe(2);
+    } finally {
+      // Cleanup: remove test hashtags
+      await prisma.hash.deleteMany({
+        where: { tag_text: { in: newTags } },
+      });
+    }
   });
 
   test("createMissingHashes handles empty array", async () => {

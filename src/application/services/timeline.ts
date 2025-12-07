@@ -1,7 +1,22 @@
-// src/application/services/timeline.ts - Consolidated and Enhanced
+// src/application/services/timeline.ts
 import { prisma } from "@/prisma/client";
 import { Prisma } from "@prisma/client";
 import Redis from "ioredis";
+import {
+  TimelineParams,
+  ForYouParams,
+  TimelineResponse,
+  ForYouResponseDTO,
+  CONFIG,
+  InteractionMap,
+  InteractionData,
+} from "../dtos/timeline/timeline.dto";
+import {
+  UserMediaDTO,
+  UserDTO,
+  EmbeddedTweetDTO,
+  TimelineItemDTO,
+} from "../dtos/timeline/timeline.dto.schema";
 
 // --- START: Original Redis/Cache Utils ---
 const redisUrl = process.env.REDIS_URL ?? "redis://127.0.0.1:6379";
@@ -16,131 +31,6 @@ export async function cacheSet(key: string, value: any, ttlSeconds = 60) {
   await redis.set(key, JSON.stringify(value), "EX", ttlSeconds);
 }
 // --- END: Original Redis/Cache Utils ---
-
-/* ---------------------------
- * Types & DTOs
- * --------------------------- */
-
-interface UserMediaDTO {
-  id: string;
-}
-
-interface UserDTO {
-  id: string;
-  name: string | null;
-  username: string;
-  profileMedia: UserMediaDTO | null;
-  verified: boolean;
-  protectedAccount: boolean;
-  retweets?: {
-    data: { id: string; name: string | null; username: string }[];
-    nextCursor: string | null;
-  };
-}
-
-interface EmbeddedTweetDTO {
-  id: string;
-  content: string | null;
-  createdAt: string;
-  likesCount: number;
-  retweetCount: number;
-  repliesCount: number;
-  quotesCount: number;
-  replyControl: string;
-  tweetType: string;
-  userId: string;
-  user: UserDTO;
-  mediaIds: string[];
-}
-
-interface TimelineItemDTO {
-  id: string;
-  content: string | null;
-  createdAt: string;
-  likesCount: number;
-  retweetCount: number;
-  repliesCount: number;
-  quotesCount: number;
-  replyControl: string;
-  parentId?: string | null;
-  tweetType: string;
-  user: UserDTO;
-  mediaIds: string[];
-  isLiked: boolean;
-  isRetweeted: boolean;
-  isBookmarked: boolean;
-  score: number;
-  reasons: string[];
-  parentTweet?: EmbeddedTweetDTO | null;
-
-  retweets?: {
-    data: {
-      id: string;
-      name: string | null;
-      username: string;
-      profileMedia: UserMediaDTO | null;
-      verified: boolean;
-      protectedAccount: boolean;
-    }[];
-    nextCursor: string | null;
-  };
-}
-
-interface TimelineResponse {
-  user: string;
-  items: TimelineItemDTO[];
-  nextCursor: string | null;
-  generatedAt: string;
-}
-
-interface ForYouResponseDTO extends TimelineResponse {
-  recommendations: TimelineItemDTO[];
-}
-
-type TimelineParams = {
-  userId: string;
-  limit?: number;
-  cursor?: string;
-  includeThreads?: boolean;
-};
-type ForYouParams = { userId: string; limit?: number; cursor?: string };
-
-/**
- * TUNABLE constants
- */
-const CONFIG = {
-  // Common
-  cacheTTL: 8, // seconds
-  randomNoiseStddev: 0.015,
-  authorReputationCap: 2.0,
-  diversityAuthorLimit: 3,
-
-  // For You Feed Specific
-  recencyHalfLifeHours_FY: 18,
-  engagementWeights_FY: { like: 1.0, retweet: 2.2, reply: 0.8 },
-  followBoost: 2.6,
-  twoHopBoost: 1.25,
-  followingLikedBoost: 1.7,
-  bookmarkByFollowingBoost: 1.5,
-  topicMatchBoost: 1.9,
-  verifiedBoost_FY: 1.12,
-  candidateLimit_FY: 1500,
-  trendingLimit_FY: 300,
-  trendingWindowHours: 48,
-  authorReputationFloor_FY: 0.2,
-
-  // Following Feed Specific
-  recencyHalfLifeHours_F: 24,
-  engagementWeights_F: { like: 1.0, retweet: 2.3, reply: 0.9, quote: 1.2 },
-  retweetByFollowingBoost: 1.05,
-  quoteByFollowingBoost: 1.03,
-  velocityBoostFactor: 0.06,
-  verifiedBoost_F: 1.08,
-  authorReputationFloor_F: 0.25,
-  candidateLimit_F: 1200,
-  spamReportPenaltyPerReport: 0.5,
-  threadIncludeLimit: 3,
-};
 
 /* ---------------------------
  * Math / Helpers
@@ -297,14 +187,6 @@ export function mapToDTO(
  * Service Utilities
  * --------------------------- */
 
-interface InteractionData {
-  isLiked: boolean;
-  isRetweeted: boolean;
-  isBookmarked: boolean;
-  mediaIds: string[];
-}
-type InteractionMap = Map<string, InteractionData>;
-
 async function getTweetInteractionAndMedia(
   tweetIds: string[],
   userId: string
@@ -317,19 +199,19 @@ async function getTweetInteractionAndMedia(
   );
 
   const rawInteractionData = await prisma.$queryRaw<any[]>`
-        SELECT 
-            t.id,
-            (SELECT COUNT(*) FROM "TweetLike" tl WHERE tl."tweetId" = t.id AND tl."userId" = ${userId}) > 0 as "isLiked",
-            (SELECT COUNT(*) FROM "Retweet" rt WHERE rt."tweetId" = t.id AND rt."userId" = ${userId}) > 0 as "isRetweeted",
-            (SELECT COUNT(*) FROM "tweetbookmarks" tb WHERE tb."tweetId" = t.id AND tb."userId" = ${userId}) > 0 as "isBookmarked",
-            (
-                SELECT ARRAY_AGG("mediaId")
-                FROM "TweetMedia" tm
-                WHERE tm."tweetId" = t.id
-            ) as "mediaIds"
-        FROM "tweets" t
-        WHERE t.id IN (${tweetIdPlaceholder})
-    `;
+    SELECT 
+        t.id,
+        (SELECT COUNT(*) FROM "TweetLike" tl WHERE tl."tweetId" = t.id AND tl."userId" = ${userId}) > 0 as "isLiked",
+        (SELECT COUNT(*) FROM "Retweet" rt WHERE rt."tweetId" = t.id AND rt."userId" = ${userId}) > 0 as "isRetweeted",
+        (SELECT COUNT(*) FROM "tweetbookmarks" tb WHERE tb."tweetId" = t.id AND tb."userId" = ${userId}) > 0 as "isBookmarked",
+        (
+            SELECT ARRAY_AGG("mediaId")
+            FROM "TweetMedia" tm
+            WHERE tm."tweetId" = t.id
+        ) as "mediaIds"
+    FROM "tweets" t
+    WHERE t.id IN (${tweetIdPlaceholder})
+  `;
 
   const interactionMap: InteractionMap = new Map<string, InteractionData>();
   for (const row of rawInteractionData) {
@@ -563,7 +445,8 @@ export class TimelineService {
     const rawCandidates = await prisma.$queryRaw<any[]>`
       WITH
       base_tweets AS (
-        SELECT t.*,
+        SELECT t.id, t."userId", t.content, t."createdAt", t."lastActivityAt", 
+               t."likesCount", t."retweetCount", t."repliesCount", t."quotesCount", t."replyControl", t."parentId", t."tweetType",
                u.username,
                u.name,
                u."profileMediaId",
@@ -574,7 +457,6 @@ export class TimelineService {
                COALESCE(t."retweetCount",0) AS rts,
                COALESCE(t."repliesCount",0) AS replies,
                COALESCE(t."quotesCount",0) AS quotes,
-               t."replyControl",
                u.reputation,
                (
                  SELECT COUNT(*) FROM "TweetLike" tl WHERE tl."tweetId" = t.id AND tl."createdAt" >= ${recentWindow}
@@ -587,7 +469,11 @@ export class TimelineService {
                  FROM "tweetHashes" th
                  JOIN "hashes" h on h.id = th."hashId"
                  WHERE th."tweetId" = t.id
-               ) as tags
+               ) as tags,
+               'from_following' as reason,
+               NULL::text as retweeterId,
+               NULL::timestamp without time zone as retweetAt, -- Ensure type consistency
+               NULL::text as quoteAuthorId
         FROM "tweets" t
         JOIN "users" u on u.id = t."userId"
         LEFT JOIN "medias" m on m.id = u."profileMediaId"
@@ -596,40 +482,100 @@ export class TimelineService {
           AND t."userId" NOT IN (${mutedPlaceholder})
       ),
       retweeted AS (
-        SELECT t.*, 'retweet_by_following' as reason, r."userId" as retweeterId, r."createdAt" as retweetAt
+        SELECT t.id, t."userId", t.content, t."createdAt", t."lastActivityAt", 
+               t."likesCount", t."retweetCount", t."repliesCount", t."quotesCount", t."replyControl", t."parentId", t."tweetType",
+               'retweet_by_following' as reason, 
+               r."userId" as retweeterId, 
+               r."createdAt" as retweetAt,
+               NULL::text as quoteAuthorId
         FROM "Retweet" r
         JOIN "tweets" t on t.id = r."tweetId"
         WHERE r."userId" IN (${followingPlaceholder})
           AND r."createdAt" >= ${sevenDaysAgo}
       ),
       quotes_by_followings AS (
-        SELECT q.*, 'quote_by_following' as reason, q."userId" as quoteAuthorId
+        SELECT q.id, q."userId", q.content, q."createdAt", q."lastActivityAt", 
+               q."likesCount", q."retweetCount", q."repliesCount", q."quotesCount", q."replyControl", q."parentId", q."tweetType",
+               'quote_by_following' as reason, 
+               NULL::text as retweeterId,
+               NULL::timestamp without time zone as retweetAt, -- Ensure type consistency
+               q."userId" as quoteAuthorId
         FROM "tweets" q
         WHERE q."userId" IN (${followingPlaceholder})
           AND q."tweetType" = 'QUOTE'
           AND q."createdAt" >= ${sevenDaysAgo}
       ),
       trending_in_followings AS (
-        SELECT bt.*, 'trending' as reason
+        SELECT bt.id, bt."userId", bt.content, bt."createdAt", bt."lastActivityAt", 
+               bt."likesCount", bt."retweetCount", bt."repliesCount", bt."quotesCount", bt."replyControl", bt."parentId", bt."tweetType",
+               bt.username, bt.name, bt."profileMediaId", bt.verified, bt."protectedAccount", bt."profileMediaKey", 
+               bt.likes, bt.rts, bt.replies, bt.quotes, bt.reputation, bt.likes_recent, bt.rts_recent, bt.tags,
+               'trending' as reason,
+               NULL::text as retweeterId,
+               NULL::timestamp without time zone as retweetAt, -- Ensure type consistency
+               NULL::text as quoteAuthorId
         FROM base_tweets bt
         ORDER BY ( (bt.likes_recent + bt.rts_recent * 2) * 3 + (bt.likes + bt.rts * 2) ) DESC
         LIMIT 300
       )
-      SELECT DISTINCT ON (id) *
+      -- Define the final column list order
+      SELECT DISTINCT ON (id) 
+        id, "userId", content, "createdAt", "lastActivityAt", "likesCount", "retweetCount", "repliesCount", "quotesCount", "replyControl", "parentId", "tweetType", 
+        username, name, "profileMediaId", verified, "protectedAccount", "profileMediaKey", 
+        likes, rts, replies, quotes, reputation, likes_recent, rts_recent, tags, 
+        reason, retweeterId, retweetAt, quoteAuthorId
       FROM (
-        SELECT *, 'from_following' as reason FROM base_tweets
+        -- 1. Base Tweets
+        SELECT 
+          id, "userId", content, "createdAt", "lastActivityAt", "likesCount", "retweetCount", "repliesCount", "quotesCount", "replyControl", "parentId", "tweetType",
+          username, name, "profileMediaId", verified, "protectedAccount", "profileMediaKey", 
+          likes, rts, replies, quotes, reputation, likes_recent, rts_recent, tags, 
+          reason, retweeterId, retweetAt, quoteAuthorId
+        FROM base_tweets 
+
         UNION ALL
-        SELECT r.*, bt.username, bt.name, bt."profileMediaId", bt.verified, bt."protectedAccount", bt."profileMediaKey", bt.likes, bt.rts, bt.replies, bt.quotes, bt."replyControl", bt.reputation, bt.likes_recent, bt.rts_recent, bt.tags FROM retweeted r JOIN base_tweets bt ON r."tweetId" = bt.id
+
+        -- 2. Retweeted Tweets (Need to join to base_tweets to get user/score info)
+        SELECT 
+          r.id, r."userId", r.content, r."createdAt", r."lastActivityAt", r."likesCount", r."retweetCount", r."repliesCount", r."quotesCount", r."replyControl", r."parentId", r."tweetType",
+          bt.username, bt.name, bt."profileMediaId", bt.verified, bt."protectedAccount", bt."profileMediaKey", 
+          bt.likes, bt.rts, bt.replies, bt.quotes, bt.reputation, bt.likes_recent, bt.rts_recent, bt.tags,
+          r.reason, r.retweeterId, r.retweetAt, r.quoteAuthorId
+        FROM retweeted r 
+        JOIN base_tweets bt ON r.id = bt.id
+
         UNION ALL
-        SELECT * FROM quotes_by_followings
+        
+        -- 3. Quotes by Followings (Need to join to base_tweets to get user/score info)
+        SELECT 
+          q.id, q."userId", q.content, q."createdAt", q."lastActivityAt", q."likesCount", q."retweetCount", q."repliesCount", q."quotesCount", q."replyControl", q."parentId", q."tweetType",
+          u.username, u.name, u."profileMediaId", u.verified, u."protectedAccount", m."keyName" as "profileMediaKey", 
+          COALESCE(q."likesCount",0) AS likes, COALESCE(q."retweetCount",0) AS rts, COALESCE(q."repliesCount",0) AS replies, COALESCE(q."quotesCount",0) AS quotes,
+          u.reputation,
+          (SELECT COUNT(*) FROM "TweetLike" tl WHERE tl."tweetId" = q.id AND tl."createdAt" >= ${recentWindow}) as likes_recent,
+          (SELECT COUNT(*) FROM "Retweet" rt WHERE rt."tweetId" = q.id AND rt."createdAt" >= ${recentWindow}) as rts_recent,
+          (SELECT ARRAY_AGG(h."tag_text") FROM "tweetHashes" th JOIN "hashes" h on h.id = th."hashId" WHERE th."tweetId" = q.id) as tags,
+          q.reason, q.retweeterId, q.retweetAt, q.quoteAuthorId
+        FROM quotes_by_followings q
+        JOIN "users" u on u.id = q."userId"
+        LEFT JOIN "medias" m on m.id = u."profileMediaId"
+
         UNION ALL
-        SELECT * FROM trending_in_followings
+
+        -- 4. Trending in Followings
+        SELECT 
+          id, "userId", content, "createdAt", "lastActivityAt", "likesCount", "retweetCount", "repliesCount", "quotesCount", "replyControl", "parentId", "tweetType",
+          username, name, "profileMediaId", verified, "protectedAccount", "profileMediaKey", 
+          likes, rts, replies, quotes, reputation, likes_recent, rts_recent, tags, 
+          reason, retweeterId, retweetAt, quoteAuthorId
+        FROM trending_in_followings
       ) pool
       ORDER BY id, (likes + rts*2) DESC
       LIMIT ${CONFIG.candidateLimit_F}
     `;
 
     if (!rawCandidates || rawCandidates.length === 0) {
+      // ... (rest of the file remains the same)
       const empty: TimelineResponse = {
         user: params.userId,
         items: [],
