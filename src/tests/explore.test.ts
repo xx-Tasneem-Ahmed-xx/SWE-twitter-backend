@@ -206,7 +206,7 @@ describe("ExploreService", () => {
         userId: user.id,
         limit: 10,
       });
-      expect(result.data.map((t) => t.id)).toContain(tweet.id);
+      expect(result.data.map((t: any) => t.id)).toContain(tweet.id);
     });
 
     it("should filter by category", async () => {
@@ -265,7 +265,7 @@ describe("ExploreService", () => {
         limit: 10,
       });
       expect(
-        result.data.find((t) => t.userId === blockedUser.id)
+        result.data.find((t: any) => t.userId === blockedUser.id)
       ).toBeUndefined();
     });
 
@@ -288,7 +288,7 @@ describe("ExploreService", () => {
         limit: 10,
       });
       expect(
-        result.data.find((t) => t.userId === mutedUser.id)
+        result.data.find((t: any) => t.userId === mutedUser.id)
       ).toBeUndefined();
     });
 
@@ -310,7 +310,7 @@ describe("ExploreService", () => {
         userId: user.id,
         limit: 10,
       });
-      expect(result.data.find((t) => t.id === tweet.id)).toBeUndefined();
+      expect(result.data.find((t: any) => t.id === tweet.id)).toBeUndefined();
     });
 
     it("should exclude tweets reported as spam", async () => {
@@ -331,7 +331,7 @@ describe("ExploreService", () => {
         userId: user.id,
         limit: 10,
       });
-      expect(result.data.find((t) => t.id === tweet.id)).toBeUndefined();
+      expect(result.data.find((t: any) => t.id === tweet.id)).toBeUndefined();
     });
 
     it("should paginate with cursor", async () => {
