@@ -10,6 +10,9 @@ router
   .post(followController.followUser)
   .delete(followController.unfollowUser)
   .get(followController.getFollowers);
+
+router.route("/followings/suggested").get(followController.getSuggestedFollows);
+
 router
   .route("/followings/:username")
   .patch(followController.acceptFollow)
