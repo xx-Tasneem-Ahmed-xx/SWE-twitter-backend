@@ -366,6 +366,7 @@ describe("ExploreService", () => {
         userId: user.id,
         limit: 1,
         cursor: cursor ?? undefined,
+        forceRefresh: true,
       });
       expect(secondPage.data[0].id).not.toBe(firstPage.data[0].id);
     });
@@ -393,6 +394,7 @@ describe("ExploreService", () => {
       const result = await exploreService.getFeed({
         userId: user.id,
         limit: 10,
+        forceRefresh: true,
       });
       expect(result.data[0].id).toBe(t1.id);
     });
@@ -402,6 +404,7 @@ describe("ExploreService", () => {
       const result = await exploreService.getFeed({
         userId: user.id,
         limit: 10,
+        forceRefresh: true,
       });
       expect(result.data).toEqual([]);
       expect(result.cursor).toBeNull();
