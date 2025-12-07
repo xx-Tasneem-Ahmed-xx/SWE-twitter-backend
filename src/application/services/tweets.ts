@@ -232,6 +232,8 @@ export class TweetService {
         content: quote.content,
       }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
 
+      enqueueUpdateScroeJob({ tweetId: dto.parentId });
+
       addNotification(parent.userId as UUID, {
         title: "QUOTE",
         body: "someone quoted you",
@@ -312,7 +314,7 @@ export class TweetService {
         data: { retweetCount: { increment: 1 } },
         select: { userId: true },
       });
-
+      enqueueUpdateScroeJob({ tweetId: dto.parentId });
       addNotification(parent.userId as UUID, {
         title: "RETWEET",
         body: "reposted your post",
@@ -405,39 +407,42 @@ export class TweetService {
 
   private async deleteReply(id: string, parentId: string) {
     await this.validateId(id);
-    return prisma.$transaction([
-      prisma.tweet.delete({ where: { id } }),
-      prisma.retweet.deleteMany({ where: { tweetId: id } }),
-      prisma.tweet.update({
+    return await prisma.$transaction(async (tx) => {
+      await tx.tweet.delete({ where: { id } });
+      await tx.retweet.deleteMany({ where: { tweetId: id } });
+      await tx.tweet.update({
         where: { id: parentId },
         data: { repliesCount: { decrement: 1 } },
-      }),
-    ]);
+      });
+      enqueueUpdateScroeJob({ tweetId: parentId });
+    });
   }
 
   private async deleteQuote(id: string, parentId: string) {
     await this.validateId(id);
-    return prisma.$transaction([
-      prisma.tweet.delete({ where: { id } }),
-      prisma.retweet.deleteMany({ where: { tweetId: id } }),
-      prisma.tweet.update({
+    return await prisma.$transaction(async (tx) => {
+      await tx.tweet.delete({ where: { id } });
+      await tx.retweet.deleteMany({ where: { tweetId: id } });
+      await tx.tweet.update({
         where: { id: parentId },
         data: { quotesCount: { decrement: 1 } },
-      }),
-    ]);
+      });
+      enqueueUpdateScroeJob({ tweetId: parentId });
+    });
   }
 
   async deleteRetweet(userId: string, tweetId: string) {
     await this.validateId(tweetId);
-    return prisma.$transaction([
-      prisma.retweet.delete({
+    return await prisma.$transaction(async (tx) => {
+      await tx.retweet.delete({
         where: { userId_tweetId: { userId, tweetId } },
-      }),
-      prisma.tweet.update({
+      });
+      await tx.tweet.update({
         where: { id: tweetId },
         data: { retweetCount: { decrement: 1 } },
-      }),
-    ]);
+      });
+      enqueueUpdateScroeJob({ tweetId });
+    });
   }
 
   async getLikedTweets(dto: InteractionsCursorServiceDTO) {
@@ -521,6 +526,7 @@ export class TweetService {
       await tx.tweetLike.create({
         data: { userId, tweetId },
       });
+      enqueueUpdateScroeJob({ tweetId: tweetId });
       addNotification(parent.userId as UUID, {
         title: "LIKE",
         body: "liked your post",
@@ -545,15 +551,17 @@ export class TweetService {
       responseUtils.throwError("TWEET_NOT_LIKED_YET");
     }
 
-    return prisma.$transaction([
-      prisma.tweetLike.delete({
+    return await prisma.$transaction(async (tx) => {
+      await tx.tweetLike.delete({
         where: { userId_tweetId: { userId, tweetId } },
-      }),
-      prisma.tweet.update({
+      });
+
+      await tx.tweet.update({
         where: { id: tweetId },
         data: { likesCount: { decrement: 1 } },
-      }),
-    ]);
+      });
+      enqueueUpdateScroeJob({ tweetId });
+    });
   }
 
   async getLikers(tweetId: string, dto: InteractionsCursorServiceDTO) {
@@ -619,7 +627,10 @@ export class TweetService {
 
   async getUserTweets(dto: TweetCursorServiceDTO, currentUserId: string) {
     const tweets = await prisma.tweet.findMany({
-      where: { userId: dto.userId },
+      where: {
+        userId: dto.userId,
+        ...(dto.tweetType && { tweetType: dto.tweetType }),
+      },
       select: this.tweetSelectFields(currentUserId),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
