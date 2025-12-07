@@ -1,4 +1,3 @@
-// =====================================================//
 import { Request, Response, NextFunction } from "express";
 import { UserService } from "../../application/services/user.service";
 import {

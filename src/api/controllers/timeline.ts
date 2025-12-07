@@ -1,4 +1,3 @@
-// src/api/controllers/timeline.controller.ts
 import { Request, Response, NextFunction } from "express";
 import { TimelineService } from "@/application/services/timeline";
 import { CursorDTOSchema } from "../../application/dtos/timeline/timeline.dto.schema";
@@ -10,7 +9,7 @@ export class TimelineController {
     try {
       const userId = (req as any).user?.id;
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      // const userId = "00505325-856b-4569-9529-210a1b255989"; // "Jerry Donnelly"
+      // const userId = "11122384-f064-44ec-8036-c60c539dfc53"; // "Jeffrey Reichert"
       const parsed = CursorDTOSchema.parse({
         cursor: req.query.cursor,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
@@ -27,7 +26,7 @@ export class TimelineController {
     try {
       const userId = (req as any).user?.id;
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      // const userId = "00505325-856b-4569-9529-210a1b255989"; // "Charlotte Kuvalis II"
+      // const userId = "11122384-f064-44ec-8036-c60c539dfc53"; // "Jeffrey Reichert"
 
       const parsed = CursorDTOSchema.parse({
         cursor: req.query.cursor,
