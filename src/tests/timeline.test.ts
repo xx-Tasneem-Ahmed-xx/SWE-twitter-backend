@@ -17,6 +17,7 @@ jest.mock("@/prisma/client", () => {
     notInterested: { findMany: mockFindMany },
     spamReport: { groupBy: mockSpamReportGroupBy },
     tweet: { findMany: mockFindMany, findUnique: mockFindUnique },
+    user: { findUnique: mockFindUnique }, // ADDED user.findUnique MOCK
     $queryRaw: mockQueryRaw,
     $transaction: mockTransaction,
   };
@@ -40,6 +41,7 @@ import {
   TimelineService,
   recencyScore,
 } from "../application/services/timeline";
+import { CONFIG } from "../application/dtos/timeline/timeline.dto"; // Import CONFIG to verify boosts
 
 // --- DEFERRED SERVICE INSTANCES & CONSTANTS ---
 let service: TimelineService;
@@ -48,8 +50,11 @@ const MOCK_USER_ID = "user-test-123";
 const MOCK_FOLLOWING_ID = "user-following-001";
 const MOCK_TWEET_ID = "tweet-test-101";
 const MOCK_PARENT_ID = "tweet-parent-100";
+const MOCK_CATEGORY_ID = "cat-sports-1";
+const MOCK_CATEGORY_ID_2 = "cat-tech-2";
 const mockFindFollow = mockPrisma.follow.findMany;
 const mockFindBlock = mockPrisma.block.findMany;
+const mockFindUniqueUser = mockPrisma.user.findUnique; // Alias for clarity
 const mockFindUniqueTweet = mockPrisma.tweet.findUnique;
 const mockQueryRawFn = mockPrisma.$queryRaw;
 const mockFindTweets = mockPrisma.tweet.findMany;
@@ -62,7 +67,8 @@ const mockRawCandidate = (
   userId: string,
   type: "TWEET" | "QUOTE" | "REPLY" = "TWEET",
   parentId: string | null = null,
-  scoreBoost = 0
+  scoreBoost = 0,
+  categories: string[] = [] // ADDED categories parameter
 ) => {
   const candidate = {
     id,
@@ -82,6 +88,7 @@ const mockRawCandidate = (
     reputation: 1.0,
     verified: true,
     tags: ["test", "mock"],
+    categories: categories, // ADDED categories field
     username: "raw_user",
     name: "Raw User",
     profileMediaId: "raw-media-id",
@@ -163,6 +170,14 @@ describe("TimelineService", () => {
     mockSpamReportGroupBy.mockResolvedValue([]);
     mockFindUniqueTweet.mockResolvedValue(null);
     mockQueryRaw.mockResolvedValue([]);
+
+    // Default mock for mockFindUniqueUser (NEW CATEGORY DEPENDENCY)
+    mockFindUniqueUser.mockResolvedValue({
+      preferredCategories: [
+        { id: MOCK_CATEGORY_ID }, // Mock preferred category
+        { id: MOCK_CATEGORY_ID_2 },
+      ],
+    });
 
     // Default mock for mockFindTweets (CRITICAL FIX: Hydration step)
     mockFindTweets.mockImplementation(async ({ where }: any) => {
@@ -273,10 +288,38 @@ describe("TimelineService", () => {
               verified: false,
               protectedAccount: false,
               profileMedia: null,
+              retweets: { data: [], nextCursor: null },
             },
           },
         ],
-        recommendations: [],
+        recommendations: [
+          {
+            id: "cached-1",
+            content: "Cached Content",
+            createdAt: new Date().toISOString(),
+            likesCount: 0,
+            retweetCount: 0,
+            repliesCount: 0,
+            quotesCount: 0,
+            replyControl: "EVERYONE",
+            tweetType: "TWEET",
+            mediaIds: [],
+            isLiked: false,
+            isRetweeted: false,
+            isBookmarked: false,
+            score: 1.0,
+            reasons: ["cache"],
+            user: {
+              id: "author-cached-1",
+              name: "Cached User",
+              username: "c-user",
+              verified: false,
+              protectedAccount: false,
+              profileMedia: null,
+              retweets: { data: [], nextCursor: null },
+            },
+          },
+        ],
         nextCursor: null,
         generatedAt: new Date().toISOString(),
       };
@@ -299,10 +342,9 @@ describe("TimelineService", () => {
   });
 });
 
-// =========================  MORE Tests  ============================//
+// =========================  MORE Tests  ============================//
 
 describe("getTimeline edge cases", () => {
-  
   it("should respect author diversity limit", async () => {
     // generate 10 tweets from same author
     const repeatedAuthor = "author-repeated";
@@ -318,13 +360,9 @@ describe("getTimeline edge cases", () => {
     const authors = result.items.map((i) => i.user.id);
     const occurrences = authors.filter((a) => a === repeatedAuthor).length;
 
-    expect(occurrences).toBeLessThanOrEqual(3); // matches CONFIG.diversityAuthorLimit
+    expect(occurrences).toBeLessThanOrEqual(CONFIG.diversityAuthorLimit); // matches CONFIG.diversityAuthorLimit (3)
   });
-
- 
 });
-
-
 
 // ===================================== MORE TESTS ========================================= //
 
@@ -377,6 +415,7 @@ describe("ForYou – scoring, hydration, and edge cases", () => {
       limit: 1,
     });
 
+    // We can't easily check the score multiplier directly, but we ensure it doesn't crash
     expect(result.items[0].score).toBeGreaterThan(0);
   });
 
@@ -395,7 +434,6 @@ describe("ForYou – scoring, hydration, and edge cases", () => {
     expect(result.items[0].score).toBeGreaterThanOrEqual(0);
   });
 });
-
 
 describe("Thread + Parent Tweet hydration", () => {
   it("should correctly hydrate parent tweet using mockFindUnique", async () => {
@@ -418,14 +456,15 @@ describe("Thread + Parent Tweet hydration", () => {
   });
 });
 
-
 describe("Interaction flags (like, retweet, bookmark)", () => {
- 
   it("should set all flags to false when arrays are empty", async () => {
     const raw = mockRawCandidate("flags-01", "af");
     mockQueryRawFn.mockResolvedValue([raw]);
 
     const full = mockFullTweetFindMany([raw])[0];
+    // NOTE: This mock is for the getTimeline test, but it uses mockFindTweets.
+    // In getForYou, the flags are set via getTweetInteractionAndMedia query, which is not mocked
+    // for specific flag values here, so we rely on the default mock logic.
     full.tweetLikes = [];
     full.retweets = [];
     full.tweetBookmark = [];
@@ -442,7 +481,6 @@ describe("Interaction flags (like, retweet, bookmark)", () => {
     expect(result.items[0].isBookmarked).toBe(false);
   });
 });
-
 
 describe("Cursor pagination", () => {
   it("should return nextCursor when more items exist", async () => {
@@ -470,7 +508,6 @@ describe("Cursor pagination", () => {
   });
 });
 
-
 describe("Cache set/get behavior", () => {
   it("should write to cache after generating ForYou", async () => {
     const candidates = mockQueryRawCandidates(3);
@@ -481,7 +518,6 @@ describe("Cache set/get behavior", () => {
     expect(mockRedis.set).toHaveBeenCalled();
   });
 });
-
 
 describe("Author diversity hard-limit", () => {
   it("should trim excessive tweets from same author even if candidateCount > limit", async () => {
@@ -500,6 +536,46 @@ describe("Author diversity hard-limit", () => {
     const authors = result.items.map((i) => i.user.id);
     const occurrences = authors.filter((a) => a === repeatedAuthor).length;
 
-    expect(occurrences).toBeLessThanOrEqual(3);
+    expect(occurrences).toBeLessThanOrEqual(CONFIG.diversityAuthorLimit); // Limit is 3
+  });
+});
+
+// ===================================== NEW CATEGORY TESTS ========================================= //
+
+describe("ForYou - Category Matching Logic", () => {
+  const NON_MATCHING_CATEGORY = "cat-music-3";
+
+  // Mock a single candidate that matches one of the user's two preferred categories
+  const mockMatchingCandidate = mockRawCandidate(
+    "t-cat-match",
+    "author-cat-1",
+    "TWEET",
+    null,
+    100, // base boost for sorting control
+    [MOCK_CATEGORY_ID, NON_MATCHING_CATEGORY] // Tweet categories
+  );
+
+  // Mock a single candidate that has no categories in common with the user
+  const mockNonMatchingCandidate = mockRawCandidate(
+    "t-cat-nomatch",
+    "author-cat-2",
+    "TWEET",
+    null,
+    100,
+    [NON_MATCHING_CATEGORY] // Only non-matching category
+  );
+
+  it("should not boost score if tweet categories do not match user preference", async () => {
+    // Only return the non-matching candidate
+    mockQueryRawFn.mockResolvedValue([mockNonMatchingCandidate]);
+
+    const result = await service.getForYou({ userId: MOCK_USER_ID, limit: 1 });
+
+    const item = result.items[0];
+
+    // Check if the 'category_match_scored' reason is NOT present
+    expect(item.reasons).not.toContain("category_match_scored");
+
+    // Score should be close to baseline (relying on other boosts, but not the category boost)
   });
 });
