@@ -573,13 +573,17 @@ export async function Login(
 
     const user = (await prisma.user.findUnique({
       where: { email },
-    })) as PrismaUser | null;
+      include: {
+    deviceRecord: true, 
+  },
+    }));
+
 
     if (!user) {
       await utils.IncrAttempts(res, email);
       throw new AppError("Try again and enter your info correctly", 401);
     }
-
+console.log(user.deviceRecord); 
     const ok: boolean = await utils.CheckPass(
       password,
       user.password,
@@ -592,9 +596,26 @@ export async function Login(
     }
 
     await utils.RestAttempts(email);
-
+   
     const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
+//     const exists = user.deviceRecord.some(d => d.id === deviceRecord.id);
+// if (!exists){
+//     const deviceBrowser =
+//       typeof deviceRecord === "object" && deviceRecord
+//         ? (deviceRecord as any).browser || "unknown"
+//         : typeof deviceRecord === "string"
+//         ? deviceRecord
+//         : "unknown";
 
+    
+//     await addNotification(
+//       user.id as UUID,
+//       {
+//         title: NotificationTitle.logib_new de,
+//         body: `login from new divice or location from ${deviceBrowser} `,
+//         actorId: user.id as UUID,
+//         tweetId: "32423",
+//       });}
     const accessObj = await utils.GenerateJwt({
       username: user.username,
       email,
@@ -952,31 +973,27 @@ export async function ResetPassword(
 //       throw new AppError("Failed to send password change notification", 500);
 //     });
 await enqueuePasswordChangedAlert(user.email, user.username);
-    // const deviceBrowser =
-    //   typeof deviceRecord === "object" && deviceRecord
-    //     ? (deviceRecord as any).browser || "unknown"
-    //     : typeof deviceRecord === "string"
-    //     ? deviceRecord
-    //     : "unknown";
+    const deviceBrowser =
+      typeof deviceRecord === "object" && deviceRecord
+        ? (deviceRecord as any).browser || "unknown"
+        : typeof deviceRecord === "string"
+        ? deviceRecord
+        : "unknown";
 
-    // const country =
-    //   typeof location === "object" && location
-    //     ? (location as any).Country || (location as any).country || "unknown"
-    //     : typeof location === "string"
-    //     ? location
-    //     : "unknown";
-    // await addNotification(
-    //   user.id as UUID,
-    //   {
-    //     title: NotificationTitle.PASSWORD_CHANGED,
-    //     body: `Password of this account has been changed of ${deviceBrowser} at ${country}`,
-    //     actorId: user.id as UUID,
-    //     tweetId: "32423",
-    //   },
-    //   (err) => {
-    //     if (err) throw new AppError(err, 500);
-    //   }
-    // );
+    const country =
+      typeof location === "object" && location
+        ? (location as any).Country || (location as any).country || "unknown"
+        : typeof location === "string"
+        ? location
+        : "unknown";
+    await addNotification(
+      user.id as UUID,
+      {
+        title: NotificationTitle.PASSWORD_CHANGED,
+        body: `Password of this account has been changed of ${deviceBrowser} at ${country}`,
+        actorId: user.id as UUID,
+        tweetId: "32423",
+      });
 
     const accessObj = await utils.GenerateJwt({
       username: user.username,
@@ -1277,7 +1294,27 @@ await enqueuePasswordChangedDetailed(user.email, {
   userAgent: req.get("User-Agent") || "",
 });
    
-   
+    //    const deviceBrowser =
+    //   typeof deviceRecord === "object" && deviceRecord
+    //     ? (deviceRecord as any).browser || "unknown"
+    //     : typeof deviceRecord === "string"
+    //     ? deviceRecord
+    //     : "unknown";
+
+    // const country =
+    //   typeof location === "object" && location
+    //     ? (location as any).Country || (location as any).country || "unknown"
+    //     : typeof location === "string"
+    //     ? location
+    //     : "unknown";
+    // await addNotification(
+    //   user.id as UUID,
+    //   {
+    //     title: NotificationTitle.PASSWORD_CHANGED,
+    //     body: `WE NOTICE PASSWORD CHANGED FROM ${deviceBrowser} at ${country}`,
+    //     actorId: user.id as UUID,
+    //     tweetId: "32423",
+    //   });
 
     return utils.SendRes(res, {
       refresh_token: refreshObj.token,
@@ -1332,6 +1369,27 @@ export async function ChangeEmail(
 
    
 await enqueueEmailChangeVerification(user.email, user.name || "there", code);
+    // const deviceBrowser =
+    //   typeof deviceRecord === "object" && deviceRecord
+    //     ? (deviceRecord as any).browser || "unknown"
+    //     : typeof deviceRecord === "string"
+    //     ? deviceRecord
+    //     : "unknown";
+
+    // const country =
+    //   typeof location === "object" && location
+    //     ? (location as any).Country || (location as any).country || "unknown"
+    //     : typeof location === "string"
+    //     ? location
+    //     : "unknown";
+    // await addNotification(
+    //   user.id as UUID,
+    //   {
+    //     title: NotificationTitle.EMAIL_CHANGED,
+    //     body: `WE NOTICE EMAIL CHANGED FROM ${deviceBrowser} at ${country}`,
+    //     actorId: user.id as UUID,
+    //     tweetId: "32423",
+    //   });
     return utils.SendRes(res, {
       message: "Verification code sent successfully to your new email",
     });
@@ -2035,6 +2093,7 @@ export async function CallbackGithubFront(
       user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
         const username = await utils.generateUsername(name);
+
         user = await prisma.user.create({
           data: {
             email,
@@ -2128,9 +2187,30 @@ await enqueueSecurityLoginGithub(user.email, {
     console.log(" GitHub OAuth successful, redirecting to frontend");
 
     
-    await redisClient.del(codeKey);
+    // await redisClient.del(codeKey);
+    //  const deviceBrowser =
+    //   typeof deviceRecord === "object" && deviceRecord
+    //     ? (deviceRecord as any).browser || "unknown"
+    //     : typeof deviceRecord === "string"
+    //     ? deviceRecord
+    //     : "unknown";
 
+    // const country =
+    //   typeof location === "object" && location
+    //     ? (location as any).Country || (location as any).country || "unknown"
+    //     : typeof location === "string"
+    //     ? location
+    //     : "unknown";
+    // await addNotification(
+    //   user.id as UUID,
+    //   {
+    //     title: NotificationTitle.GITHUB_REGSTER,
+    //     body: `you regstered to the app throw github from ${deviceBrowser} at ${country}`,
+    //     actorId: user.id as UUID,
+    //     tweetId: "32423",
+    //   });
     return res.redirect(redirectUrl);
+
   } catch (err) {
     console.error("CallbackGithubFront err:", err);
 
@@ -2265,7 +2345,29 @@ await enqueueSecurityLoginGithub(user.email, {
         isEmailVerified: user.isEmailVerified,
       })
     )}`;
+   
+    
+    //  const deviceBrowser =
+    //   typeof deviceRecord === "object" && deviceRecord
+    //     ? (deviceRecord as any).browser || "unknown"
+    //     : typeof deviceRecord === "string"
+    //     ? deviceRecord
+    //     : "unknown";
 
+    // const country =
+    //   typeof location === "object" && location
+    //     ? (location as any).Country || (location as any).country || "unknown"
+    //     : typeof location === "string"
+    //     ? location
+    //     : "unknown";
+    // await addNotification(
+    //   user.id as UUID,
+    //   {
+    //     title: NotificationTitle.GITHUB_REGSTER,
+    //     body: `you regstered to the app throw github from ${deviceBrowser} at ${country}`,
+    //     actorId: user.id as UUID,
+    //     tweetId: "32423",
+    //   });
     return res.redirect(redirectUrl);
   } catch (err) {
     console.error("CallbackGithub err:", err);
@@ -2408,7 +2510,29 @@ await enqueueSecurityLoginGoogle(user.email, {
         isEmailVerified: user.isEmailVerified,
       })
     )}`;
+   
+   
+    //  const deviceBrowser =
+    //   typeof deviceRecord === "object" && deviceRecord
+    //     ? (deviceRecord as any).browser || "unknown"
+    //     : typeof deviceRecord === "string"
+    //     ? deviceRecord
+    //     : "unknown";
 
+    // const country =
+    //   typeof location === "object" && location
+    //     ? (location as any).Country || (location as any).country || "unknown"
+    //     : typeof location === "string"
+    //     ? location
+    //     : "unknown";
+    // await addNotification(
+    //   user.id as UUID,
+    //   {
+    //     title: NotificationTitle.GOOGLE_REGISTER,
+    //     body: `you Regester to the app throw google from ${deviceBrowser} at ${country}`,
+    //     actorId: user.id as UUID,
+    //     tweetId: "32423",
+    //   });
     return res.redirect(redirectUrl);
   } catch (err) {
     console.error("CallbackGoogle err:", err);
@@ -2425,11 +2549,13 @@ export async function CheckEmail(
     if (!email) return next(new AppError("email is required", 400));
 
     const user = await prisma.user.findUnique({ where: { email } });
+
     if (user) {
       return utils.SendRes(res, { exists: true });
     } else {
       return utils.SendRes(res, { exists: false });
     }
+
   } catch (err) {
     console.error("CheckEmail err:", err);
     return next(err);
@@ -2516,7 +2642,29 @@ export async function CallbackIOSGoogle(
       refreshToken.token,
       { EX: 60 * 60 * 24 * 30 }
     );
+   
 
+    //  const deviceBrowser =
+    //   typeof deviceRecord === "object" && deviceRecord
+    //     ? (deviceRecord as any).browser || "unknown"
+    //     : typeof deviceRecord === "string"
+    //     ? deviceRecord
+    //     : "unknown";
+
+    // const country =
+    //   typeof location === "object" && location
+    //     ? (location as any).Country || (location as any).country || "unknown"
+    //     : typeof location === "string"
+    //     ? location
+    //     : "unknown";
+    // await addNotification(
+    //   user.id as UUID,
+    //   {
+    //     title: NotificationTitle.GOOGLE_REGSTER,
+    //     body: `you regstered to the app throw google from ${deviceBrowser} at ${country}`,
+    //     actorId: user.id as UUID,
+    //     tweetId: "32423",
+    //   });
     return res.json({
       token: token.token,
       refreshToken: refreshToken.token,
@@ -2606,7 +2754,27 @@ export async function CallbackAndroidGoogle(
       refreshToken.token,
       { EX: 60 * 60 * 24 * 30 }
     );
+    // const deviceBrowser =
+    //   typeof deviceRecord === "object" && deviceRecord
+    //     ? (deviceRecord as any).browser || "unknown"
+    //     : typeof deviceRecord === "string"
+    //     ? deviceRecord
+    //     : "unknown";
 
+    // const country =
+    //   typeof location === "object" && location
+    //     ? (location as any).Country || (location as any).country || "unknown"
+    //     : typeof location === "string"
+    //     ? location
+    //     : "unknown";
+    // await addNotification(
+    //   user.id as UUID,
+    //   {
+    //     title: NotificationTitle.GITHUB_REGSTER,
+    //     body: `you regstered to the app throw google from ${deviceBrowser} at ${country}`,
+    //     actorId: user.id as UUID,
+    //     tweetId: "32423",
+    //   });
     return res.json({
       token: token.token,
       refreshToken: refreshToken.token,
@@ -2718,6 +2886,39 @@ export const UpdateUsername = async (
     next(err);
   }
 };
+export const SuggestUsernames = async (
+req: Request,
+res: Response,
+next: NextFunction
+): Promise<void> => {
+try {
+
+const { name } = req.body;
+
+
+if (!name) throw new AppError("Missing name field",400);
+
+const clean = name.trim().toLowerCase();
+if (clean.length < 2) throw new AppError("Name must be at least 2 characters",400);
+
+let suggestions:Set<string>=new Set();
+
+while (suggestions.size<6) {
+const generated = await utils.generateUsername(clean);
+suggestions.add(generated);
+}
+
+
+
+return utils.SendRes(res,{
+message:"Username suggestions generated",
+suggestions:Array.from(suggestions),
+
+});
+} catch (err) {
+next(err);
+}
+};
 
 /* --------------------- Exports --------------------- */
 
@@ -2738,6 +2939,7 @@ const authController = {
   ReauthPassword,
   ReauthTFA,
   ReauthCode,
+  SuggestUsernames,
   ChangePassword,
   ChangeEmail,
   VerifyNewEmail,

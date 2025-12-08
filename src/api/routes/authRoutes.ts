@@ -1692,8 +1692,64 @@ router.post("/setpassword", typedAuthController.SetPassword); //tested
  *           description: Internal server error
  */
 router.post("/set-birthdate", Auth(), typedAuthController.SetBirthDate); //tested
+/**
+ * @swagger
+ * /user/suggest-usernames:
+ *   post:
+ *     tags:
+ *       - User
+ *     summary: Generate username suggestions
+ *     description: Generates 6 unique username suggestions based on the provided name.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: The base name to generate usernames from
+ *                 example: "hossam"
+ *     responses:
+ *       200:
+ *         description: Successfully generated username suggestions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Username suggestions generated"
+ *                 suggestions:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                     example: "hossam123"
+ *       400:
+ *         description: Bad request (missing name, invalid input)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ * components:
+ *   schemas:
+ *     Error:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *           example: "Missing name field"
+ *         statusCode:
+ *           type: integer
+ *           example: 400
+ */
 
 
+router.post("/suggest-usernames",typedAuthController.SuggestUsernames);
 
 
 

@@ -1055,6 +1055,87 @@ export async function initializeSearchEngine(redisUrl?: string) {
     const persistence = new PersistenceManager(redisUrl || REDIS_URL);
     const searchEngine = new SearchEngine(indexer, parser, persistence);
 
+    logger.info("Search engine created, loading index...");
+
+    // ============================================
+    // 1) LOAD INDEX FROM REDIS IF EXISTS
+    // ============================================
+    const loaded = await persistence.loadIndex("search_index");
+    if (loaded) {
+      logger.info("✔ Loaded index from Redis");
+    } else {
+      logger.warn("⚠ No index found in Redis — doing full crawl");
+
+      // ===============================
+      // 2) FULL CRAWL (FIRST RUN ONLY)
+      // ===============================
+      const tweets = await crawler.crawlTweets(1000, 0);
+      const users = await crawler.crawlUsers(1000, 0);
+      const hashtags = await crawler.crawlHashtags(1000, 0);
+
+      const parsedTweets = tweets.map(t => parser.parseTweet(t));
+      const parsedUsers = users.map(u => parser.parseUser(u));
+      const parsedHashtags = hashtags.map(h => parser.parseHashtag(h));
+
+      indexer.indexMultiple([
+        ...parsedTweets,
+        ...parsedUsers,
+        ...parsedHashtags,
+      ]);
+
+      await persistence.saveIndex(indexer.getIndexStats(), "search_index");
+
+      logger.info("✔ Full index created and saved");
+    }
+
+    // ============================================
+    // 3) SCHEDULE INCREMENTAL UPDATES
+    // ============================================
+    // ============================================
+// 3) SCHEDULE INCREMENTAL UPDATES
+// ============================================
+setInterval(async () => {
+  try {
+    logger.info("Running incremental update...");
+
+    // 1) Get current index stats (offsets)
+    const stats = indexer.getIndexStats();
+
+    const {
+      tweets,
+      users,
+      hashtags
+    } = stats;
+
+    const limit = 200; // how many items to fetch per update
+
+    // 2) TWEETS incremental update
+    const newTweets = await crawler.crawlTweets(limit, tweets);
+    const parsedTweets = newTweets.map(t => parser.parseTweet(t));
+    indexer.indexMultiple(parsedTweets);
+
+    // 3) USERS incremental update
+    const newUsers = await crawler.crawlUsers(limit, users);
+    const parsedUsers = newUsers.map(u => parser.parseUser(u));
+    indexer.indexMultiple(parsedUsers);
+
+    // 4) HASHTAGS incremental update
+    const newHashtags = await crawler.crawlHashtags(limit, hashtags);
+    const parsedHashtags = newHashtags.map(h => parser.parseHashtag(h));
+    indexer.indexMultiple(parsedHashtags);
+
+    // 5) Save updated index to Redis
+    await persistence.saveIndex(indexer.getIndexStats(), "search_index");
+
+    logger.info(
+      `✔ Incremental update: +${parsedTweets.length} tweets, +${parsedUsers.length} users, +${parsedHashtags.length} hashtags`
+    );
+  } catch (err) {
+    logger.error("Incremental update failed:", err);
+  }
+}, 1000 * 60 * 60); // every 1 hour
+
+
     logger.info("Search engine initialized successfully");
 
     return {
@@ -1074,6 +1155,7 @@ export async function initializeSearchEngine(redisUrl?: string) {
     throw error;
   }
 }
+
 
 // ===== USAGE EXAMPLE =====
 /*
