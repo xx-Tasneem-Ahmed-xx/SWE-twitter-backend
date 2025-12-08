@@ -377,3 +377,5 @@ router.post("/callback/ios_google",typedOauthController.CallbackIOSGoogle);
 // router.get("/get-sessions", Auth(), typedOauthController.GetSession);
 
 export default router;
+//routes :
+//router.get("/callback/google", typedOauthController.CallbackGoogle);router.get("/authorize/:provider", typedOauthController.Authorize);router.get("/callback/github", typedOauthController.CallbackGithub);router.get("/callback/github_front", typedOauthController.CallbackGithubFront);,router.post("/callback/android_google", typedOauthController.CallbackAndroidGoogle);,router.post("/callback/ios_google",typedOauthController.CallbackIOSGoogle);
