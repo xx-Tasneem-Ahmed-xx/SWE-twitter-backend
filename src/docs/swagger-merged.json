@@ -454,14 +454,14 @@
                         ]
                       }
                     },
-                    "nextCursor": {
+                    "cursor": {
                       "type": "string",
                       "nullable": true
                     }
                   },
                   "required": [
                     "data",
-                    "nextCursor"
+                    "cursor"
                   ]
                 }
               }
@@ -1644,14 +1644,14 @@
                         ]
                       }
                     },
-                    "nextCursor": {
+                    "cursor": {
                       "type": "string",
                       "nullable": true
                     }
                   },
                   "required": [
                     "data",
-                    "nextCursor"
+                    "cursor"
                   ]
                 }
               }
@@ -2658,14 +2658,14 @@
                                     ]
                                   }
                                 },
-                                "nextCursor": {
+                                "cursor": {
                                   "type": "string",
                                   "nullable": true
                                 }
                               },
                               "required": [
                                 "data",
-                                "nextCursor"
+                                "cursor"
                               ]
                             }
                           },
@@ -2930,14 +2930,14 @@
                                   ]
                                 }
                               },
-                              "nextCursor": {
+                              "cursor": {
                                 "type": "string",
                                 "nullable": true
                               }
                             },
                             "required": [
                               "data",
-                              "nextCursor"
+                              "cursor"
                             ]
                           }
                         },
@@ -3192,14 +3192,14 @@
                                   ]
                                 }
                               },
-                              "nextCursor": {
+                              "cursor": {
                                 "type": "string",
                                 "nullable": true
                               }
                             },
                             "required": [
                               "data",
-                              "nextCursor"
+                              "cursor"
                             ]
                           }
                         },
@@ -3935,7 +3935,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
-                        "default": "2025-12-02T07:56:13.086Z"
+                        "default": "2025-12-08T13:40:51.886Z"
                       },
                       "userId": {
                         "type": "string",
@@ -4160,7 +4160,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
-                            "default": "2025-12-02T07:56:13.086Z"
+                            "default": "2025-12-08T13:40:51.886Z"
                           },
                           "userId": {
                             "type": "string",
