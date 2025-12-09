@@ -120,7 +120,7 @@ export const mapToTrendData = async (
       if (!hashtag) return null;
 
       return {
-        id: encoderService.encode(item.hashId),
+        id: item.hashId,
         hashtag,
         tweetCount: item.tweetCount,
         likesCount: item.likesSum,
