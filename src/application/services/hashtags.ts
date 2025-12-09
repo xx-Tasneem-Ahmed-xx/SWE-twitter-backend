@@ -160,7 +160,7 @@ export async function calculateTrends(
 
   const scored = utils.calculateTrendScores(entries);
   const limited = utils.sortAndTake(scored, options?.limit ?? TRENDS_LIMIT);
-  return utils.mapToTrendData(limited, encoderService, prisma);
+  return utils.mapToTrendData(limited, prisma);
 }
 
 // Cache trends
@@ -188,7 +188,7 @@ export async function calculateAndCacheTrends(category: utils.TrendCategory) {
 export async function calculateViralTweets(
   periodHours: number = TREND_PERIOD_HOURS,
   category: utils.TrendCategory,
-  limit = 5
+  limit = 150
 ) {
   const tweetSelect = (tweetService as any).tweetSelectFields();
 
@@ -240,7 +240,7 @@ export async function cacheViralTweets(
 // Calculate & cache viral tweets
 export async function calculateAndCacheViralTweets(
   category: utils.TrendCategory,
-  limit = 5,
+  limit = 150,
   periodHours: number = TREND_PERIOD_HOURS
 ) {
   const { tweets } = await calculateViralTweets(periodHours, category, limit);
@@ -262,6 +262,9 @@ export const fetchHashtagTweets = async (
   const hash = await prisma.hash.findUnique({ where: { id: hashtagId } });
   if (!hash) throw new AppError("Hashtag not found", 404);
 
+  // Get blocked/muted user IDs to exclude from query using the utility function
+  const excludedUserIds = await utils.getExcludedUserIds(userId, prisma);
+
   const cursorCondition = utils.buildCursorCondition(cursor);
   const tweetSelect = (tweetService as any).tweetSelectFields(userId);
 
@@ -271,6 +274,9 @@ export const fetchHashtagTweets = async (
       tweet: {
         ...cursorCondition,
         tweetType: "TWEET",
+        ...(excludedUserIds.length > 0
+          ? { userId: { notIn: excludedUserIds } }
+          : {}),
       },
     },
     include: { tweet: { select: tweetSelect } },
@@ -429,7 +435,8 @@ export const fetchTrends = async (
 // fetch viral tweets
 export const fetchViralTweets = async (
   userId: string,
-  category: utils.TrendCategory = utils.TrendCategory.Global
+  category: utils.TrendCategory = utils.TrendCategory.Global,
+  limit: number = 5 // Number of tweets to return to the user
 ) => {
   let cached = await readCachedData(VIRAL_TWEETS_CACHE_KEY(category));
 
@@ -440,7 +447,13 @@ export const fetchViralTweets = async (
   if (!cached?.tweets) {
     return { tweets: [], updatedAt: new Date().toISOString() };
   }
-  const tweets = await extendTweetsWithUserInteractions(cached.tweets, userId);
+  const filteredTweets = await utils.filterBlockedAndMutedTweets(
+    cached.tweets,
+    userId,
+    prisma
+  );
+  const limitedTweets = filteredTweets.slice(0, limit);
+  const tweets = await extendTweetsWithUserInteractions(limitedTweets, userId);
 
   return { tweets, updatedAt: cached.updatedAt };
 };

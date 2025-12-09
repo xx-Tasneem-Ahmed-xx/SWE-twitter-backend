@@ -47,6 +47,39 @@ describe("Hashtags autocomplete & trends service", () => {
 
   beforeAll(async () => {
     await connectToDatabase();
+
+    // Clean up any leftover test data from previous failed runs
+    // Delete tweets created by test users
+    await prisma.tweet.deleteMany({
+      where: {
+        OR: [
+          { id: { contains: "no_interaction_tweet" } },
+          { id: { contains: "normal_tweet_" } },
+          { id: { contains: "reply_tweet_" } },
+          { id: { contains: "quote_tweet_" } },
+          { id: { contains: "normal_ht_" } },
+          { id: { contains: "reply_ht_" } },
+          { userId: { contains: "no_interaction_user" } },
+          { userId: { contains: "test_user_" } },
+          { userId: { contains: "empty_follow_test_id" } },
+        ],
+      },
+    });
+
+    // Delete test users
+    await prisma.user.deleteMany({
+      where: {
+        OR: [
+          { id: { contains: "no_interaction_user" } },
+          { id: { contains: "test_user_" } },
+          { id: { equals: "empty_follow_test_id" } },
+          { username: { contains: "testuser_" } },
+          { username: { equals: "empty_follow_user" } },
+        ],
+      },
+    });
+
+    // Delete test hashtags
     await prisma.hash.deleteMany({
       where: {
         tag_text: {
@@ -58,6 +91,7 @@ describe("Hashtags autocomplete & trends service", () => {
             "manytweets",
             "smalllikes",
             "bigcount",
+            "testfilter",
           ],
         },
       },
@@ -193,6 +227,7 @@ describe("Hashtags autocomplete & trends service", () => {
   });
 
   afterAll(async () => {
+    // Clean up known test data
     await prisma.tweetHash.deleteMany({
       where: { tweetId: { in: TWEET_IDS } },
     });
@@ -218,12 +253,37 @@ describe("Hashtags autocomplete & trends service", () => {
             "bigcount",
             "uniquetag1",
             "uniquetag2",
+            "testfilter",
           ],
         },
       },
     });
 
     await prisma.user.deleteMany({ where: { id: TEST_USER_ID } });
+
+    // Clean up any test data that might have been created during tests
+    await prisma.tweet.deleteMany({
+      where: {
+        OR: [
+          { id: { contains: "no_interaction_tweet" } },
+          { id: { contains: "normal_tweet_" } },
+          { id: { contains: "reply_tweet_" } },
+          { id: { contains: "quote_tweet_" } },
+          { id: { contains: "normal_ht_" } },
+          { id: { contains: "reply_ht_" } },
+        ],
+      },
+    });
+
+    await prisma.user.deleteMany({
+      where: {
+        OR: [
+          { id: { contains: "no_interaction_user" } },
+          { id: { contains: "test_user_" } },
+          { id: { equals: "empty_follow_test_id" } },
+        ],
+      },
+    });
 
     try {
       const redisKeys = [
