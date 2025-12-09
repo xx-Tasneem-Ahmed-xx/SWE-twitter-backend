@@ -1,11 +1,10 @@
-import { exploreQueue } from "../queues";
-import { ExploreJobData, TweetScoreUpdate } from "../types/jobs";
+import { exploreQueue } from "@/background/queues/index";
+import {
+  SeedExploreFeedJobData,
+  TweetScoreUpdate,
+} from "@/background/types/jobs";
 
-export const FEED_CACHE_PREFIX = "user:exploreFeed:"; // Redis key prefix
-export const FEED_CACHE_TTL = 0.5 * 60 * 60; // half an hour
-const REFRESH_RATE_IN_HOURS = 0.5 * 60 * 60 * 1000;
-
-export async function enqueueUpdateScroeJob(payload: TweetScoreUpdate) {
+export async function enqueueUpdateScoreJob(payload: TweetScoreUpdate) {
   await exploreQueue.add("update-score", payload, {
     attempts: 5,
     backoff: {
@@ -19,13 +18,16 @@ export async function enqueueUpdateScroeJob(payload: TweetScoreUpdate) {
   });
 }
 
-export async function enqueueRefreshFeedJob(payload: ExploreJobData) {
-  await exploreQueue.add("refresh-feed", payload, {
-    attempts: 1,
-    removeOnComplete: 500,
-    removeOnFail: 200,
-    priority: 5,
-    jobId: `refresh:${payload.userId}`,
-    delay: REFRESH_RATE_IN_HOURS,
+export async function enqueueSeedExploreFeedJob(
+  payload: SeedExploreFeedJobData
+) {
+  await exploreQueue.add("seed-explore-feed", payload, {
+    attempts: 3,
+    backoff: {
+      type: "exponential",
+      delay: 3000,
+    },
+    removeOnComplete: true,
+    removeOnFail: true,
   });
 }
