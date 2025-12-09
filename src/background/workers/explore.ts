@@ -8,7 +8,7 @@ import {
   TweetScoreUpdate,
 } from "../types/jobs";
 import { ExploreService } from "@/application/services/explore";
-import { seedExploreFeeds } from "@/scripts/seedExplore";
+import { seedExploreFeeds } from "@/jobScripts/seedExplore";
 
 async function startWorker() {
   await initRedis();
