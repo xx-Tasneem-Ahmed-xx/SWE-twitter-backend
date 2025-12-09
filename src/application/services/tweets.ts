@@ -31,7 +31,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { UUID } from "node:crypto";
 import { addNotification } from "./notification";
-import { enqueueUpdateScroeJob } from "@/background/jobs/explore";
+import { enqueueUpdateScoreJob } from "@/background/jobs/explore";
 
 export class TweetService {
   private async validateId(id: string) {
@@ -233,7 +233,7 @@ export class TweetService {
         content: quote.content,
       }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
 
-      enqueueUpdateScroeJob({ tweetId: dto.parentId });
+      enqueueUpdateScoreJob({ tweetId: dto.parentId });
 
       addNotification(parent.userId as UUID, {
         title: "QUOTE",
@@ -287,7 +287,7 @@ export class TweetService {
         content: reply.content,
       }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
 
-      enqueueUpdateScroeJob({ tweetId: dto.parentId });
+      enqueueUpdateScoreJob({ tweetId: dto.parentId });
 
       addNotification(parent.userId as UUID, {
         title: "REPLY",
@@ -315,7 +315,7 @@ export class TweetService {
         data: { retweetCount: { increment: 1 } },
         select: { userId: true },
       });
-      enqueueUpdateScroeJob({ tweetId: dto.parentId });
+      enqueueUpdateScoreJob({ tweetId: dto.parentId });
       addNotification(parent.userId as UUID, {
         title: "RETWEET",
         body: "reposted your post",
@@ -439,7 +439,7 @@ export class TweetService {
         where: { id: parentId },
         data: { repliesCount: { decrement: 1 } },
       });
-      enqueueUpdateScroeJob({ tweetId: parentId });
+      enqueueUpdateScoreJob({ tweetId: parentId });
     });
   }
 
@@ -452,7 +452,7 @@ export class TweetService {
         where: { id: parentId },
         data: { quotesCount: { decrement: 1 } },
       });
-      enqueueUpdateScroeJob({ tweetId: parentId });
+      enqueueUpdateScoreJob({ tweetId: parentId });
     });
   }
 
@@ -466,7 +466,7 @@ export class TweetService {
         where: { id: tweetId },
         data: { retweetCount: { decrement: 1 } },
       });
-      enqueueUpdateScroeJob({ tweetId });
+      enqueueUpdateScoreJob({ tweetId });
     });
   }
 
@@ -551,7 +551,7 @@ export class TweetService {
       await tx.tweetLike.create({
         data: { userId, tweetId },
       });
-      enqueueUpdateScroeJob({ tweetId });
+      enqueueUpdateScoreJob({ tweetId });
       addNotification(parent.userId as UUID, {
         title: "LIKE",
         body: "liked your post",
@@ -585,7 +585,7 @@ export class TweetService {
         where: { id: tweetId },
         data: { likesCount: { decrement: 1 } },
       });
-      enqueueUpdateScroeJob({ tweetId });
+      enqueueUpdateScoreJob({ tweetId });
     });
   }
 
