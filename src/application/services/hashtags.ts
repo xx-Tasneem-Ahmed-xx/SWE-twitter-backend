@@ -168,11 +168,17 @@ export async function cacheTrends(
   trends: utils.TrendData[],
   category: utils.TrendCategory
 ) {
-  await redisClient.setEx(
-    TREND_CACHE_KEY(category),
-    TRENDS_CACHE_TTL,
-    JSON.stringify({ trends, updatedAt: new Date().toISOString() })
-  );
+  if (trends.length > 0) {
+    await redisClient.setEx(
+      TREND_CACHE_KEY(category),
+      TRENDS_CACHE_TTL,
+      JSON.stringify({ trends, updatedAt: new Date().toISOString() })
+    );
+  } else {
+    console.warn(
+      `Skipping cache update for ${category} trends - no data to cache`
+    );
+  }
 }
 
 // Calculate & cache trends
@@ -227,14 +233,21 @@ export async function cacheViralTweets(
   category: utils.TrendCategory,
   tweets: any[]
 ) {
-  await redisClient.setEx(
-    VIRAL_TWEETS_CACHE_KEY(category),
-    TRENDS_CACHE_TTL,
-    JSON.stringify({
-      tweets,
-      updatedAt: new Date().toISOString(),
-    })
-  );
+  // Only update cache if we have new data (don't replace with empty)
+  if (tweets.length > 0) {
+    await redisClient.setEx(
+      VIRAL_TWEETS_CACHE_KEY(category),
+      TRENDS_CACHE_TTL,
+      JSON.stringify({
+        tweets,
+        updatedAt: new Date().toISOString(),
+      })
+    );
+  } else {
+    console.warn(
+      `Skipping cache update for ${category} viral tweets - no data to cache`
+    );
+  }
 }
 
 // Calculate & cache viral tweets
