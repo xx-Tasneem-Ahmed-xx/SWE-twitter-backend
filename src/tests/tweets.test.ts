@@ -145,12 +145,7 @@ describe("Tweets Service", () => {
       where: { userId: { in: ["123", "456", "789"] } },
     });
 
-    await prisma.media.deleteMany({
-      where: {
-        id: { in: ["media1", "media2", "media3"] },
-        name: { contains: "test_m" },
-      },
-    });
+    await prisma.media.deleteMany();
     await prisma.$disconnect();
   });
 
