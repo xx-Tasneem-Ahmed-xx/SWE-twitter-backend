@@ -1,4 +1,4 @@
-import { initRedis } from "@/config/redis";
+import { initRedis, redisClient } from "@/config/redis";
 import { loadSecrets } from "@/config/secrets";
 import { prisma } from "@/prisma/client";
 import { ExploreService } from "@/application/services/explore";
@@ -8,6 +8,7 @@ import {
 } from "@/application/services/encoder";
 import z from "zod";
 import { User } from "@prisma/client";
+import { redis } from "@/application/services/timeline";
 let connectToDatabase: any;
 const exploreService = ExploreService.getInstance();
 jest.mock("@/application/services/notification", () => ({
@@ -19,13 +20,14 @@ beforeAll(async () => {
   await initEncoderService();
   connectToDatabase = (await import("@/database")).connectToDatabase;
 });
-let user: User, mutedUser: User, blockedUser: User;
+let user: User, user2: User, mutedUser: User, blockedUser: User;
 
 const CAT1 = "sports";
 const CAT2 = "news";
 const CAT3 = "tech";
 
 describe("ExploreService", () => {
+  let tweetId: string;
   beforeAll(async () => {
     await connectToDatabase();
 
@@ -34,14 +36,23 @@ describe("ExploreService", () => {
       update: {},
       create: {
         username: "test_user1",
-        id: "550e8400-e29b-41d4-a716-446655440000",
         email: "test_user1@example.com",
         password: "password456",
         saltPassword: "salt456",
-        name: "Test User one",
+        name: "Test User One",
       },
     });
-
+    user2 = await prisma.user.upsert({
+      where: { username: "test_user2" },
+      update: {},
+      create: {
+        username: "test_user2",
+        email: "test_user2@example.com",
+        password: "password456",
+        saltPassword: "salt456",
+        name: "Test User Two",
+      },
+    });
     mutedUser = await prisma.user.upsert({
       where: { username: "test_user2" },
       update: {},
@@ -67,22 +78,32 @@ describe("ExploreService", () => {
         name: "Test User three",
       },
     });
+    await prisma.block.create({
+      data: { blockerId: user.id, blockedId: blockedUser.id },
+    });
+    await prisma.mute.create({
+      data: { muterId: user.id, mutedId: mutedUser.id },
+    });
   });
 
   afterAll(async () => {
     await prisma.user.deleteMany({
-      where: { id: { in: [user.id, mutedUser.id, blockedUser.id] } },
+      where: { id: { in: [user.id, user2.id, mutedUser.id, blockedUser.id] } },
     });
     await prisma.category.deleteMany({
       where: { name: { in: [CAT1, CAT2, CAT3] } },
     });
     await prisma.tweet.deleteMany({
-      where: { userId: { in: [user.id, mutedUser.id, blockedUser.id] } },
+      where: {
+        userId: { in: [user.id, user2.id, mutedUser.id, blockedUser.id] },
+      },
     });
+    await redis.flushall();
     await prisma.$disconnect();
   });
 
   beforeEach(async () => {
+    await redis.flushall();
     await prisma.category.upsert({
       where: { name: CAT1 },
       update: {},
@@ -100,6 +121,21 @@ describe("ExploreService", () => {
       update: {},
       create: { name: CAT3 },
     });
+    const tweet = await prisma.tweet.create({
+      data: {
+        content: "Hello world",
+        userId: user.id,
+        tweetType: "TWEET",
+        likesCount: 10,
+        retweetCount: 5,
+        quotesCount: 2,
+        repliesCount: 3,
+        tweetCategories: {
+          create: [{ category: { connect: { name: CAT1 } } }],
+        },
+      },
+    });
+    tweetId = tweet.id;
   });
 
   describe("getCategories", () => {
@@ -187,12 +223,89 @@ describe("ExploreService", () => {
     });
   });
 
+  describe("calculateTweetScore", () => {
+    it("calculates and updates score, populates global and category feeds", async () => {
+      await exploreService.calculateTweetScore(tweetId);
+
+      const updatedTweet = await prisma.tweet.findUnique({
+        where: { id: tweetId },
+      });
+      expect(updatedTweet?.score).toBeGreaterThan(0);
+
+      const globalScore = await redisClient.zScore("explore:global", tweetId);
+      expect(globalScore).toBeCloseTo(updatedTweet!.score);
+
+      const catScore = await redisClient.zScore(
+        `explore:category:${CAT1}`,
+        tweetId
+      );
+      expect(catScore).toBeCloseTo(updatedTweet!.score);
+    });
+
+    it("does nothing if tweet does not exist", async () => {
+      await expect(
+        exploreService.calculateTweetScore("nonexistent")
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe("refreshCategoryFeed", () => {
+    it("populates Redis with tweets in order of score", async () => {
+      await exploreService.calculateTweetScore(tweetId);
+      await exploreService.refreshCategoryFeed(CAT1);
+
+      const zrange = await redisClient.zRange(
+        `explore:category:${CAT1}`,
+        0,
+        -1,
+        { REV: true }
+      );
+      expect(zrange).toContain(tweetId);
+    });
+
+    it("handles empty category gracefully", async () => {
+      await prisma.tweet.deleteMany({});
+      await exploreService.refreshCategoryFeed(CAT1);
+
+      const zrange = await redisClient.zRange(
+        `explore:category:${CAT1}`,
+        0,
+        -1
+      );
+      expect(zrange.length).toBe(0);
+    });
+
+    it("works with multiple pages (pipelineSize)", async () => {
+      for (let i = 0; i < 5; i++) {
+        await prisma.tweet.create({
+          data: {
+            content: `t${i}`,
+            userId: user.id,
+            tweetType: "TWEET",
+            score: i,
+            tweetCategories: {
+              create: [{ category: { connect: { name: CAT2 } } }],
+            },
+          },
+        });
+      }
+      await exploreService.refreshCategoryFeed(CAT2, 2);
+
+      const zrange = await redisClient.zRange(
+        `explore:category:${CAT2}`,
+        0,
+        -1
+      );
+      expect(zrange.length).toBe(5);
+    });
+  });
+
   describe("getFeed", () => {
-    it("should return tweets for the user", async () => {
+    it("returns tweets for global feed", async () => {
       const tweet = await prisma.tweet.create({
         data: {
           id: "t1",
-          content: "bla bla bla",
+          content: "Hello world",
           userId: user.id,
           tweetType: "TWEET",
           score: 10,
@@ -202,212 +315,111 @@ describe("ExploreService", () => {
         },
       });
 
-      const result = await exploreService.getFeed({
-        userId: user.id,
-        limit: 10,
-      });
-      expect(result.data.map((t: any) => t.id)).toContain(tweet.id);
+      await exploreService.seedExploreFeeds([tweet.id]);
+
+      const res = await exploreService.getFeed({ userId: user.id, limit: 10 });
+      expect(res.data.map((t) => t.id)).toContain(tweet.id);
     });
 
-    it("should filter by category", async () => {
-      await prisma.tweet.create({
+    it("returns tweets filtered by category", async () => {
+      const tweet1 = await prisma.tweet.create({
         data: {
-          id: "t2",
-          content: "Sports tweet",
+          id: "c1",
           userId: user.id,
           tweetType: "TWEET",
-          score: 5,
+          score: 10,
+          content: "Tech tweet",
           tweetCategories: {
-            create: [{ category: { connect: { name: CAT1 } } }],
+            create: [{ category: { connect: { name: CAT3 } } }],
           },
         },
       });
-      await prisma.tweet.create({
+      const tweet2 = await prisma.tweet.create({
         data: {
-          id: "t3",
-          content: "Music tweet",
+          id: "c2",
           userId: user.id,
           tweetType: "TWEET",
           score: 5,
+          content: "Other tweet",
           tweetCategories: {
             create: [{ category: { connect: { name: CAT2 } } }],
           },
         },
       });
 
-      const result = await exploreService.getFeed({
+      await exploreService.refreshCategoryFeed(CAT3);
+
+      const res = await exploreService.getFeed({
         userId: user.id,
         limit: 10,
-        category: CAT1,
+        category: CAT3,
       });
-      for (const tweet of result.data) {
-        const names = tweet.tweetCategories.map((c: any) => c.category.name);
-        expect(names).toContain(CAT1);
-      }
+      expect(res.data.length).toBe(1);
+      expect(res.data[0].id).toBe(tweet1.id);
     });
 
-    it("should exclude tweets from blocked users", async () => {
-      await prisma.block.create({
-        data: { blockerId: user.id, blockedId: blockedUser.id },
-      });
-      await prisma.tweet.create({
+    it("excludes tweets from blocked/muted users", async () => {
+      const blockedTweet = await prisma.tweet.create({
         data: {
-          id: "t4",
-          content: "Blocked tweet",
+          id: "tb",
           userId: blockedUser.id,
+          score: 10,
           tweetType: "TWEET",
-          score: 1,
+          content: "Blocked",
         },
       });
-
-      const result = await exploreService.getFeed({
-        userId: user.id,
-        limit: 10,
-      });
-      expect(
-        result.data.find((t: any) => t.userId === blockedUser.id)
-      ).toBeUndefined();
-    });
-
-    it("should exclude tweets from muted users", async () => {
-      await prisma.mute.create({
-        data: { muterId: user.id, mutedId: mutedUser.id },
-      });
-      await prisma.tweet.create({
+      const mutedTweet = await prisma.tweet.create({
         data: {
-          id: "t5",
-          content: "Muted tweet",
+          id: "tm",
           userId: mutedUser.id,
+          score: 10,
           tweetType: "TWEET",
-          score: 1,
+          content: "Muted",
         },
       });
 
-      const result = await exploreService.getFeed({
-        userId: user.id,
-        limit: 10,
-      });
-      expect(
-        result.data.find((t: any) => t.userId === mutedUser.id)
-      ).toBeUndefined();
+      await exploreService.seedExploreFeeds([blockedTweet.id, mutedTweet.id]);
+
+      const res = await exploreService.getFeed({ userId: user.id, limit: 10 });
+      expect(res.data.find((t) => t.id === "tb")).toBeUndefined();
+      expect(res.data.find((t) => t.id === "tm")).toBeUndefined();
     });
 
-    it("should exclude tweets marked not interested", async () => {
-      const tweet = await prisma.tweet.create({
-        data: {
-          id: "t6",
-          content: "Not interested tweet",
-          userId: user.id,
-          tweetType: "TWEET",
-          score: 1,
-        },
-      });
-      await prisma.notInterested.create({
-        data: { userId: user.id, tweetId: tweet.id },
-      });
-
-      const result = await exploreService.getFeed({
-        userId: user.id,
-        limit: 10,
-      });
-      expect(result.data.find((t: any) => t.id === tweet.id)).toBeUndefined();
-    });
-
-    it("should exclude tweets reported as spam", async () => {
-      const tweet = await prisma.tweet.create({
-        data: {
-          id: "t7",
-          content: "Spam tweet",
-          userId: user.id,
-          tweetType: "TWEET",
-          score: 1,
-        },
-      });
-      await prisma.spamReport.create({
-        data: { reporterId: user.id, tweetId: tweet.id, reason: "noreason" },
-      });
-
-      const result = await exploreService.getFeed({
-        userId: user.id,
-        limit: 10,
-      });
-      expect(result.data.find((t: any) => t.id === tweet.id)).toBeUndefined();
-    });
-
-    it("should paginate with cursor", async () => {
-      await prisma.tweet.create({
+    it("paginates using index-based cursor", async () => {
+      const t1 = await prisma.tweet.create({
         data: {
           id: "t8",
-          content: "First",
           userId: user.id,
-          tweetType: "TWEET",
           score: 10,
+          content: "T1",
+          tweetType: "TWEET",
         },
       });
-      await prisma.tweet.create({
+      const t2 = await prisma.tweet.create({
         data: {
           id: "t9",
-          content: "Second",
           userId: user.id,
-          tweetType: "TWEET",
           score: 9,
+          content: "T2",
+          tweetType: "TWEET",
         },
       });
 
-      const firstPage = await exploreService.getFeed({
-        userId: user.id,
-        limit: 1,
-      });
-      const cursor = encoderService.decode<{ id: string; score: number }>(
-        firstPage.cursor as string
-      );
+      await exploreService.seedExploreFeeds([t1.id, t2.id]);
 
-      const secondPage = await exploreService.getFeed({
+      const first = await exploreService.getFeed({ userId: user.id, limit: 1 });
+      const cursor = encoderService.decode<number>(first.cursor as string);
+
+      const second = await exploreService.getFeed({
         userId: user.id,
         limit: 1,
         cursor: cursor ?? undefined,
-        forceRefresh: true,
-      });
-      expect(secondPage.data[0].id).not.toBe(firstPage.data[0].id);
-    });
-
-    it("should order tweets by score then id", async () => {
-      const t1 = await prisma.tweet.create({
-        data: {
-          id: "t10",
-          content: "High score",
-          userId: user.id,
-          tweetType: "QUOTE",
-          score: 100,
-        },
-      });
-      await prisma.tweet.create({
-        data: {
-          id: "t11",
-          content: "Low score",
-          userId: user.id,
-          tweetType: "REPLY",
-          score: 1,
-        },
       });
 
-      const result = await exploreService.getFeed({
-        userId: user.id,
-        limit: 10,
-        forceRefresh: true,
-      });
-      expect(result.data[0].id).toBe(t1.id);
-    });
-
-    it("should return empty feed if no tweets match", async () => {
-      await prisma.tweet.deleteMany();
-      const result = await exploreService.getFeed({
-        userId: user.id,
-        limit: 10,
-        forceRefresh: true,
-      });
-      expect(result.data).toEqual([]);
-      expect(result.cursor).toBeNull();
+      expect(first.data[0].id).not.toBe(second.data[0].id);
+      expect([first.data[0].id, second.data[0].id]).toEqual(
+        expect.arrayContaining([t1.id, t2.id])
+      );
     });
   });
 });

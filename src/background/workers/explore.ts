@@ -2,16 +2,22 @@ import { Worker } from "bullmq";
 import { bullRedisConfig } from "@/background/config/redis";
 import { loadSecrets } from "@/config/secrets";
 import { initRedis } from "@/config/redis";
-import { ExploreJobData, TweetScoreUpdate } from "../types/jobs";
-import { enqueueRefreshFeedJob } from "../jobs/explore";
+import {
+  ExploreJobData,
+  SeedExploreFeedJobData,
+  TweetScoreUpdate,
+} from "../types/jobs";
+import { ExploreService } from "@/application/services/explore";
+import { seedExploreFeeds } from "@/jobScripts/seedExplore";
 
 async function startWorker() {
   await initRedis();
   await loadSecrets();
-  const exploreWorker = new Worker<TweetScoreUpdate | ExploreJobData>(
+  const exploreWorker = new Worker<
+    TweetScoreUpdate | ExploreJobData | SeedExploreFeedJobData
+  >(
     "explore",
     async (job) => {
-      const { ExploreService } = await import("@/application/services/explore");
       const exploreService = ExploreService.getInstance();
       switch (job.name) {
         case "update-score": {
@@ -20,16 +26,16 @@ async function startWorker() {
 
           break;
         }
-        case "refresh-feed": {
-          if ("userId" in job.data) {
-            const userId = job.data.userId;
-            await exploreService.getFeed({
-              userId,
-              limit: 50,
-              forceRefresh: true,
-            });
-            await enqueueRefreshFeedJob({ userId });
-          }
+        case "refresh-category-feed": {
+          if ("categoryName" in job.data)
+            await exploreService.refreshCategoryFeed(job.data.categoryName);
+
+          break;
+        }
+        case "seed-explore-feed": {
+          if ("tweetIds" in job.data && Array.isArray(job.data.tweetIds))
+            await exploreService.seedExploreFeeds(job.data.tweetIds);
+
           break;
         }
         default:
@@ -53,6 +59,8 @@ async function startWorker() {
   exploreWorker.on("error", (err) => {
     console.error("worker error", err);
   });
+
+  await seedExploreFeeds();
 }
 
 startWorker().catch((err) => {
