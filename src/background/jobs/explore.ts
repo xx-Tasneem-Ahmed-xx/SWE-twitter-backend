@@ -1,3 +1,4 @@
+import { prisma } from "@/prisma/client";
 import { exploreQueue } from "@/background/queues/index";
 import {
   SeedExploreFeedJobData,
@@ -30,4 +31,16 @@ export async function enqueueSeedExploreFeedJob(
     removeOnComplete: true,
     removeOnFail: true,
   });
+}
+
+export async function seedExploreFeeds() {
+  const allTweets = await prisma.tweet.findMany({
+    select: { id: true },
+  });
+
+  const tweetIds = allTweets.map((t) => t.id);
+
+  await enqueueSeedExploreFeedJob({ tweetIds });
+
+  console.log(`Enqueued seed job for ${tweetIds.length} tweets`);
 }
