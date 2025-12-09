@@ -28,3 +28,10 @@ export interface EmailJobData {
   message: string;
   templateType?: EmailTemplateType;
 }
+// src/background/types/jobs.ts
+// Add this to your existing types
+
+export interface SearchIndexJobData {
+  type: "full" | "incremental";
+  limit?: number;
+}

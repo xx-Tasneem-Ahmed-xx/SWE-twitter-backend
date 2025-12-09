@@ -5,7 +5,7 @@ module.exports = {
   apps: [
     {
       name: "server",
-      script: path.join("dist","index.js"),
+      script: path.join("dist", "index.js"),
       instances: 1,
       exec_mode: "fork",
       watch: false,
@@ -17,15 +17,16 @@ module.exports = {
       },
       env_production: {
         NODE_ENV: "production",
-        ...dotenv.config({ path: path.resolve(__dirname, ".env.production") }).parsed,
+        ...dotenv.config({ path: path.resolve(__dirname, ".env.production") })
+          .parsed,
       },
     },
-
     ...[
       { name: "worker-hashtags", file: "hashtags.js" },
       { name: "worker-trends", file: "trends.js" },
       { name: "worker-notifications", file: "notifications.js" },
       { name: "worker-emails", file: "Email.js" },
+      { name: "worker-search-indexer", file: "searchIndexer.js" }, // ADD THIS
     ].map((worker) => ({
       name: worker.name,
       script: path.join("dist", "background", "workers", worker.file),
@@ -38,7 +39,8 @@ module.exports = {
       },
       env_production: {
         NODE_ENV: "production",
-        ...dotenv.config({ path: path.resolve(__dirname, ".env.production") }).parsed,
+        ...dotenv.config({ path: path.resolve(__dirname, ".env.production") })
+          .parsed,
       },
     })),
   ],
