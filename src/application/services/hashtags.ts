@@ -197,6 +197,7 @@ export async function calculateViralTweets(
 
   const whereClause: any = {
     createdAt: { gte: cutoffDate },
+    tweetType: "TWEET",
     ...(category === utils.TrendCategory.Global
       ? {}
       : {
@@ -265,7 +266,13 @@ export const fetchHashtagTweets = async (
   const tweetSelect = (tweetService as any).tweetSelectFields(userId);
 
   const tweetHashes = await prisma.tweetHash.findMany({
-    where: { hashId: hash.id, tweet: cursorCondition },
+    where: {
+      hashId: hash.id,
+      tweet: {
+        ...cursorCondition,
+        tweetType: "TWEET",
+      },
+    },
     include: { tweet: { select: tweetSelect } },
     orderBy: [{ tweet: { createdAt: "desc" } }, { tweet: { id: "desc" } }],
     take: limit + 1,
