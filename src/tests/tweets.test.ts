@@ -4,7 +4,12 @@ import { initRedis } from "@/config/redis";
 import { loadSecrets } from "@/config/secrets";
 import { prisma } from "@/prisma/client";
 import { Tweet, TweetType, ReplyControl } from "@prisma/client";
+import { RESPONSES } from "@/application/constants/responses";
 let connectToDatabase: any;
+
+jest.mock("@/application/services/notification", () => ({
+  addNotification: jest.fn().mockResolvedValue(undefined),
+}));
 
 beforeAll(async () => {
   await initRedis();
@@ -19,14 +24,27 @@ describe("Tweets Service", () => {
 
   beforeAll(async () => {
     await connectToDatabase();
-    await prisma.media.create({
-      data: {
-        id: "media1",
-        name: "profile1.jpg",
-        keyName: "https://example.com/photo1.jpg",
-        type: "IMAGE",
-      },
+
+    await prisma.media.deleteMany({
+      where: { id: { in: ["media1", "media2"] } },
     });
+    await prisma.media.createMany({
+      data: [
+        {
+          id: "media1",
+          name: "profile1.jpg",
+          keyName: "https://example.com/photo1.jpg",
+          type: "IMAGE",
+        },
+        {
+          id: "media2",
+          name: "profile2.jpg",
+          keyName: "https://example.com/photo2.jpg",
+          type: "IMAGE",
+        },
+      ],
+    });
+
     await prisma.user.upsert({
       where: { username: "test_user1" },
       update: {},
@@ -121,7 +139,7 @@ describe("Tweets Service", () => {
     });
 
     await prisma.media.deleteMany({
-      where: { id: "media1" },
+      where: { id: { in: ["media1", "media2"] } },
     });
     await prisma.$disconnect();
   });
@@ -404,6 +422,77 @@ describe("Tweets Service", () => {
           parentId: "123",
         })
       ).rejects.toMatchObject({ message: "Tweet not found", statusCode: 404 });
+    });
+  });
+
+  describe("updateTweet", () => {
+    it("should update content successfully", async () => {
+      const result = await tweetService.updateTweet(publicTweet.id, {
+        userId: "123",
+        content: "updated content",
+      });
+
+      expect(result?.id).toBe(publicTweet.id);
+
+      const updated = await prisma.tweet.findUnique({
+        where: { id: publicTweet.id },
+        select: { content: true },
+      });
+      expect(updated?.content).toBe("updated content");
+    });
+
+    it("should update replyControl successfully", async () => {
+      const result = await tweetService.updateTweet(publicTweet.id, {
+        userId: "123",
+        replyControl: "FOLLOWINGS",
+      });
+
+      expect(result?.id).toBe(publicTweet.id);
+
+      const updated = await prisma.tweet.findUnique({
+        where: { id: publicTweet.id },
+        select: { replyControl: true },
+      });
+      expect(updated?.replyControl).toBe("FOLLOWINGS");
+    });
+
+    it("should update tweetMedia successfully", async () => {
+      const result = await tweetService.updateTweet(publicTweet.id, {
+        userId: "123",
+        tweetMedia: ["media1", "media2"],
+      });
+
+      expect(result?.id).toBe(publicTweet.id);
+
+      const media = await prisma.tweetMedia.findMany({
+        where: { tweetId: publicTweet.id },
+        select: { mediaId: true },
+      });
+      expect(media.map((m) => m.mediaId)).toEqual(["media1", "media2"]);
+    });
+
+    it("should throw if no fields provided", async () => {
+      await expect(
+        tweetService.updateTweet(publicTweet.id, { userId: "123" })
+      ).rejects.toThrow(RESPONSES.ERRORS.TWEET_UPDATE_FIELDS.message);
+    });
+
+    it("should throw if tweet not owned by user", async () => {
+      await expect(
+        tweetService.updateTweet(publicTweet.id, {
+          userId: "456",
+          content: "hacked",
+        })
+      ).rejects.toThrow(RESPONSES.ERRORS.TWEET_OWNER_ACCESS.message);
+    });
+
+    it("should throw if tweet id is invalid", async () => {
+      await expect(
+        tweetService.updateTweet("invalid-id", {
+          userId: "123",
+          content: "new content",
+        })
+      ).rejects.toThrow("Tweet not found");
     });
   });
 
