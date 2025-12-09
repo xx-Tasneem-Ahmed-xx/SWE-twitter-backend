@@ -22,7 +22,7 @@ export const ExploreServiceSchema = z.object({
   userId: z.uuid(),
   category: z.string().optional(),
   limit: z.coerce.number().min(1).max(40).default(20),
-  cursor: z.object({ id: z.uuid(), score: z.coerce.number() }).optional(),
+  cursor: z.coerce.number().optional(),
 });
 
 export const CategoriesResponseSchema = z.array(

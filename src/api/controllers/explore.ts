@@ -61,10 +61,9 @@ export class ExploreController {
     try {
       const query = req.query;
       const userId = (req as any).user.id;
-      const decodedCursor = encoderService.decode<{
-        id: string;
-        score: number;
-      }>(query.cursor as string);
+      const decodedCursor = encoderService.decode<number>(
+        query.cursor as string
+      );
 
       const parsedDTO = ExploreServiceSchema.parse({
         userId,

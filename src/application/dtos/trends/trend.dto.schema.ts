@@ -45,8 +45,8 @@ export const HashtagTweetsQuerySchema = z
 
 // Individual trend item schema (for internal use only, not registered in OpenAPI)
 export const TrendItemSchema = z.object({
-  id: z.string().describe("Encoded hashtag ID").openapi({
-    example: "abc123def456.sig",
+  id: z.string().describe("Hashtag ID").openapi({
+    example: "abc123-def456-ghi789",
   }),
   hashtag: z
     .string()
@@ -93,13 +93,23 @@ export const TrendsResponseSchema = z
         "Array of trending hashtags, sorted by popularity (rank 1-30)",
       example: [
         {
-          id: "abc123.sig",
+          id: "abc123-def456-ghi789",
           hashtag: "typescript",
           tweetCount: 1234,
           rank: 1,
         },
-        { id: "def456.sig", hashtag: "javascript", tweetCount: 987, rank: 2 },
-        { id: "ghi789.sig", hashtag: "nodejs", tweetCount: 654, rank: 3 },
+        {
+          id: "def456-ghi789-jkl012",
+          hashtag: "javascript",
+          tweetCount: 987,
+          rank: 2,
+        },
+        {
+          id: "ghi789-jkl012-mno345",
+          hashtag: "nodejs",
+          tweetCount: 654,
+          rank: 3,
+        },
       ],
     }),
     updatedAt: z.string().openapi({

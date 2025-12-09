@@ -7,6 +7,12 @@ jest.mock("@/api/controllers/notificationController", () => ({
   addNotification: jest.fn(),
 }));
 
+jest.mock("@/application/services/notification", () => ({
+  addNotification: jest.fn(),
+  sendOverFCM: jest.fn(),
+  sendOverSocket: jest.fn(),
+}));
+
 import { initRedis } from "@/config/redis";
 import { loadSecrets } from "@/config/secrets";
 import { prisma, FollowStatus } from "@/prisma/client";
@@ -16,6 +22,16 @@ let userInteractionsService: any;
 let resolveUsernameToId: any;
 let FollowsListResponseSchema: any;
 let AppError: any;
+
+// Suppress console.error output during tests
+const originalConsoleError = console.error;
+beforeAll(() => {
+  console.error = jest.fn();
+});
+
+afterAll(() => {
+  console.error = originalConsoleError;
+});
 
 beforeAll(async () => {
   await initRedis();
@@ -988,6 +1004,293 @@ describe("User Interactions Service", () => {
           );
         }
       }
+    });
+
+    it("should exclude users that the current user has blocked", async () => {
+      // User 123 blocks user 456
+      await userInteractionsService.createBlockRelation("123", "456");
+
+      const result = await userInteractionsService.fetchWhoToFollow("123", 10);
+
+      const userIds = result.map((u: any) => u.id);
+      expect(userIds).not.toContain("456");
+
+      // Cleanup: unblock user
+      await userInteractionsService.removeBlockRelation("123", "456");
+    });
+
+    it("should exclude users who have blocked the current user", async () => {
+      // User 456 blocks user 123
+      await userInteractionsService.createBlockRelation("456", "123");
+
+      const result = await userInteractionsService.fetchWhoToFollow("123", 10);
+
+      const userIds = result.map((u: any) => u.id);
+      expect(userIds).not.toContain("456");
+
+      // Cleanup: unblock user
+      await userInteractionsService.removeBlockRelation("456", "123");
+    });
+
+    it("should exclude users that the current user has muted", async () => {
+      // User 123 mutes user 789
+      await userInteractionsService.createMuteRelation("123", "789");
+
+      const result = await userInteractionsService.fetchWhoToFollow("123", 10);
+
+      const userIds = result.map((u: any) => u.id);
+      expect(userIds).not.toContain("789");
+
+      // Cleanup: unmute user
+      await userInteractionsService.removeMuteRelation("123", "789");
+    });
+
+    it("should exclude multiple blocked, blocking, and muted users simultaneously", async () => {
+      // Setup: User 123 blocks 456, 789 blocks 123, and 123 mutes another user
+      await userInteractionsService.createBlockRelation("123", "456");
+      await userInteractionsService.createBlockRelation("789", "123");
+
+      // Create a test user to mute
+      await prisma.user.upsert({
+        where: { username: "muted_user" },
+        update: {},
+        create: {
+          username: "muted_user",
+          id: "muted_test_id",
+          email: "muted@example.com",
+          password: "password123",
+          saltPassword: "salt123",
+          dateOfBirth: new Date("2000-01-01"),
+          name: "Muted User",
+          verified: false,
+          protectedAccount: false,
+        },
+      });
+
+      await userInteractionsService.createMuteRelation("123", "muted_test_id");
+
+      const result = await userInteractionsService.fetchWhoToFollow("123", 20);
+
+      const userIds = result.map((u: any) => u.id);
+
+      // Should not include any blocked, blocking, or muted users
+      expect(userIds).not.toContain("456"); // blocked by 123
+      expect(userIds).not.toContain("789"); // blocked 123
+      expect(userIds).not.toContain("muted_test_id"); // muted by 123
+
+      // Cleanup
+      await userInteractionsService.removeBlockRelation("123", "456");
+      await userInteractionsService.removeBlockRelation("789", "123");
+      await userInteractionsService.removeMuteRelation("123", "muted_test_id");
+      await prisma.user.delete({ where: { id: "muted_test_id" } });
+    });
+  });
+
+  describe("Error Handling", () => {
+    it("should handle database errors in createFollowRelation", async () => {
+      // Mock prisma to throw a non-P2002 error
+      const originalCreate = prisma.follow.create;
+      prisma.follow.create = jest
+        .fn()
+        .mockRejectedValue(new Error("Database connection error"));
+
+      await expect(
+        userInteractionsService.createFollowRelation("123", "456", "ACCEPTED")
+      ).rejects.toThrow("Database connection error");
+
+      // Restore original function
+      prisma.follow.create = originalCreate;
+    });
+
+    it("should handle notification errors gracefully in createFollowRelationAndNotify", async () => {
+      const { addNotification } = await import(
+        "@/application/services/notification"
+      );
+
+      // Mock notification to fail
+      (addNotification as jest.Mock).mockRejectedValueOnce(
+        new Error("Notification service unavailable")
+      );
+
+      // Should still create follow relation even if notification fails
+      const result =
+        await userInteractionsService.createFollowRelationAndNotify(
+          "123",
+          "456",
+          "ACCEPTED"
+        );
+
+      expect(result).toBeDefined();
+      expect(result.followerId).toBe("123");
+      expect(result.followingId).toBe("456");
+
+      // Cleanup
+      await userInteractionsService.removeFollowRelation("123", "456");
+    });
+
+    it("should handle notification errors gracefully in updateFollowStatusAndNotify", async () => {
+      const { addNotification } = await import(
+        "@/application/services/notification"
+      );
+
+      // Create pending follow request
+      await userInteractionsService.createFollowRelation(
+        "123",
+        "456",
+        "PENDING"
+      );
+
+      // Mock notification to fail
+      (addNotification as jest.Mock).mockRejectedValueOnce(
+        new Error("Notification service unavailable")
+      );
+
+      // Should still accept request even if notification fails
+      const result = await userInteractionsService.updateFollowStatusAndNotify(
+        "123",
+        "456"
+      );
+
+      expect(result).toBeDefined();
+      expect(result.status).toBe(FollowStatus.ACCEPTED);
+
+      await userInteractionsService.removeFollowRelation("123", "456");
+    });
+
+    it("should handle errors in createBlockRelation", async () => {
+      // Mock prisma to throw an error
+      const originalTransaction = prisma.$transaction;
+      prisma.$transaction = jest
+        .fn()
+        .mockRejectedValue(new Error("Database error"));
+
+      await expect(
+        userInteractionsService.createBlockRelation("123", "456")
+      ).rejects.toThrow(AppError);
+
+      // Restore original function
+      prisma.$transaction = originalTransaction;
+    });
+
+    it("should handle errors in createMuteRelation", async () => {
+      // Mock prisma to throw an error
+      const originalCreate = prisma.mute.create;
+      prisma.mute.create = jest
+        .fn()
+        .mockRejectedValue(new Error("Database error"));
+
+      await expect(
+        userInteractionsService.createMuteRelation("123", "456")
+      ).rejects.toThrow(AppError);
+
+      prisma.mute.create = originalCreate;
+    });
+
+    it("should handle errors in removeMuteRelation", async () => {
+      // Mock prisma to throw an error
+      const originalDelete = prisma.mute.delete;
+      prisma.mute.delete = jest
+        .fn()
+        .mockRejectedValue(new Error("Database error"));
+
+      await expect(
+        userInteractionsService.removeMuteRelation("123", "456")
+      ).rejects.toThrow(AppError);
+
+      prisma.mute.delete = originalDelete;
+    });
+  });
+
+  describe("Edge Cases", () => {
+    it("should return null cursor when page is empty", async () => {
+      const result = await userInteractionsService.getFollowingsList(
+        "nonexistent_user_id",
+        "123",
+        undefined,
+        10
+      );
+
+      expect(result.nextCursor).toBeNull();
+      expect(result.users).toHaveLength(0);
+    });
+
+    it("should handle empty array in getRelationToTargetStatuses", async () => {
+      const testUserId = "empty_follow_test_789";
+      await prisma.user.create({
+        data: {
+          id: testUserId,
+          username: "empty_follow_user_789",
+          email: "empty789@example.com",
+          password: "password",
+          saltPassword: "salt",
+          dateOfBirth: new Date("2000-01-01"),
+          name: "Empty Follow User",
+        },
+      });
+
+      const result = await userInteractionsService.getFollowingsList(
+        testUserId,
+        "123",
+        undefined,
+        10
+      );
+
+      expect(result.users).toHaveLength(0);
+      expect(result.nextCursor).toBeNull();
+
+      await prisma.user.delete({ where: { id: testUserId } });
+    });
+
+    it("should handle computeNextCursor when nextUser is null", async () => {
+      // This tests the ternary operator branch in computeNextCursor
+      // We create users that follow each other, then test pagination
+      const testUserId1 = "cursor_test_user1";
+      const testUserId2 = "cursor_test_user2";
+
+      await prisma.user.create({
+        data: {
+          id: testUserId1,
+          username: "cursor_test_user1",
+          email: "cursor1@example.com",
+          password: "password",
+          saltPassword: "salt",
+          dateOfBirth: new Date("2000-01-01"),
+          name: "Cursor Test User 1",
+        },
+      });
+
+      await prisma.user.create({
+        data: {
+          id: testUserId2,
+          username: "cursor_test_user2",
+          email: "cursor2@example.com",
+          password: "password",
+          saltPassword: "salt",
+          dateOfBirth: new Date("2000-01-01"),
+          name: "Cursor Test User 2",
+        },
+      });
+
+      // User 2 follows user 123
+      await userInteractionsService.createFollowRelation(
+        testUserId2,
+        "123",
+        "ACCEPTED"
+      );
+
+      // Get followers of user 123 (should include user 2)
+      const result = await userInteractionsService.getFollowersList(
+        "123",
+        "123",
+        undefined,
+        1
+      );
+
+      expect(result.users.length).toBeGreaterThan(0);
+
+      await userInteractionsService.removeFollowRelation(testUserId2, "123");
+      await prisma.user.delete({ where: { id: testUserId1 } });
+      await prisma.user.delete({ where: { id: testUserId2 } });
     });
   });
 });

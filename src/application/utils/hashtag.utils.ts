@@ -49,6 +49,47 @@ export const buildCursorCondition = (
   };
 };
 
+// Get user IDs that should be excluded (blocked/muted users)
+export const getExcludedUserIds = async (
+  userId: string,
+  prisma: any
+): Promise<string[]> => {
+  const [blockedByMe, blockedMe, mutedByMe] = await Promise.all([
+    prisma.block.findMany({
+      where: { blockerId: userId },
+      select: { blockedId: true },
+    }),
+    prisma.block.findMany({
+      where: { blockedId: userId },
+      select: { blockerId: true },
+    }),
+    prisma.mute.findMany({
+      where: { muterId: userId },
+      select: { mutedId: true },
+    }),
+  ]);
+
+  return [
+    ...blockedByMe.map((b: { blockedId: string }) => b.blockedId),
+    ...blockedMe.map((b: { blockerId: string }) => b.blockerId),
+    ...mutedByMe.map((m: { mutedId: string }) => m.mutedId),
+  ];
+};
+
+// Filter out tweets from blocked/muted users
+export const filterBlockedAndMutedTweets = async (
+  tweets: any[],
+  userId: string,
+  prisma: any
+): Promise<any[]> => {
+  if (!tweets.length) return tweets;
+
+  const excludedUserIds = await getExcludedUserIds(userId, prisma);
+  const excludedSet = new Set(excludedUserIds);
+
+  return tweets.filter((tweet: any) => !excludedSet.has(tweet.userId));
+};
+
 // viral score calculation for a tweet
 export const viralScore = (t: any) => {
   return (
@@ -97,7 +138,6 @@ export const mapToTrendData = async (
     likesSum: number;
     score: number;
   }[],
-  encoderService: any,
   prisma: any
 ): Promise<TrendData[]> => {
   if (entries.length === 0) return [];
@@ -120,7 +160,7 @@ export const mapToTrendData = async (
       if (!hashtag) return null;
 
       return {
-        id: encoderService.encode(item.hashId),
+        id: item.hashId,
         hashtag,
         tweetCount: item.tweetCount,
         likesCount: item.likesSum,
