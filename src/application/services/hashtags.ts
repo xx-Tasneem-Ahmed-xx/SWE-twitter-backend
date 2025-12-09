@@ -5,9 +5,12 @@ import { prisma } from "@/prisma/client";
 import { AppError } from "@/errors/AppError";
 import { redisClient } from "@/config/redis";
 import { encoderService } from "@/application/services/encoder";
-import tweetService from "@/application/services/tweets";
 import * as utils from "@/application/utils/hashtag.utils";
 import { fetchWhoToFollow } from "@/application/services/userInteractions";
+import {
+  checkUserInteractions,
+  tweetSelectFields,
+} from "@/application/utils/tweet.utils";
 
 // Trends configuration constants
 const TRENDS_CACHE_TTL = 60 * 15;
@@ -190,7 +193,7 @@ export async function calculateViralTweets(
   category: utils.TrendCategory,
   limit = 5
 ) {
-  const tweetSelect = (tweetService as any).tweetSelectFields();
+  const tweetSelect = tweetSelectFields();
 
   const cutoffDate = new Date();
   cutoffDate.setHours(cutoffDate.getHours() - periodHours);
@@ -262,7 +265,7 @@ export const fetchHashtagTweets = async (
   if (!hash) throw new AppError("Hashtag not found", 404);
 
   const cursorCondition = utils.buildCursorCondition(cursor);
-  const tweetSelect = (tweetService as any).tweetSelectFields(userId);
+  const tweetSelect = tweetSelectFields(userId);
 
   const tweetHashes = await prisma.tweetHash.findMany({
     where: { hashId: hash.id, tweet: cursorCondition },
@@ -277,7 +280,7 @@ export const fetchHashtagTweets = async (
   );
   const nextCursor = utils.buildNextCursor(rawTweets, hasMore, encoderService);
 
-  const data = (tweetService as any).checkUserInteractions(rawTweets);
+  const data = checkUserInteractions(rawTweets);
   const sorted = utils.sortByViral(data);
 
   return { tweets: sorted, nextCursor, hasMore };
@@ -391,7 +394,7 @@ async function extendTweetsWithUserInteractions(tweets: any[], userId: string) {
       : tweet.user,
   }));
 
-  return (tweetService as any).checkUserInteractions(extendedTweets);
+  return checkUserInteractions(extendedTweets);
 }
 
 // fetch trends

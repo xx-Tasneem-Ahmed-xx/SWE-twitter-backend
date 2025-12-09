@@ -3,6 +3,9 @@ import {
   validToRetweetOrQuote,
   validToReply,
   updateCursor,
+  userSelectFields,
+  tweetSelectFields,
+  mediaSelectFields,
 } from "@/application/utils/tweet.utils";
 import {
   CreateReplyOrQuoteServiceDTO,
@@ -131,7 +134,7 @@ export class TweetService {
       select: {
         createdAt: true,
         tweet: {
-          select: this.tweetSelectFields(currentUserId),
+          select: tweetSelectFields(currentUserId),
         },
       },
       orderBy: [{ createdAt: "desc" }, { userId: "desc" }],
@@ -332,7 +335,7 @@ export class TweetService {
       where: { tweetId },
       select: {
         user: {
-          select: this.userSelectFields(dto.userId),
+          select: userSelectFields(dto.userId),
         },
         createdAt: true,
         userId: true,
@@ -369,7 +372,7 @@ export class TweetService {
     await this.validateId(id);
     const tweet = await prisma.tweet.findUnique({
       where: { id },
-      select: this.tweetSelectFields(userId),
+      select: tweetSelectFields(userId),
     });
     if (!tweet) responseUtils.throwError("TWEET_NOT_FOUND");
     return this.checkUserInteractions([tweet])[0];
@@ -476,7 +479,7 @@ export class TweetService {
       select: {
         tweet: {
           select: {
-            ...this.tweetSelectFields(dto.userId),
+            ...tweetSelectFields(dto.userId),
           },
         },
         createdAt: true,
@@ -513,7 +516,7 @@ export class TweetService {
     const replies = await prisma.tweet.findMany({
       where: { parentId: tweetId, tweetType: dto.tweetType },
       select: {
-        ...this.tweetSelectFields(dto.userId),
+        ...tweetSelectFields(dto.userId),
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
@@ -595,7 +598,7 @@ export class TweetService {
       where: { tweetId },
       select: {
         user: {
-          select: this.userSelectFields(dto.userId),
+          select: userSelectFields(dto.userId),
         },
         createdAt: true,
         userId: true,
@@ -656,7 +659,7 @@ export class TweetService {
         userId: dto.userId,
         ...(dto.tweetType && { tweetType: dto.tweetType }),
       },
-      select: this.tweetSelectFields(currentUserId),
+      select: tweetSelectFields(currentUserId),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
       ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
@@ -692,7 +695,7 @@ export class TweetService {
         createdAt: true,
         tweetMedia: {
           select: {
-            media: { select: this.mediaSelectFields() },
+            media: { select: mediaSelectFields() },
           },
         },
       },
@@ -720,7 +723,7 @@ export class TweetService {
           some: { mentionedId: dto.userId },
         },
       },
-      select: this.tweetSelectFields(dto.userId),
+      select: tweetSelectFields(dto.userId),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
       ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
@@ -776,7 +779,7 @@ export class TweetService {
       parsedDTO.peopleFilter
     );
 
-    const selectFields = this.tweetSelectFields(dto.userId);
+    const selectFields = tweetSelectFields(dto.userId);
 
     const searchParams = {
       where: wherePrismaFilter,
@@ -849,71 +852,6 @@ export class TweetService {
       where.userId = { in: followingIds };
     }
     return where;
-  }
-
-  private userSelectFields(viewerId?: string) {
-    return {
-      id: true,
-      name: true,
-      username: true,
-      profileMedia: { select: { id: true } },
-      protectedAccount: true,
-      verified: true,
-      _count: viewerId
-        ? {
-            select: { followers: { where: { followerId: viewerId } } },
-          }
-        : undefined,
-    };
-  }
-  public mediaSelectFields() {
-    return {
-      id: true,
-      type: true,
-      name: true,
-      size: true,
-    };
-  }
-  public tweetSelectFields(userId?: string) {
-    return {
-      id: true,
-      content: true,
-      createdAt: true,
-      likesCount: true,
-      repliesCount: true,
-      quotesCount: true,
-      retweetCount: true,
-      replyControl: true,
-      tweetType: true,
-      parentId: true,
-      userId: true,
-      user: {
-        select: this.userSelectFields(userId),
-      },
-      ...(userId
-        ? {
-            tweetLikes: {
-              where: { userId },
-              select: { userId: true },
-            },
-            retweets: {
-              where: { userId },
-              select: { userId: true },
-            },
-            tweetBookmark: {
-              where: { userId },
-              select: { userId: true },
-            },
-          }
-        : {}),
-      hashtags: { select: { hashId: true } },
-      tweetMedia: {
-        select: { media: { select: this.mediaSelectFields() } },
-      },
-      tweetCategories: {
-        select: { category: { select: { name: true } } },
-      },
-    };
   }
 }
 
