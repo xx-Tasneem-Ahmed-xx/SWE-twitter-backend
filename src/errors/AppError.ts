@@ -1,11 +1,13 @@
 export class AppError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;
+  public readonly key?: string;
 
-  constructor(message: string, statusCode = 500, isOperational = true) {
+  constructor(message: string, statusCode = 500, isOperational = true, key?: string) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
+    this.key = key;
 
     Error.captureStackTrace(this, this.constructor);
   }

@@ -27,9 +27,13 @@ export function errorHandler(
   }
 
   if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
+    const response: { error: string; key?: string } = {
       error: err.message,
-    });
+    };
+    if (err.key) {
+      response.key = err.key;
+    }
+    return res.status(err.statusCode).json(response);
   }
 
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
