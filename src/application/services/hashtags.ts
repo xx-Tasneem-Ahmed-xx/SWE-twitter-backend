@@ -130,9 +130,11 @@ export async function calculateTrends(
       ...(category === utils.TrendCategory.Global
         ? {}
         : {
-            category: {
+            tweetCategories: {
               some: {
-                name: category,
+                category: {
+                  name: category,
+                },
               },
             },
           }),
@@ -343,7 +345,7 @@ export const fetchCategoryData = async (
       : categoryParam;
 
   const [trendsData, viralData] = await Promise.all([
-    fetchTrends(category),
+    fetchTrends(null, category),
     fetchViralTweets(userId, category),
   ]);
   return {
