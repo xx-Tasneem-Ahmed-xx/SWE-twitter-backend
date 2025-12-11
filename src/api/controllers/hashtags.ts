@@ -37,9 +37,8 @@ export const getHashtagTweets = async (
     const { id } = req.params;
     const currentUserId = (req as any).user?.id ?? null;
 
-    // Decode the hashtag ID
-    const hashtagId = encoderService.decode<string>(id);
-    if (!hashtagId) {
+    // Validate the hashtag ID
+    if (!id) {
       responseUtils.throwError("INVALID_HASHTAG_ID");
     }
 
@@ -54,7 +53,7 @@ export const getHashtagTweets = async (
     }>(cursor);
 
     const tweets = await fetchHashtagTweets(
-      hashtagId!,
+      id,
       currentUserId,
       decodedCursor ?? null,
       limit

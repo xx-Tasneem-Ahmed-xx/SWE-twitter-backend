@@ -7,6 +7,7 @@ import { redisClient } from "@/config/redis";
 import { encoderService } from "@/application/services/encoder";
 import * as utils from "@/application/utils/hashtag.utils";
 import { fetchWhoToFollow } from "@/application/services/userInteractions";
+import { ExploreService } from "@/application/services/explore";
 import {
   checkUserInteractions,
   tweetSelectFields,
@@ -18,8 +19,6 @@ const TRENDS_LIMIT = 30;
 const TREND_PERIOD_HOURS = 24;
 const TREND_CACHE_KEY = (category: utils.TrendCategory) =>
   `trends:category:${category.toLowerCase()}`;
-const VIRAL_TWEETS_CACHE_KEY = (category: utils.TrendCategory) =>
-  `trends:viral:category:${category.toLowerCase()}`;
 
 // Extracts and normalizes hashtags from text
 export function extractAndNormalizeHashtags(text?: string | null): string[] {
@@ -131,9 +130,11 @@ export async function calculateTrends(
       ...(category === utils.TrendCategory.Global
         ? {}
         : {
-            category: {
+            tweetCategories: {
               some: {
-                name: category,
+                category: {
+                  name: category,
+                },
               },
             },
           }),
@@ -163,7 +164,7 @@ export async function calculateTrends(
 
   const scored = utils.calculateTrendScores(entries);
   const limited = utils.sortAndTake(scored, options?.limit ?? TRENDS_LIMIT);
-  return utils.mapToTrendData(limited, encoderService, prisma);
+  return utils.mapToTrendData(limited, prisma);
 }
 
 // Cache trends
@@ -171,11 +172,17 @@ export async function cacheTrends(
   trends: utils.TrendData[],
   category: utils.TrendCategory
 ) {
-  await redisClient.setEx(
-    TREND_CACHE_KEY(category),
-    TRENDS_CACHE_TTL,
-    JSON.stringify({ trends, updatedAt: new Date().toISOString() })
-  );
+  if (trends.length > 0) {
+    await redisClient.setEx(
+      TREND_CACHE_KEY(category),
+      TRENDS_CACHE_TTL,
+      JSON.stringify({ trends, updatedAt: new Date().toISOString() })
+    );
+  } else {
+    console.warn(
+      `Skipping cache update for ${category} trends - no data to cache`
+    );
+  }
 }
 
 // Calculate & cache trends
@@ -183,73 +190,6 @@ export async function calculateAndCacheTrends(category: utils.TrendCategory) {
   const trends = await calculateTrends(category);
   await cacheTrends(trends, category);
   console.log(`Calculated & cached ${trends.length} trends for ${category}`);
-}
-
-// -------------------- Viral Tweets --------------------
-
-// Calculate viral tweets for a category
-export async function calculateViralTweets(
-  periodHours: number = TREND_PERIOD_HOURS,
-  category: utils.TrendCategory,
-  limit = 5
-) {
-  const tweetSelect = tweetSelectFields();
-
-  const cutoffDate = new Date();
-  cutoffDate.setHours(cutoffDate.getHours() - periodHours);
-
-  const whereClause: any = {
-    createdAt: { gte: cutoffDate },
-    ...(category === utils.TrendCategory.Global
-      ? {}
-      : {
-          tweetCategories: {
-            some: {
-              category: {
-                name: category,
-              },
-            },
-          },
-        }),
-  };
-
-  const tweets = await prisma.tweet.findMany({
-    where: whereClause,
-    orderBy: { createdAt: "desc" },
-    select: tweetSelect,
-  });
-
-  const sorted = utils.sortByViral(tweets).slice(0, limit);
-
-  return { tweets: sorted };
-}
-
-// cache viral tweets for a category
-export async function cacheViralTweets(
-  category: utils.TrendCategory,
-  tweets: any[]
-) {
-  await redisClient.setEx(
-    VIRAL_TWEETS_CACHE_KEY(category),
-    TRENDS_CACHE_TTL,
-    JSON.stringify({
-      tweets,
-      updatedAt: new Date().toISOString(),
-    })
-  );
-}
-
-// Calculate & cache viral tweets
-export async function calculateAndCacheViralTweets(
-  category: utils.TrendCategory,
-  limit = 5,
-  periodHours: number = TREND_PERIOD_HOURS
-) {
-  const { tweets } = await calculateViralTweets(periodHours, category, limit);
-  await cacheViralTweets(category, tweets);
-  console.log(
-    `Calculated & cached ${tweets.length} viral tweets for ${category}`
-  );
 }
 
 // -------------------- fetch and worker --------------------
@@ -264,11 +204,21 @@ export const fetchHashtagTweets = async (
   const hash = await prisma.hash.findUnique({ where: { id: hashtagId } });
   if (!hash) throw new AppError("Hashtag not found", 404);
 
+  const excludedUserIds = await utils.getExcludedUserIds(userId, prisma);
   const cursorCondition = utils.buildCursorCondition(cursor);
   const tweetSelect = tweetSelectFields(userId);
 
   const tweetHashes = await prisma.tweetHash.findMany({
-    where: { hashId: hash.id, tweet: cursorCondition },
+    where: {
+      hashId: hash.id,
+      tweet: {
+        ...cursorCondition,
+        tweetType: "TWEET",
+        ...(excludedUserIds.length > 0
+          ? { userId: { notIn: excludedUserIds } }
+          : {}),
+      },
+    },
     include: { tweet: { select: tweetSelect } },
     orderBy: [{ tweet: { createdAt: "desc" } }, { tweet: { id: "desc" } }],
     take: limit + 1,
@@ -281,9 +231,7 @@ export const fetchHashtagTweets = async (
   const nextCursor = utils.buildNextCursor(rawTweets, hasMore, encoderService);
 
   const data = checkUserInteractions(rawTweets);
-  const sorted = utils.sortByViral(data);
-
-  return { tweets: sorted, nextCursor, hasMore };
+  return { tweets: data, nextCursor, hasMore };
 };
 
 // -------------------- Fetch Trends --------------------
@@ -341,62 +289,6 @@ export const getTrendsFromQuery = async (
   return { trends, updatedAt: new Date().toISOString() };
 };
 
-// Helper function: extend tweets with user interaction data
-async function extendTweetsWithUserInteractions(tweets: any[], userId: string) {
-  if (!tweets.length) return tweets;
-  const tweetIds = tweets.map((tweet: any) => tweet.id);
-  const tweetAuthorIds = tweets.map((tweet: any) => tweet.userId);
-
-  const [likes, retweets, bookmarks, follows] = await Promise.all([
-    prisma.tweetLike.findMany({
-      where: { userId, tweetId: { in: tweetIds } },
-      select: { tweetId: true, userId: true },
-    }),
-    prisma.retweet.findMany({
-      where: { userId, tweetId: { in: tweetIds } },
-      select: { tweetId: true, userId: true },
-    }),
-    prisma.tweetBookmark.findMany({
-      where: { userId, tweetId: { in: tweetIds } },
-      select: { tweetId: true, userId: true },
-    }),
-    prisma.follow.findMany({
-      where: {
-        followerId: userId,
-        followingId: { in: tweetAuthorIds },
-        status: "ACCEPTED",
-      },
-      select: { followingId: true },
-    }),
-  ]);
-
-  const likesMap = new Map(likes.map((like) => [like.tweetId, like]));
-  const retweetsMap = new Map(
-    retweets.map((retweet) => [retweet.tweetId, retweet])
-  );
-  const bookmarksMap = new Map(
-    bookmarks.map((bookmark) => [bookmark.tweetId, bookmark])
-  );
-  const followsSet = new Set(follows.map((follow) => follow.followingId));
-
-  const extendedTweets = tweets.map((tweet: any) => ({
-    ...tweet,
-    tweetLikes: likesMap.has(tweet.id) ? [likesMap.get(tweet.id)] : [],
-    retweets: retweetsMap.has(tweet.id) ? [retweetsMap.get(tweet.id)] : [],
-    tweetBookmark: bookmarksMap.has(tweet.id)
-      ? [bookmarksMap.get(tweet.id)]
-      : [],
-    user: tweet.user
-      ? {
-          ...tweet.user,
-          isFollowed: followsSet.has(tweet.userId),
-        }
-      : tweet.user,
-  }));
-
-  return checkUserInteractions(extendedTweets);
-}
-
 // fetch trends
 export const fetchTrends = async (
   query?: string | null,
@@ -422,23 +314,24 @@ export const fetchTrends = async (
     : { trends: [], updatedAt: new Date().toISOString() };
 };
 
-// fetch viral tweets
+// fetch viral tweets - now uses explore service
 export const fetchViralTweets = async (
   userId: string,
-  category: utils.TrendCategory = utils.TrendCategory.Global
+  category: utils.TrendCategory = utils.TrendCategory.Global,
+  limit: number = 5
 ) => {
-  let cached = await readCachedData(VIRAL_TWEETS_CACHE_KEY(category));
+  const exploreService = ExploreService.getInstance();
 
-  if (!cached) {
-    await calculateAndCacheViralTweets(category, TREND_PERIOD_HOURS);
-    cached = await readCachedData(VIRAL_TWEETS_CACHE_KEY(category));
-  }
-  if (!cached?.tweets) {
-    return { tweets: [], updatedAt: new Date().toISOString() };
-  }
-  const tweets = await extendTweetsWithUserInteractions(cached.tweets, userId);
+  const result = await exploreService.getFeed({
+    userId,
+    category: category === utils.TrendCategory.Global ? undefined : category,
+    limit,
+  });
 
-  return { tweets, updatedAt: cached.updatedAt };
+  return {
+    tweets: result.data,
+    updatedAt: new Date().toISOString(),
+  };
 };
 
 // fetch category trending data
@@ -452,7 +345,7 @@ export const fetchCategoryData = async (
       : categoryParam;
 
   const [trendsData, viralData] = await Promise.all([
-    fetchTrends(category),
+    fetchTrends(null, category),
     fetchViralTweets(userId, category),
   ]);
   return {
@@ -484,6 +377,5 @@ export const fetchAllCategoriesData = async (userId: string) => {
 export async function TrendingHashtagsAndTweets() {
   for (const category of Object.values(utils.TrendCategory)) {
     await calculateAndCacheTrends(category);
-    await calculateAndCacheViralTweets(category);
   }
 }
