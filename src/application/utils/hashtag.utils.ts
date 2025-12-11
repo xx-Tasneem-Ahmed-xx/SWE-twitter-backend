@@ -49,19 +49,49 @@ export const buildCursorCondition = (
   };
 };
 
-// viral score calculation for a tweet
-export const viralScore = (t: any) => {
-  return (
-    Number(t.likesCount ?? 0) * 0.6 +
-    Number(t.retweetCount ?? 0) * 0.3 +
-    Number(t.repliesCount ?? 0) * 0.08 +
-    Number(t.quotesCount ?? 0) * 0.02
-  );
+// Get user IDs that should be excluded (blocked/muted users)
+export const getExcludedUserIds = async (
+  userId: string,
+  prisma: any
+): Promise<string[]> => {
+  const [blockedByMe, blockedMe, mutedByMe] = await Promise.all([
+    prisma.block.findMany({
+      where: { blockerId: userId },
+      select: { blockedId: true },
+    }),
+    prisma.block.findMany({
+      where: { blockedId: userId },
+      select: { blockerId: true },
+    }),
+    prisma.mute.findMany({
+      where: { muterId: userId },
+      select: { mutedId: true },
+    }),
+  ]);
+
+  return [
+    ...blockedByMe.map((b: { blockedId: string }) => b.blockedId),
+    ...blockedMe.map((b: { blockerId: string }) => b.blockerId),
+    ...mutedByMe.map((m: { mutedId: string }) => m.mutedId),
+  ];
 };
 
-// sort tweets by viral score in descending order
-export const sortByViral = (tweets: any[]) =>
-  tweets.slice().sort((a, b) => viralScore(b) - viralScore(a));
+// Filter out tweets from blocked/muted users
+export const filterBlockedAndMutedTweets = async (
+  tweets: any[],
+  userId: string,
+  prisma: any
+): Promise<any[]> => {
+  if (!tweets.length) return tweets;
+
+  const excludedUserIds = await getExcludedUserIds(userId, prisma);
+  const excludedSet = new Set(excludedUserIds);
+
+  return tweets.filter((tweet: any) => !excludedSet.has(tweet.userId));
+};
+
+// Viral scoring and sorting moved to explore service
+// The explore service uses time-decay scoring and Redis sorted sets for better performance
 
 // Calculate trend scores
 export const calculateTrendScores = (
@@ -97,7 +127,6 @@ export const mapToTrendData = async (
     likesSum: number;
     score: number;
   }[],
-  encoderService: any,
   prisma: any
 ): Promise<TrendData[]> => {
   if (entries.length === 0) return [];
@@ -120,7 +149,7 @@ export const mapToTrendData = async (
       if (!hashtag) return null;
 
       return {
-        id: encoderService.encode(item.hashId),
+        id: item.hashId,
         hashtag,
         tweetCount: item.tweetCount,
         likesCount: item.likesSum,

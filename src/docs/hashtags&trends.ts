@@ -61,9 +61,7 @@ export function registerHashtagAndTrendsDocs(registry: OpenAPIRegistry) {
       params: z.object({
         id: z
           .string()
-          .describe(
-            "The encoded hashtag ID (get this from the trends list endpoint)"
-          ),
+          .describe("The hashtag ID (get this from the trends list endpoint)"),
       }),
       query: HashtagTweetsQuerySchema,
     },

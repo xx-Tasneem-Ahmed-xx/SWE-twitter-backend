@@ -389,7 +389,7 @@ export const RESPONSES = {
     INVALID_ID: { message: "Invalid ID", status: 400 },
     TWEET_NOT_FOUND: { message: "Tweet not found", status: 404 },
     CANNOT_QUOTE_PROTECTED_TWEET: {
-      message: "You cannot quote a protected tweet",
+      message: "You can't quote a protected tweet",
       status: 403,
     },
     CANNOT_REPLY_TO_TWEET: {
@@ -397,13 +397,21 @@ export const RESPONSES = {
       status: 403,
     },
     CANNOT_RETWEET_PROTECTED_TWEET: {
-      message: "You cannot retweet a protected tweet",
+      message: "You can't retweet a protected tweet",
       status: 403,
     },
     TWEET_ALREADY_LIKED: { message: "Tweet already liked", status: 409 },
     TWEET_NOT_LIKED_YET: {
       message: "You haven't liked this tweet yet",
       status: 409,
+    },
+    TWEET_UPDATE_FIELDS: {
+      message: "No fields to update for tweet",
+      status: 400,
+    },
+    TWEET_OWNER_ACCESS: {
+      message: "The tweet owner only can perform this action",
+      status: 403,
     },
 
     // Media Errors
@@ -549,7 +557,8 @@ export const RESPONSES = {
 
     // Tweets
     TWEET_DELETED: { message: "Tweet deleted successfuly", status: 200 },
-    RETWEET_DELETED: { message: "Retweet deleted successfuly", status: 200 },
+    RETWEET_CREATED: { message: "Tweet retweeted successfully", status: 200 },
+    RETWEET_DELETED: { message: "Retweet deleted successfully", status: 200 },
     TWEET_UPDATED: { message: "Tweet updated successfully", status: 200 },
     TWEET_LIKED: { message: "Tweet liked successfully", status: 200 },
     TWEET_UNLIKED: { message: "Tweet unliked successfully", status: 200 },

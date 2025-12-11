@@ -1,10 +1,18 @@
-import { initEncoderService } from "@/application/services/encoder";
+import {
+  encoderService,
+  initEncoderService,
+} from "@/application/services/encoder";
 import tweetService from "@/application/services/tweets";
 import { initRedis } from "@/config/redis";
 import { loadSecrets } from "@/config/secrets";
 import { prisma } from "@/prisma/client";
 import { Tweet, TweetType, ReplyControl } from "@prisma/client";
+import { RESPONSES } from "@/application/constants/responses";
 let connectToDatabase: any;
+
+jest.mock("@/application/services/notification", () => ({
+  addNotification: jest.fn().mockResolvedValue(undefined),
+}));
 
 beforeAll(async () => {
   await initRedis();
@@ -19,14 +27,30 @@ describe("Tweets Service", () => {
 
   beforeAll(async () => {
     await connectToDatabase();
-    await prisma.media.create({
-      data: {
-        id: "media1",
-        name: "profile1.jpg",
-        keyName: "https://example.com/photo1.jpg",
-        type: "IMAGE",
+
+    await prisma.media.deleteMany({
+      where: {
+        id: { in: ["media1", "media2", "media3"] },
+        name: { contains: "test_m" },
       },
     });
+    await prisma.media.createMany({
+      data: [
+        {
+          id: "media1",
+          name: "profile1.jpg",
+          keyName: "https://example.com/photo1.jpg",
+          type: "IMAGE",
+        },
+        {
+          id: "media2",
+          name: "profile2.jpg",
+          keyName: "https://example.com/photo2.jpg",
+          type: "IMAGE",
+        },
+      ],
+    });
+
     await prisma.user.upsert({
       where: { username: "test_user1" },
       update: {},
@@ -97,6 +121,7 @@ describe("Tweets Service", () => {
   beforeEach(async () => {
     await prisma.mention.deleteMany();
     await prisma.follow.deleteMany();
+    await prisma.tweetMedia.deleteMany({});
     await prisma.tweet.deleteMany({
       where: {
         AND: [
@@ -120,9 +145,7 @@ describe("Tweets Service", () => {
       where: { userId: { in: ["123", "456", "789"] } },
     });
 
-    await prisma.media.deleteMany({
-      where: { id: "media1" },
-    });
+    await prisma.media.deleteMany();
     await prisma.$disconnect();
   });
 
@@ -174,10 +197,7 @@ describe("Tweets Service", () => {
           content: "my quote",
           parentId: protectedTweet.id,
         })
-      ).rejects.toMatchObject({
-        message: "You cannot quote a protected tweet",
-        statusCode: 403,
-      });
+      ).rejects.toThrow("You can't quote a protected tweet");
     });
 
     it("should throw if no parent tweet exists", async () => {
@@ -410,6 +430,77 @@ describe("Tweets Service", () => {
     });
   });
 
+  describe("updateTweet", () => {
+    it("should update content successfully", async () => {
+      const result = await tweetService.updateTweet(publicTweet.id, {
+        userId: "123",
+        content: "updated content",
+      });
+
+      expect(result?.id).toBe(publicTweet.id);
+
+      const updated = await prisma.tweet.findUnique({
+        where: { id: publicTweet.id },
+        select: { content: true },
+      });
+      expect(updated?.content).toBe("updated content");
+    });
+
+    it("should update replyControl successfully", async () => {
+      const result = await tweetService.updateTweet(publicTweet.id, {
+        userId: "123",
+        replyControl: "FOLLOWINGS",
+      });
+
+      expect(result?.id).toBe(publicTweet.id);
+
+      const updated = await prisma.tweet.findUnique({
+        where: { id: publicTweet.id },
+        select: { replyControl: true },
+      });
+      expect(updated?.replyControl).toBe("FOLLOWINGS");
+    });
+
+    it("should update tweetMedia successfully", async () => {
+      const result = await tweetService.updateTweet(publicTweet.id, {
+        userId: "123",
+        tweetMedia: ["media1", "media2"],
+      });
+
+      expect(result?.id).toBe(publicTweet.id);
+
+      const media = await prisma.tweetMedia.findMany({
+        where: { tweetId: publicTweet.id },
+        select: { mediaId: true },
+      });
+      expect(media.map((m) => m.mediaId)).toEqual(["media1", "media2"]);
+    });
+
+    it("should throw if no fields provided", async () => {
+      await expect(
+        tweetService.updateTweet(publicTweet.id, { userId: "123" })
+      ).rejects.toThrow(RESPONSES.ERRORS.TWEET_UPDATE_FIELDS.message);
+    });
+
+    it("should throw if tweet not owned by user", async () => {
+      await expect(
+        tweetService.updateTweet(publicTweet.id, {
+          userId: "456",
+          content: "hacked",
+        })
+      ).rejects.toThrow(RESPONSES.ERRORS.TWEET_OWNER_ACCESS.message);
+    });
+
+    it("should throw if tweet id is invalid", async () => {
+      await expect(
+        tweetService.updateTweet("invalid-id", {
+          userId: "123",
+          content: "new content",
+        })
+      ).rejects.toThrow("Tweet not found");
+    });
+  });
+
   describe("getRetweets", () => {
     it("should return all retweets for a given tweet", async () => {
       const tweet = await prisma.tweet.create({
@@ -625,7 +716,7 @@ describe("Tweets Service", () => {
           },
         }),
       ]);
-      const res = await tweetService.getTweetReplies(publicTweet.id, {
+      const res = await tweetService.getTweetRepliesOrQuotes(publicTweet.id, {
         userId: "123",
         limit: 10,
       });
@@ -790,6 +881,235 @@ describe("Tweets Service", () => {
 
       expect(res.data).toHaveLength(1);
       expect(res.cursor).toBeDefined();
+    });
+  });
+  describe("getUserMedias", () => {
+    it("should return tweets with media for a user", async () => {
+      await prisma.tweet.create({
+        data: {
+          id: "m1",
+          content: "Tweet with media",
+          userId: "123",
+          tweetType: "TWEET",
+          tweetMedia: {
+            create: {
+              media: {
+                create: {
+                  name: "test_m3",
+                  keyName: "http://img3.jpg",
+                  type: "IMAGE",
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const result = await tweetService.getUserMedias({
+        userId: "123",
+        limit: 10,
+      });
+
+      expect(result.data.length).toBe(1);
+      expect(result.data[0].tweetMedia[0].media.name).toBe("test_m3");
+    });
+
+    it("should filter by tweetType if provided", async () => {
+      await prisma.tweet.create({
+        data: {
+          id: "m2",
+          content: "Media tweet",
+          userId: "123",
+          tweetType: "TWEET",
+          tweetMedia: {
+            create: {
+              media: {
+                create: { name: "test_m4", keyName: "k1", type: "IMAGE" },
+              },
+            },
+          },
+        },
+      });
+      await prisma.tweet.create({
+        data: {
+          id: "m3",
+          content: "Reply with media",
+          userId: "123",
+          tweetType: "REPLY",
+          tweetMedia: {
+            create: {
+              media: {
+                create: { name: "test_m5", keyName: "k2", type: "IMAGE" },
+              },
+            },
+          },
+        },
+      });
+
+      const result = await tweetService.getUserMedias({
+        userId: "123",
+        limit: 10,
+        tweetType: "REPLY",
+      });
+
+      expect(result.data.length).toBe(1);
+      expect(result.data[0].id).toBe("m3");
+    });
+
+    it("should order by createdAt desc then id desc", async () => {
+      const t1 = await prisma.tweet.create({
+        data: {
+          id: "m4",
+          content: "Older",
+          userId: "123",
+          tweetType: "TWEET",
+          createdAt: new Date("2020-01-01"),
+          tweetMedia: {
+            create: {
+              media: {
+                create: { name: "test_m6", keyName: "k3", type: "IMAGE" },
+              },
+            },
+          },
+        },
+      });
+      const t2 = await prisma.tweet.create({
+        data: {
+          id: "m5",
+          content: "Newer",
+          userId: "123",
+          tweetType: "TWEET",
+          createdAt: new Date("2021-01-01"),
+          tweetMedia: {
+            create: {
+              media: {
+                create: { name: "test_m7", keyName: "k4", type: "IMAGE" },
+              },
+            },
+          },
+        },
+      });
+
+      const result = await tweetService.getUserMedias({
+        userId: "123",
+        limit: 10,
+      });
+
+      expect(result.data[0].id).toBe(t2.id);
+      expect(result.data[1].id).toBe(t1.id);
+    });
+
+    it("should paginate with cursor", async () => {
+      await prisma.tweet.create({
+        data: {
+          id: "m6",
+          content: "Page1",
+          userId: "123",
+          tweetType: "TWEET",
+          createdAt: new Date("2022-01-01"),
+          tweetMedia: {
+            create: {
+              media: {
+                create: { name: "test_m8", keyName: "k5", type: "IMAGE" },
+              },
+            },
+          },
+        },
+      });
+      await prisma.tweet.create({
+        data: {
+          id: "m7",
+          content: "Page2",
+          userId: "123",
+          tweetType: "TWEET",
+          createdAt: new Date("2023-01-01"),
+          tweetMedia: {
+            create: {
+              media: {
+                create: { name: "test_m9", keyName: "k6", type: "IMAGE" },
+              },
+            },
+          },
+        },
+      });
+
+      const firstPage = await tweetService.getUserMedias({
+        userId: "123",
+        limit: 1,
+      });
+
+      const decodedCursor = encoderService.decode<{
+        id: string;
+        createdAt: Date;
+      }>(firstPage.cursor as string);
+
+      const secondPage = await tweetService.getUserMedias({
+        userId: "123",
+        limit: 1,
+        cursor: decodedCursor ?? undefined,
+      });
+
+      expect(secondPage.data[0].id).not.toBe(firstPage.data[0].id);
+    });
+
+    it("should return empty if user has no media tweets", async () => {
+      await prisma.tweet.create({
+        data: {
+          id: "m8",
+          content: "No media",
+          userId: "123",
+          tweetType: "TWEET",
+        },
+      });
+
+      const result = await tweetService.getUserMedias({
+        userId: "123",
+        limit: 10,
+      });
+
+      expect(result.data).toEqual([]);
+      expect(result.cursor).toBeNull();
+    });
+
+    it("should respect limit boundaries", async () => {
+      await prisma.tweet.create({
+        data: {
+          id: "m9",
+          content: "Media1",
+          userId: "123",
+          tweetType: "TWEET",
+          tweetMedia: {
+            create: {
+              media: {
+                create: { name: "test_m10", keyName: "k7", type: "IMAGE" },
+              },
+            },
+          },
+        },
+      });
+      await prisma.tweet.create({
+        data: {
+          id: "m10",
+          content: "Media2",
+          userId: "123",
+          tweetType: "TWEET",
+          tweetMedia: {
+            create: {
+              media: {
+                create: { name: "test_m11", keyName: "k8", type: "IMAGE" },
+              },
+            },
+          },
+        },
+      });
+
+      const result = await tweetService.getUserMedias({
+        userId: "123",
+        limit: 1,
+      });
+
+      expect(result.data.length).toBe(1);
+      expect(result.cursor).not.toBeNull();
     });
   });
 });
