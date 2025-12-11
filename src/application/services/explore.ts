@@ -94,10 +94,10 @@ export class ExploreService {
         W_REPLIES * tweet.repliesCount) *
       Math.exp(-(ageHours / TAU_HOURS));
 
-    // await prisma.tweet.update({
-    //   where: { id: tweetId },
-    //   data: { score },
-    // });
+    await prisma.tweet.update({
+      where: { id: tweetId },
+      data: { score },
+    });
     await redisClient.zAdd(GLOBAL_FEED_KEY, {
       score,
       value: tweetId,
@@ -116,16 +116,15 @@ export class ExploreService {
 
     let offset = 0;
     while (true) {
-      const tweets : any = [];
-      // const tweets = await prisma.tweet.findMany({
-      //   where: {
-      //     tweetCategories: { some: { category: { name: categoryName } } },
-      //   },
-      //   select: { id: true, score : true },
-      //   orderBy: { score: "desc" },
-      //   skip: offset,
-      //   take: pipelineSize,
-      // });
+      const tweets = await prisma.tweet.findMany({
+        where: {
+          tweetCategories: { some: { category: { name: categoryName } } },
+        },
+        select: { id: true, score: true },
+        orderBy: { score: "desc" },
+        skip: offset,
+        take: pipelineSize,
+      });
 
       if (!tweets.length) break;
 
@@ -196,14 +195,13 @@ export class ExploreService {
   }
 
   private async hydrateTweets(userId: string, ids: string[]) {
-    const tweetsRaw: any = []
-    // const tweetsRaw = await prisma.tweet.findMany({
-    //   where: { id: { in: ids } },
-    //   select: { ...tweetSelectFields(userId), score: true },
-    // });
+    const tweetsRaw = await prisma.tweet.findMany({
+      where: { id: { in: ids } },
+      select: { ...tweetSelectFields(userId), score: true },
+    });
 
     const tweetMap = new Map<string, any>();
-    // tweetsRaw.forEach((t:) => tweetMap.set(t.id, t));
+    tweetsRaw.forEach((t) => tweetMap.set(t.id, t));
 
     const ordered = ids.map((id) => tweetMap.get(id)).filter(Boolean);
 
