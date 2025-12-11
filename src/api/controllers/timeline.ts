@@ -10,7 +10,7 @@ export class TimelineController {
     try {
       const userId = (req as any).user?.id;
       if (!userId) responseUtils.throwError("UNAUTHORIZED_USER");
-      // const userId = "00505325-856b-4569-9529-210a1b255989"; // "Jerry Donnelly"
+      // const userId = "11122384-f064-44ec-8036-c60c539dfc53"; // "Jerry Donnelly"
       const parsed = CursorDTOSchema.parse({
         cursor: req.query.cursor,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
@@ -27,7 +27,7 @@ export class TimelineController {
     try {
       const userId = (req as any).user?.id;
       if (!userId) responseUtils.throwError("UNAUTHORIZED_USER");
-      // const userId = "00505325-856b-4569-9529-210a1b255989"; // "Charlotte Kuvalis II"
+      // const userId = "11122384-f064-44ec-8036-c60c539dfc53"; // "Charlotte Kuvalis II"
 
       const parsed = CursorDTOSchema.parse({
         cursor: req.query.cursor,
