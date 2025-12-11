@@ -73,3 +73,35 @@ export const FollowsListResponseSchema = z
       ),
   })
   .openapi("UserInteractionsListResponse");
+
+export const SuggestedFollowsResponseSchema = z
+  .object({
+    message: z.string().describe("Success message"),
+    users: z
+      .array(
+        z.object({
+          id: z.string().describe("User ID"),
+          name: z.string().nullable().describe("Display name"),
+          username: z.string().describe("Username"),
+          profileMedia: z
+            .object({
+              id: z.string().describe("Profile media ID"),
+            })
+            .nullable()
+            .describe("Profile media information"),
+          protectedAccount: z
+            .boolean()
+            .describe("Is the account protected/private"),
+          verified: z.boolean().describe("Is the user verified"),
+          bio: z.string().nullable().describe("User bio"),
+          followersCount: z
+            .number()
+            .describe("Number of followers this user has"),
+          isFollowed: z
+            .boolean()
+            .describe("Is the current user following this user"),
+        })
+      )
+      .describe("List of suggested users to follow"),
+  })
+  .openapi("SuggestedFollowsResponse");

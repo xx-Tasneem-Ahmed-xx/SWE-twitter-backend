@@ -1,4 +1,4 @@
-const path = require("path");
+const path = require("node:path");
 const dotenv = require("dotenv");
 
 module.exports = {
@@ -9,7 +9,7 @@ module.exports = {
       instances: 1,
       exec_mode: "fork",
       watch: false,
-      wait_ready: true, 
+      wait_ready: true,
       listen_timeout: 10000,
       env: {
         NODE_ENV: "development",
@@ -24,6 +24,7 @@ module.exports = {
     ...[
       { name: "worker-hashtags", file: "hashtags.js" },
       { name: "worker-trends", file: "trends.js" },
+      { name: "worker-explore", file: "explore.js" },
       { name: "worker-notifications", file: "notifications.js" },
       // add more workers here
     ].map((worker) => ({
