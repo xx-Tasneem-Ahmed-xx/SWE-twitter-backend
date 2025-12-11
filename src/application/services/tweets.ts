@@ -45,6 +45,12 @@ export class TweetService {
     if (!tweet) responseUtils.throwError("TWEET_NOT_FOUND");
   }
 
+  private async getActor(userId: string) {
+    return await prisma.user.findUnique({
+      where: { id: userId }
+    });
+  }
+
   private async saveMentionedUsersTx(
     tx: Prisma.TransactionClient,
     tweetId: string,
@@ -67,12 +73,14 @@ export class TweetService {
       select: { id: true },
     });
 
+    const mentioner = await this.getActor(mentionerId);
+
     if (mentionedUsers.length === 0) return;
 
-    mentionedUsers.forEach((user) =>
-      addNotification(user.id as UUID, {
+    mentionedUsers.forEach(async (user) =>
+      await addNotification(user.id as UUID, {
         title: "MENTION",
-        body: "mentioned you",
+        body: `${mentioner?.name} mentioned you`,
         tweetId,
         actorId: mentionerId,
       })
@@ -236,11 +244,13 @@ export class TweetService {
         content: quote.content,
       }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
 
+
       enqueueUpdateScoreJob({ tweetId: dto.parentId });
 
-      addNotification(parent.userId as UUID, {
+      const actor = await this.getActor(dto.userId);
+      await addNotification(parent.userId as UUID, {
         title: "QUOTE",
-        body: "someone quoted you",
+        body: `${actor?.name} quoted your post`,
         tweetId: dto.parentId,
         actorId: dto.userId,
       });
@@ -290,11 +300,13 @@ export class TweetService {
         content: reply.content,
       }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
 
+
       enqueueUpdateScoreJob({ tweetId: dto.parentId });
 
-      addNotification(parent.userId as UUID, {
+      const actor = await this.getActor(dto.userId);
+      await addNotification(parent.userId as UUID, {
         title: "REPLY",
-        body: "someone replied to",
+        body: `${actor?.name} replied to your post`,
         tweetId: dto.parentId,
         actorId: dto.userId,
       });
@@ -319,9 +331,10 @@ export class TweetService {
         select: { userId: true },
       });
       enqueueUpdateScoreJob({ tweetId: dto.parentId });
-      addNotification(parent.userId as UUID, {
+      const actor = await this.getActor(dto.userId);
+      await addNotification(parent.userId as UUID, {
         title: "RETWEET",
-        body: "reposted your post",
+        body: `${actor?.name} reposted your post`,
         tweetId: dto.parentId,
         actorId: dto.userId,
       });
@@ -555,9 +568,10 @@ export class TweetService {
         data: { userId, tweetId },
       });
       enqueueUpdateScoreJob({ tweetId });
-      addNotification(parent.userId as UUID, {
+      const actor = await this.getActor(userId);
+      await addNotification(parent.userId as UUID, {
         title: "LIKE",
-        body: "liked your post",
+        body: `${actor?.name} liked your post`,
         tweetId: tweetId,
         actorId: userId,
       });
