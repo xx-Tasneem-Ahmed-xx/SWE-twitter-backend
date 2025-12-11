@@ -15,6 +15,7 @@ import {
   CATEGORY_FEED_KEY,
   BATCH_SIZE,
 } from "@/background/constants";
+import * as responseUtils from "@/application/utils/response.utils";
 import { redisClient } from "@/config/redis";
 import { encoderService } from "./encoder";
 
@@ -61,6 +62,15 @@ export class ExploreService {
       },
       select: { id: true },
     });
+  }
+
+  async getUserPreferredCategories(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredCategories: { select: { name: true } } },
+    });
+    if (!user) responseUtils.throwError("NOT_FOUND");
+    return user;
   }
 
   async calculateTweetScore(tweetId: string) {
@@ -154,10 +164,14 @@ export class ExploreService {
     }
 
     const hydrated = await this.hydrateTweets(userId, resultIds);
+    const nextCursor =
+      resultIds.length < limit
+        ? null
+        : encoderService.encode(cursor + resultIds.length);
 
     return {
       data: hydrated,
-      cursor: encoderService.encode(cursor + resultIds.length),
+      cursor: nextCursor,
     };
   }
 

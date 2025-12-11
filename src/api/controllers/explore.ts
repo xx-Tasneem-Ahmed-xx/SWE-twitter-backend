@@ -57,6 +57,22 @@ export class ExploreController {
     }
   };
 
+  public getUserPreferredCategories = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const userId = (req as any).user.id;
+      const categories = await this.exploreService.getUserPreferredCategories(
+        userId
+      );
+      res.status(200).json(categories);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   public getFeed = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const query = req.query;

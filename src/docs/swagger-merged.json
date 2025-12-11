@@ -41,6 +41,23 @@
             "type": "integer",
             "example": 500
           },
+          "replyControl": {
+            "type": "string",
+            "enum": [
+              "EVERYONE",
+              "FOLLOWINGS",
+              "VERIFIED",
+              "MENTIONED"
+            ]
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "UserInteractionsListResponse": {
+        "type": "object",
+        "properties": {
           "users": {
             "type": "integer",
             "example": 300
@@ -64,6 +81,86 @@
         }
       },
       "SearchResult": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": "string",
+                  "description": "Username"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Display name"
+                },
+                "photo": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "uri",
+                  "description": "Avatar URL"
+                },
+                "bio": {
+                  "type": "string",
+                  "nullable": true,
+                  "description": "User bio"
+                },
+                "verified": {
+                  "type": "boolean",
+                  "description": "Is the user verified"
+                },
+                "isFollowing": {
+                  "type": "boolean",
+                  "description": "Is the current user following this user"
+                },
+                "isFollower": {
+                  "type": "boolean",
+                  "description": "Is this user following the current user"
+                },
+                "youRequested": {
+                  "type": "boolean",
+                  "description": "Has the current user sent a follow request to this user"
+                },
+                "followStatus": {
+                  "type": "string",
+                  "enum": [
+                    "NONE",
+                    "PENDING",
+                    "ACCEPTED"
+                  ],
+                  "description": "Follow status between result user and target (param) user"
+                }
+              },
+              "required": [
+                "username",
+                "name",
+                "photo",
+                "bio",
+                "verified",
+                "isFollowing",
+                "isFollower",
+                "youRequested",
+                "followStatus"
+              ]
+            },
+            "description": "List of followers, followings, blocked or muted users"
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Opaque cursor for pagination; pass as 'cursor' in the next request. Null if no more data."
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "True if more data is available; false if this is the last page."
+          }
+        },
+        "required": [
+          "users",
+          "nextCursor",
+          "hasMore"
+        ]
+      },
+      "ChatUser": {
         "type": "object",
         "properties": {
           "id": {
@@ -93,6 +190,26 @@
           "relevance": {
             "type": "integer",
             "example": 89
+            "nullable": true
+          },
+          "profilePhoto": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "name",
+          "profilePhoto"
+        ]
+      },
+      "Media": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
           },
           "matchedTokens": {
             "type": "array",
@@ -114,6 +231,26 @@
             }
           }
         }
+          "type": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "VIDEO",
+              "GIF"
+            ]
+          },
+          "size": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "url",
+          "type",
+          "size"
+        ]
       },
       "PaginatedSearchResponse": {
         "type": "object",
@@ -135,6 +272,22 @@
           "total": {
             "type": "integer",
             "example": 250
+          "media": {
+            "$ref": "#/components/schemas/Media"
+          }
+        },
+        "required": [
+          "messageId",
+          "mediaId",
+          "media"
+        ]
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
           },
           "page": {
             "type": "integer",
@@ -156,6 +309,38 @@
         }
       },
       "Document": {
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "SENT",
+              "READ"
+            ]
+          },
+          "user": {
+            "$ref": "#/components/schemas/ChatUser"
+          },
+          "messageMedia": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageMedia"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "chatId",
+          "userId",
+          "content",
+          "createdAt",
+          "status",
+          "user",
+          "messageMedia"
+        ]
+      },
+      "ChatUserRelation": {
         "type": "object",
         "properties": {
           "id": {
@@ -187,6 +372,18 @@
         }
       },
       "Term": {
+          "user": {
+            "$ref": "#/components/schemas/ChatUser"
+          }
+        },
+        "required": [
+          "id",
+          "chatId",
+          "userId",
+          "user"
+        ]
+      },
+      "ChatGroup": {
         "type": "object",
         "properties": {
           "term": {
@@ -202,6 +399,16 @@
             "example": 456
           }
         }
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "photo",
+          "description"
+        ]
       },
       "HealthResponse": {
         "type": "object",
@@ -226,6 +433,18 @@
           "error": {
             "type": "string",
             "example": "Failed to index tweets"
+            "description": "Chat ID is required"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "CreateChatInput": {
+        "type": "object",
+        "properties": {
+          "DMChat": {
+            "type": "boolean"
           },
           "details": {
             "type": "string",
@@ -263,8 +482,84 @@
             "schema": {
               "$ref": "#/components/schemas/ErrorResponse"
             }
+          "participant_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "participant_ids"
+        ]
+      },
+      "UpdateChatGroupInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "New name for the group chat"
+          },
+          "description": {
+            "type": "string",
+            "description": "New description for the group chat"
+          },
+          "photo": {
+            "type": "string",
+            "format": "uri",
+            "description": "New photo URL for the group chat"
           }
         }
+      },
+      "newMessageInput": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "messageMedia": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "size": {
+                      "type": "number"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "content": {
+                "type": "string"
+              }
+            }
+          },
+          "recipientId": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "chatId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+        },
+        "required": [
+          "data"
+        ]
       }
     }
   },
@@ -445,6 +740,9 @@
                           },
                           "isFollowed": {
                             "type": "boolean"
+                          },
+                          "isFollowed": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -466,6 +764,9 @@
                   "required": [
                     "data",
                     "cursor"
+                  ]
+                  "required": [
+                    "users"
                   ]
                 }
               }
@@ -1877,6 +2178,9 @@
                   "required": [
                     "data",
                     "cursor"
+                  ]
+                  "required": [
+                    "users"
                   ]
                 }
               }
@@ -3614,6 +3918,9 @@
                               "data",
                               "cursor"
                             ]
+                            "required": [
+                              "users"
+                            ]
                           }
                         },
                         "required": [
@@ -3920,6 +4227,9 @@
                             "required": [
                               "data",
                               "cursor"
+                            ]
+                            "required": [
+                              "users"
                             ]
                           }
                         },
@@ -4244,6 +4554,56 @@
           },
           "404": {
             "description": "User not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/followers/requests": {
+      "get": {
+        "summary": "Get a list of follow requests",
+        "tags": [
+          "User Interactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "default": null,
+              "description": "Opaque cursor for pagination."
+            },
+            "required": false,
+            "description": "Opaque cursor for pagination.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Number of results per page (default: 30)"
+            },
+            "required": false,
+            "description": "Number of results per page (default: 30)",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of follow requests retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInteractionsListResponse"
+                }
+              }
+            }
           },
           "500": {
             "description": "Internal server error"
@@ -4753,6 +5113,7 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date",
+                        "default": "2025-11-18T16:34:38.634Z"
                         "default": "2025-12-11T18:08:13.885Z"
                       },
                       "userId": {
@@ -4909,31 +5270,13 @@
                       "actorId": {
                         "type": "string",
                         "format": "uuid"
-                      },
-                      "actor": {
-                        "type": "object",
-                        "properties": {
-                          "name": {
-                            "type": "string"
-                          },
-                          "profileMediaId": {
-                            "type": "string",
-                            "nullable": true,
-                            "format": "uuid"
-                          }
-                        },
-                        "required": [
-                          "name",
-                          "profileMediaId"
-                        ]
                       }
                     },
                     "required": [
                       "id",
                       "title",
                       "body",
-                      "userId",
-                      "actor"
+                      "userId"
                     ]
                   }
                 }
@@ -5121,6 +5464,7 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date",
+                            "default": "2025-11-18T16:34:38.634Z"
                             "default": "2025-12-11T18:08:13.885Z"
                           },
                           "userId": {
@@ -5159,6 +5503,61 @@
                           "body",
                           "userId",
                           "actor"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "notifications"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Unauthorized"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal Server Error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "body",
+                          "userId"
                         ]
                       }
                     }
@@ -6321,6 +6720,324 @@
         }
       }
     },
+    "/api/hashtags/search": {
+      "get": {
+        "summary": "Search hashtags",
+        "tags": [
+          "Hashtags"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Search keyword"
+            },
+            "required": true,
+            "description": "Search keyword",
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The cursor for pagination"
+            },
+            "required": false,
+            "description": "The cursor for pagination",
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching hashtags found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "hash": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "tag_text": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "tag_text"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "hash"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
+      }
+    },
+    "/trends": {
+      "get": {
+        "summary": "Get a list of available trends",
+        "description": "Returns the currently trending hashtags or topics in the last 24 hours.",
+        "tags": [
+          "Trends"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of trending topics returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "hash": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "tag_text": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "tag_text"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "hash"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
+      }
+    },
+    "/trends/{name}/tweets": {
+      "get": {
+        "summary": "Get tweets for a specific trend",
+        "description": "Fetches all tweets related to the specified trending hashtag or keyword.",
+        "tags": [
+          "Trends"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Trend Name"
+            },
+            "required": true,
+            "description": "Trend Name",
+            "name": "name",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of tweets associated with the trend.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "content": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      "likesCount": {
+                        "type": "integer"
+                      },
+                      "retweetCount": {
+                        "type": "integer"
+                      },
+                      "repliesCount": {
+                        "type": "integer"
+                      },
+                      "quotesCount": {
+                        "type": "integer"
+                      },
+                      "replyControl": {
+                        "type": "string",
+                        "enum": [
+                          "EVERYONE",
+                          "FOLLOWINGS",
+                          "VERIFIED",
+                          "MENTIONED"
+                        ]
+                      },
+                      "parentId": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uuid"
+                      },
+                      "tweetType": {
+                        "type": "string",
+                        "enum": [
+                          "TWEET",
+                          "REPLY",
+                          "QUOTE"
+                        ]
+                      },
+                      "user": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string",
+                            "nullable": true,
+                            "minLength": 1
+                          },
+                          "username": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "profileMedia": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              }
+                            },
+                            "required": [
+                              "id"
+                            ]
+                          },
+                          "verified": {
+                            "type": "boolean"
+                          },
+                          "protectedAccount": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "username",
+                          "profileMedia",
+                          "verified",
+                          "protectedAccount"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "content",
+                      "createdAt",
+                      "likesCount",
+                      "retweetCount",
+                      "repliesCount",
+                      "quotesCount",
+                      "replyControl",
+                      "tweetType",
+                      "user"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
+      }
+    },
     "api/dm/chat/{chatId}": {
       "get": {
         "summary": "Get chat information",
@@ -6891,6 +7608,9 @@
                   "required": [
                     "error"
                   ]
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -6905,6 +7625,161 @@
                     "error": {
                       "type": "string",
                       "description": "invalid chatId"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal server error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/dm/chat/new-message": {
+      "post": {
+        "summary": "Add a message to a chat",
+        "tags": [
+          "Chats"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Message data along with chatId(if exists) and recipient IDs",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/newMessageInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Message added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Invalid input data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Message content is required or missing chatId or recipientId"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chat not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "invalid chatId"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal server error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "api/dm/chat/unseen-chats": {
+      "get": {
+        "summary": "Get unseen chats count for a user",
+        "tags": [
+          "Chats"
+        ],
+        "responses": {
+          "200": {
+            "description": "Unseen chats count retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "unseenChatsCount": {
+                      "type": "number",
+                      "description": "The count of unseen chats for the user"
+                    }
+                  },
+                  "required": [
+                    "unseenChatsCount"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - User ID is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "User ID is required"
                     }
                   },
                   "required": [
@@ -8433,6 +9308,10 @@
                   "password",
                   "resetCode"
                 ],
+                "required": [
+                  "email",
+                  "password"
+                ],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -9041,6 +9920,11 @@
       "get": {
         "summary": "Get authenticated user info including device history",
         "description": "Returns user profile data and previously logged device information.",
+        "tags": [
+          "User"
+        ],
+        "summary": "Get current user information",
+        "description": "Retrieves information about the authenticated user.",
         "tags": [
           "User"
         ],
@@ -10379,6 +11263,11 @@
         ],
         "summary": "Start OAuth 2.0 authorization flow",
         "description": "Initiates the OAuth 2.0 authorization process by redirecting the user to the chosen provider's authorization page. Supported providers: **Google** and **GitHub**.\n",
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Start OAuth 2.0 authorization flow",
+        "description": "Initiates the OAuth 2.0 authorization process by redirecting the user to the chosen provider's authorization page. Supported providers: **Google** and **GitHub**.\n",
         "parameters": [
           {
             "in": "path",
@@ -10425,6 +11314,23 @@
             }
           }
         ],
+      "get": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Handle Google OAuth callback",
+        "description": "This endpoint handles the callback from **Google OAuth** after user authorization. It exchanges the received authorization code for an ID token, retrieves the user's profile and email, creates or updates the user in the database, issues access and refresh tokens, stores session info, and sends a login notification email.\n",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "description": "Authorization code returned by Google after user consent.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "302": {
             "description": "Redirects to the frontend with tokens and user info.",
@@ -10436,12 +11342,67 @@
                 }
               }
             }
+          "200": {
+            "description": "User successfully authenticated and tokens issued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string",
+                      "description": "JWT access token."
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "description": "JWT refresh token stored in cookies and Redis."
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "username": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "dateOfBirth": {
+                          "type": "string"
+                        },
+                        "isEmailVerified": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "deviceRecord": {
+                      "type": "object",
+                      "description": "Information about the device used for login."
+                    },
+                    "location": {
+                      "type": "object",
+                      "description": "IP-based geolocation info."
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User registered and logged in successfully ✅"
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Missing or invalid authorization code."
           },
           "500": {
             "description": "Internal error during token exchange, user creation, or notification process."
+            "description": "Error during token exchange, user creation, or email notification."
           }
         }
       }
@@ -10464,6 +11425,23 @@
             }
           }
         ],
+      "get": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Handle GitHub OAuth callback",
+        "description": "This endpoint handles the callback from **GitHub OAuth** after the user grants access. It exchanges the authorization code for an access token, retrieves the user’s primary verified email, fetches GitHub profile data, creates or links the user in the system, issues JWT tokens, logs the device info, and sends a login alert email.\n",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "description": "Authorization code returned by GitHub after user consent.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "302": {
             "description": "Redirects to the frontend with access token, refresh token, and user info.",
@@ -10472,6 +11450,60 @@
                 "description": "Example redirect URL structure:   `{FRONTEND_URL}/login/success?token={accessToken}&refresh-token={refreshToken}&user={jsonUser}`\n",
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          "200": {
+            "description": "User successfully authenticated and tokens issued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string",
+                      "description": "JWT access token."
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "description": "JWT refresh token stored in cookies and Redis."
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "username": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "dateOfBirth": {
+                          "type": "string"
+                        },
+                        "isEmailVerified": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "deviceRecord": {
+                      "type": "object",
+                      "description": "Information about the device used for login."
+                    },
+                    "location": {
+                      "type": "object",
+                      "description": "IP-based geolocation info."
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User logged in successfully via GitHub ✅"
+                    }
+                  }
                 }
               }
             }
@@ -10523,6 +11555,13 @@
           },
           "500": {
             "description": "Internal server error during token validation, user creation, or login email process."
+          }
+        }
+      }
+    }
+  }
+}
+            "description": "Error during token exchange, user lookup, or email notification."
           }
         }
       }
