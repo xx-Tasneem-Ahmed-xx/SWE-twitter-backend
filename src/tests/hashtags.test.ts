@@ -295,10 +295,6 @@ describe("Hashtags autocomplete & trends service", () => {
         "trends:category:news",
         "trends:category:sports",
         "trends:category:entertainment",
-        "trends:viral:category:global",
-        "trends:viral:category:news",
-        "trends:viral:category:sports",
-        "trends:viral:category:entertainment",
       ];
 
       for (const key of redisKeys) {
@@ -553,9 +549,8 @@ describe("Hashtags autocomplete & trends service", () => {
     expect(Array.isArray(cached.trends)).toBe(true);
   });
 
-  // Test fetchViralTweets
-  test("fetchViralTweets returns viral tweets with user interactions", async () => {
-    await hashtagsService.calculateAndCacheViralTweets("global");
+  // Test fetchViralTweets (now uses explore service)
+  test("fetchViralTweets returns viral tweets from explore service", async () => {
     const result = await hashtagsService.fetchViralTweets(
       TEST_USER_ID,
       "global"
@@ -564,16 +559,11 @@ describe("Hashtags autocomplete & trends service", () => {
     expect(result).toBeDefined();
     expect(result.tweets).toBeDefined();
     expect(Array.isArray(result.tweets)).toBe(true);
-    expect(result.updatedAt).toBeDefined();
   });
 
-  // Test fetchViralTweets with no cache
-  test("fetchViralTweets calculates when cache is empty", async () => {
-    await redisClient.del("trends:viral:category:global");
-    const result = await hashtagsService.fetchViralTweets(
-      TEST_USER_ID,
-      "global"
-    );
+  // Test fetchViralTweets with specific category
+  test("fetchViralTweets works with category filter", async () => {
+    const result = await hashtagsService.fetchViralTweets(TEST_USER_ID, "news");
 
     expect(result).toBeDefined();
     expect(Array.isArray(result.tweets)).toBe(true);
@@ -690,15 +680,6 @@ describe("Hashtags autocomplete & trends service", () => {
         10
       )
     ).rejects.toThrow("Hashtag not found");
-  });
-
-  // Test calculateViralTweets with different limits
-  test("calculateViralTweets respects limit parameter", async () => {
-    const result1 = await hashtagsService.calculateViralTweets(24, "global", 2);
-    expect(result1.tweets.length).toBeLessThanOrEqual(2);
-
-    const result2 = await hashtagsService.calculateViralTweets(24, "global", 5);
-    expect(result2.tweets.length).toBeLessThanOrEqual(5);
   });
 
   // Test calculateTrends with empty results
@@ -925,32 +906,6 @@ describe("Hashtags autocomplete & trends service", () => {
     await redisClient.del("test:corrupted:key");
   });
 
-  test("fetchViralTweets handles null/undefined tweets in cache", async () => {
-    const mockCategory = "test_null_category";
-    const cacheKey = `viral_tweets:${mockCategory}`;
-
-    // Clear any existing cache first
-    await redisClient.del(cacheKey);
-
-    // Set cache with null tweets
-    await redisClient.set(
-      cacheKey,
-      JSON.stringify({ tweets: null, updatedAt: new Date().toISOString() }),
-      { EX: 60 }
-    );
-
-    const result = await hashtagsService.fetchViralTweets(
-      TEST_USER_ID,
-      mockCategory
-    );
-
-    expect(result.tweets).toEqual([]);
-    expect(result.updatedAt).toBeDefined();
-
-    // Cleanup
-    await redisClient.del(cacheKey);
-  });
-
   test("fetchTrends returns empty when cache calculation fails", async () => {
     const mockCategory = "invalid_test_category";
     const cacheKey = `trends:hashtags:${mockCategory}`;
@@ -1006,41 +961,6 @@ describe("Hashtags autocomplete & trends service", () => {
     });
   });
 
-  test("fetchViralTweets covers empty interaction arrays branch", async () => {
-    // Create viral tweets cache
-    const cacheKey = "trends:viral:category:global";
-    const mockTweets = [
-      {
-        id: TWEET_IDS[0],
-        userId: TEST_USER_ID,
-        content: "Viral tweet",
-        user: {
-          id: TEST_USER_ID,
-          username: "testuser",
-          name: "Test User",
-        },
-      },
-    ];
-
-    await redisClient.set(cacheKey, JSON.stringify({ tweets: mockTweets }));
-
-    // Use a different user who hasn't liked/retweeted/bookmarked
-    // This will trigger the empty array branches in extendTweetsWithUserInteractions
-    const result = await hashtagsService.fetchViralTweets(
-      "OTHER_USER_ID_NO_INTERACTIONS",
-      "global",
-      "en",
-      10,
-      0
-    );
-
-    expect(result).toBeDefined();
-    expect(result.tweets).toBeDefined();
-
-    // Cleanup
-    await redisClient.del(cacheKey);
-  });
-
   test("fetchTrends returns empty trends when cache recalculation returns null", async () => {
     const cacheKey = "trends:category:global";
     // Delete cache to force recalculation
@@ -1083,69 +1003,6 @@ describe("Hashtags autocomplete & trends service", () => {
       // The important thing is the function was called and the loop structure executed
       expect(error).toBeDefined();
     }
-  });
-
-  test("calculateViralTweets returns only TWEET type (no replies, quotes, retweets)", async () => {
-    // Create a mix of tweet types
-    const testUserId = `test_user_${Date.now()}`;
-    await prisma.user.upsert({
-      where: { id: testUserId },
-      update: {},
-      create: {
-        id: testUserId,
-        username: `testuser_${Date.now()}`,
-        email: `test_${Date.now()}@example.com`,
-        password: "pass",
-        saltPassword: "salt",
-        dateOfBirth: new Date("2000-01-01"),
-        name: "Test User",
-      },
-    });
-
-    const normalTweetId = `normal_tweet_${Date.now()}`;
-    const replyTweetId = `reply_tweet_${Date.now()}`;
-    const quoteTweetId = `quote_tweet_${Date.now()}`;
-
-    await prisma.tweet.createMany({
-      data: [
-        {
-          id: normalTweetId,
-          userId: testUserId,
-          content: "Normal tweet",
-          tweetType: "TWEET",
-          createdAt: new Date(),
-        },
-        {
-          id: replyTweetId,
-          userId: testUserId,
-          content: "Reply tweet",
-          tweetType: "REPLY",
-          createdAt: new Date(),
-        },
-        {
-          id: quoteTweetId,
-          userId: testUserId,
-          content: "Quote tweet",
-          tweetType: "QUOTE",
-          createdAt: new Date(),
-        },
-      ],
-    });
-
-    // Calculate viral tweets
-    const result = await hashtagsService.calculateViralTweets(24, "global", 10);
-
-    // All returned tweets should have tweetType "TWEET"
-    expect(result.tweets).toBeDefined();
-    result.tweets.forEach((tweet: any) => {
-      expect(tweet.tweetType).toBe("TWEET");
-    });
-
-    // Cleanup
-    await prisma.tweet.deleteMany({
-      where: { id: { in: [normalTweetId, replyTweetId, quoteTweetId] } },
-    });
-    await prisma.user.delete({ where: { id: testUserId } });
   });
 
   test("fetchHashtagTweets returns only TWEET type (no replies, quotes, retweets)", async () => {

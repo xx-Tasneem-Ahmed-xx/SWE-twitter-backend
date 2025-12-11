@@ -124,86 +124,9 @@ describe("Hashtag Utils", () => {
     });
   });
 
-  describe("viralScore", () => {
-    it("should calculate viral score correctly", () => {
-      const tweet = {
-        likesCount: 10,
-        retweetCount: 5,
-        repliesCount: 3,
-        quotesCount: 2,
-      };
-      const score = utils.viralScore(tweet);
-      // 10*0.6 + 5*0.3 + 3*0.08 + 2*0.02 = 6 + 1.5 + 0.24 + 0.04 = 7.78
-      expect(score).toBeCloseTo(7.78, 2);
-    });
-
-    it("should handle null/undefined counts", () => {
-      const tweet = {
-        likesCount: null,
-        retweetCount: undefined,
-        repliesCount: 0,
-        quotesCount: 0,
-      };
-      const score = utils.viralScore(tweet);
-      expect(score).toBe(0);
-    });
-  });
-
-  describe("sortByViral", () => {
-    it("should sort tweets by viral score in descending order", () => {
-      const tweets = [
-        {
-          id: "1",
-          likesCount: 5,
-          retweetCount: 0,
-          repliesCount: 0,
-          quotesCount: 0,
-        },
-        {
-          id: "2",
-          likesCount: 20,
-          retweetCount: 0,
-          repliesCount: 0,
-          quotesCount: 0,
-        },
-        {
-          id: "3",
-          likesCount: 10,
-          retweetCount: 0,
-          repliesCount: 0,
-          quotesCount: 0,
-        },
-      ];
-      const sorted = utils.sortByViral(tweets);
-
-      expect(sorted[0].id).toBe("2"); // 20 likes
-      expect(sorted[1].id).toBe("3"); // 10 likes
-      expect(sorted[2].id).toBe("1"); // 5 likes
-    });
-
-    it("should not mutate original array", () => {
-      const tweets = [
-        {
-          id: "1",
-          likesCount: 5,
-          retweetCount: 0,
-          repliesCount: 0,
-          quotesCount: 0,
-        },
-        {
-          id: "2",
-          likesCount: 10,
-          retweetCount: 0,
-          repliesCount: 0,
-          quotesCount: 0,
-        },
-      ];
-      const original = [...tweets];
-      utils.sortByViral(tweets);
-
-      expect(tweets).toEqual(original);
-    });
-  });
+  // viralScore and sortByViral tests removed - these functions were moved to explore service
+  // describe("viralScore", () => { ... });
+  // describe("sortByViral", () => { ... });
 
   describe("calculateTrendScores", () => {
     it("should calculate normalized scores", () => {

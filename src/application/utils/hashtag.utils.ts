@@ -90,19 +90,8 @@ export const filterBlockedAndMutedTweets = async (
   return tweets.filter((tweet: any) => !excludedSet.has(tweet.userId));
 };
 
-// viral score calculation for a tweet
-export const viralScore = (t: any) => {
-  return (
-    Number(t.likesCount ?? 0) * 0.6 +
-    Number(t.retweetCount ?? 0) * 0.3 +
-    Number(t.repliesCount ?? 0) * 0.08 +
-    Number(t.quotesCount ?? 0) * 0.02
-  );
-};
-
-// sort tweets by viral score in descending order
-export const sortByViral = (tweets: any[]) =>
-  tweets.slice().sort((a, b) => viralScore(b) - viralScore(a));
+// Viral scoring and sorting moved to explore service
+// The explore service uses time-decay scoring and Redis sorted sets for better performance
 
 // Calculate trend scores
 export const calculateTrendScores = (
