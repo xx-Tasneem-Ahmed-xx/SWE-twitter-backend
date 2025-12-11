@@ -3,6 +3,9 @@ import {
   validToRetweetOrQuote,
   validToReply,
   updateCursor,
+  userSelectFields,
+  tweetSelectFields,
+  mediaSelectFields,
 } from "@/application/utils/tweet.utils";
 import {
   CreateReplyOrQuoteServiceDTO,
@@ -11,6 +14,7 @@ import {
   InteractionsCursorServiceDTO,
   SearchServiceDTO,
   TweetCursorServiceDTO,
+  UpdateTweetServiceDTO,
 } from "@/application/dtos/tweets/service/tweets.dto";
 import * as responseUtils from "@/application/utils/response.utils";
 import {
@@ -30,6 +34,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { UUID } from "node:crypto";
 import { addNotification } from "./notification";
+import { enqueueUpdateScoreJob } from "@/background/jobs/explore";
 
 export class TweetService {
   private async validateId(id: string) {
@@ -127,6 +132,44 @@ export class TweetService {
     });
   }
 
+  public async normalizeTweetsAndRetweets(
+    dto: TweetCursorServiceDTO,
+    currentUserId: string,
+    tweets: any[]
+  ) {
+    const retweetedTweets = await prisma.retweet.findMany({
+      where: { userId: dto.userId },
+      select: {
+        createdAt: true,
+        tweet: {
+          select: tweetSelectFields(currentUserId),
+        },
+      },
+      orderBy: [{ createdAt: "desc" }, { userId: "desc" }],
+      take: dto.limit + 1,
+      ...(dto.cursor && {
+        cursor: {
+          userId_createdAt: {
+            userId: dto.userId,
+            createdAt: dto.cursor.createdAt,
+          },
+        },
+        skip: 1,
+      }),
+    });
+
+    const normalizedRetweets = retweetedTweets.map((r) => ({
+      ...r.tweet,
+      createdAt: r.createdAt,
+      retweeter: this.formatUser(tweets[0].user),
+    }));
+
+    const allTweets = [...tweets, ...normalizedRetweets]
+      .slice(0, dto.limit + 1)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return allTweets;
+  }
+
   async createTweet(dto: CreateTweetServiceDto) {
     return await prisma.$transaction(async (tx) => {
       const tweet = await tx.tweet.create({
@@ -201,6 +244,10 @@ export class TweetService {
         content: quote.content,
       }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
 
+      //enqueueUpdateScoreJob({ tweetId: dto.parentId });
+
+      enqueueUpdateScoreJob({ tweetId: dto.parentId });
+
       const actor = await this.getActor(dto.userId);
       await addNotification(parent.userId as UUID, {
         title: "QUOTE",
@@ -254,6 +301,9 @@ export class TweetService {
         content: reply.content,
       }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
 
+
+      enqueueUpdateScoreJob({ tweetId: dto.parentId });
+
       const actor = await this.getActor(dto.userId);
       await addNotification(parent.userId as UUID, {
         title: "REPLY",
@@ -281,6 +331,7 @@ export class TweetService {
         data: { retweetCount: { increment: 1 } },
         select: { userId: true },
       });
+      enqueueUpdateScoreJob({ tweetId: dto.parentId });
       const actor = await this.getActor(dto.userId);
       await addNotification(parent.userId as UUID, {
         title: "RETWEET",
@@ -298,7 +349,7 @@ export class TweetService {
       where: { tweetId },
       select: {
         user: {
-          select: this.userSelectFields(dto.userId),
+          select: userSelectFields(dto.userId),
         },
         createdAt: true,
         userId: true,
@@ -335,17 +386,41 @@ export class TweetService {
     await this.validateId(id);
     const tweet = await prisma.tweet.findUnique({
       where: { id },
-      select: this.tweetSelectFields(userId),
+      select: tweetSelectFields(userId),
     });
     if (!tweet) responseUtils.throwError("TWEET_NOT_FOUND");
     return this.checkUserInteractions([tweet])[0];
   }
 
-  async updateTweet(id: string, content: string) {
+  async updateTweet(id: string, dto: UpdateTweetServiceDTO) {
     await this.validateId(id);
+    const tweet = await prisma.tweet.findUnique({
+      where: { id, userId: dto.userId },
+      select: { id: true },
+    });
+    if (!tweet) responseUtils.throwError("TWEET_OWNER_ACCESS");
+
+    const data: any = {};
+    if (dto.content !== undefined) data.content = dto.content;
+    if (dto.replyControl !== undefined) data.replyControl = dto.replyControl;
+    if (dto.tweetMedia !== undefined) {
+      await prisma.tweetMedia.deleteMany({
+        where: { tweetId: id },
+      });
+
+      data.tweetMedia = {
+        create: dto.tweetMedia.map((mediaId) => ({
+          mediaId,
+        })),
+      };
+    }
+
+    if (Object.keys(data).length === 0)
+      responseUtils.throwError("TWEET_UPDATE_FIELDS");
+
     return prisma.tweet.update({
       where: { id },
-      data: { content },
+      data,
       select: { id: true },
     });
   }
@@ -374,39 +449,42 @@ export class TweetService {
 
   private async deleteReply(id: string, parentId: string) {
     await this.validateId(id);
-    return prisma.$transaction([
-      prisma.tweet.delete({ where: { id } }),
-      prisma.retweet.deleteMany({ where: { tweetId: id } }),
-      prisma.tweet.update({
+    return await prisma.$transaction(async (tx) => {
+      await tx.tweet.delete({ where: { id } });
+      await tx.retweet.deleteMany({ where: { tweetId: id } });
+      await tx.tweet.update({
         where: { id: parentId },
         data: { repliesCount: { decrement: 1 } },
-      }),
-    ]);
+      });
+      enqueueUpdateScoreJob({ tweetId: parentId });
+    });
   }
 
   private async deleteQuote(id: string, parentId: string) {
     await this.validateId(id);
-    return prisma.$transaction([
-      prisma.tweet.delete({ where: { id } }),
-      prisma.retweet.deleteMany({ where: { tweetId: id } }),
-      prisma.tweet.update({
+    return await prisma.$transaction(async (tx) => {
+      await tx.tweet.delete({ where: { id } });
+      await tx.retweet.deleteMany({ where: { tweetId: id } });
+      await tx.tweet.update({
         where: { id: parentId },
         data: { quotesCount: { decrement: 1 } },
-      }),
-    ]);
+      });
+      enqueueUpdateScoreJob({ tweetId: parentId });
+    });
   }
 
   async deleteRetweet(userId: string, tweetId: string) {
     await this.validateId(tweetId);
-    return prisma.$transaction([
-      prisma.retweet.delete({
+    return await prisma.$transaction(async (tx) => {
+      await tx.retweet.delete({
         where: { userId_tweetId: { userId, tweetId } },
-      }),
-      prisma.tweet.update({
+      });
+      await tx.tweet.update({
         where: { id: tweetId },
         data: { retweetCount: { decrement: 1 } },
-      }),
-    ]);
+      });
+      enqueueUpdateScoreJob({ tweetId });
+    });
   }
 
   async getLikedTweets(dto: InteractionsCursorServiceDTO) {
@@ -415,7 +493,7 @@ export class TweetService {
       select: {
         tweet: {
           select: {
-            ...this.tweetSelectFields(dto.userId),
+            ...tweetSelectFields(dto.userId),
           },
         },
         createdAt: true,
@@ -448,11 +526,11 @@ export class TweetService {
     };
   }
 
-  async getTweetReplies(tweetId: string, dto: TweetCursorServiceDTO) {
+  async getTweetRepliesOrQuotes(tweetId: string, dto: TweetCursorServiceDTO) {
     const replies = await prisma.tweet.findMany({
-      where: { parentId: tweetId, tweetType: "REPLY" },
+      where: { parentId: tweetId, tweetType: dto.tweetType },
       select: {
-        ...this.tweetSelectFields(dto.userId),
+        ...tweetSelectFields(dto.userId),
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
@@ -490,6 +568,7 @@ export class TweetService {
       await tx.tweetLike.create({
         data: { userId, tweetId },
       });
+      enqueueUpdateScoreJob({ tweetId });
       const actor = await this.getActor(userId);
       await addNotification(parent.userId as UUID, {
         title: "LIKE",
@@ -515,15 +594,17 @@ export class TweetService {
       responseUtils.throwError("TWEET_NOT_LIKED_YET");
     }
 
-    return prisma.$transaction([
-      prisma.tweetLike.delete({
+    return await prisma.$transaction(async (tx) => {
+      await tx.tweetLike.delete({
         where: { userId_tweetId: { userId, tweetId } },
-      }),
-      prisma.tweet.update({
+      });
+
+      await tx.tweet.update({
         where: { id: tweetId },
         data: { likesCount: { decrement: 1 } },
-      }),
-    ]);
+      });
+      enqueueUpdateScoreJob({ tweetId });
+    });
   }
 
   async getLikers(tweetId: string, dto: InteractionsCursorServiceDTO) {
@@ -532,7 +613,7 @@ export class TweetService {
       where: { tweetId },
       select: {
         user: {
-          select: this.userSelectFields(dto.userId),
+          select: userSelectFields(dto.userId),
         },
         createdAt: true,
         userId: true,
@@ -589,9 +670,49 @@ export class TweetService {
 
   async getUserTweets(dto: TweetCursorServiceDTO, currentUserId: string) {
     const tweets = await prisma.tweet.findMany({
-      where: { userId: dto.userId },
+      where: {
+        userId: dto.userId,
+        ...(dto.tweetType && { tweetType: dto.tweetType }),
+      },
+      select: tweetSelectFields(currentUserId),
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: dto.limit + 1,
+      ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
+    });
+
+    const normalizedTweets = await this.normalizeTweetsAndRetweets(
+      dto,
+      currentUserId,
+      tweets
+    );
+
+    const { cursor, paginatedRecords } = updateCursor(
+      normalizedTweets,
+      dto.limit,
+      (record) => ({ id: record.id, createdAt: record.createdAt })
+    );
+    const data = this.checkUserInteractions(paginatedRecords);
+    return {
+      data,
+      cursor,
+    };
+  }
+
+  async getUserMedias(dto: TweetCursorServiceDTO) {
+    const tweetsWithMedia = await prisma.tweet.findMany({
+      where: {
+        userId: dto.userId,
+        ...(dto.tweetType && { tweetType: dto.tweetType }),
+        tweetMedia: { some: {} },
+      },
       select: {
-        ...this.tweetSelectFields(currentUserId),
+        id: true,
+        createdAt: true,
+        tweetMedia: {
+          select: {
+            media: { select: mediaSelectFields() },
+          },
+        },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
@@ -599,13 +720,13 @@ export class TweetService {
     });
 
     const { cursor, paginatedRecords } = updateCursor(
-      tweets,
+      tweetsWithMedia,
       dto.limit,
       (record) => ({ id: record.id, createdAt: record.createdAt })
     );
-    const data = this.checkUserInteractions(paginatedRecords);
+
     return {
-      data,
+      data: paginatedRecords,
       cursor,
     };
   }
@@ -617,7 +738,7 @@ export class TweetService {
           some: { mentionedId: dto.userId },
         },
       },
-      select: this.tweetSelectFields(dto.userId),
+      select: tweetSelectFields(dto.userId),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: dto.limit + 1,
       ...(dto.cursor && { cursor: dto.cursor, skip: 1 }),
@@ -640,6 +761,11 @@ export class TweetService {
     tweetContent: string,
     tx: Prisma.TransactionClient
   ) {
+    const tweetExists = await tx.tweet.findUnique({ where: { id } });
+    if (!tweetExists) {
+      console.warn(`Tweet ${id} not found, skipping categorization`);
+      return;
+    }
     const categories = await generateTweetCategory(tweetContent);
     const categoryRecords = await tx.category.findMany({
       where: {
@@ -650,19 +776,12 @@ export class TweetService {
 
     if (categoryRecords.length === 0) return;
 
-    await tx.tweet.update({
-      where: { id },
-      data: {
-        tweetCategories: {
-          set: [],
-          connect: categoryRecords.map((category) => ({
-            tweetId_categoryId: {
-              categoryId: category.id,
-              tweetId: id,
-            },
-          })),
-        },
-      },
+    await tx.tweetCategory.createMany({
+      data: categoryRecords.map((cat) => ({
+        tweetId: id,
+        categoryId: cat.id,
+      })),
+      skipDuplicates: true,
     });
   }
 
@@ -675,7 +794,7 @@ export class TweetService {
       parsedDTO.peopleFilter
     );
 
-    const selectFields = this.tweetSelectFields(dto.userId);
+    const selectFields = tweetSelectFields(dto.userId);
 
     const searchParams = {
       where: wherePrismaFilter,
@@ -748,64 +867,6 @@ export class TweetService {
       where.userId = { in: followingIds };
     }
     return where;
-  }
-
-  private userSelectFields(viewerId?: string) {
-    return {
-      id: true,
-      name: true,
-      username: true,
-      profileMedia: { select: { id: true } },
-      protectedAccount: true,
-      verified: true,
-      _count: viewerId
-        ? {
-            select: { followers: { where: { followerId: viewerId } } },
-          }
-        : undefined,
-    };
-  }
-
-  public tweetSelectFields(userId?: string) {
-    return {
-      id: true,
-      content: true,
-      createdAt: true,
-      likesCount: true,
-      repliesCount: true,
-      quotesCount: true,
-      retweetCount: true,
-      replyControl: true,
-      tweetType: true,
-      parentId: true,
-      userId: true,
-      user: {
-        select: this.userSelectFields(userId),
-      },
-      ...(userId
-        ? {
-            tweetLikes: {
-              where: { userId },
-              select: { userId: true },
-            },
-            retweets: {
-              where: { userId },
-              select: { userId: true },
-            },
-            tweetBookmark: {
-              where: { userId },
-              select: { userId: true },
-            },
-          }
-        : {}),
-      hashtags: { select: { hashId: true } },
-      tweetMedia: {
-        select: {
-          media: { select: { id: true, type: true, name: true, size: true } },
-        },
-      },
-      tweetCategories: { select: { categoryId: true } },
-    };
   }
 }
 

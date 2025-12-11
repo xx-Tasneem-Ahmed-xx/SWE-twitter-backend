@@ -61,16 +61,15 @@ export class ExploreController {
     try {
       const query = req.query;
       const userId = (req as any).user.id;
-      const decodedCursor = encoderService.decode<{
-        id: string;
-        score: number;
-      }>(query.cursor as string);
+      const decodedCursor = encoderService.decode<number>(
+        query.cursor as string
+      );
 
       const parsedDTO = ExploreServiceSchema.parse({
         userId,
         limit: query.limit,
         cursor: decodedCursor ?? undefined,
-        categoryId: query.categoryId ? String(query.categoryId) : undefined,
+        category: query.category ? String(query.category) : undefined,
       });
       const feed = await this.exploreService.getFeed(parsedDTO);
       res.status(200).json(feed);

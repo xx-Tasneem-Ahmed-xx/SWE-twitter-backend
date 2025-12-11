@@ -10,6 +10,7 @@ import {
   checkBlockStatus,
   getFollowersList,
   getFollowingsList,
+  fetchWhoToFollow,
 } from "@/application/services/userInteractions";
 import { getFollowListHandler } from "./helpers";
 
@@ -172,4 +173,22 @@ export const getFollowings = async (
     getFollowingsList,
     checkBlockStatus
   );
+};
+
+// Get suggested users to follow
+export const getSuggestedFollows = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const currentUserId = (req as any).user.id;
+    const limit = parseInt(req.query.limit as string) || 30;
+
+    const suggestedUsers = await fetchWhoToFollow(currentUserId, limit);
+
+    return res.status(200).json(suggestedUsers);
+  } catch (error) {
+    next(error);
+  }
 };

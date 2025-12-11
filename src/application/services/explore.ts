@@ -4,9 +4,19 @@ import {
   ExploreServiceDTO,
   PreferredCategorieDTO,
 } from "@/application/dtos/explore/explore.dto";
-import { updateCursor } from "@/application/utils/tweet.utils";
-import tweetService from "@/application/services/tweets";
+import {
+  checkUserInteractions,
+  tweetSelectFields,
+  updateCursor,
+} from "@/application/utils/tweet.utils";
 import { PreferredCategoriesSchema } from "../dtos/explore/explore.dto.schema";
+import {
+  GLOBAL_FEED_KEY,
+  CATEGORY_FEED_KEY,
+  BATCH_SIZE,
+} from "@/background/constants";
+import { redisClient } from "@/config/redis";
+import { encoderService } from "./encoder";
 
 export class ExploreService {
   private static instance: ExploreService;
@@ -40,51 +50,193 @@ export class ExploreService {
     userId: string,
     dto: PreferredCategorieDTO
   ) {
-    PreferredCategoriesSchema.parse(dto)
+    PreferredCategoriesSchema.parse(dto);
     return await prisma.user.update({
       where: { id: userId },
       data: {
         preferredCategories: {
           set: [],
-          connect: dto.categoryIds.map((id) => ({ id })),
+          connect: dto.categories.map((name) => ({ name })),
         },
       },
       select: { id: true },
     });
   }
 
-  async getFeed(dto: ExploreServiceDTO) {
-    const tweets = await prisma.tweet.findMany({
-      where: {
-        AND: [
-          { user: { blocked: { none: { blockerId: dto.userId } } } },
-          { user: { muted: { none: { muterId: dto.userId } } } },
-          { notInteresteds: { none: { userId: dto.userId } } },
-          { spamReports: { none: { reporterId: dto.userId } } },
-        ],
+  async calculateTweetScore(tweetId: string) {
+    const W_LIKES = 0.2;
+    const W_RETWEETS = 0.5;
+    const W_QUOTES = 0.5;
+    const W_REPLIES = 0.3;
+    const TAU_HOURS = 48;
+    const TOP_N = 10000;
 
-        ...(dto.categoryId && {
-          tweetCategories: { some: { categoryId: dto.categoryId } },
-        }),
+    const tweet = await prisma.tweet.findUnique({
+      where: { id: tweetId },
+      select: {
+        createdAt: true,
+        likesCount: true,
+        retweetCount: true,
+        quotesCount: true,
+        repliesCount: true,
+        tweetCategories: { select: { category: { select: { name: true } } } },
       },
-      orderBy: [{ score: "desc" }, { id: "desc" }],
-      take: dto.limit + 1,
-      select: { ...tweetService.tweetSelectFields(dto.userId), score: true },
-      ...(dto.cursor && {
-        cursor: { id: dto.cursor.id },
-        skip: 1,
-      }),
     });
+    if (!tweet) return;
 
-    const { cursor, paginatedRecords } = updateCursor(
-      tweets,
-      dto.limit,
-      (record) => ({ id: record.id, score: record.score })
+    const ageHours =
+      (Date.now() - new Date(tweet.createdAt).getTime()) / (1000 * 60 * 60);
+
+    const score =
+      (W_LIKES * tweet.likesCount +
+        W_RETWEETS * tweet.retweetCount +
+        W_QUOTES * tweet.quotesCount +
+        W_REPLIES * tweet.repliesCount) *
+      Math.exp(-(ageHours / TAU_HOURS));
+
+    await prisma.tweet.update({
+      where: { id: tweetId },
+      data: { score },
+    });
+    await redisClient.zAdd(GLOBAL_FEED_KEY, {
+      score,
+      value: tweetId,
+    });
+    await redisClient.zRemRangeByRank(GLOBAL_FEED_KEY, 0, -(TOP_N + 1));
+    for (const tc of tweet.tweetCategories) {
+      const key = CATEGORY_FEED_KEY(tc.category.name);
+      await redisClient.zAdd(key, { score, value: tweetId });
+      await redisClient.zRemRangeByRank(key, 0, -(TOP_N + 1));
+    }
+  }
+
+  async refreshCategoryFeed(categoryName: string, pipelineSize = 1000) {
+    const key = CATEGORY_FEED_KEY(categoryName);
+    await redisClient.del(key);
+
+    let offset = 0;
+    while (true) {
+      const tweets = await prisma.tweet.findMany({
+        where: {
+          tweetCategories: { some: { category: { name: categoryName } } },
+        },
+        select: { id: true, score: true },
+        orderBy: { score: "desc" },
+        skip: offset,
+        take: pipelineSize,
+      });
+
+      if (!tweets.length) break;
+
+      for (const t of tweets) {
+        await redisClient.zAdd(key, { score: t.score, value: t.id });
+      }
+      offset += tweets.length;
+    }
+  }
+
+  async getFeed(dto: ExploreServiceDTO) {
+    const { userId, category, limit = 20 } = dto;
+    let cursor = dto.cursor ?? 0;
+    const key = category ? CATEGORY_FEED_KEY(category) : GLOBAL_FEED_KEY;
+    const BATCH_SIZE = 200;
+
+    const resultIds = await this.collectAllowedTweetIds(
+      userId,
+      key,
+      cursor,
+      limit,
+      BATCH_SIZE
     );
 
+    if (!resultIds.length) {
+      return { data: [], cursor: cursor + resultIds.length };
+    }
+
+    const hydrated = await this.hydrateTweets(userId, resultIds);
+
     return {
-      data: tweetService.checkUserInteractions(paginatedRecords),
-      cursor,
+      data: hydrated,
+      cursor: encoderService.encode(cursor + resultIds.length),
     };
+  }
+
+  private async collectAllowedTweetIds(
+    userId: string,
+    key: string,
+    startIndex: number,
+    limit: number,
+    batchSize: number
+  ): Promise<string[]> {
+    const resultIds: string[] = [];
+    let readIndex = startIndex;
+
+    while (resultIds.length < limit) {
+      const end = readIndex + batchSize - 1;
+      const batchIds = await redisClient.zRange(key, readIndex, end, {
+        REV: true,
+      });
+      if (!batchIds?.length) break;
+
+      const allowed = await this.filterNegativeSignals(userId, batchIds);
+
+      for (const id of batchIds) {
+        if (allowed.has(id)) {
+          resultIds.push(id);
+          if (resultIds.length >= limit) break;
+        }
+      }
+
+      readIndex += batchIds.length;
+      if (batchIds.length < batchSize) break;
+    }
+
+    return resultIds;
+  }
+
+  private async hydrateTweets(userId: string, ids: string[]) {
+    const tweetsRaw = await prisma.tweet.findMany({
+      where: { id: { in: ids } },
+      select: { ...tweetSelectFields(userId), score: true },
+    });
+
+    const tweetMap = new Map<string, any>();
+    tweetsRaw.forEach((t) => tweetMap.set(t.id, t));
+
+    const ordered = ids.map((id) => tweetMap.get(id)).filter(Boolean);
+
+    return checkUserInteractions(ordered);
+  }
+
+  private async filterNegativeSignals(userId: string, tweetIds: string[]) {
+    const tweets = await prisma.tweet.findMany({
+      where: {
+        id: { in: tweetIds },
+        AND: [
+          { user: { blocked: { none: { blockerId: userId } } } },
+          { user: { muted: { none: { muterId: userId } } } },
+          { notInteresteds: { none: { userId: userId } } },
+          { spamReports: { none: { reporterId: userId } } },
+        ],
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const allowed = new Set<string>();
+    for (const t of tweets) {
+      allowed.add(t.id);
+    }
+    return allowed;
+  }
+
+  async seedExploreFeeds(tweetIds: string[]) {
+    for (let i = 0; i < tweetIds.length; i += BATCH_SIZE) {
+      const batch = tweetIds.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map((id) => this.calculateTweetScore(id)));
+    }
+
+    console.log(`Seeded ${tweetIds.length} tweets into explore feeds`);
   }
 }

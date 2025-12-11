@@ -1,36 +1,83 @@
-// src/application/dtos/timeline.dto.schema.ts
+// src/application/dtos/timeline/timeline.dto.schema.ts
 import z from "zod";
-import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-extendZodWithOpenApi(z);
 
-export const CursorDTOSchema = z.object({
-  cursor: z.string().uuid().optional(),
-  limit: z.number().int().min(1).max(50).optional().default(20),
-});
+/* ---------------------------
+ * DTO Interfaces (for the service/schema consistency)
+ * --------------------------- */
 
-export const TimelineItemSchema = z.object({
-  id: z.string(),
-  content: z.string(),
-  userId: z.string(),
-  username: z.string(),
-  name: z.string().nullable().optional(),
-  profileMediaKey: z.string().nullable().optional(),
-  createdAt: z.string(),
-  likesCount: z.number(),
-  retweetCount: z.number(),
-  repliesCount: z.number(),
-  score: z.number().optional(), // scoring value
-  reasons: z.array(z.string()).optional(), // debugging / explainability
-});
+export interface UserMediaDTO {
+  id: string;
+}
 
-export const ForYouResponseSchema = z.object({
-  user: z.string(),
-  recommendations: z.array(TimelineItemSchema),
-  nextCursor: z.string().nullable(),
-  generatedAt: z.string(),
-});
+export interface UserDTO {
+  id: string;
+  name: string | null;
+  username: string;
+  profileMedia: UserMediaDTO | null;
+  verified: boolean;
+  protectedAccount: boolean;
+  retweets?: {
+    data: { id: string; name: string | null; username: string }[];
+    nextCursor: string | null;
+  };
+}
 
-export const TimelineResponseSchema = z.object({
-  data: z.array(TimelineItemSchema),
-  nextCursor: z.string().nullable(),
-});
+export interface EmbeddedTweetDTO {
+  id: string;
+  content: string | null;
+  createdAt: string;
+  likesCount: number;
+  retweetCount: number;
+  repliesCount: number;
+  quotesCount: number;
+  replyControl: string;
+  tweetType: string;
+  userId: string;
+  user: UserDTO;
+  mediaIds: string[];
+}
+
+export interface TimelineItemDTO {
+  id: string;
+  content: string | null;
+  createdAt: string;
+  likesCount: number;
+  retweetCount: number;
+  repliesCount: number;
+  quotesCount: number;
+  replyControl: string;
+  parentId?: string | null;
+  tweetType: string;
+  user: UserDTO;
+  mediaIds: string[];
+  isLiked: boolean;
+  isRetweeted: boolean;
+  isBookmarked: boolean;
+  score: number;
+  reasons: string[];
+  parentTweet?: EmbeddedTweetDTO | null;
+
+  retweets?: {
+    data: {
+      id: string;
+      name: string | null;
+      username: string;
+      profileMedia: UserMediaDTO | null;
+      verified: boolean;
+      protectedAccount: boolean;
+    }[];
+    nextCursor: string | null;
+  };
+}
+
+/* ---------------------------
+ * Zod Schemas
+ * --------------------------- */
+
+// Schema for parsing query params in the controller
+export const CursorDTOSchema = z
+  .object({
+    cursor: z.string().optional(),
+    limit: z.number().int().min(1).max(100).optional(),
+  })
+  .strict();

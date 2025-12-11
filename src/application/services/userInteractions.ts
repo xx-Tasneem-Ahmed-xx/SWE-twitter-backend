@@ -563,6 +563,21 @@ export const fetchWhoToFollow = async (userId: string, limit: number = 30) => {
           status: { in: [FollowStatus.ACCEPTED, FollowStatus.PENDING] },
         },
       },
+      muted: {
+        none: {
+          muterId: userId,
+        },
+      },
+      blocked: {
+        none: {
+          blockerId: userId,
+        },
+      },
+      blockers: {
+        none: {
+          blockedId: userId,
+        },
+      },
     },
     select: {
       id: true,
