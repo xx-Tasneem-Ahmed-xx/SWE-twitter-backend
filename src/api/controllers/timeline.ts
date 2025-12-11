@@ -8,9 +8,9 @@ const svc = new TimelineService();
 export class TimelineController {
   async getTimeline(req: Request, res: Response, next: NextFunction) {
     try {
-      // const userId = (req as any).user?.id;
-      // if (!userId) responseUtils.throwError("UNAUTHORIZED_USER");
-      const userId = "00505325-856b-4569-9529-210a1b255989"; // "Jerry Donnelly"
+      const userId = (req as any).user?.id;
+      if (!userId) responseUtils.throwError("UNAUTHORIZED_USER");
+      // const userId = "00505325-856b-4569-9529-210a1b255989"; // "Jerry Donnelly"
       const parsed = CursorDTOSchema.parse({
         cursor: req.query.cursor,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
@@ -25,9 +25,9 @@ export class TimelineController {
 
   async getForYou(req: Request, res: Response, next: NextFunction) {
     try {
-      // const userId = (req as any).user?.id;
-      // if (!userId) responseUtils.throwError("UNAUTHORIZED_USER");
-      const userId = "00505325-856b-4569-9529-210a1b255989"; // "Charlotte Kuvalis II"
+      const userId = (req as any).user?.id;
+      if (!userId) responseUtils.throwError("UNAUTHORIZED_USER");
+      // const userId = "00505325-856b-4569-9529-210a1b255989"; // "Charlotte Kuvalis II"
 
       const parsed = CursorDTOSchema.parse({
         cursor: req.query.cursor,

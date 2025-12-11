@@ -80,9 +80,9 @@ initializeSearchEngine()
   });
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
-// app.use("/api/auth", authRoutes);
-// app.use("/oauth2", oauthRoutes);
-// app.use(Auth());
+app.use("/api/auth", authRoutes);
+app.use("/oauth2", oauthRoutes);
+app.use(Auth());
 
 app.get('/events', SSErequest);
  
