@@ -615,4 +615,151 @@ describe("ForYou - Category Matching Logic", () => {
   });
 });
 
+// ===================================== NEW TEST: MUTED/BLOCKED FILTERING ========================================= //
+
+describe("Filtering Logic", () => {
+  const MOCK_MUTED_ID = "user-muted-001";
+  const MOCK_BLOCKED_ID = "user-blocked-002";
+  const MOCK_UNINTERESTED_TWEET = "tweet-ni-003";
+
+  beforeEach(() => {
+    // Setup for this block of tests
+    mockFindFollow.mockResolvedValue([
+      { followingId: MOCK_MUTED_ID },
+      { followingId: MOCK_BLOCKED_ID },
+      { followingId: MOCK_FOLLOWING_ID },
+    ]);
+    mockPrisma.mute.findMany.mockResolvedValue([{ mutedId: MOCK_MUTED_ID }]);
+    mockPrisma.block.findMany.mockResolvedValue([{ blockedId: MOCK_BLOCKED_ID }]);
+    mockPrisma.notInterested.findMany.mockResolvedValue([{ tweetId: MOCK_UNINTERESTED_TWEET }]);
+    mockSpamReportGroupBy.mockResolvedValue([]);
+    // Reset cache for this block
+    Object.keys(RAW_CANDIDATE_CACHE).forEach(key => delete RAW_CANDIDATE_CACHE[key]);
+  });
+
+  it("should exclude tweets marked as not interested in getTimeline", async () => {
+    const candidates = [
+      mockRawCandidate("t-pass-2", MOCK_FOLLOWING_ID, "TWEET", null, 100),
+      mockRawCandidate(MOCK_UNINTERESTED_TWEET, MOCK_FOLLOWING_ID, "TWEET", null, 500),
+    ];
+
+    mockQueryRawFn.mockResolvedValue(candidates);
+
+    const result = await service.getTimeline({ userId: MOCK_USER_ID, limit: 10 });
+
+    // Should only contain 't-pass-2'
+    expect(result.items.length).toBe(1);
+    expect(result.items[0].id).toBe("t-pass-2");
+  });
+});
+
+
+// ===================================== NEW TEST: TRENDING CANDIDATE SOURCE ========================================= //
+
+describe("getForYou - Candidate Sources", () => {
+  it("should correctly process and rank a tweet sourced via the 'trending' CTE", async () => {
+    // 1. Create a candidate explicitly flagged as trending
+    const trendingCandidate = mockRawCandidate("t-trending", "author-trend", "TWEET", null, 1000);
+    trendingCandidate.reason = "trending";
+    // Ensure it has high recent engagement to justify the trending flag
+    trendingCandidate.likes_recent = 500;
+    trendingCandidate.rts_recent = 200;
+
+    // 2. Add a low-priority global tweet to ensure sorting works
+    const globalCandidate = mockRawCandidate("t-global", "author-global", "TWEET", null, 0);
+    globalCandidate.reason = "global";
+
+    mockQueryRawFn.mockResolvedValue([trendingCandidate, globalCandidate]);
+
+    const result = await service.getForYou({ userId: MOCK_USER_ID, limit: 2 });
+
+    // Assertions
+    // The trending tweet should be first due to high score (high engagement + trending reason)
+    expect(result.items[0].id).toBe("t-trending");
+    expect(result.items[0].score).toBeGreaterThan(result.items[1].score);
+    
+    // Verify the reason is correctly mapped from the raw data
+    expect(result.items[0].reasons).toContain("trending");
+  });
+});
+
+// ===================================== NEW TESTS: Specific Boost/Penalty Verification ========================================= //
+
+describe("getForYou - Score Modifiers Verification", () => {
+  const NON_MATCHING_CATEGORY = "cat-music-3";
+  const MATCHING_CATEGORY = MOCK_CATEGORY_ID;
+
+  // Helper to isolate the scoring components for a clean baseline
+  const getBaselineScore = (candidate: any): number => {
+    // Replicates scoreForYouCandidate logic *without* boosts/penalties/noise
+    let score = baseEngagementScore_FY({
+      likes: candidate.likes,
+      rts: candidate.rts,
+      replies: candidate.replies,
+    });
+
+    const recentEng = candidate.likes_recent + 2 * candidate.rts_recent;
+    const velocityBoost = 1 + Math.log1p(recentEng) * 0.08;
+    score *= velocityBoost;
+
+    const recencyMultiplier = recencyScore(
+      new Date(candidate.createdAt),
+      CONFIG.recencyHalfLifeHours_FY
+    );
+    score *= recencyMultiplier;
+
+    // Reputation (1.0 default)
+    score *= 1.0;
+
+    return score;
+  };
+
+  
+});
+
+describe("getTimeline - Negative Filtering (Mute/Block) Verification", () => {
+  const MOCK_MUTED_ID = "user-muted-001";
+  const MOCK_BLOCKED_ID = "user-blocked-002";
+  const MOCK_FOLLOWING_ID_2 = "user-following-002"; // ID of a user who is not muted/blocked
+
+  beforeEach(() => {
+    // Setup Mute/Block lists for the current user
+    mockPrisma.mute.findMany.mockResolvedValue([{ mutedId: MOCK_MUTED_ID }]);
+    mockPrisma.block.findMany.mockResolvedValue([{ blockedId: MOCK_BLOCKED_ID }]);
+    mockPrisma.notInterested.findMany.mockResolvedValue([]);
+    
+    // Follow list must include the muted/blocked users for the test to work
+    mockFindFollow.mockResolvedValue([
+      { followingId: MOCK_MUTED_ID },
+      { followingId: MOCK_BLOCKED_ID },
+      { followingId: MOCK_FOLLOWING_ID_2 },
+    ]);
+  });
+
+  it("should exclude a retweet by a blocked user in getTimeline", async () => {
+    const originalTweet = mockRawCandidate("t-original", "author-original");
+    
+    // The raw candidate list includes the original tweet, with a reason of 'retweet_by_following'
+    const retweetCandidate = { 
+        ...originalTweet, 
+        reason: 'retweet_by_following',
+        retweeterId: MOCK_BLOCKED_ID // Blocked user retweeted this
+    };
+    
+    // Simulating SQL output: Original tweet that was retweeted by a blocked user.
+    mockQueryRawFn.mockResolvedValue([
+        mockRawCandidate("t-pass", MOCK_FOLLOWING_ID_2), // A good tweet
+        retweetCandidate, // A tweet retweeted by a blocked user
+    ]);
+
+    // ACT
+    const result = await service.getTimeline({ userId: MOCK_USER_ID, limit: 10 });
+
+    // ASSERT: The retweet by the blocked user should be filtered out in `filterCandidates`
+    expect(result.items.length).toBe(1);
+    expect(result.items[0].id).toBe("t-pass");
+    expect(result.items.map(i => i.id)).not.toContain("t-original");
+  });
+});
+
 

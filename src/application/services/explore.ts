@@ -120,7 +120,7 @@ export class ExploreService {
         where: {
           tweetCategories: { some: { category: { name: categoryName } } },
         },
-        select: { id: true, score: true },
+        select: { id: true, score : true },
         orderBy: { score: "desc" },
         skip: offset,
         take: pipelineSize,
