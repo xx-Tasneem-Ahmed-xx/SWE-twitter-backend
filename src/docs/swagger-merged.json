@@ -740,6 +740,9 @@
                           },
                           "isFollowed": {
                             "type": "boolean"
+                          },
+                          "isFollowed": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -888,114 +891,190 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "content": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date"
-                      },
-                      "likesCount": {
-                        "type": "integer"
-                      },
-                      "retweetCount": {
-                        "type": "integer"
-                      },
-                      "repliesCount": {
-                        "type": "integer"
-                      },
-                      "quotesCount": {
-                        "type": "integer"
-                      },
-                      "replyControl": {
-                        "type": "string",
-                        "enum": [
-                          "EVERYONE",
-                          "FOLLOWINGS",
-                          "VERIFIED",
-                          "MENTIONED"
-                        ]
-                      },
-                      "parentId": {
-                        "type": "string",
-                        "nullable": true,
-                        "format": "uuid"
-                      },
-                      "tweetType": {
-                        "type": "string",
-                        "enum": [
-                          "TWEET",
-                          "REPLY",
-                          "QUOTE"
-                        ]
-                      },
-                      "user": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
                         "type": "object",
                         "properties": {
                           "id": {
                             "type": "string",
                             "format": "uuid"
                           },
-                          "name": {
+                          "content": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 445
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "likesCount": {
+                            "type": "integer"
+                          },
+                          "retweetCount": {
+                            "type": "integer"
+                          },
+                          "repliesCount": {
+                            "type": "integer"
+                          },
+                          "quotesCount": {
+                            "type": "integer"
+                          },
+                          "replyControl": {
+                            "type": "string",
+                            "enum": [
+                              "EVERYONE",
+                              "FOLLOWINGS",
+                              "VERIFIED",
+                              "MENTIONED"
+                            ]
+                          },
+                          "parentId": {
                             "type": "string",
                             "nullable": true,
-                            "minLength": 1
+                            "format": "uuid"
                           },
-                          "username": {
+                          "tweetType": {
                             "type": "string",
-                            "minLength": 1
+                            "enum": [
+                              "TWEET",
+                              "REPLY",
+                              "QUOTE"
+                            ]
                           },
-                          "profileMedia": {
+                          "user": {
                             "type": "object",
                             "properties": {
                               "id": {
                                 "type": "string",
                                 "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true,
+                                "minLength": 1
+                              },
+                              "username": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 445
+                              },
+                              "profileMedia": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  }
+                                },
+                                "required": [
+                                  "id"
+                                ]
+                              },
+                              "verified": {
+                                "type": "boolean"
+                              },
+                              "protectedAccount": {
+                                "type": "boolean"
+                              },
+                              "isFollowed": {
+                                "type": "boolean"
                               }
                             },
                             "required": [
-                              "id"
+                              "id",
+                              "name",
+                              "username",
+                              "profileMedia",
+                              "verified",
+                              "protectedAccount",
+                              "isFollowed"
                             ]
                           },
-                          "verified": {
+                          "tweetMedia": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "maxItems": 4
+                          },
+                          "hashtags": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "tag_text": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "tag_text"
+                              ]
+                            }
+                          },
+                          "tweetCategories": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ]
+                            }
+                          },
+                          "isLiked": {
                             "type": "boolean"
                           },
-                          "protectedAccount": {
+                          "isRetweeted": {
+                            "type": "boolean"
+                          },
+                          "isBookmarked": {
                             "type": "boolean"
                           }
                         },
                         "required": [
                           "id",
-                          "name",
-                          "username",
-                          "profileMedia",
-                          "verified",
-                          "protectedAccount"
+                          "content",
+                          "createdAt",
+                          "likesCount",
+                          "retweetCount",
+                          "repliesCount",
+                          "quotesCount",
+                          "replyControl",
+                          "tweetType",
+                          "user",
+                          "isLiked",
+                          "isRetweeted",
+                          "isBookmarked"
                         ]
                       }
                     },
-                    "required": [
-                      "id",
-                      "content",
-                      "createdAt",
-                      "likesCount",
-                      "retweetCount",
-                      "repliesCount",
-                      "quotesCount",
-                      "replyControl",
-                      "tweetType",
-                      "user"
-                    ]
-                  }
+                    "cursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "cursor"
+                  ]
                 }
               }
             }
@@ -1119,114 +1198,190 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "content": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date"
-                      },
-                      "likesCount": {
-                        "type": "integer"
-                      },
-                      "retweetCount": {
-                        "type": "integer"
-                      },
-                      "repliesCount": {
-                        "type": "integer"
-                      },
-                      "quotesCount": {
-                        "type": "integer"
-                      },
-                      "replyControl": {
-                        "type": "string",
-                        "enum": [
-                          "EVERYONE",
-                          "FOLLOWINGS",
-                          "VERIFIED",
-                          "MENTIONED"
-                        ]
-                      },
-                      "parentId": {
-                        "type": "string",
-                        "nullable": true,
-                        "format": "uuid"
-                      },
-                      "tweetType": {
-                        "type": "string",
-                        "enum": [
-                          "TWEET",
-                          "REPLY",
-                          "QUOTE"
-                        ]
-                      },
-                      "user": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
                         "type": "object",
                         "properties": {
                           "id": {
                             "type": "string",
                             "format": "uuid"
                           },
-                          "name": {
+                          "content": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 445
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "likesCount": {
+                            "type": "integer"
+                          },
+                          "retweetCount": {
+                            "type": "integer"
+                          },
+                          "repliesCount": {
+                            "type": "integer"
+                          },
+                          "quotesCount": {
+                            "type": "integer"
+                          },
+                          "replyControl": {
+                            "type": "string",
+                            "enum": [
+                              "EVERYONE",
+                              "FOLLOWINGS",
+                              "VERIFIED",
+                              "MENTIONED"
+                            ]
+                          },
+                          "parentId": {
                             "type": "string",
                             "nullable": true,
-                            "minLength": 1
+                            "format": "uuid"
                           },
-                          "username": {
+                          "tweetType": {
                             "type": "string",
-                            "minLength": 1
+                            "enum": [
+                              "TWEET",
+                              "REPLY",
+                              "QUOTE"
+                            ]
                           },
-                          "profileMedia": {
+                          "user": {
                             "type": "object",
                             "properties": {
                               "id": {
                                 "type": "string",
                                 "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true,
+                                "minLength": 1
+                              },
+                              "username": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 445
+                              },
+                              "profileMedia": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  }
+                                },
+                                "required": [
+                                  "id"
+                                ]
+                              },
+                              "verified": {
+                                "type": "boolean"
+                              },
+                              "protectedAccount": {
+                                "type": "boolean"
+                              },
+                              "isFollowed": {
+                                "type": "boolean"
                               }
                             },
                             "required": [
-                              "id"
+                              "id",
+                              "name",
+                              "username",
+                              "profileMedia",
+                              "verified",
+                              "protectedAccount",
+                              "isFollowed"
                             ]
                           },
-                          "verified": {
+                          "tweetMedia": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "maxItems": 4
+                          },
+                          "hashtags": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "tag_text": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "tag_text"
+                              ]
+                            }
+                          },
+                          "tweetCategories": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ]
+                            }
+                          },
+                          "isLiked": {
                             "type": "boolean"
                           },
-                          "protectedAccount": {
+                          "isRetweeted": {
+                            "type": "boolean"
+                          },
+                          "isBookmarked": {
                             "type": "boolean"
                           }
                         },
                         "required": [
                           "id",
-                          "name",
-                          "username",
-                          "profileMedia",
-                          "verified",
-                          "protectedAccount"
+                          "content",
+                          "createdAt",
+                          "likesCount",
+                          "retweetCount",
+                          "repliesCount",
+                          "quotesCount",
+                          "replyControl",
+                          "tweetType",
+                          "user",
+                          "isLiked",
+                          "isRetweeted",
+                          "isBookmarked"
                         ]
                       }
                     },
-                    "required": [
-                      "id",
-                      "content",
-                      "createdAt",
-                      "likesCount",
-                      "retweetCount",
-                      "repliesCount",
-                      "quotesCount",
-                      "replyControl",
-                      "tweetType",
-                      "user"
-                    ]
-                  }
+                    "cursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "cursor"
+                  ]
                 }
               }
             }
@@ -1353,8 +1508,63 @@
                         "username",
                         "profileMedia",
                         "verified",
-                        "protectedAccount"
+                        "protectedAccount",
+                        "isFollowed"
                       ]
+                    },
+                    "tweetMedia": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "maxItems": 4
+                    },
+                    "hashtags": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "tag_text": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "tag_text"
+                        ]
+                      }
+                    },
+                    "tweetCategories": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ]
+                      }
+                    },
+                    "isLiked": {
+                      "type": "boolean"
+                    },
+                    "isRetweeted": {
+                      "type": "boolean"
+                    },
+                    "isBookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -1424,12 +1634,27 @@
                 "properties": {
                   "content": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 445
+                  },
+                  "replyControl": {
+                    "type": "string",
+                    "enum": [
+                      "EVERYONE",
+                      "FOLLOWINGS",
+                      "VERIFIED",
+                      "MENTIONED"
+                    ]
+                  },
+                  "tweetMedia": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 4
                   }
-                },
-                "required": [
-                  "content"
-                ]
+                }
               }
             }
           }
@@ -1550,114 +1775,190 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "content": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date"
-                      },
-                      "likesCount": {
-                        "type": "integer"
-                      },
-                      "retweetCount": {
-                        "type": "integer"
-                      },
-                      "repliesCount": {
-                        "type": "integer"
-                      },
-                      "quotesCount": {
-                        "type": "integer"
-                      },
-                      "replyControl": {
-                        "type": "string",
-                        "enum": [
-                          "EVERYONE",
-                          "FOLLOWINGS",
-                          "VERIFIED",
-                          "MENTIONED"
-                        ]
-                      },
-                      "parentId": {
-                        "type": "string",
-                        "nullable": true,
-                        "format": "uuid"
-                      },
-                      "tweetType": {
-                        "type": "string",
-                        "enum": [
-                          "TWEET",
-                          "REPLY",
-                          "QUOTE"
-                        ]
-                      },
-                      "user": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
                         "type": "object",
                         "properties": {
                           "id": {
                             "type": "string",
                             "format": "uuid"
                           },
-                          "name": {
+                          "content": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 445
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "likesCount": {
+                            "type": "integer"
+                          },
+                          "retweetCount": {
+                            "type": "integer"
+                          },
+                          "repliesCount": {
+                            "type": "integer"
+                          },
+                          "quotesCount": {
+                            "type": "integer"
+                          },
+                          "replyControl": {
+                            "type": "string",
+                            "enum": [
+                              "EVERYONE",
+                              "FOLLOWINGS",
+                              "VERIFIED",
+                              "MENTIONED"
+                            ]
+                          },
+                          "parentId": {
                             "type": "string",
                             "nullable": true,
-                            "minLength": 1
+                            "format": "uuid"
                           },
-                          "username": {
+                          "tweetType": {
                             "type": "string",
-                            "minLength": 1
+                            "enum": [
+                              "TWEET",
+                              "REPLY",
+                              "QUOTE"
+                            ]
                           },
-                          "profileMedia": {
+                          "user": {
                             "type": "object",
                             "properties": {
                               "id": {
                                 "type": "string",
                                 "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true,
+                                "minLength": 1
+                              },
+                              "username": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 445
+                              },
+                              "profileMedia": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  }
+                                },
+                                "required": [
+                                  "id"
+                                ]
+                              },
+                              "verified": {
+                                "type": "boolean"
+                              },
+                              "protectedAccount": {
+                                "type": "boolean"
+                              },
+                              "isFollowed": {
+                                "type": "boolean"
                               }
                             },
                             "required": [
-                              "id"
+                              "id",
+                              "name",
+                              "username",
+                              "profileMedia",
+                              "verified",
+                              "protectedAccount",
+                              "isFollowed"
                             ]
                           },
-                          "verified": {
+                          "tweetMedia": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "maxItems": 4
+                          },
+                          "hashtags": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "tag_text": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "tag_text"
+                              ]
+                            }
+                          },
+                          "tweetCategories": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ]
+                            }
+                          },
+                          "isLiked": {
                             "type": "boolean"
                           },
-                          "protectedAccount": {
+                          "isRetweeted": {
+                            "type": "boolean"
+                          },
+                          "isBookmarked": {
                             "type": "boolean"
                           }
                         },
                         "required": [
                           "id",
-                          "name",
-                          "username",
-                          "profileMedia",
-                          "verified",
-                          "protectedAccount"
+                          "content",
+                          "createdAt",
+                          "likesCount",
+                          "retweetCount",
+                          "repliesCount",
+                          "quotesCount",
+                          "replyControl",
+                          "tweetType",
+                          "user",
+                          "isLiked",
+                          "isRetweeted",
+                          "isBookmarked"
                         ]
                       }
                     },
-                    "required": [
-                      "id",
-                      "content",
-                      "createdAt",
-                      "likesCount",
-                      "retweetCount",
-                      "repliesCount",
-                      "quotesCount",
-                      "replyControl",
-                      "tweetType",
-                      "user"
-                    ]
-                  }
+                    "cursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "cursor"
+                  ]
                 }
               }
             }
@@ -1918,114 +2219,190 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "content": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date"
-                      },
-                      "likesCount": {
-                        "type": "integer"
-                      },
-                      "retweetCount": {
-                        "type": "integer"
-                      },
-                      "repliesCount": {
-                        "type": "integer"
-                      },
-                      "quotesCount": {
-                        "type": "integer"
-                      },
-                      "replyControl": {
-                        "type": "string",
-                        "enum": [
-                          "EVERYONE",
-                          "FOLLOWINGS",
-                          "VERIFIED",
-                          "MENTIONED"
-                        ]
-                      },
-                      "parentId": {
-                        "type": "string",
-                        "nullable": true,
-                        "format": "uuid"
-                      },
-                      "tweetType": {
-                        "type": "string",
-                        "enum": [
-                          "TWEET",
-                          "REPLY",
-                          "QUOTE"
-                        ]
-                      },
-                      "user": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
                         "type": "object",
                         "properties": {
                           "id": {
                             "type": "string",
                             "format": "uuid"
                           },
-                          "name": {
+                          "content": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 445
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "likesCount": {
+                            "type": "integer"
+                          },
+                          "retweetCount": {
+                            "type": "integer"
+                          },
+                          "repliesCount": {
+                            "type": "integer"
+                          },
+                          "quotesCount": {
+                            "type": "integer"
+                          },
+                          "replyControl": {
+                            "type": "string",
+                            "enum": [
+                              "EVERYONE",
+                              "FOLLOWINGS",
+                              "VERIFIED",
+                              "MENTIONED"
+                            ]
+                          },
+                          "parentId": {
                             "type": "string",
                             "nullable": true,
-                            "minLength": 1
+                            "format": "uuid"
                           },
-                          "username": {
+                          "tweetType": {
                             "type": "string",
-                            "minLength": 1
+                            "enum": [
+                              "TWEET",
+                              "REPLY",
+                              "QUOTE"
+                            ]
                           },
-                          "profileMedia": {
+                          "user": {
                             "type": "object",
                             "properties": {
                               "id": {
                                 "type": "string",
                                 "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true,
+                                "minLength": 1
+                              },
+                              "username": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 445
+                              },
+                              "profileMedia": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  }
+                                },
+                                "required": [
+                                  "id"
+                                ]
+                              },
+                              "verified": {
+                                "type": "boolean"
+                              },
+                              "protectedAccount": {
+                                "type": "boolean"
+                              },
+                              "isFollowed": {
+                                "type": "boolean"
                               }
                             },
                             "required": [
-                              "id"
+                              "id",
+                              "name",
+                              "username",
+                              "profileMedia",
+                              "verified",
+                              "protectedAccount",
+                              "isFollowed"
                             ]
                           },
-                          "verified": {
+                          "tweetMedia": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "maxItems": 4
+                          },
+                          "hashtags": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "tag_text": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "tag_text"
+                              ]
+                            }
+                          },
+                          "tweetCategories": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ]
+                            }
+                          },
+                          "isLiked": {
                             "type": "boolean"
                           },
-                          "protectedAccount": {
+                          "isRetweeted": {
+                            "type": "boolean"
+                          },
+                          "isBookmarked": {
                             "type": "boolean"
                           }
                         },
                         "required": [
                           "id",
-                          "name",
-                          "username",
-                          "profileMedia",
-                          "verified",
-                          "protectedAccount"
+                          "content",
+                          "createdAt",
+                          "likesCount",
+                          "retweetCount",
+                          "repliesCount",
+                          "quotesCount",
+                          "replyControl",
+                          "tweetType",
+                          "user",
+                          "isLiked",
+                          "isRetweeted",
+                          "isBookmarked"
                         ]
                       }
                     },
-                    "required": [
-                      "id",
-                      "content",
-                      "createdAt",
-                      "likesCount",
-                      "retweetCount",
-                      "repliesCount",
-                      "quotesCount",
-                      "replyControl",
-                      "tweetType",
-                      "user"
-                    ]
-                  }
+                    "cursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "cursor"
+                  ]
                 }
               }
             }
@@ -2305,108 +2682,187 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "content": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date"
-                    },
-                    "likesCount": {
-                      "type": "integer"
-                    },
-                    "retweetCount": {
-                      "type": "integer"
-                    },
-                    "repliesCount": {
-                      "type": "integer"
-                    },
-                    "quotesCount": {
-                      "type": "integer"
-                    },
-                    "replyControl": {
-                      "type": "string",
-                      "enum": [
-                        "EVERYONE",
-                        "FOLLOWINGS",
-                        "VERIFIED",
-                        "MENTIONED"
-                      ]
-                    },
-                    "parentId": {
-                      "type": "string",
-                      "nullable": true,
-                      "format": "uuid"
-                    },
-                    "tweetType": {
-                      "type": "string",
-                      "enum": [
-                        "TWEET",
-                        "REPLY",
-                        "QUOTE"
-                      ]
-                    },
-                    "user": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "name": {
-                          "type": "string",
-                          "nullable": true,
-                          "minLength": 1
-                        },
-                        "username": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "profileMedia": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "content": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 445
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "likesCount": {
+                            "type": "integer"
+                          },
+                          "retweetCount": {
+                            "type": "integer"
+                          },
+                          "repliesCount": {
+                            "type": "integer"
+                          },
+                          "quotesCount": {
+                            "type": "integer"
+                          },
+                          "replyControl": {
+                            "type": "string",
+                            "enum": [
+                              "EVERYONE",
+                              "FOLLOWINGS",
+                              "VERIFIED",
+                              "MENTIONED"
+                            ]
+                          },
+                          "parentId": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uuid"
+                          },
+                          "tweetType": {
+                            "type": "string",
+                            "enum": [
+                              "TWEET",
+                              "REPLY",
+                              "QUOTE"
+                            ]
+                          },
+                          "user": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true,
+                                "minLength": 1
+                              },
+                              "username": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 445
+                              },
+                              "profileMedia": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  }
+                                },
+                                "required": [
+                                  "id"
+                                ]
+                              },
+                              "verified": {
+                                "type": "boolean"
+                              },
+                              "protectedAccount": {
+                                "type": "boolean"
+                              },
+                              "isFollowed": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "username",
+                              "profileMedia",
+                              "verified",
+                              "protectedAccount",
+                              "isFollowed"
+                            ]
+                          },
+                          "tweetMedia": {
+                            "type": "array",
+                            "items": {
                               "type": "string",
                               "format": "uuid"
+                            },
+                            "maxItems": 4
+                          },
+                          "hashtags": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "tag_text": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "tag_text"
+                              ]
                             }
                           },
-                          "required": [
-                            "id"
-                          ]
+                          "tweetCategories": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ]
+                            }
+                          },
+                          "isLiked": {
+                            "type": "boolean"
+                          },
+                          "isRetweeted": {
+                            "type": "boolean"
+                          },
+                          "isBookmarked": {
+                            "type": "boolean"
+                          }
                         },
-                        "verified": {
-                          "type": "boolean"
-                        },
-                        "protectedAccount": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "name",
-                        "username",
-                        "profileMedia",
-                        "verified",
-                        "protectedAccount"
-                      ]
+                        "required": [
+                          "id",
+                          "content",
+                          "createdAt",
+                          "likesCount",
+                          "retweetCount",
+                          "repliesCount",
+                          "quotesCount",
+                          "replyControl",
+                          "tweetType",
+                          "user",
+                          "isLiked",
+                          "isRetweeted",
+                          "isBookmarked"
+                        ]
+                      }
+                    },
+                    "cursor": {
+                      "type": "string",
+                      "nullable": true
                     }
                   },
                   "required": [
-                    "id",
-                    "content",
-                    "createdAt",
-                    "likesCount",
-                    "retweetCount",
-                    "repliesCount",
-                    "quotesCount",
-                    "replyControl",
-                    "tweetType",
-                    "user"
+                    "data",
+                    "cursor"
                   ]
                 }
               }
@@ -2418,7 +2874,7 @@
     "/api/tweets/users/{username}": {
       "get": {
         "summary": "Get user's tweets",
-        "description": "Returns all tweets authored by the specified user.",
+        "description": "Returns all tweets or replies authored by the specified user.",
         "tags": [
           "Tweets"
         ],
@@ -2477,114 +2933,190 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "content": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date"
-                      },
-                      "likesCount": {
-                        "type": "integer"
-                      },
-                      "retweetCount": {
-                        "type": "integer"
-                      },
-                      "repliesCount": {
-                        "type": "integer"
-                      },
-                      "quotesCount": {
-                        "type": "integer"
-                      },
-                      "replyControl": {
-                        "type": "string",
-                        "enum": [
-                          "EVERYONE",
-                          "FOLLOWINGS",
-                          "VERIFIED",
-                          "MENTIONED"
-                        ]
-                      },
-                      "parentId": {
-                        "type": "string",
-                        "nullable": true,
-                        "format": "uuid"
-                      },
-                      "tweetType": {
-                        "type": "string",
-                        "enum": [
-                          "TWEET",
-                          "REPLY",
-                          "QUOTE"
-                        ]
-                      },
-                      "user": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
                         "type": "object",
                         "properties": {
                           "id": {
                             "type": "string",
                             "format": "uuid"
                           },
-                          "name": {
+                          "content": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 445
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "likesCount": {
+                            "type": "integer"
+                          },
+                          "retweetCount": {
+                            "type": "integer"
+                          },
+                          "repliesCount": {
+                            "type": "integer"
+                          },
+                          "quotesCount": {
+                            "type": "integer"
+                          },
+                          "replyControl": {
+                            "type": "string",
+                            "enum": [
+                              "EVERYONE",
+                              "FOLLOWINGS",
+                              "VERIFIED",
+                              "MENTIONED"
+                            ]
+                          },
+                          "parentId": {
                             "type": "string",
                             "nullable": true,
-                            "minLength": 1
+                            "format": "uuid"
                           },
-                          "username": {
+                          "tweetType": {
                             "type": "string",
-                            "minLength": 1
+                            "enum": [
+                              "TWEET",
+                              "REPLY",
+                              "QUOTE"
+                            ]
                           },
-                          "profileMedia": {
+                          "user": {
                             "type": "object",
                             "properties": {
                               "id": {
                                 "type": "string",
                                 "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true,
+                                "minLength": 1
+                              },
+                              "username": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 445
+                              },
+                              "profileMedia": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  }
+                                },
+                                "required": [
+                                  "id"
+                                ]
+                              },
+                              "verified": {
+                                "type": "boolean"
+                              },
+                              "protectedAccount": {
+                                "type": "boolean"
+                              },
+                              "isFollowed": {
+                                "type": "boolean"
                               }
                             },
                             "required": [
-                              "id"
+                              "id",
+                              "name",
+                              "username",
+                              "profileMedia",
+                              "verified",
+                              "protectedAccount",
+                              "isFollowed"
                             ]
                           },
-                          "verified": {
+                          "tweetMedia": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "maxItems": 4
+                          },
+                          "hashtags": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "tag_text": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "tag_text"
+                              ]
+                            }
+                          },
+                          "tweetCategories": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ]
+                            }
+                          },
+                          "isLiked": {
                             "type": "boolean"
                           },
-                          "protectedAccount": {
+                          "isRetweeted": {
+                            "type": "boolean"
+                          },
+                          "isBookmarked": {
                             "type": "boolean"
                           }
                         },
                         "required": [
                           "id",
-                          "name",
-                          "username",
-                          "profileMedia",
-                          "verified",
-                          "protectedAccount"
+                          "content",
+                          "createdAt",
+                          "likesCount",
+                          "retweetCount",
+                          "repliesCount",
+                          "quotesCount",
+                          "replyControl",
+                          "tweetType",
+                          "user",
+                          "isLiked",
+                          "isRetweeted",
+                          "isBookmarked"
                         ]
                       }
                     },
-                    "required": [
-                      "id",
-                      "content",
-                      "createdAt",
-                      "likesCount",
-                      "retweetCount",
-                      "repliesCount",
-                      "quotesCount",
-                      "replyControl",
-                      "tweetType",
-                      "user"
-                    ]
-                  }
+                    "cursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "cursor"
+                  ]
                 }
               }
             }
@@ -2612,21 +3144,15 @@
     },
     "/api/tweets/users/{username}/medias": {
       "get": {
-        "summary": "Get tweets or trends by category",
-        "description": "Fetch public tweets or trending content filtered by category (sports, news, or entertainment).",
+        "summary": "Get all media included in a user's tweets",
+        "description": "Returns all media attached to tweets of the specified user. Supports cursor-based pagination.",
         "tags": [
-          "Timeline and Explore"
+          "Tweets"
         ],
         "parameters": [
           {
             "schema": {
-              "type": "string",
-              "enum": [
-                "sports",
-                "news",
-                "entertainment"
-              ],
-              "description": "Tweet or Trend category"
+              "type": "string"
             },
             "required": true,
             "name": "username",
@@ -2662,182 +3188,444 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "category": {
-                      "type": "string"
-                    },
-                    "tweets": {
+                    "data": {
                       "type": "array",
                       "items": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string",
-                              "format": "uuid"
-                            },
-                            "content": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "createdAt": {
-                              "type": "string",
-                              "format": "date"
-                            },
-                            "likesCount": {
-                              "type": "integer"
-                            },
-                            "retweetCount": {
-                              "type": "integer"
-                            },
-                            "repliesCount": {
-                              "type": "integer"
-                            },
-                            "quotesCount": {
-                              "type": "integer"
-                            },
-                            "replyControl": {
-                              "type": "string",
-                              "enum": [
-                                "EVERYONE",
-                                "FOLLOWINGS",
-                                "VERIFIED",
-                                "MENTIONED"
-                              ]
-                            },
-                            "parentId": {
-                              "type": "string",
-                              "nullable": true,
-                              "format": "uuid"
-                            },
-                            "tweetType": {
-                              "type": "string",
-                              "enum": [
-                                "TWEET",
-                                "REPLY",
-                                "QUOTE"
-                              ]
-                            },
-                            "user": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "tweetMedia": {
+                            "type": "array",
+                            "items": {
                               "type": "object",
                               "properties": {
-                                "id": {
-                                  "type": "string",
-                                  "format": "uuid"
-                                },
-                                "name": {
-                                  "type": "string",
-                                  "nullable": true,
-                                  "minLength": 1
-                                },
-                                "username": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "profileMedia": {
+                                "media": {
                                   "type": "object",
                                   "properties": {
                                     "id": {
                                       "type": "string",
                                       "format": "uuid"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "IMAGE",
+                                        "VIDEO",
+                                        "GIF"
+                                      ]
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "size": {
+                                      "type": "number"
                                     }
                                   },
                                   "required": [
-                                    "id"
+                                    "id",
+                                    "type",
+                                    "name",
+                                    "size"
                                   ]
-                                },
-                                "verified": {
-                                  "type": "boolean"
-                                },
-                                "protectedAccount": {
-                                  "type": "boolean"
                                 }
                               },
                               "required": [
-                                "id",
-                                "name",
-                                "username",
-                                "profileMedia",
-                                "verified",
-                                "protectedAccount"
-                              ]
-                            },
-                            "retweets": {
-                              "type": "object",
-                              "properties": {
-                                "users": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string",
-                                        "format": "uuid"
-                                      },
-                                      "name": {
-                                        "type": "string",
-                                        "nullable": true,
-                                        "minLength": 1
-                                      },
-                                      "username": {
-                                        "type": "string",
-                                        "minLength": 1
-                                      },
-                                      "profileMedia": {
-                                        "type": "object",
-                                        "properties": {
-                                          "id": {
-                                            "type": "string",
-                                            "format": "uuid"
-                                          }
-                                        },
-                                        "required": [
-                                          "id"
-                                        ]
-                                      },
-                                      "verified": {
-                                        "type": "boolean"
-                                      },
-                                      "protectedAccount": {
-                                        "type": "boolean"
-                                      }
-                                    },
-                                    "required": [
-                                      "id",
-                                      "name",
-                                      "username",
-                                      "profileMedia",
-                                      "verified",
-                                      "protectedAccount"
-                                    ]
-                                  }
-                                }
-                              },
-                              "required": [
-                                "users"
+                                "media"
                               ]
                             }
-                          },
-                          "required": [
-                            "id",
-                            "content",
-                            "createdAt",
-                            "likesCount",
-                            "retweetCount",
-                            "repliesCount",
-                            "quotesCount",
-                            "replyControl",
-                            "tweetType",
-                            "user",
-                            "retweets"
-                          ]
-                        }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "createdAt",
+                          "tweetMedia"
+                        ]
                       }
+                    },
+                    "cursor": {
+                      "type": "string",
+                      "nullable": true
                     }
                   },
                   "required": [
-                    "category",
-                    "tweets"
+                    "data",
+                    "cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
+      }
+    },
+    "/api/explore/categories": {
+      "get": {
+        "summary": "Get categories",
+        "description": "Retrieve a paginated list of categories available in Explore. Supports cursor-based pagination.",
+        "tags": [
+          "Explore"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Categories retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
+      }
+    },
+    "/api/explore/preferred-categories": {
+      "post": {
+        "summary": "Save user preferred categories",
+        "description": "Save the categories a user prefers. These preferences are used to personalize Explore feed.",
+        "tags": [
+          "Explore"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "categories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "categories"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preferred categories saved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "description": "Confirmation message"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request : The request data is invalid or missing fields"
+          },
+          "401": {
+            "description": "Unauthorized : Authentication is required or token is invalid"
+          },
+          "403": {
+            "description": "Forbidden : You don’t have permission to access this resource"
+          },
+          "404": {
+            "description": "Not Found : The requested resource could not be found"
+          },
+          "409": {
+            "description": "Conflict : Resource already exists or constraint violation"
+          },
+          "500": {
+            "description": "Internal Server Error : Something went wrong on the server"
+          }
+        }
+      }
+    },
+    "/api/explore": {
+      "get": {
+        "summary": "Get explore feed",
+        "description": "Retrieve a ranked feed of tweets for the Explore section. Supports filtering by category, pagination with cursor, and limiting results.",
+        "tags": [
+          "Explore"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 445,
+              "description": "Category ID to filter tweets"
+            },
+            "required": false,
+            "description": "Category ID to filter tweets",
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "description": "Number of tweets to return"
+            },
+            "required": false,
+            "description": "Number of tweets to return",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Pagination cursor"
+            },
+            "required": false,
+            "description": "Pagination cursor",
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Explore feed retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "content": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 445
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "likesCount": {
+                      "type": "integer"
+                    },
+                    "retweetCount": {
+                      "type": "integer"
+                    },
+                    "repliesCount": {
+                      "type": "integer"
+                    },
+                    "quotesCount": {
+                      "type": "integer"
+                    },
+                    "replyControl": {
+                      "type": "string",
+                      "enum": [
+                        "EVERYONE",
+                        "FOLLOWINGS",
+                        "VERIFIED",
+                        "MENTIONED"
+                      ]
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uuid"
+                    },
+                    "tweetType": {
+                      "type": "string",
+                      "enum": [
+                        "TWEET",
+                        "REPLY",
+                        "QUOTE"
+                      ]
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string",
+                          "nullable": true,
+                          "minLength": 1
+                        },
+                        "username": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 445
+                        },
+                        "profileMedia": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            }
+                          },
+                          "required": [
+                            "id"
+                          ]
+                        },
+                        "verified": {
+                          "type": "boolean"
+                        },
+                        "protectedAccount": {
+                          "type": "boolean"
+                        },
+                        "isFollowed": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "username",
+                        "profileMedia",
+                        "verified",
+                        "protectedAccount",
+                        "isFollowed"
+                      ]
+                    },
+                    "tweetMedia": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "maxItems": 4
+                    },
+                    "hashtags": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "tag_text": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "tag_text"
+                        ]
+                      }
+                    },
+                    "tweetCategories": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ]
+                      }
+                    },
+                    "isLiked": {
+                      "type": "boolean"
+                    },
+                    "isRetweeted": {
+                      "type": "boolean"
+                    },
+                    "isBookmarked": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "content",
+                    "createdAt",
+                    "likesCount",
+                    "retweetCount",
+                    "repliesCount",
+                    "quotesCount",
+                    "replyControl",
+                    "tweetType",
+                    "user",
+                    "isLiked",
+                    "isRetweeted",
+                    "isBookmarked"
                   ]
                 }
               }
@@ -2869,7 +3657,7 @@
         "summary": "Get personalized recommended tweets",
         "description": "Fetch tweets recommended to the user based on interests, engagement history, and trending content. Requires authentication.",
         "tags": [
-          "Timeline and Explore"
+          "Timeline"
         ],
         "security": [
           {
@@ -3188,7 +3976,7 @@
         "summary": "Get timeline tweets",
         "description": "Fetches tweets from users the current user follows.",
         "tags": [
-          "Timeline and Explore"
+          "Timeline"
         ],
         "parameters": [
           {
@@ -3823,6 +4611,33 @@
         }
       }
     },
+    "/api/followings/suggested": {
+      "get": {
+        "summary": "Get suggested users to follow",
+        "description": "Returns a list of users that the current user might want to follow, sorted by follower count. Excludes users the current user is already following or has sent a follow request to.",
+        "tags": [
+          "User Interactions"
+        ],
+        "responses": {
+          "200": {
+            "description": "Suggested users fetched successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestedFollowsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - user not authenticated"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/api/blocks/{username}": {
       "post": {
         "summary": "Block a user",
@@ -4062,6 +4877,184 @@
         }
       }
     },
+    "/api/hashtags/trends": {
+      "get": {
+        "summary": "Get trending hashtags",
+        "description": "Returns the top trending hashtags based on tweet count in the last 24 hours.\n\nIf the optional `q` query parameter is provided, the endpoint performs a case-insensitive prefix autocomplete search and returns matching hashtags ordered by recent popularity (last 24 hours). When `q` is absent, the endpoint returns the cached global trends (calculated in the background).",
+        "tags": [
+          "Hashtags"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30,
+              "default": 30,
+              "description": "Number of trends to return (max: 30)"
+            },
+            "required": false,
+            "description": "Number of trends to return (max: 30)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Optional prefix query string for autocompletion/search (case-insensitive). When provided, endpoint returns matching hashtags ordered by recent popularity."
+            },
+            "required": false,
+            "description": "Optional prefix query string for autocompletion/search (case-insensitive). When provided, endpoint returns matching hashtags ordered by recent popularity.",
+            "name": "q",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of trending hashtags",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrendsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid category parameter"
+          }
+        }
+      }
+    },
+    "/api/hashtags/{id}/tweets": {
+      "get": {
+        "summary": "Get tweets for a hashtag",
+        "description": "Returns tweets that contain the specified hashtag (works for any hashtag, trending or not)",
+        "tags": [
+          "Hashtags"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The hashtag ID (get this from the trends list endpoint)"
+            },
+            "required": true,
+            "description": "The hashtag ID (get this from the trends list endpoint)",
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "default": null,
+              "description": "Opaque cursor for pagination."
+            },
+            "required": false,
+            "description": "Opaque cursor for pagination.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 30,
+              "description": "Number of results per page (default: 30)"
+            },
+            "required": false,
+            "description": "Number of results per page (default: 30)",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of tweets with this hashtag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HashtagTweetsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Hashtag not found"
+          }
+        }
+      }
+    },
+    "/api/hashtags/categories": {
+      "get": {
+        "summary": "Get trending data by category",
+        "description": "Returns trending hashtags and viral tweets.\n\n**With `category` parameter:** Returns trends and viral tweets for that specific category (global, news, sports, or entertainment).\n\n**Without `category` parameter:** Returns trends and viral tweets for ALL categories.\n\nData is cached and updated every constant interval by a background worker.",
+        "tags": [
+          "Hashtags"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "global",
+                "news",
+                "sports",
+                "entertainment"
+              ],
+              "description": "Category to filter by. If not provided for /explore, returns all categories."
+            },
+            "required": false,
+            "description": "Category to filter by. If not provided for /explore, returns all categories.",
+            "name": "category",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trending data - either single category or all categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/CategoryData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AllCategoriesResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid category parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/notifications": {
       "get": {
         "summary": "Get list of notifications for the authenticated user",
@@ -4121,6 +5114,150 @@
                         "type": "string",
                         "format": "date",
                         "default": "2025-11-18T16:34:38.634Z"
+                        "default": "2025-12-11T18:08:13.885Z"
+                      },
+                      "userId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "tweetId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "actorId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "actor": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "profileMediaId": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uuid"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "profileMediaId"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "title",
+                      "body",
+                      "userId",
+                      "actor"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Unauthorized"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Internal Server Error"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/mentions": {
+      "get": {
+        "summary": "Get mention notifications for the authenticated user",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Bearer token for authentication"
+            },
+            "required": true,
+            "description": "Bearer token for authentication",
+            "name": "Authorization",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mention notifications retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "title": {
+                        "type": "string",
+                        "enum": [
+                          "LIKE",
+                          "RETWEET",
+                          "REPLY",
+                          "QUOTE",
+                          "FOLLOW",
+                          "REQUEST_TO_FOLLOW",
+                          "ACCEPTED_FOLLOW",
+                          "MENTION",
+                          "LOGIN",
+                          "PASSWORD_CHANGED"
+                        ]
+                      },
+                      "body": {
+                        "type": "string",
+                        "maxLength": 280
+                      },
+                      "isRead": {
+                        "type": "boolean",
+                        "default": false
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date",
+                        "default": "2025-12-11T18:08:13.885Z"
                       },
                       "userId": {
                         "type": "string",
@@ -4328,6 +5465,7 @@
                             "type": "string",
                             "format": "date",
                             "default": "2025-11-18T16:34:38.634Z"
+                            "default": "2025-12-11T18:08:13.885Z"
                           },
                           "userId": {
                             "type": "string",

@@ -57,10 +57,10 @@ export const addNotification = async (
   ];
   const tweetRelevantTitles: NotificationTitle[] = [
     NotificationTitle.MENTION,
-    NotificationTitle.REPLY,
+    //NotificationTitle.REPLY,
     NotificationTitle.RETWEET,
     NotificationTitle.LIKE,
-    NotificationTitle.QUOTE,
+    //NotificationTitle.QUOTE,
   ];
 
   if (systemRelevantTitles.includes(data.title as NotificationTitle)) {
@@ -128,6 +128,8 @@ export const addNotification = async (
             select: {
               name: true,
               profileMediaId: true,
+              username: true,
+              id: true,
             },
           },
         },
@@ -142,8 +144,13 @@ export const addNotification = async (
     }
   }
 
-  await prisma.user.update({
-    where: { id: recipientId },
-    data: { unseenNotificationCount: { increment: 1 } },
-  });
+  const updatedUser = await prisma.user.update({
+      where: { id: recipientId },
+      data: { unseenNotificationCount: { increment: 1 } },
+
+    });
+    socketService.sendUnseenNotificationsCount(
+      recipientId,
+      updatedUser.unseenNotificationCount || 0
+    );
 };

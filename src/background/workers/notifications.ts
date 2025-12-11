@@ -13,11 +13,11 @@ async function startWorker() {
   );
 
   enum notificationBodies {
-    LIKE = "liked your tweet",
-    REPLY = "replied to your tweet",
-    RETWEET = "retweeted your tweet",
-    QUOTE = "quoted your tweet",
-    MENTION = "mentioned you in a tweet",
+    LIKE = "liked your post",
+    REPLY = "replied to your post",
+    RETWEET = "reposted your post",
+    QUOTE = "quoted your post",
+    MENTION = "mentioned you",
   }
 
   const worker = new Worker(
