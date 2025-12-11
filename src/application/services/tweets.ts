@@ -47,7 +47,7 @@ export class TweetService {
 
   private async getActor(userId: string) {
     return await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
     });
   }
 
@@ -77,13 +77,14 @@ export class TweetService {
 
     if (mentionedUsers.length === 0) return;
 
-    mentionedUsers.forEach(async (user) =>
-      await addNotification(user.id as UUID, {
-        title: "MENTION",
-        body: `${mentioner?.name} mentioned you`,
-        tweetId,
-        actorId: mentionerId,
-      })
+    mentionedUsers.forEach(
+      async (user) =>
+        await addNotification(user.id as UUID, {
+          title: "MENTION",
+          body: `${mentioner?.name} mentioned you`,
+          tweetId,
+          actorId: mentionerId,
+        })
     );
 
     await tx.mention.createMany({
@@ -112,6 +113,7 @@ export class TweetService {
   }
 
   private formatUser(user: any) {
+    if (!user) return {};
     const { _count, ...restUser } = user ?? {};
     return {
       ...restUser,
@@ -144,6 +146,7 @@ export class TweetService {
         tweet: {
           select: tweetSelectFields(currentUserId),
         },
+        user: { select: userSelectFields(currentUserId) },
       },
       orderBy: [{ createdAt: "desc" }, { userId: "desc" }],
       take: dto.limit + 1,
@@ -161,7 +164,7 @@ export class TweetService {
     const normalizedRetweets = retweetedTweets.map((r) => ({
       ...r.tweet,
       createdAt: r.createdAt,
-      retweeter: this.formatUser(tweets[0].user),
+      retweeter: this.formatUser(r.user),
     }));
 
     const allTweets = [...tweets, ...normalizedRetweets]
@@ -244,7 +247,6 @@ export class TweetService {
         content: quote.content,
       }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
 
-
       enqueueUpdateScoreJob({ tweetId: dto.parentId });
 
       const actor = await this.getActor(dto.userId);
@@ -299,7 +301,6 @@ export class TweetService {
         tweetId: reply.id,
         content: reply.content,
       }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
-
 
       enqueueUpdateScoreJob({ tweetId: dto.parentId });
 
