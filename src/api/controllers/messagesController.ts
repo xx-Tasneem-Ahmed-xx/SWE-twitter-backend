@@ -12,6 +12,24 @@ import { AppError } from "@/errors/AppError";
 import { any } from "zod";
 import { get } from "http";
 
+export const getChatUsersId = async (chatId: string): Promise<string[]> => {
+    const usersId = await prisma.chat.findUnique({
+      where: {
+        id: chatId,
+      },
+      select: {
+        chatUsers: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    });
+    return (
+      usersId?.chatUsers.map((user: { userId: string }) => user.userId) || []
+    );
+  }
+
 const getUnseenMessagesCountofChat = async (chatId: string, userId: string) => {
   try {
     const unseenMessagesCount = await prisma.message.count({
@@ -156,7 +174,7 @@ export const getChatMessages = async (
   next: NextFunction
 ) => {
   try {
-    const chatId = req.query.chatId as string;
+    const chatId = req.params.chatId as string;
 
     const { lastMessageTimestamp } = req.query as {
       lastMessageTimestamp?: string;
@@ -287,16 +305,7 @@ export const updateMessageStatus = async (chatId: string, userId: string) => {
           status: "READ",
         },
       });
-      const updatedUser = await prisma.user.update({
-        where: { id: userId },
-        data: {
-          unseenChatCount: { decrement: 1 },
-        },
-      });
-      socketService.sendUnseenChatsCount(
-        userId,
-        updatedUser.unseenChatCount
-      );
+      await resetUnseenChatCount(userId);
       return true;
     }
   } catch (error) {
@@ -524,39 +533,44 @@ export const addMessageToChat = async (
         },
       },
     });
-    let usersId = await socketService.getAllUsers(chat.id);
+    let usersId = await getChatUsersId(chat.id);
     usersId = usersId.filter((id) => id !== userId);
 
-    for (const recipient of usersId) {
+    for (const recipientId of usersId) {
       const unseenMessagesCount = await getUnseenMessagesCountofChat(
         chat.id,
-        recipient
+        recipientId
       );
       if (unseenMessagesCount == null) continue;
-      //check if this is the first unseen message in this chat to increment unseenChatCount
       let updatedUser = null;
       if ((unseenMessagesCount ?? 0) - 1 <= 0) {
         updatedUser = await prisma.user.update({
-          where: { id: recipient },
+          where: { id: recipientId },
           data: {
             unseenChatCount: { increment: 1 },
           },
         });
       }
+      else {
+        updatedUser = await prisma.user.findUnique({
+          where: { id: recipientId },
+        });
+      }
       //to handle website socket message sending
-      if (socketService.checkSocketStatus(recipient)) {
-        socketService.sendMessageToChat(recipient, {
+      if (socketService.checkSocketStatus(recipientId)) {
+        socketService.sendMessageToChat(recipientId, {
           createdMessage,
           unseenMessagesCount: unseenMessagesCount,
         });
+
         socketService.sendUnseenChatsCount(
-          recipient,
+          recipientId,
           (updatedUser as any)?.unseenChatCount || 0
         );
       }
       //handle offline user notification
       const userFCMTokens = await prisma.fcmToken.findMany({
-        where: { userId: recipient.toString() },
+        where: { userId: recipientId.toString() },
       });
       const fcmTokens =
         userFCMTokens.length > 0
@@ -596,7 +610,6 @@ export const addMessageToChat = async (
   }
 };
 
-// Get total unseen messages count for the user across all chats
 export const getUnseenMessagesCountOfUser = async (
   req: Request,
   res: Response,
@@ -632,7 +645,6 @@ export const getUnseenMessagesCountOfUser = async (
   }
 };
 
-//get unseen messages count in a specific chat
 export const getUnseenMessagesCount = async (
   req: Request,
   res: Response,
@@ -655,3 +667,25 @@ export const getUnseenMessagesCount = async (
     next(error);
   }
 };
+
+
+export const resetUnseenChatCount = async (
+  userId: string
+): Promise<void> => {
+  try {
+    await prisma.user.update({
+      where: { id: userId},
+      data: {
+        unseenChatCount: 0,
+      }
+    })
+      if(socketService.checkSocketStatus(userId)){
+        socketService.sendUnseenChatsCount(
+          userId,
+          0
+        );
+      }
+  } catch (error) {
+    console.error("Error resetting unseen chat count:", error);
+  }
+}
