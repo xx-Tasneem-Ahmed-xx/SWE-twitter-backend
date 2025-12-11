@@ -244,7 +244,6 @@ export class TweetService {
         content: quote.content,
       }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
 
-      //enqueueUpdateScoreJob({ tweetId: dto.parentId });
 
       enqueueUpdateScoreJob({ tweetId: dto.parentId });
 
