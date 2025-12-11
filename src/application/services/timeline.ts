@@ -965,7 +965,7 @@ export class TimelineService {
           --NEW: Fetch Category IDs attached to the tweet
           (
             SELECT ARRAY_AGG("categoryId")
-            FROM "tweet_categories" tc
+            FROM "TweetCategory" tc
             WHERE tc."tweetId" = t.id
           ) AS categories,
           -- simple velocity: likes+retweets within trending window
