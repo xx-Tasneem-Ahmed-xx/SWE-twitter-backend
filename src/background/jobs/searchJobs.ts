@@ -53,17 +53,17 @@ export const scheduleIncrementalUpdates = async () => {
   }
 
   // Add new repeatable job (every 1 hour)
-  await searchIndexerQueue.add(
-    "incremental-update",
-    { type: "incremental", limit: 200 },
-    {
-      repeat: {
-        pattern: "0 * * * *", // Every hour at minute 0 (cron format)
-      },
-      removeOnComplete: true,
-      removeOnFail: false,
-    }
-  );
+await searchIndexerQueue.add(
+  "incremental-update",
+  { type: "incremental", limit: 200 },
+  {
+    repeat: {
+      every: 30_000, // 30 seconds (in ms)
+    },
+    removeOnComplete: true,
+  }
+);
+
 
   console.log("✅ Scheduled incremental updates every 1 hour");
 };

@@ -1210,15 +1210,3 @@ export async function initializeSearchEngine(redisUrl?: string) {
     throw error;
   }
 }
-// ===== USAGE EXAMPLE =====
-/*
-import express from 'express';
-
-const app = express();
-app.use(express.json());
-
-initializeSearchEngine('redis://localhost:6379').then(({ apiRoutes }) => {
-  apiRoutes(app);
-  app.listen(3000, () => console.log('Server running on port 3000'));
-});
-*/

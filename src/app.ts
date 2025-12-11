@@ -31,6 +31,7 @@ import { Crawler, Parser, Indexer, SearchEngine } from './api/controllers/Search
 import { apiRoutes } from './api/routes/searchRoutes';
 import { PrismaClient } from "@prisma/client";
 import { getKey } from "./application/services/secrets";
+import {twitterSearchRoutes,chatSearchRoutes}from "@/api/routes/searchRoutes";
 const app = express();
 app.use(cors());
 app.use(helmet());
@@ -80,6 +81,7 @@ app.use("/api/home", timelineRoutes);
 app.use("/api/users", userRouter);
 app.use("/api/hashtags", hashtagsRoutes);
 app.use("/api", userInteractionsRoutes);
+app.use("/api",twitterSearchRoutes,chatSearchRoutes);
 
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
 app.use(errorHandler);

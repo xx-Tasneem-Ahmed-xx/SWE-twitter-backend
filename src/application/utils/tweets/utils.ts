@@ -785,7 +785,7 @@ The SOAH Security Team
 
 export async function ValidatePassword(password: string): Promise<string> {
   if (!password) return "password required";
-  if (password.length < 12 || password.length > 128)
+  if (password.length < 8 || password.length > 128)
     return "password should be between 12 and 128";
 
   let upper: number = 0,

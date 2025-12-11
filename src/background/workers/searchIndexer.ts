@@ -3,13 +3,14 @@ import { Worker } from "bullmq";
 import { bullRedisConfig } from "@/background/config/redis";
 import { loadSecrets, getSecrets } from "@/config/secrets";
 import { initRedis } from "@/config/redis";
-import  { PrismaClient } from "@prisma/client";
+
 import { Crawler } from "../../api/controllers/SearchEngine";
 import { Parser } from "../../api/controllers/SearchEngine";
 import { Indexer } from "../../api/controllers/SearchEngine";
 import { PersistenceManager } from "../../api/controllers/SearchEngine";
 import { Logger } from "../../api/controllers/SearchEngine";
-
+// src/background/workers/searchIndexer.ts
+import prisma from "../../database"
 const logger = new Logger("SearchIndexer");
 
 interface SearchIndexJobData {
@@ -24,8 +25,12 @@ async function startWorker() {
   logger.info("🚀 Starting search indexer worker...");
 
   const { REDIS_URL } = getSecrets();
-  const prisma = new PrismaClient();
-  await prisma.$connect();
+  
+
+ 
+  
+
+  logger.info("✅ Database connected");
 
   // Initialize search components
   const crawler = new Crawler(prisma);
@@ -141,6 +146,19 @@ async function startWorker() {
 
   searchIndexerWorker.on("error", (err) => {
     logger.error("❌ [search-indexer.worker] Worker error:", err);
+  });
+
+  // Handle graceful shutdown
+  process.on("SIGTERM", async () => {
+    logger.info("SIGTERM received, disconnecting Prisma...");
+    await prisma.$disconnect();
+    process.exit(0);
+  });
+
+  process.on("SIGINT", async () => {
+    logger.info("SIGINT received, disconnecting Prisma...");
+    await prisma.$disconnect();
+    process.exit(0);
   });
 
   logger.info("✅ Search indexer worker started successfully");

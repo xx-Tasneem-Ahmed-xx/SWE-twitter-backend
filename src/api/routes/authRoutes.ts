@@ -2625,3 +2625,764 @@ router.use(GeoGurd());
 export default router;
 //all routes
 //router.post("/signup", typedAuthController.Create);,router.post("/finalize_signup", typedAuthController.FinalizeSignup);,router.post("/verify-signup", typedAuthController.Verify_signup_email); ,router.post("/login", typedAuthController.Login); ,router.post("/forget-password",  typedAuthController.ForgetPassword);,router.post("/verify-reset-code", typedAuthController.VerifyResetCode);,router.post("/reset-password",  typedAuthController.ResetPassword);,router.post("/refresh",  typedAuthController.Refresh);router.post("/logout", Auth(),  typedAuthController.Logout, DeactivateUser());,router.post("/logout-all", Auth(),  typedAuthController.LogoutALL, DeactivateUser());,router.get("/captcha" , typedAuthController.Captcha);,router.post("/signup_captcha",  typedAuthController.SignupCaptcha); ,router.post("/reauth-password", Auth() , typedAuthController.ReauthPassword);,router.post("/change-password", Auth(), typedAuthController.ChangePassword)router.post("/change-email", Auth(), typedAuthController.ChangeEmail);router.post("/verify-new-email",Auth(),  typedAuthController.VerifyNewEmail);,router.get("/user", Auth(),  typedAuthController.GetUser);,router.get("/userinfo",Auth(),typedAuthController.GetUserz);,router.get("/sessions", Auth(),  typedAuthController.GetSession);router.delete("/session/:sessionid", Auth(),  typedAuthController.LogoutSession);,router.put("/update_username",Auth(),typedAuthController.UpdateUsername);,router.post("/getUser",typedAuthController.CheckEmail);,router.get("/user/:id/email", Auth(),typedAuthController.GetUserEmailById);,router.post("/setpassword", typedAuthController.SetPassword);,router.post("/set-birthdate", Auth(), typedAuthController.SetBirthDate);,
+/**
+ * @swagger
+ * tags:
+ *   - name: Twitter Search
+ *     description: Search endpoints for tweets, users, media, and lists
+ */
+
+/**
+ * @swagger
+ * /search/top:
+ *   get:
+ *     summary: Top search results (tweets + users)
+ *     description: Returns a mix of tweets and users based on a query, sorted by engagement and relevance scores.
+ *     tags:
+ *       - Twitter Search
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Search query string
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Pagination cursor
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the requesting user
+ *     responses:
+ *       200:
+ *         description: Top search results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 query:
+ *                   type: string
+ *                 type:
+ *                   type: string
+ *                   example: top
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/User'
+ *                 tweets:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Tweet'
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: User ID required
+ *       500:
+ *         description: Internal server error
+ */
+
+/**
+ * @swagger
+ * /search/latest:
+ *   get:
+ *     summary: Latest tweets
+ *     description: Returns chronological tweets matching the search query.
+ *     tags:
+ *       - Twitter Search
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Search query string
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Number of results to return (max 100)
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Pagination cursor
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the requesting user
+ *     responses:
+ *       200:
+ *         description: Latest tweets matching query
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 query:
+ *                   type: string
+ *                 type:
+ *                   type: string
+ *                   example: latest
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Tweet'
+ *                 total:
+ *                   type: integer
+ *                 cursor:
+ *                   type: string
+ *                   nullable: true
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: User ID required
+ *       500:
+ *         description: Internal server error
+ */
+
+/**
+ * @swagger
+ * /search/people:
+ *   get:
+ *     summary: Search users
+ *     description: Returns users matching the query, scored by relevance.
+ *     tags:
+ *       - Twitter Search
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Search query string
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Number of results to return (max 100)
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Pagination cursor
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the requesting user
+ *     responses:
+ *       200:
+ *         description: Users matching query
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 query:
+ *                   type: string
+ *                 type:
+ *                   type: string
+ *                   example: people
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/User'
+ *                 total:
+ *                   type: integer
+ *                 cursor:
+ *                   type: string
+ *                   nullable: true
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: User ID required
+ *       500:
+ *         description: Internal server error
+ */
+
+/**
+ * @swagger
+ * /search/media:
+ *   get:
+ *     summary: Search tweets with media
+ *     description: Returns tweets containing photos or videos matching the query.
+ *     tags:
+ *       - Twitter Search
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Search query string
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Number of results to return (max 100)
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Pagination cursor
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the requesting user
+ *     responses:
+ *       200:
+ *         description: Tweets with media matching query
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 query:
+ *                   type: string
+ *                 type:
+ *                   type: string
+ *                   example: media
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Tweet'
+ *                 total:
+ *                   type: integer
+ *                 cursor:
+ *                   type: string
+ *                   nullable: true
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: User ID required
+ *       500:
+ *         description: Internal server error
+ */
+
+/**
+ * @swagger
+ * /search/lists:
+ *   get:
+ *     summary: Search communities/lists
+ *     description: Returns communities or lists matching the query, along with membership and follower information.
+ *     tags:
+ *       - Twitter Search
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Search query string
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Number of results to return (max 100)
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Pagination cursor
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the requesting user
+ *     responses:
+ *       200:
+ *         description: Communities or lists matching query
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 query:
+ *                   type: string
+ *                 type:
+ *                   type: string
+ *                   example: lists
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/CommunityOrList'
+ *                 total:
+ *                   type: integer
+ *                 cursor:
+ *                   type: string
+ *                   nullable: true
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: User ID required
+ *       500:
+ *         description: Internal server error
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     User:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *         name:
+ *           type: string
+ *         username:
+ *           type: string
+ *         bio:
+ *           type: string
+ *           nullable: true
+ *         verified:
+ *           type: boolean
+ *         protectedAccount:
+ *           type: boolean
+ *         profileMedia:
+ *           type: object
+ *           nullable: true
+ *         coverMedia:
+ *           type: object
+ *           nullable: true
+ *         followersCount:
+ *           type: integer
+ *         followingsCount:
+ *           type: integer
+ *         tweetsCount:
+ *           type: integer
+ *         isFollowing:
+ *           type: boolean
+ *     Tweet:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *         content:
+ *           type: string
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         likesCount:
+ *           type: integer
+ *         repliesCount:
+ *           type: integer
+ *         quotesCount:
+ *           type: integer
+ *         retweetCount:
+ *           type: integer
+ *         replyControl:
+ *           type: string
+ *         tweetType:
+ *           type: string
+ *         parentId:
+ *           type: string
+ *           nullable: true
+ *         userId:
+ *           type: string
+ *         user:
+ *           $ref: '#/components/schemas/User'
+ *         isLiked:
+ *           type: boolean
+ *         isRetweeted:
+ *           type: boolean
+ *         isBookmarked:
+ *           type: boolean
+ *         tweetMedia:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               mediaId:
+ *                 type: string
+ *               media:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   type:
+ *                     type: string
+ *                   url:
+ *                     type: string
+ *                     nullable: true
+ *     CommunityOrList:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *         name:
+ *           type: string
+ *         description:
+ *           type: string
+ *           nullable: true
+ *         bannerImage:
+ *           type: string
+ *           nullable: true
+ *         avatarImage:
+ *           type: string
+ *           nullable: true
+ *         isPrivate:
+ *           type: boolean
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         membersCount:
+ *           type: integer
+ *         followersCount:
+ *           type: integer
+ *         memberPreviews:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/User'
+ *         creator:
+ *           $ref: '#/components/schemas/User'
+ *         isJoined:
+ *           type: boolean
+ *         isMember:
+ *           type: boolean
+ */
+/**
+ * @swagger
+ * tags:
+ *   name: Chat
+ *   description: Chat and messaging endpoints
+ */
+
+/**
+ * @swagger
+ * /chat/search:
+ *   get:
+ *     summary: Search for people to chat with
+ *     description: Search users by username or name to start a conversation. Results are ranked by relevance including existing conversations, verification status, and follow relationships.
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         description: Search query (username or name)
+ *         example: "john"
+ *       - in: query
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Current user ID
+ *         example: "user-123"
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 50
+ *         description: Number of results to return
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *         description: Pagination cursor (user ID)
+ *     responses:
+ *       200:
+ *         description: List of users matching search query
+ *         content:
+ *           application/json:
+ *             example:
+ *               query: "john"
+ *               results:
+ *                 - id: "user-456"
+ *                   name: "John Doe"
+ *                   username: "johndoe"
+ *                   bio: "Software Engineer"
+ *                   verified: true
+ *                   protectedAccount: false
+ *                   profileMedia:
+ *                     id: "media-789"
+ *                   hasExistingConversation: true
+ *                   lastMessageAt: "2024-12-10T10:00:00.000Z"
+ *                   isFollowing: true
+ *                   isFollower: true
+ *                   followersCount: 1500
+ *               total: 1
+ *               cursor: null
+ *               timestamp: "2024-12-11T12:00:00.000Z"
+ *       401:
+ *         description: Unauthorized - User ID required
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: "User ID required"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: "Search failed"
+ *               details: "Error message"
+ */
+
+/**
+ * @swagger
+ * /chat/recent:
+ *   get:
+ *     summary: Get recent conversations
+ *     description: Retrieve list of recent conversations for the authenticated user, sorted by most recent activity. Includes last message and unread count.
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Current user ID
+ *         example: "user-123"
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 50
+ *         description: Number of conversations to return
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *         description: Pagination cursor (conversation ID)
+ *     responses:
+ *       200:
+ *         description: List of recent conversations
+ *         content:
+ *           application/json:
+ *             example:
+ *               results:
+ *                 - conversationId: "conv-123"
+ *                   user:
+ *                     id: "user-456"
+ *                     name: "Jane Smith"
+ *                     username: "janesmith"
+ *                     verified: true
+ *                     profileMedia:
+ *                       id: "media-789"
+ *                   lastMessage:
+ *                     id: "msg-999"
+ *                     content: "Hey, how are you?"
+ *                     createdAt: "2024-12-10T10:00:00.000Z"
+ *                     isSentByMe: false
+ *                     isRead: false
+ *                   unreadCount: 3
+ *                   createdAt: "2024-12-01T08:00:00.000Z"
+ *               total: 1
+ *               cursor: null
+ *               timestamp: "2024-12-11T12:00:00.000Z"
+ *       401:
+ *         description: Unauthorized - User ID required
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: "User ID required"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: "Failed to get conversations"
+ *               details: "Error message"
+ */
+
+/**
+ * @swagger
+ * /chat/conversation:
+ *   post:
+ *     summary: Get or create conversation
+ *     description: Get an existing conversation between two users or create a new one if it doesn't exist
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - otherUserId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: Current user ID
+ *                 example: "user-123"
+ *               otherUserId:
+ *                 type: string
+ *                 description: ID of user to chat with
+ *                 example: "user-456"
+ *     responses:
+ *       200:
+ *         description: Conversation retrieved or created successfully
+ *         content:
+ *           application/json:
+ *             example:
+ *               conversationId: "conv-789"
+ *               user:
+ *                 id: "user-456"
+ *                 name: "Jane Smith"
+ *                 username: "janesmith"
+ *                 verified: true
+ *                 profileMedia:
+ *                   id: "media-101"
+ *               isNew: false
+ *       400:
+ *         description: Bad request - Missing required fields
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: "userId and otherUserId required"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: "Failed to process conversation"
+ *               details: "Error message"
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ChatUser:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: User ID
+ *           example: "user-123"
+ *         name:
+ *           type: string
+ *           description: User's display name
+ *           example: "John Doe"
+ *         username:
+ *           type: string
+ *           description: User's username
+ *           example: "johndoe"
+ *         bio:
+ *           type: string
+ *           description: User's bio
+ *           example: "Software Engineer"
+ *         verified:
+ *           type: boolean
+ *           description: Whether user is verified
+ *           example: true
+ *         protectedAccount:
+ *           type: boolean
+ *           description: Whether account is protected/private
+ *           example: false
+ *         profileMedia:
+ *           type: object
+ *           properties:
+ *             id:
+ *               type: string
+ *               example: "media-456"
+ *         hasExistingConversation:
+ *           type: boolean
+ *           description: Whether there's an existing chat with this user
+ *           example: true
+ *         lastMessageAt:
+ *           type: string
+ *           format: date-time
+ *           description: Timestamp of last message exchanged
+ *           example: "2024-12-10T10:00:00.000Z"
+ *         isFollowing:
+ *           type: boolean
+ *           description: Whether current user follows this user
+ *           example: true
+ *         isFollower:
+ *           type: boolean
+ *           description: Whether this user follows current user
+ *           example: true
+ *         followersCount:
+ *           type: integer
+ *           description: Number of followers
+ *           example: 1500
+ *     
+ *     Message:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: Message ID
+ *           example: "msg-123"
+ *         content:
+ *           type: string
+ *           description: Message content
+ *           example: "Hey, how are you?"
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: Message timestamp
+ *           example: "2024-12-10T10:00:00.000Z"
+ *         isSentByMe:
+ *           type: boolean
+ *           description: Whether message was sent by current user
+ *           example: false
+ *         isRead:
+ *           type: boolean
+ *           description: Whether message has been read
+ *           example: false
+ *     
+ *     Conversation:
+ *       type: object
+ *       properties:
+ *         conversationId:
+ *           type: string
+ *           description: Conversation ID
+ *           example: "conv-123"
+ *         user:
+ *           $ref: '#/components/schemas/ChatUser'
+ *         lastMessage:
+ *           $ref: '#/components/schemas/Message'
+ *         unreadCount:
+ *           type: integer
+ *           description: Number of unread messages
+ *           example: 3
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: Conversation creation timestamp
+ *           example: "2024-12-01T08:00:00.000Z"
+ *   
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ */

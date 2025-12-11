@@ -17,6 +17,7 @@ import axios from "axios";
 import qs from "querystring";
 import { NotificationTitle } from "@prisma/client";
 import { getSecrets } from "../../config/secrets";
+
 import dayjs from "dayjs";
 import {
   enqueueVerifyEmail,
@@ -32,6 +33,7 @@ import {
 } from "../../background/jobs/emailJobs";
 import { OAuth2Client } from "google-auth-library";
 import { addNotification } from "../../application/services/notification";
+
 // --- Custom Type Definitions ---
 interface LocalJwtPayload extends JwtPayload {
   Username?: string;
@@ -167,7 +169,8 @@ export async function Create(
       throw new AppError("Invalid email format", 400);
     }
 
-    const code: string = gen6();
+    //222 const code: string = gen6();
+const code="111111";
     await redisClient.set(`Signup:code:${input.email}`, code, { EX: 15 * 60 });
 
 //     const message: string = `Subject: Verify Your Email Address 
@@ -598,24 +601,25 @@ console.log(user.deviceRecord);
     await utils.RestAttempts(email);
    
     const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
-//     const exists = user.deviceRecord.some(d => d.id === deviceRecord.id);
-// if (!exists){
-//     const deviceBrowser =
-//       typeof deviceRecord === "object" && deviceRecord
-//         ? (deviceRecord as any).browser || "unknown"
-//         : typeof deviceRecord === "string"
-//         ? deviceRecord
-//         : "unknown";
+    const exists = user.deviceRecord.some(d => d.id === deviceRecord.id);
+if (!exists){
+    const deviceBrowser =
+      typeof deviceRecord === "object" && deviceRecord
+        ? (deviceRecord as any).browser || "unknown"
+        : typeof deviceRecord === "string"
+        ? deviceRecord
+        : "unknown";
 
     
-//     await addNotification(
-//       user.id as UUID,
-//       {
-//         title: NotificationTitle.logib_new de,
-//         body: `login from new divice or location from ${deviceBrowser} `,
-//         actorId: user.id as UUID,
-//         tweetId: "32423",
-//       });}
+    await addNotification(
+      user.id as UUID,
+      {
+        title: NotificationTitle.login_new_device_location,
+        body: `login from new divice or location from ${deviceBrowser} `,
+        actorId: user.id as UUID,
+        tweetId: "32423",
+      });}
+
     const accessObj = await utils.GenerateJwt({
       username: user.username,
       email,
@@ -862,8 +866,8 @@ export async function ForgetPassword(
       throw new AppError("User not found", 404);
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-
+    //222 const code = Math.floor(100000 + Math.random() * 900000).toString();
+const code="111111";
 //     const message = `
 // Hi ${user.username},
 
@@ -877,11 +881,11 @@ export async function ForgetPassword(
 
 // — The Artemisa Team
 // `;
-await enqueuePasswordResetEmail(user.email, user.username, code);
-    await redisClient.set(`Reset:code:${email}`, code, { EX: 15 * 60 });
-
-    // utils.SendEmailSmtp(res, email, message).catch((err) => {
-    //   throw new AppError("Failed to send reset code email", 500);
+await enqueuePasswordResetEmail(user.email, user.username, code); 
+    await redisClient.set(`Reset:code:${email}`, code, { EX: 15 *  60 });
+ 
+     // utils.SendEmailSmtp(res, email, message).catch((err) => {
+     //   throw new AppError("Failed to send reset code email", 500);
     // });
 
     return utils.SendRes(res, {
@@ -1293,28 +1297,28 @@ await enqueuePasswordChangedDetailed(user.email, {
   ip: ip,
   userAgent: req.get("User-Agent") || "",
 });
-   
-    //    const deviceBrowser =
-    //   typeof deviceRecord === "object" && deviceRecord
-    //     ? (deviceRecord as any).browser || "unknown"
-    //     : typeof deviceRecord === "string"
-    //     ? deviceRecord
-    //     : "unknown";
+       const { deviceRecord } = await utils.SetDeviceInfo(req, res, email);
+       const deviceBrowser =
+      typeof deviceRecord === "object" && deviceRecord
+        ? (deviceRecord as any).browser || "unknown"
+        : typeof deviceRecord === "string"
+        ? deviceRecord
+        : "unknown";
 
-    // const country =
-    //   typeof location === "object" && location
-    //     ? (location as any).Country || (location as any).country || "unknown"
-    //     : typeof location === "string"
-    //     ? location
-    //     : "unknown";
-    // await addNotification(
-    //   user.id as UUID,
-    //   {
-    //     title: NotificationTitle.PASSWORD_CHANGED,
-    //     body: `WE NOTICE PASSWORD CHANGED FROM ${deviceBrowser} at ${country}`,
-    //     actorId: user.id as UUID,
-    //     tweetId: "32423",
-    //   });
+    const country =
+      typeof location === "object" && location
+        ? (location as any).Country || (location as any).country || "unknown"
+        : typeof location === "string"
+        ? location
+        : "unknown";
+    await addNotification(
+      user.id as UUID,
+      {
+        title: NotificationTitle.PASSWORD_CHANGED,
+        body: `WE NOTICE PASSWORD CHANGED FROM ${deviceBrowser} at ${country}`,
+        actorId: user.id as UUID,
+        tweetId: "32423",
+      });
 
     return utils.SendRes(res, {
       refresh_token: refreshObj.token,
@@ -1355,9 +1359,9 @@ export async function ChangeEmail(
     if (exists) throw new AppError("This email is already in use", 409);
 
   
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    console.log(code);
-
+  //  " const code = Math.floor(100000 + Math.random() * 900000).toString();
+  //   console.log(code);
+const code="111111";
     
 
     await redisClient.setEx(`ChangeEmail:code:${currentEmail}`, 15 * 60, code);
@@ -1367,29 +1371,23 @@ export async function ChangeEmail(
       newEmail
     );
 
-   
+      
 await enqueueEmailChangeVerification(user.email, user.name || "there", code);
-    // const deviceBrowser =
-    //   typeof deviceRecord === "object" && deviceRecord
-    //     ? (deviceRecord as any).browser || "unknown"
-    //     : typeof deviceRecord === "string"
-    //     ? deviceRecord
-    //     : "unknown";
-
-    // const country =
-    //   typeof location === "object" && location
-    //     ? (location as any).Country || (location as any).country || "unknown"
-    //     : typeof location === "string"
-    //     ? location
-    //     : "unknown";
-    // await addNotification(
-    //   user.id as UUID,
-    //   {
-    //     title: NotificationTitle.EMAIL_CHANGED,
-    //     body: `WE NOTICE EMAIL CHANGED FROM ${deviceBrowser} at ${country}`,
-    //     actorId: user.id as UUID,
-    //     tweetId: "32423",
-    //   });
+    
+    const country =
+      typeof location === "object" && location
+        ? (location as any).Country || (location as any).country || "unknown"
+        : typeof location === "string"
+        ? location
+        : "unknown";
+    await addNotification(
+      user.id as UUID,
+      {
+        title: NotificationTitle.EMAIL_CHANGED,
+        body: `WE NOTICE EMAIL CHANGED FROM  at ${country}`,
+        actorId: user.id as UUID,
+        tweetId: "32423",
+      });
     return utils.SendRes(res, {
       message: "Verification code sent successfully to your new email",
     });
@@ -2086,12 +2084,14 @@ export async function CallbackGithubFront(
     });
 
     let user;
+    let newuser;
     if (oauth) {
       user = oauth.user;
       console.log("Existing user found:", user.username);
     } else {
       user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
+        newuser=true;
         const username = await utils.generateUsername(name);
 
         user = await prisma.user.create({
@@ -2109,6 +2109,7 @@ export async function CallbackGithubFront(
         });
         console.log("New user created:", user.username);
       } else {
+        newuser=false;
         await prisma.oAuthAccount.create({
           data: { provider: "github", providerId, userId: user.id },
         });
@@ -2176,6 +2177,7 @@ await enqueueSecurityLoginGithub(user.email, {
     )}&user=${encodeURIComponent(
       JSON.stringify({
         id: user.id,
+        newuser,
         username: user.username,
         name: user.name,
         email: user.email,
@@ -2187,28 +2189,28 @@ await enqueueSecurityLoginGithub(user.email, {
     console.log(" GitHub OAuth successful, redirecting to frontend");
 
     
-    // await redisClient.del(codeKey);
-    //  const deviceBrowser =
-    //   typeof deviceRecord === "object" && deviceRecord
-    //     ? (deviceRecord as any).browser || "unknown"
-    //     : typeof deviceRecord === "string"
-    //     ? deviceRecord
-    //     : "unknown";
+    await redisClient.del(codeKey);
+     const deviceBrowser =
+      typeof deviceRecord === "object" && deviceRecord
+        ? (deviceRecord as any).browser || "unknown"
+        : typeof deviceRecord === "string"
+        ? deviceRecord
+        : "unknown";
 
-    // const country =
-    //   typeof location === "object" && location
-    //     ? (location as any).Country || (location as any).country || "unknown"
-    //     : typeof location === "string"
-    //     ? location
-    //     : "unknown";
-    // await addNotification(
-    //   user.id as UUID,
-    //   {
-    //     title: NotificationTitle.GITHUB_REGSTER,
-    //     body: `you regstered to the app throw github from ${deviceBrowser} at ${country}`,
-    //     actorId: user.id as UUID,
-    //     tweetId: "32423",
-    //   });
+    const country =
+      typeof location === "object" && location
+        ? (location as any).Country || (location as any).country || "unknown"
+        : typeof location === "string"
+        ? location
+        : "unknown";
+    await addNotification(
+      user.id as UUID,
+      {
+        title: NotificationTitle.GITHUB_REGSTER,
+        body: `you regstered to the app throw github from ${deviceBrowser} at ${country}`,
+        actorId: user.id as UUID,
+        tweetId: "32423",
+      });
     return res.redirect(redirectUrl);
 
   } catch (err) {
@@ -2254,11 +2256,13 @@ export async function CallbackGithub(
     });
 
     let user;
+    let newuser;
     if (oauth) {
       user = oauth.user;
     } else {
       user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
+        newuser=true;
         const username = await utils.generateUsername(name);
         user = await prisma.user.create({
           data: {
@@ -2274,50 +2278,42 @@ export async function CallbackGithub(
           },
         });
       } else {
+        newuser=false;
         await prisma.oAuthAccount.create({
           data: { provider: "github", providerId, userId: user.id },
         });
       }
     }
 
-    
-    const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
+ const { devid, deviceRecord } = await utils.SetDeviceInfo(req, res, email);
 
-    const payload = {
+    const { token, jti } = await utils.GenerateJwt({
       username: user.username,
       email: user.email,
       id: user.id,
       role: "user",
       expiresInSeconds: 60 * 60,
-    };
-    const payload2 = {
+       version: user.tokenVersion || 0,
+     
+      devid,
+    });
+
+    const { token: refreshToken } = await utils.GenerateJwt({
       username: user.username,
       email: user.email,
       id: user.id,
       role: "user",
       expiresInSeconds: 60 * 60 * 24 * 30,
-    };
-
-    const token = await utils.GenerateJwt(payload);
-    const refreshToken = await utils.GenerateJwt(payload2);
-
-    await redisClient.set(
-      `refresh-token:${user.email}:${devid}`,
-      refreshToken.token,
-      { EX: 60 * 60 * 24 * 30 }
-    );
-
-    res.cookie("refresh-token", refreshToken, {
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-      httpOnly: true,
-      secure: true,
+      version: user.tokenVersion || 0,
+      devid,
     });
 
-    await prisma.user.update({
-      where: { email },
-      data: { tokenVersion: (user.tokenVersion || 0) + 1 },
+    await redisClient.set(`refreshToken:${user.id}`, refreshToken, {
+      EX: 60 * 60 * 24 * 30,
     });
+    await utils.SetSession(req, user.id, jti);
 
+   
     
     const ip: string = req.ip || req.connection?.remoteAddress || "0.0.0.0";
     const geo = await utils.Sendlocation(ip);
@@ -2332,13 +2328,14 @@ await enqueueSecurityLoginGithub(user.email, {
 });
 
     const redirectUrl = `myapp://login/success?token=${encodeURIComponent(
-      token.token
+      token
     )}&refresh-token=${encodeURIComponent(
-      refreshToken.token
+      refreshToken
     )}&user=${encodeURIComponent(
       JSON.stringify({
         id: user.id,
         username: user.username,
+        newuser,
         name: user.name,
         email: user.email,
         dateOfBirth: user.dateOfBirth,
@@ -2347,27 +2344,27 @@ await enqueueSecurityLoginGithub(user.email, {
     )}`;
    
     
-    //  const deviceBrowser =
-    //   typeof deviceRecord === "object" && deviceRecord
-    //     ? (deviceRecord as any).browser || "unknown"
-    //     : typeof deviceRecord === "string"
-    //     ? deviceRecord
-    //     : "unknown";
+     const deviceBrowser =
+      typeof deviceRecord === "object" && deviceRecord
+        ? (deviceRecord as any).browser || "unknown"
+        : typeof deviceRecord === "string"
+        ? deviceRecord
+        : "unknown";
 
-    // const country =
-    //   typeof location === "object" && location
-    //     ? (location as any).Country || (location as any).country || "unknown"
-    //     : typeof location === "string"
-    //     ? location
-    //     : "unknown";
-    // await addNotification(
-    //   user.id as UUID,
-    //   {
-    //     title: NotificationTitle.GITHUB_REGSTER,
-    //     body: `you regstered to the app throw github from ${deviceBrowser} at ${country}`,
-    //     actorId: user.id as UUID,
-    //     tweetId: "32423",
-    //   });
+    const country =
+      typeof location === "object" && location
+        ? (location as any).Country || (location as any).country || "unknown"
+        : typeof location === "string"
+        ? location
+        : "unknown";
+    await addNotification(
+      user.id as UUID,
+      {
+        title: NotificationTitle.GITHUB_REGSTER,
+        body: `you regstered to the app throw github from ${deviceBrowser} at ${country}`,
+        actorId: user.id as UUID,
+        tweetId: "32423",
+      });
     return res.redirect(redirectUrl);
   } catch (err) {
     console.error("CallbackGithub err:", err);
@@ -2406,7 +2403,7 @@ export async function CallbackGoogle(
       where: { provider: "google", providerId },
       include: { user: true },
     });
-
+let newuser;
     let user;
     if (oauth) {
       user = oauth.user;
@@ -2414,9 +2411,11 @@ export async function CallbackGoogle(
       user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
         const username = await utils.generateUsername(name);
+newuser=true;
         user = await prisma.user.create({
           data: {
             email,
+            
             username,
             name,
             password: "",
@@ -2428,6 +2427,7 @@ export async function CallbackGoogle(
           },
         });
       } else {
+        newuser=false;
         await prisma.oAuthAccount.create({
           data: { provider: "google", providerId, userId: user.id },
         });
@@ -2503,6 +2503,7 @@ await enqueueSecurityLoginGoogle(user.email, {
     )}&user=${encodeURIComponent(
       JSON.stringify({
         id: user.id,
+        newuser,
         username: user.username,
         name: user.name,
         email: user.email,
@@ -2512,27 +2513,27 @@ await enqueueSecurityLoginGoogle(user.email, {
     )}`;
    
    
-    //  const deviceBrowser =
-    //   typeof deviceRecord === "object" && deviceRecord
-    //     ? (deviceRecord as any).browser || "unknown"
-    //     : typeof deviceRecord === "string"
-    //     ? deviceRecord
-    //     : "unknown";
+     const deviceBrowser =
+      typeof deviceRecord === "object" && deviceRecord
+        ? (deviceRecord as any).browser || "unknown"
+        : typeof deviceRecord === "string"
+        ? deviceRecord
+        : "unknown";
 
-    // const country =
-    //   typeof location === "object" && location
-    //     ? (location as any).Country || (location as any).country || "unknown"
-    //     : typeof location === "string"
-    //     ? location
-    //     : "unknown";
-    // await addNotification(
-    //   user.id as UUID,
-    //   {
-    //     title: NotificationTitle.GOOGLE_REGISTER,
-    //     body: `you Regester to the app throw google from ${deviceBrowser} at ${country}`,
-    //     actorId: user.id as UUID,
-    //     tweetId: "32423",
-    //   });
+    const country =
+      typeof location === "object" && location
+        ? (location as any).Country || (location as any).country || "unknown"
+        : typeof location === "string"
+        ? location
+        : "unknown";
+    await addNotification(
+      user.id as UUID,
+      {
+        title: NotificationTitle.GOOGLE_REGSTER,
+        body: `you Regester to the app throw google from ${deviceBrowser} at ${country}`,
+        actorId: user.id as UUID,
+        tweetId: "32423",
+      });
     return res.redirect(redirectUrl);
   } catch (err) {
     console.error("CallbackGoogle err:", err);
@@ -2592,11 +2593,13 @@ export async function CallbackIOSGoogle(
     });
 
     let user;
+    let newuser;
     if (oauth) {
       user = oauth.user;
     } else {
       user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
+        newuser=true;
         const username = await utils.generateUsername(name);
         user = await prisma.user.create({
           data: {
@@ -2612,13 +2615,14 @@ export async function CallbackIOSGoogle(
           },
         });
       } else {
+        newuser=false;
         await prisma.oAuthAccount.create({
           data: { provider: "google", providerId, userId: user.id },
         });
       }
     }
 
-    const { devid } = await utils.SetDeviceInfo(req, res, email);
+    const { deviceRecord,devid } = await utils.SetDeviceInfo(req, res, email);
 
     const accessPayload = {
       username: user.username,
@@ -2644,32 +2648,33 @@ export async function CallbackIOSGoogle(
     );
    
 
-    //  const deviceBrowser =
-    //   typeof deviceRecord === "object" && deviceRecord
-    //     ? (deviceRecord as any).browser || "unknown"
-    //     : typeof deviceRecord === "string"
-    //     ? deviceRecord
-    //     : "unknown";
+     const deviceBrowser =
+      typeof deviceRecord === "object" && deviceRecord
+        ? (deviceRecord as any).browser || "unknown"
+        : typeof deviceRecord === "string"
+        ? deviceRecord
+        : "unknown";
 
-    // const country =
-    //   typeof location === "object" && location
-    //     ? (location as any).Country || (location as any).country || "unknown"
-    //     : typeof location === "string"
-    //     ? location
-    //     : "unknown";
-    // await addNotification(
-    //   user.id as UUID,
-    //   {
-    //     title: NotificationTitle.GOOGLE_REGSTER,
-    //     body: `you regstered to the app throw google from ${deviceBrowser} at ${country}`,
-    //     actorId: user.id as UUID,
-    //     tweetId: "32423",
-    //   });
+    const country =
+      typeof location === "object" && location
+        ? (location as any).Country || (location as any).country || "unknown"
+        : typeof location === "string"
+        ? location
+        : "unknown";
+    await addNotification(
+      user.id as UUID,
+      {
+        title: NotificationTitle.GOOGLE_REGSTER,
+        body: `you regstered to the app throw google from ${deviceBrowser} at ${country}`,
+        actorId: user.id as UUID,
+        tweetId: "32423",
+      });
     return res.json({
       token: token.token,
       refreshToken: refreshToken.token,
       user: {
         id: user.id,
+        newuser,
         username: user.username,
         name: user.name,
         email: user.email,
@@ -2704,11 +2709,13 @@ export async function CallbackAndroidGoogle(
     });
 
     let user;
+    let newuser;
     if (oauth) {
       user = oauth.user;
     } else {
       user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
+        newuser=true;
         const username = await utils.generateUsername(name);
         user = await prisma.user.create({
           data: {
@@ -2724,13 +2731,14 @@ export async function CallbackAndroidGoogle(
           },
         });
       } else {
+        newuser=false;
         await prisma.oAuthAccount.create({
           data: { provider: "google", providerId, userId: user.id },
         });
       }
     }
 
-    const { devid } = await utils.SetDeviceInfo(req, res, email);
+    const { deviceRecord,devid } = await utils.SetDeviceInfo(req, res, email);
 
     const accessPayload = {
       username: user.username,
@@ -2754,33 +2762,34 @@ export async function CallbackAndroidGoogle(
       refreshToken.token,
       { EX: 60 * 60 * 24 * 30 }
     );
-    // const deviceBrowser =
-    //   typeof deviceRecord === "object" && deviceRecord
-    //     ? (deviceRecord as any).browser || "unknown"
-    //     : typeof deviceRecord === "string"
-    //     ? deviceRecord
-    //     : "unknown";
+    const deviceBrowser =
+      typeof deviceRecord === "object" && deviceRecord
+        ? (deviceRecord as any).browser || "unknown"
+        : typeof deviceRecord === "string"
+        ? deviceRecord
+        : "unknown";
 
-    // const country =
-    //   typeof location === "object" && location
-    //     ? (location as any).Country || (location as any).country || "unknown"
-    //     : typeof location === "string"
-    //     ? location
-    //     : "unknown";
-    // await addNotification(
-    //   user.id as UUID,
-    //   {
-    //     title: NotificationTitle.GITHUB_REGSTER,
-    //     body: `you regstered to the app throw google from ${deviceBrowser} at ${country}`,
-    //     actorId: user.id as UUID,
-    //     tweetId: "32423",
-    //   });
+    const country =
+      typeof location === "object" && location
+        ? (location as any).Country || (location as any).country || "unknown"
+        : typeof location === "string"
+        ? location
+        : "unknown";
+    await addNotification(
+      user.id as UUID,
+      {
+        title: NotificationTitle.GITHUB_REGSTER,
+        body: `you regstered to the app throw google from ${deviceBrowser} at ${country}`,
+        actorId: user.id as UUID,
+        tweetId: "32423",
+      });
     return res.json({
       token: token.token,
       refreshToken: refreshToken.token,
       user: {
         id: user.id,
         username: user.username,
+        newuser,
         name: user.name,
         email: user.email,
         dateOfBirth: user.dateOfBirth,
