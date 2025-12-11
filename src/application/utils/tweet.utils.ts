@@ -188,7 +188,9 @@ export const tweetSelectFields = (userId?: string) => {
           },
         }
       : {}),
-    hashtags: { select: { hashId: true } },
+    hashtags: {
+      select: { hash: { select: { id: true, tag_text: true } } },
+    },
     tweetMedia: {
       select: { media: { select: mediaSelectFields() } },
     },

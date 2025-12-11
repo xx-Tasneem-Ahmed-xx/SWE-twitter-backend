@@ -89,7 +89,9 @@ export const TweetResponsesSchema = z.object({
   tweetType: z.enum(TweetType),
   user: UserSchema,
   tweetMedia: TweetMediaSchema,
-  hashtags: z.array(z.string()).optional(),
+  hashtags: z
+    .array(z.object({ id: z.string(), tag_text: z.string() }))
+    .optional(),
   tweetCategories: CategoriesResponseSchema.optional(),
   isLiked: z.boolean(),
   isRetweeted: z.boolean(),
