@@ -617,7 +617,7 @@ if (!exists){
         title: NotificationTitle.login_new_device_location,
         body: `login from new divice or location from ${deviceBrowser} `,
         actorId: user.id as UUID,
-        tweetId: "32423",
+       
       });}
 
     const accessObj = await utils.GenerateJwt({
@@ -996,7 +996,7 @@ await enqueuePasswordChangedAlert(user.email, user.username);
         title: NotificationTitle.PASSWORD_CHANGED,
         body: `Password of this account has been changed of ${deviceBrowser} at ${country}`,
         actorId: user.id as UUID,
-        tweetId: "32423",
+       
       });
 
     const accessObj = await utils.GenerateJwt({
@@ -1317,7 +1317,7 @@ await enqueuePasswordChangedDetailed(user.email, {
         title: NotificationTitle.PASSWORD_CHANGED,
         body: `WE NOTICE PASSWORD CHANGED FROM ${deviceBrowser} at ${country}`,
         actorId: user.id as UUID,
-        tweetId: "32423",
+       
       });
 
     return utils.SendRes(res, {
@@ -1386,7 +1386,7 @@ await enqueueEmailChangeVerification(user.email, user.name || "there", code);
         title: NotificationTitle.EMAIL_CHANGED,
         body: `WE NOTICE EMAIL CHANGED FROM  at ${country}`,
         actorId: user.id as UUID,
-        tweetId: "32423",
+       
       });
     return utils.SendRes(res, {
       message: "Verification code sent successfully to your new email",
@@ -2209,7 +2209,7 @@ await enqueueSecurityLoginGithub(user.email, {
         title: NotificationTitle.GITHUB_REGSTER,
         body: `you regstered to the app throw github from ${deviceBrowser} at ${country}`,
         actorId: user.id as UUID,
-        tweetId: "32423",
+       
       });
     return res.redirect(redirectUrl);
 
@@ -2363,7 +2363,7 @@ await enqueueSecurityLoginGithub(user.email, {
         title: NotificationTitle.GITHUB_REGSTER,
         body: `you regstered to the app throw github from ${deviceBrowser} at ${country}`,
         actorId: user.id as UUID,
-        tweetId: "32423",
+      
       });
     return res.redirect(redirectUrl);
   } catch (err) {
@@ -2532,7 +2532,7 @@ await enqueueSecurityLoginGoogle(user.email, {
         title: NotificationTitle.GOOGLE_REGSTER,
         body: `you Regester to the app throw google from ${deviceBrowser} at ${country}`,
         actorId: user.id as UUID,
-        tweetId: "32423",
+  
       });
     return res.redirect(redirectUrl);
   } catch (err) {
@@ -2667,7 +2667,7 @@ export async function CallbackIOSGoogle(
         title: NotificationTitle.GOOGLE_REGSTER,
         body: `you regstered to the app throw google from ${deviceBrowser} at ${country}`,
         actorId: user.id as UUID,
-        tweetId: "32423",
+        
       });
     return res.json({
       token: token.token,
@@ -2781,7 +2781,7 @@ export async function CallbackAndroidGoogle(
         title: NotificationTitle.GITHUB_REGSTER,
         body: `you regstered to the app throw google from ${deviceBrowser} at ${country}`,
         actorId: user.id as UUID,
-        tweetId: "32423",
+        
       });
     return res.json({
       token: token.token,
