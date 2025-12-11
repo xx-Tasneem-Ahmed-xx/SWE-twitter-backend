@@ -164,10 +164,14 @@ export class ExploreService {
     }
 
     const hydrated = await this.hydrateTweets(userId, resultIds);
+    const nextCursor =
+      resultIds.length < limit
+        ? null
+        : encoderService.encode(cursor + resultIds.length);
 
     return {
       data: hydrated,
-      cursor: encoderService.encode(cursor + resultIds.length),
+      cursor: nextCursor,
     };
   }
 
