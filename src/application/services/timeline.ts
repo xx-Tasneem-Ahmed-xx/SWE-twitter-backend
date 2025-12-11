@@ -810,14 +810,14 @@ export class TimelineService {
     const cached = await cacheGet<ForYouResponseDTO>(cacheKey);
     if (cached) return cached;
 
-    // 2) Followings (Unchanged)
+    // 2) Followings
     const followRows = await prisma.follow.findMany({
       where: { followerId: params.userId, status: "ACCEPTED" },
       select: { followingId: true },
     });
     const followingIds = followRows.map((r) => r.followingId);
 
-    // 3) two-hop followings (Unchanged)
+    // 3) two-hop followings (up to 200)
     const twoHopRows = await prisma.$queryRaw<{ followingId: string }[]>`
       SELECT DISTINCT f2."followingId"
       FROM "Follow" f1
@@ -829,7 +829,7 @@ export class TimelineService {
       .map((r) => r.followingId)
       .filter((id) => id !== params.userId && !followingIds.includes(id));
 
-    // 4) Negative signals (Unchanged)
+    // 4) Negative signals: muted, blocked, not interested, spam reports
     const [mutedRows, blockedRows] = await Promise.all([
       prisma.mute.findMany({
         where: { muterId: params.userId },
@@ -857,7 +857,7 @@ export class TimelineService {
       notInterestedTweetIds = [];
     }
 
-    // 5) Author reputation (Unchanged)
+    // 5) Author reputation (graceful) - FIX: Explicitly defined Map type
     let authorReputation: Map<string, number> = new Map<string, number>();
     try {
       const reputations = (prisma as any).authorReputation?.findMany
@@ -875,7 +875,7 @@ export class TimelineService {
       // ignore if not present or any runtime error
     }
 
-    // 6) Top user topics (hashtags) (Unchanged)
+    // 6) Top user topics (hashtags)
     const userTopHashtags = await prisma.$queryRaw<
       { tag_text: string; cnt: string }[]
     >`
@@ -889,26 +889,12 @@ export class TimelineService {
     `;
     const userHashtags = userTopHashtags.map((r) => r.tag_text);
 
-    // 6.5) NEW: Fetch User Preferred Category IDs
-    const userCategoryPreferences = await prisma.user.findUnique({
-      where: { id: params.userId },
-      select: {
-        preferredCategories: {
-          select: { id: true },
-        },
-      },
-    });
-
-    const preferredCategoryIds =
-      userCategoryPreferences?.preferredCategories?.map((c) => c.id) ?? [];
-
     // 7) Candidate generation (raw SQL)
     const trendingWindow = new Date(
       Date.now() - CONFIG.trendingWindowHours * 60 * 60 * 1000
     );
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    // SQL Placeholders (Updated with category placeholder)
     const mutedPlaceholder = mutedIds.length
       ? Prisma.join(
           mutedIds.map((id) => Prisma.sql`${id}`),
@@ -930,13 +916,6 @@ export class TimelineService {
     const userHashtagPlaceholder = userHashtags.length
       ? Prisma.join(
           userHashtags.map((h) => Prisma.sql`${h}`),
-          ","
-        )
-      : Prisma.sql`'__null__'`;
-    // ⭐️ NEW: Category Placeholder
-    const preferredCategoryPlaceholder = preferredCategoryIds.length
-      ? Prisma.join(
-          preferredCategoryIds.map((id) => Prisma.sql`${id}`),
           ","
         )
       : Prisma.sql`'__null__'`;
@@ -962,12 +941,6 @@ export class TimelineService {
             JOIN "hashes" h ON th."hashId" = h.id
             WHERE th."tweetId" = t.id
           ) AS tags,
-          --NEW: Fetch Category IDs attached to the tweet
-          (
-            SELECT ARRAY_AGG("categoryId")
-            FROM "TweetCategory" tc
-            WHERE tc."tweetId" = t.id
-          ) AS categories,
           -- simple velocity: likes+retweets within trending window
           (
             SELECT COUNT(*) FROM "TweetLike" tl WHERE tl."tweetId" = t.id AND tl."createdAt" >= ${trendingWindow}
@@ -1010,11 +983,6 @@ export class TimelineService {
       topic_match AS (
         SELECT b.*, 'topic' as reason FROM base b
         WHERE b.tags && ARRAY[${userHashtagPlaceholder}]::text[]
-      ),
-      --NEW Candidate Source: Category Match
-      category_match AS (
-        SELECT b.*, 'category_match' as reason FROM base b
-        WHERE b.categories && ARRAY[${preferredCategoryPlaceholder}]::text[]
       )
       SELECT DISTINCT ON (id) *
       FROM (
@@ -1029,9 +997,6 @@ export class TimelineService {
         SELECT * FROM from_2hop
         UNION ALL
         SELECT * FROM topic_match
-        --NEW: Include category matches
-        UNION ALL
-        SELECT * FROM category_match
         UNION ALL
         SELECT *, 'self' as reason FROM base WHERE "userId" = ${params.userId}
         UNION ALL
@@ -1043,7 +1008,7 @@ export class TimelineService {
 
     let finalCandidates = candidates ?? [];
 
-    // 8) Filter out explicit user negatives (Unchanged)
+    // 8) Filter out explicit user negatives
     const filtered = [];
     const notInterestedSet = new Set(notInterestedTweetIds);
     let spamCounts = new Map<string, number>();
@@ -1069,7 +1034,7 @@ export class TimelineService {
 
     finalCandidates = filtered;
 
-    // 9) Scoring: (Updated with category boost)
+    // 9) Scoring:
     const scored = finalCandidates.map((r: any) => {
       const createdAt = new Date(r.createdAt ?? r.created_at ?? r["createdAt"]);
       let score = baseEngagementScore_FY({
@@ -1086,46 +1051,31 @@ export class TimelineService {
       // recency
       score *= recencyScore(createdAt, CONFIG.recencyHalfLifeHours_FY);
 
-      // follow + two-hop boosts (Unchanged)
+      // follow + two-hop boosts
       if (followingIds.includes(r.userId)) score *= CONFIG.followBoost;
       else if (twoHopIds.includes(r.userId)) score *= CONFIG.twoHopBoost;
 
-      // liked/bookmarked by followings boost (Unchanged)
+      // liked by followings boost
       if ((r.reason ?? "").includes("liked_by_following"))
         score *= CONFIG.followingLikedBoost;
+
+      // bookmarked by followings boost
       if ((r.reason ?? "").includes("bookmarked_by_following"))
         score *= CONFIG.bookmarkByFollowingBoost;
 
-      // topic overlap (Hashtags) (Unchanged)
+      // topic overlap
       const tags: string[] = Array.isArray(r.tags) ? r.tags : [];
-      const hashtagOverlap = tags.filter((t: string) =>
+      const overlap = tags.filter((t: string) =>
         userHashtags.includes(t)
       ).length;
-      if (hashtagOverlap > 0)
-        score *= Math.pow(CONFIG.topicMatchBoost, Math.min(3, hashtagOverlap));
+      if (overlap > 0)
+        score *= Math.pow(CONFIG.topicMatchBoost, Math.min(3, overlap));
 
-      // Category Match Boost
-      const categories: string[] = Array.isArray(r.categories)
-        ? r.categories
-        : [];
-      const categoryOverlapCount = categories.filter((catId: string) =>
-        preferredCategoryIds.includes(catId)
-      ).length;
-
-      // We use CONFIG.topicMatchBoost as a generic relevance boost here.
-      if (categoryOverlapCount > 0) {
-        score *= Math.pow(CONFIG.topicMatchBoost, categoryOverlapCount);
-        // Add 'category_match' to the reasons list if it wasn't the primary reason for inclusion
-        if (!String(r.reason ?? "").includes("category_match")) {
-          r.reason = (r.reason ?? "") + ", category_match_scored";
-        }
-      }
-
-      // verified (Unchanged)
+      // verified
       const isVerified = r.verified === true || r.verified === 1;
       if (isVerified) score *= CONFIG.verifiedBoost_FY;
 
-      // author reputation (Unchanged)
+      // author reputation
       const repFromMap = authorReputation.get(r.userId) ?? 1.0;
       const rep =
         repFromMap === 1.0 && r.reputation ? Number(r.reputation) : repFromMap;
@@ -1135,22 +1085,20 @@ export class TimelineService {
         Math.min(CONFIG.authorReputationCap, rep)
       );
 
-      // spam penalty (Unchanged)
+      // spam penalty
       const spamCount = spamCounts.get(r.id) ?? 0;
       if (spamCount > 0) score /= 1 + spamCount * 0.5;
 
-      // small random noise (Unchanged)
+      // small random noise
       score = score * (1 + gaussianNoise());
 
-      // Ensure reasons array is correctly mapped
-      const reasons = [String(r.reason ?? "")].filter((r) => r);
-      return { row: r, score, reasons };
+      return { row: r, score, reasons: [String(r.reason ?? "")] };
     });
 
-    // 10) sort desc by score (Unchanged)
+    // 10) sort desc by score
     scored.sort((a, b) => b.score - a.score);
 
-    // 11) diversity & author caps (Unchanged)
+    // 11) diversity & author caps
     const scoredCandidatesWithBaseInfo: any[] = scored.map((s) => ({
       ...s.row,
       _score: s.score,
@@ -1176,10 +1124,10 @@ export class TimelineService {
       if (diversifiedResults.length >= limit * 3) break;
     }
 
-    // Fetch full tweet data and embed parents for replies/quotes (Unchanged)
+    // Fetch full tweet data and embed parents for replies/quotes
     let results = await fetchFullTweetData(diversifiedResults, params.userId);
 
-    // 12) final sort & pagination (Unchanged)
+    // 12) final sort & pagination
     results.sort((a, b) => b._score - a._score);
 
     let startIndex = 0;
@@ -1197,7 +1145,7 @@ export class TimelineService {
       mapToDTO(
         r,
         Number(r._score ?? 0),
-        r._reasons ?? [String(r.reason ?? "")].filter((r) => r),
+        r._reasons ?? [String(r.reason ?? "")],
         r._embeddedParent
       )
     );
@@ -1210,7 +1158,7 @@ export class TimelineService {
       generatedAt: new Date().toISOString(),
     };
 
-    // Cache for a short time (Unchanged)
+    // Cache for a short time
     await cacheSet(cacheKey, response, CONFIG.cacheTTL);
 
     return response;
