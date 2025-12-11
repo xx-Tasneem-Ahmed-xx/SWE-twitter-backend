@@ -21,7 +21,12 @@ jest.mock("@/prisma/client", () => {
     $queryRaw: mockQueryRaw,
     $transaction: mockTransaction,
   };
-  return { prisma: mockPrisma };
+  // Ensure the Prisma object has a way to handle raw SQL joins if necessary
+  mockPrisma.Prisma = {
+    join: jest.fn((parts) => parts.join(",")),
+    sql: jest.fn((str) => str),
+  };
+  return { prisma: mockPrisma, Prisma: mockPrisma.Prisma };
 });
 
 // --- 3. MOCK IOREDIS ---
@@ -40,6 +45,7 @@ jest.mock("ioredis", () => {
 import {
   TimelineService,
   recencyScore,
+  baseEngagementScore_FY, // Import to calculate expected score
 } from "../application/services/timeline";
 import { CONFIG } from "../application/dtos/timeline/timeline.dto"; // Import CONFIG to verify boosts
 
@@ -93,6 +99,7 @@ const mockRawCandidate = (
     name: "Raw User",
     profileMediaId: "raw-media-id",
     protectedAccount: false,
+    reason: "global", // Default reason for $queryRaw mock
   };
   RAW_CANDIDATE_CACHE[id] = candidate; // Store candidate in cache
   return candidate;
@@ -108,11 +115,7 @@ const mockQueryRawCandidates = (
     const id = `candidate-${startId + i}`;
     // FIX: Ensure unique author IDs if no fixedAuthorId is provided, addressing diversity issues.
     const authorId = fixedAuthorId ?? `author-candidate-unique-${startId + i}`;
-    candidates.push({
-      // Ensure the mockRawCandidate call happens here to populate the cache
-      ...mockRawCandidate(id, authorId),
-      reason: "global",
-    });
+    candidates.push(mockRawCandidate(id, authorId));
   }
   return candidates;
 };
@@ -149,6 +152,7 @@ const mockFullTweetFindMany = (candidates: any[]): any[] => {
 // --- TESTS ---
 describe("TimelineService", () => {
   beforeAll(async () => {
+    // We import the refactored class here
     TimelineServiceClass = TimelineService;
     service = new TimelineServiceClass();
     mockTransaction.mockImplementation(
@@ -174,8 +178,8 @@ describe("TimelineService", () => {
     // Default mock for mockFindUniqueUser (NEW CATEGORY DEPENDENCY)
     mockFindUniqueUser.mockResolvedValue({
       preferredCategories: [
-        { id: MOCK_CATEGORY_ID }, // Mock preferred category
-        { id: MOCK_CATEGORY_ID_2 },
+        { id: MOCK_CATEGORY_ID }, // Mock preferred category 1
+        { id: MOCK_CATEGORY_ID_2 }, // Mock preferred category 2
       ],
     });
 
@@ -185,9 +189,8 @@ describe("TimelineService", () => {
       if (ids.length > 0) {
         const candidatesToHydrate = ids.map((id) => {
           // Retrieve the specific raw candidate data from cache
-          if (RAW_CANDIDATE_CACHE[id]) {
-            return RAW_CANDIDATE_CACHE[id];
-          }
+          const rawData = RAW_CANDIDATE_CACHE[id];
+          if (rawData) return rawData;
           // Fallback to avoid breaking if an ID is not cached
           return mockRawCandidate(id, `author-fallback-${id}`);
         });
@@ -236,6 +239,8 @@ describe("TimelineService", () => {
         null,
         2000
       );
+      followedCandidate.reason = "from_following";
+
       // Generate unique authors for generic candidates
       const genericCandidates = mockQueryRawCandidates(29, 1000);
 
@@ -246,6 +251,7 @@ describe("TimelineService", () => {
           if (query.includes('FROM "Follow" f1 JOIN "Follow" f2')) {
             return Promise.resolve([{ followingId: mockTwoHopId }]);
           }
+          // Default to returning the candidates pool
           return Promise.resolve([followedCandidate, ...genericCandidates]);
         }
       );
@@ -545,37 +551,68 @@ describe("Author diversity hard-limit", () => {
 describe("ForYou - Category Matching Logic", () => {
   const NON_MATCHING_CATEGORY = "cat-music-3";
 
-  // Mock a single candidate that matches one of the user's two preferred categories
-  const mockMatchingCandidate = mockRawCandidate(
-    "t-cat-match",
-    "author-cat-1",
-    "TWEET",
-    null,
-    100, // base boost for sorting control
-    [MOCK_CATEGORY_ID, NON_MATCHING_CATEGORY] // Tweet categories
-  );
+  const getExpectedBaseScore = (candidate: any) => {
+    // 1. Base Engagement Score (FY)
+    const baseEng = baseEngagementScore_FY({
+      likes: candidate.likes,
+      rts: candidate.rts,
+      replies: candidate.replies,
+      // quotes is not used in baseEngagementScore_FY
+    });
 
-  // Mock a single candidate that has no categories in common with the user
-  const mockNonMatchingCandidate = mockRawCandidate(
-    "t-cat-nomatch",
-    "author-cat-2",
-    "TWEET",
-    null,
-    100,
-    [NON_MATCHING_CATEGORY] // Only non-matching category
-  );
+    // Start with the base engagement score
+    let baseScore = baseEng;
+
+    // 2. Velocity Boost
+    const recentEng = candidate.likes_recent + 2 * candidate.rts_recent;
+    const velocityBoost = 1 + Math.log1p(recentEng) * 0.08;
+    baseScore *= velocityBoost;
+
+    // 3. Recency Score
+    const recencyMultiplier = recencyScore(
+      new Date(candidate.createdAt),
+      CONFIG.recencyHalfLifeHours_FY
+    );
+    baseScore *= recencyMultiplier;
+
+    // 4. Verified Boost
+    if (candidate.verified) baseScore *= CONFIG.verifiedBoost_FY;
+
+    // 5. Author Reputation (Mocked as 1.0)
+    baseScore *= 1.0;
+
+    // The calculated score *before* the category boost and *before* gaussian noise is:
+    return baseScore;
+  };
 
   it("should not boost score if tweet categories do not match user preference", async () => {
+    // Mock a single candidate that has no categories in common with the user
+    const candidate = mockRawCandidate(
+      "t-cat-nomatch",
+      "author-cat-nomatch",
+      "TWEET",
+      null,
+      0,
+      [NON_MATCHING_CATEGORY] // Only non-matching category
+    );
+    candidate.reason = "global";
+
     // Only return the non-matching candidate
-    mockQueryRawFn.mockResolvedValue([mockNonMatchingCandidate]);
+    mockQueryRawFn.mockResolvedValue([candidate]);
 
     const result = await service.getForYou({ userId: MOCK_USER_ID, limit: 1 });
-
     const item = result.items[0];
+
+    // Calculate expected score without category boost and random noise
+    const expectedBaseScore = getExpectedBaseScore(candidate);
+
+    // The score should be roughly the base score (within 10% for noise)
+    expect(item.score).toBeGreaterThan(expectedBaseScore * 0.9);
+    expect(item.score).toBeLessThan(expectedBaseScore * 1.1);
 
     // Check if the 'category_match_scored' reason is NOT present
     expect(item.reasons).not.toContain("category_match_scored");
-
-    // Score should be close to baseline (relying on other boosts, but not the category boost)
   });
 });
+
+
