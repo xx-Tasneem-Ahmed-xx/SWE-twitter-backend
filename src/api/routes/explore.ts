@@ -8,6 +8,7 @@ router.route("/categories").get(exploreController.getCategories);
 
 router
 .route("/preferred-categories")
+.get(exploreController.getUserPreferredCategories)
 .post(exploreController.saveUserPreferredCategories);
 
 router.route("/").get(exploreController.getFeed);
