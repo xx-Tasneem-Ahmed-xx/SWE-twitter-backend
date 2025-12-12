@@ -8,10 +8,32 @@ import { loadSecrets } from "@/config/secrets";
 import { prisma } from "@/prisma/client";
 import { Tweet, TweetType, ReplyControl } from "@prisma/client";
 import { RESPONSES } from "@/application/constants/responses";
+import { addNotification } from "@/application/services/notification";
+import { enqueueUpdateScoreJob } from "@/background/jobs/explore";
+import {
+  enqueueCategorizeTweetJob,
+  enqueueHashtagJob,
+} from "@/background/jobs/hashtags";
+import {
+  generateTweetSumamry,
+  generateTweetCategory,
+} from "@/application/services/aiSummary";
 let connectToDatabase: any;
 
 jest.mock("@/application/services/notification", () => ({
   addNotification: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock("@/background/jobs/explore", () => ({
+  enqueueUpdateScoreJob: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("@/background/jobs/hashtags", () => ({
+  enqueueHashtagJob: jest.fn().mockResolvedValue(undefined),
+  enqueueCategorizeTweetJob: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("@/application/services/aiSummary", () => ({
+  generateTweetSumamry: jest.fn().mockResolvedValue("mock summary"),
+  generateTweetCategory: jest.fn(),
 }));
 
 beforeAll(async () => {
@@ -134,19 +156,39 @@ describe("Tweets Service", () => {
 
   afterAll(async () => {
     await prisma.user.deleteMany({
-      where: { id: { in: ["123", "456", "789"] } },
+      where: { id: { in: ["123", "456", "789", "444"] } },
     });
 
     await prisma.tweet.deleteMany({
-      where: { userId: { in: ["123", "456", "789"] } },
+      where: { userId: { in: ["123", "456", "789", "444"] } },
     });
 
     await prisma.retweet.deleteMany({
-      where: { userId: { in: ["123", "456", "789"] } },
+      where: { userId: { in: ["123", "456", "789", "444"] } },
     });
 
     await prisma.media.deleteMany();
     await prisma.$disconnect();
+  });
+
+  describe("validateId", () => {
+    it("should not throw for a valid existing tweet id", async () => {
+      await expect(
+        tweetService["validateId"](publicTweet.id)
+      ).resolves.not.toThrow();
+    });
+
+    it("should throw INVALID_ID if id is empty string", async () => {
+      await expect(tweetService["validateId"]("")).rejects.toThrow(
+        RESPONSES.ERRORS.INVALID_ID.message
+      );
+    });
+
+    it("should throw TWEET_NOT_FOUND if tweet does not exist", async () => {
+      await expect(
+        tweetService["validateId"]("nonexistent-id")
+      ).rejects.toThrow(RESPONSES.ERRORS.TWEET_NOT_FOUND.message);
+    });
   });
 
   describe("createTweet", () => {
@@ -169,6 +211,24 @@ describe("Tweets Service", () => {
       expect(savedTweet).not.toBeNull();
       expect(savedTweet?.tweetType).toBe(TweetType.TWEET);
     });
+    it("should enqueue jobs for background workers", async () => {
+      const dto = {
+        content: "normal tweet",
+        userId: "123",
+        replyControl: ReplyControl.EVERYONE,
+      };
+
+      const result = await tweetService.createTweet(dto);
+      expect(enqueueHashtagJob).toHaveBeenCalledWith({
+        tweetId: result.id,
+        content: result.content,
+      });
+
+      expect(enqueueCategorizeTweetJob).toHaveBeenCalledWith({
+        tweetId: result.id,
+        content: result.content,
+      });
+    });
   });
 
   describe("createQuote", () => {
@@ -189,7 +249,28 @@ describe("Tweets Service", () => {
       });
       expect(updatedParent?.quotesCount).toBeGreaterThanOrEqual(1);
     });
+    it("should enqueue jobs for background workers ", async () => {
+      const dto = {
+        userId: "456",
+        content: "my quote",
+        parentId: publicTweet.id,
+      };
 
+      const result = await tweetService.createQuote(dto);
+      expect(enqueueHashtagJob).toHaveBeenCalledWith({
+        tweetId: result.id,
+        content: result.content,
+      });
+
+      expect(enqueueCategorizeTweetJob).toHaveBeenCalledWith({
+        tweetId: result.id,
+        content: result.content,
+      });
+
+      expect(enqueueUpdateScoreJob).toHaveBeenCalledWith({
+        tweetId: dto.parentId,
+      });
+    });
     it("should throw if parent tweet's user is protected", async () => {
       expect(
         tweetService.createQuote({
@@ -233,7 +314,28 @@ describe("Tweets Service", () => {
       });
       expect(updatedParent?.repliesCount).toBeGreaterThanOrEqual(1);
     });
+    it("should enqueue jobs for background workers ", async () => {
+      const dto = {
+        userId: "456",
+        content: "my reply",
+        parentId: publicTweet.id,
+      };
 
+      const result = await tweetService.createReply(dto);
+      expect(enqueueHashtagJob).toHaveBeenCalledWith({
+        tweetId: result.id,
+        content: result.content,
+      });
+
+      expect(enqueueCategorizeTweetJob).toHaveBeenCalledWith({
+        tweetId: result.id,
+        content: result.content,
+      });
+
+      expect(enqueueUpdateScoreJob).toHaveBeenCalledWith({
+        tweetId: dto.parentId,
+      });
+    });
     it("should reply to a protected tweet", async () => {
       const dto = {
         userId: "789",
@@ -795,6 +897,11 @@ describe("Tweets Service", () => {
   });
 
   describe("getUserTweets", () => {
+    let reply: Tweet, normal: Tweet;
+    beforeAll(async () => {
+      await prisma.tweet.deleteMany({ where: { userId: "789" } });
+    });
+
     it("should return all tweet for a user", async () => {
       const [quote, reply] = await Promise.all([
         prisma.tweet.create({
@@ -819,6 +926,89 @@ describe("Tweets Service", () => {
         expect.arrayContaining([reply.id, quote.id, protectedTweet.id])
       );
       expect(res.data).toHaveLength(3);
+    });
+
+    it("should return all tweets for a user with default limit", async () => {
+      reply = await prisma.tweet.create({
+        data: {
+          userId: "789",
+          content: "reply tweet",
+          tweetType: TweetType.REPLY,
+        },
+      });
+      normal = await prisma.tweet.create({
+        data: {
+          userId: "789",
+          content: "normal tweet",
+          tweetType: TweetType.TWEET,
+        },
+      });
+      const res = await tweetService.getUserTweets(
+        { userId: "789", limit: 2 },
+        "456"
+      );
+
+      const tweetIds = res.data.map((t) => t.id);
+      expect(tweetIds).toEqual(expect.arrayContaining([reply.id, normal.id]));
+      expect(res.data).toHaveLength(2);
+      expect(res.cursor).toBeDefined();
+    });
+
+    it("should filter tweets by type", async () => {
+      await prisma.tweet.create({
+        data: {
+          userId: "789",
+          content: "quote tweet",
+          tweetType: TweetType.QUOTE,
+        },
+      });
+      reply = await prisma.tweet.create({
+        data: {
+          userId: "789",
+          content: "reply tweet",
+          tweetType: TweetType.REPLY,
+        },
+      });
+      normal = await prisma.tweet.create({
+        data: {
+          userId: "789",
+          content: "normal tweet",
+          tweetType: TweetType.TWEET,
+        },
+      });
+      const res = await tweetService.getUserTweets(
+        { userId: "789", limit: 10, tweetType: TweetType.REPLY },
+        "456"
+      );
+
+      expect(res.data).toHaveLength(1);
+      expect(res.data[0].tweetType).toBe(TweetType.REPLY);
+    });
+
+    it("should order tweets by createdAt desc then id desc", async () => {
+      const t1 = await prisma.tweet.create({
+        data: {
+          userId: "789",
+          content: "older tweet",
+          tweetType: TweetType.TWEET,
+        },
+      });
+      const t2 = await prisma.tweet.create({
+        data: {
+          userId: "789",
+          content: "newer tweet",
+          tweetType: TweetType.TWEET,
+        },
+      });
+
+      const res = await tweetService.getUserTweets(
+        { userId: "789", limit: 10 },
+        "123"
+      );
+      const ids = res.data.map((t) => t.id);
+
+      expect(ids[0]).toBe(t2.id);
+      expect(ids[1]).toBe(t1.id);
     });
   });
 
@@ -883,6 +1073,7 @@ describe("Tweets Service", () => {
       expect(res.cursor).toBeDefined();
     });
   });
+
   describe("getUserMedias", () => {
     it("should return tweets with media for a user", async () => {
       await prisma.tweet.create({
@@ -1110,6 +1301,327 @@ describe("Tweets Service", () => {
 
       expect(result.data.length).toBe(1);
       expect(result.cursor).not.toBeNull();
+    });
+  });
+
+  describe("saveMentionedUsersTx", () => {
+    beforeEach(async () => {
+      await prisma.mention.deleteMany({});
+    });
+    it("should create mentions for mentioned users", async () => {
+      await prisma.$transaction(async (tx) => {
+        await tweetService["saveMentionedUsersTx"](
+          tx,
+          publicTweet.id,
+          "Hello @test_user2",
+          "123"
+        );
+      });
+      expect(addNotification).toHaveBeenCalledWith("456", {
+        title: "MENTION",
+        body: "Test User One mentioned you",
+        tweetId: publicTweet.id,
+        actorId: "123",
+      });
+
+      const mentions = await prisma.mention.findMany({
+        where: { tweetId: publicTweet.id },
+      });
+      expect(mentions).toHaveLength(1);
+      expect(mentions[0]).toMatchObject({
+        mentionerId: "123",
+        mentionedId: "456",
+        tweetId: publicTweet.id,
+      });
+    });
+
+    it("should do nothing if no mentions in content", async () => {
+      await prisma.$transaction(async (tx) => {
+        await tweetService["saveMentionedUsersTx"](
+          tx,
+          publicTweet.id,
+          "Hello world",
+          "123"
+        );
+      });
+
+      expect(addNotification).not.toHaveBeenCalled();
+
+      const mentions = await prisma.mention.findMany({
+        where: { tweetId: "tweet456" },
+      });
+      expect(mentions).toHaveLength(0);
+    });
+
+    it("should skip blocked users", async () => {
+      await prisma.block.create({
+        data: { blockerId: "123", blockedId: "789" },
+      });
+
+      await prisma.$transaction(async (tx) => {
+        await tweetService["saveMentionedUsersTx"](
+          tx,
+          publicTweet.id,
+          "Hello @test_user3",
+          "123"
+        );
+      });
+
+      expect(addNotification).not.toHaveBeenCalled();
+
+      const mentions = await prisma.mention.findMany({
+        where: { mentionedId: "789", mentionerId: "123" },
+      });
+      expect(mentions).toHaveLength(0);
+    });
+
+    it("should handle multiple mentions", async () => {
+      const user4 = await prisma.user.upsert({
+        where: { username: "test_user4" },
+        update: {},
+        create: {
+          username: "test_user4",
+          id: "444",
+          email: "test_user4@example.com",
+          password: "password123",
+          saltPassword: "salt123",
+          name: "Test User Four",
+        },
+      });
+
+      await prisma.$transaction(async (tx) => {
+        await tweetService["saveMentionedUsersTx"](
+          tx,
+          publicTweet.id,
+          "Hello @test_user4 and @test_user2",
+          "123"
+        );
+      });
+
+      expect(addNotification).toHaveBeenCalledTimes(2);
+
+      const mentions = await prisma.mention.findMany({
+        where: { tweetId: publicTweet.id },
+      });
+      expect(mentions).toHaveLength(2);
+      expect(mentions.map((m) => m.mentionedId)).toEqual(
+        expect.arrayContaining(["456", user4.id])
+      );
+    });
+  });
+
+  describe("saveTweetMediasTx", () => {
+    it("should create tweetMedia records for provided mediaIds", async () => {
+      await prisma.$transaction(async (tx) => {
+        await tweetService["saveTweetMediasTx"](tx, publicTweet.id, [
+          "media1",
+          "media2",
+        ]);
+      });
+
+      const medias = await prisma.tweetMedia.findMany({
+        where: { tweetId: publicTweet.id },
+        select: { mediaId: true },
+      });
+
+      expect(medias.map((m) => m.mediaId)).toEqual(["media1", "media2"]);
+    });
+
+    it("should do nothing if mediaIds is empty", async () => {
+      await prisma.$transaction(async (tx) => {
+        await tweetService["saveTweetMediasTx"](tx, protectedTweet.id, []);
+      });
+
+      const medias = await prisma.tweetMedia.findMany({
+        where: { tweetId: protectedTweet.id },
+      });
+
+      expect(medias).toHaveLength(0);
+    });
+
+    it("should skip duplicates if same mediaId provided twice", async () => {
+      await prisma.$transaction(async (tx) => {
+        await tweetService["saveTweetMediasTx"](tx, protectedTweet.id, [
+          "media1",
+          "media1",
+        ]);
+      });
+
+      const medias = await prisma.tweetMedia.findMany({
+        where: { tweetId: protectedTweet.id },
+      });
+      expect(medias).toHaveLength(1);
+      expect(medias[0].mediaId === "media1");
+    });
+  });
+
+  describe("getTweet", () => {
+    it("should return a tweet when given a valid id", async () => {
+      const result = await tweetService.getTweet(publicTweet.id, "123");
+
+      expect(result).toBeDefined();
+      expect(result.id).toBe(publicTweet.id);
+      expect(result.userId).toBe("123");
+      expect(result.tweetType).toBe(TweetType.TWEET);
+    });
+
+    it("should throw INVALID_ID if id is empty", async () => {
+      await expect(tweetService.getTweet("", "123")).rejects.toThrow(
+        RESPONSES.ERRORS.INVALID_ID.message
+      );
+    });
+
+    it("should throw TWEET_NOT_FOUND if tweet does not exist", async () => {
+      await expect(
+        tweetService.getTweet("nonexistent-id", "123")
+      ).rejects.toThrow(RESPONSES.ERRORS.TWEET_NOT_FOUND.message);
+    });
+  });
+
+  describe("getTweetSummary", () => {
+    beforeEach(async () => {
+      await prisma.tweetSummary.deleteMany({});
+    });
+
+    it("should return a new summary if none exists", async () => {
+      const result = await tweetService.getTweetSummary(protectedTweet.id);
+
+      expect(generateTweetSumamry).toHaveBeenCalledWith(protectedTweet.content);
+      expect(result).toEqual({ summary: "mock summary" });
+
+      const dbSummary = await prisma.tweetSummary.findUnique({
+        where: { tweetId: protectedTweet.id },
+      });
+      expect(dbSummary?.summary).toBe("mock summary");
+    });
+
+    it("should return existing summary if already present", async () => {
+      await prisma.tweetSummary.create({
+        data: { tweetId: protectedTweet.id, summary: "existing summary" },
+      });
+
+      const result = await tweetService.getTweetSummary(protectedTweet.id);
+
+      expect(generateTweetSumamry).not.toHaveBeenCalled();
+      expect(result).toEqual({ summary: "existing summary" });
+    });
+
+    it("should throw INVALID_ID if id is empty", async () => {
+      await expect(tweetService.getTweetSummary("")).rejects.toThrow(
+        RESPONSES.ERRORS.INVALID_ID.message
+      );
+    });
+
+    it("should throw TWEET_NOT_FOUND if tweet does not exist", async () => {
+      await expect(
+        tweetService.getTweetSummary("nonexistent-id")
+      ).rejects.toThrow(RESPONSES.ERRORS.TWEET_NOT_FOUND.message);
+    });
+  });
+
+  describe("categorizeTweet", () => {
+    let category1: any;
+    let category2: any;
+    beforeEach(async () => {
+      await prisma.tweetCategory.deleteMany({});
+      await prisma.category.deleteMany({});
+
+      category1 = await prisma.category.create({ data: { name: "Sports" } });
+      category2 = await prisma.category.create({ data: { name: "News" } });
+    });
+    it("should categorize a tweet and create tweetCategory records", async () => {
+      (generateTweetCategory as jest.Mock).mockResolvedValue([
+        "Sports",
+        "News",
+      ]);
+
+      await prisma.$transaction(async (tx) => {
+        await tweetService.categorizeTweet(
+          publicTweet.id,
+          publicTweet.content,
+          tx
+        );
+      });
+
+      const records = await prisma.tweetCategory.findMany({
+        where: { tweetId: publicTweet.id },
+      });
+
+      expect(records).toHaveLength(2);
+      expect(records.map((r) => r.categoryId)).toEqual(
+        expect.arrayContaining([category1.id, category2.id])
+      );
+    });
+
+    it("should skip categorization if tweet does not exist", async () => {
+      (generateTweetCategory as jest.Mock).mockResolvedValue(["Sports"]);
+
+      await prisma.$transaction(async (tx) => {
+        await tweetService.categorizeTweet("nonexistent-id", "content", tx);
+      });
+
+      const records = await prisma.tweetCategory.findMany({
+        where: { tweetId: "nonexistent-id" },
+      });
+
+      expect(records).toHaveLength(0);
+    });
+    it("should do nothing if generateTweetCategory returns empty array", async () => {
+      (generateTweetCategory as jest.Mock).mockResolvedValue([]);
+
+      await prisma.$transaction(async (tx) => {
+        await tweetService.categorizeTweet(
+          publicTweet.id,
+          publicTweet.content,
+          tx
+        );
+      });
+
+      const records = await prisma.tweetCategory.findMany({
+        where: { tweetId: publicTweet.id },
+      });
+
+      expect(records).toHaveLength(0);
+    });
+
+    it("should do nothing if no matching categories exist in DB", async () => {
+      (generateTweetCategory as jest.Mock).mockResolvedValue(["Nonexistent"]);
+
+      await prisma.$transaction(async (tx) => {
+        await tweetService.categorizeTweet(
+          publicTweet.id,
+          publicTweet.content,
+          tx
+        );
+      });
+
+      const records = await prisma.tweetCategory.findMany({
+        where: { tweetId: publicTweet.id },
+      });
+
+      expect(records).toHaveLength(0);
+    });
+
+    it("should skip duplicates when same category returned twice", async () => {
+      (generateTweetCategory as jest.Mock).mockResolvedValue([
+        "Sports",
+        "Sports",
+      ]);
+
+      await prisma.$transaction(async (tx) => {
+        await tweetService.categorizeTweet(
+          publicTweet.id,
+          publicTweet.content,
+          tx
+        );
+      });
+
+      const records = await prisma.tweetCategory.findMany({
+        where: { tweetId: publicTweet.id },
+      });
+
+      expect(records).toHaveLength(1);
+      expect(records[0].categoryId).toBe(category1.id);
     });
   });
 });
