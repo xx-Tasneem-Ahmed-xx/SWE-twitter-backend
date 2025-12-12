@@ -80,11 +80,11 @@ initializeSearchEngine()
   });
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
+app.get('/events/:userId', SSErequest);
 app.use("/api/auth", authRoutes);
 app.use("/oauth2", oauthRoutes);
 app.use(Auth());
 
-app.get('/events', SSErequest);
  
 app.use("/api/dm", ChatRouter);
 app.use("/api/media", mediaRouter);

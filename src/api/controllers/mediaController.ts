@@ -190,7 +190,6 @@ export const getMessageMedia = async (
   }
 };
 
-//export const dropMedia = async (req: Request, res: Response, next: NextFunction) => {
  export const dropMedia = async (keyName: string) => {
   try {
     await storageService.dropS3Media(keyName);

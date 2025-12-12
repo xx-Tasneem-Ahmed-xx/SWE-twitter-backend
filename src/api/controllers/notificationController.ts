@@ -1,17 +1,9 @@
 import { NextFunction, Request, Response } from "express";
 import { prisma } from "@/prisma/client";
-import { NotificationInputSchema } from "@/application/dtos/notification/notification.dto.schema";
 import * as responseUtils from "@/application/utils/response.utils";
 import { socketService } from "../../app";
-import { sendPushNotification } from "@/application/services/FCMService";
-import { UUID } from "crypto";
-import { z } from "zod";
 import { NotificationTitle } from "@prisma/client";
-import { AppError } from "@/errors/AppError";
-import { notificationsQueue } from "@/background/queues";
-import type { NotificationJobData } from "@/background/types/jobs";
-import { redisClient } from "@/config/redis";
-import { enqueueNewNotificationJob } from "@/background/jobs/notificationsJob";
+
 
 
 export const getNotificationList = async (
