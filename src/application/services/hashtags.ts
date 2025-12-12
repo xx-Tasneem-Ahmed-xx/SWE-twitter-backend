@@ -213,7 +213,6 @@ export const fetchHashtagTweets = async (
       hashId: hash.id,
       tweet: {
         ...cursorCondition,
-        tweetType: "TWEET",
         ...(excludedUserIds.length > 0
           ? { userId: { notIn: excludedUserIds } }
           : {}),
@@ -282,10 +281,11 @@ export const getTrendsFromQuery = async (
     return { trends: [], updatedAt: new Date().toISOString() };
   }
   const matchingIds = matching.map((m) => m.id);
-  const trends = await calculateTrends(category, {
-    matchingIds,
-    limit,
-  });
+  const trends = await calculateTrends(
+    category,
+    { matchingIds, limit },
+    24 * 30
+  );
   return { trends, updatedAt: new Date().toISOString() };
 };
 
