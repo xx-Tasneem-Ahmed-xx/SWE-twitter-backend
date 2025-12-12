@@ -38,7 +38,7 @@ import { enqueueUpdateScoreJob } from "@/background/jobs/explore";
 
 export class TweetService {
   private async validateId(id: string) {
-    if (!id || typeof id !== "string") {
+    if (!id) {
       responseUtils.throwError("INVALID_ID");
     }
     const tweet = await prisma.tweet.findUnique({ where: { id } });
@@ -109,7 +109,7 @@ export class TweetService {
       tweetId,
     }));
 
-    await tx.tweetMedia.createMany({ data });
+    await tx.tweetMedia.createMany({ data, skipDuplicates: true });
   }
 
   private formatUser(user: any) {
