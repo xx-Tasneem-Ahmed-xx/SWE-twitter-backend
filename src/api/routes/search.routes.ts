@@ -16,8 +16,9 @@ export function twitterSearchRoutes(
   const router = Router();
 
   /**
-   * GET /api/search/top
+   * GET /api/search/top?q=query
    * Returns top 3 users and top 3 tweets (like Twitter's top tab)
+   * No pagination - always returns top results
    */
   router.get("/search/top", async (req: Request, res: Response) => {
     try {
@@ -30,8 +31,7 @@ export function twitterSearchRoutes(
         });
       }
 
-      const limit = parseInt(req.query.limit as string) || 6;
-      const results = searchEngine.searchTop(q, limit);
+      const results = searchEngine.searchTop(q);
 
       return res.status(200).json({
         success: true,
@@ -51,12 +51,12 @@ export function twitterSearchRoutes(
   });
 
   /**
-   * GET /api/search/people
-   * Returns only users matching the query
+   * GET /api/search/people?q=query&limit=20&cursor=xxx
+   * Returns only users matching the query with cursor pagination
    */
   router.get("/search/people", async (req: Request, res: Response) => {
     try {
-      const { q } = req.query;
+      const { q, cursor } = req.query;
 
       if (!q || typeof q !== "string") {
         return res.status(400).json({
@@ -66,11 +66,25 @@ export function twitterSearchRoutes(
       }
 
       const limit = parseInt(req.query.limit as string) || 20;
-      const results = searchEngine.searchPeople(q, limit);
+
+      // Decode cursor if provided
+      let decodedCursor = undefined;
+      if (cursor && typeof cursor === "string") {
+        decodedCursor = searchEngine.decodeCursor(cursor);
+        if (!decodedCursor) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid cursor",
+          });
+        }
+      }
+
+      const results = searchEngine.searchPeople(q, limit, decodedCursor);
 
       return res.status(200).json({
         success: true,
         data: results.data.map(formatUser),
+        cursor: results.cursor,
         total: results.total,
         query: q,
       });
@@ -84,12 +98,12 @@ export function twitterSearchRoutes(
   });
 
   /**
-   * GET /api/search/latest
-   * Returns tweets sorted by creation date (most recent first)
+   * GET /api/search/latest?q=query&limit=20&cursor=xxx
+   * Returns tweets sorted by creation date (most recent first) with cursor pagination
    */
   router.get("/search/latest", async (req: Request, res: Response) => {
     try {
-      const { q } = req.query;
+      const { q, cursor } = req.query;
 
       if (!q || typeof q !== "string") {
         return res.status(400).json({
@@ -99,11 +113,25 @@ export function twitterSearchRoutes(
       }
 
       const limit = parseInt(req.query.limit as string) || 20;
-      const results = searchEngine.searchLatest(q, limit);
+
+      // Decode cursor if provided
+      let decodedCursor = undefined;
+      if (cursor && typeof cursor === "string") {
+        decodedCursor = searchEngine.decodeCursor(cursor);
+        if (!decodedCursor) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid cursor",
+          });
+        }
+      }
+
+      const results = searchEngine.searchLatest(q, limit, decodedCursor);
 
       return res.status(200).json({
         success: true,
         data: results.data.map(formatTweet),
+        cursor: results.cursor,
         total: results.total,
         query: q,
       });
@@ -117,12 +145,12 @@ export function twitterSearchRoutes(
   });
 
   /**
-   * GET /api/search/media
-   * Returns only tweets that contain photos or videos
+   * GET /api/search/media?q=query&limit=20&cursor=xxx
+   * Returns only tweets that contain photos or videos with cursor pagination
    */
   router.get("/search/media", async (req: Request, res: Response) => {
     try {
-      const { q } = req.query;
+      const { q, cursor } = req.query;
 
       if (!q || typeof q !== "string") {
         return res.status(400).json({
@@ -132,11 +160,25 @@ export function twitterSearchRoutes(
       }
 
       const limit = parseInt(req.query.limit as string) || 20;
-      const results = searchEngine.searchMedia(q, limit);
+
+      // Decode cursor if provided
+      let decodedCursor = undefined;
+      if (cursor && typeof cursor === "string") {
+        decodedCursor = searchEngine.decodeCursor(cursor);
+        if (!decodedCursor) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid cursor",
+          });
+        }
+      }
+
+      const results = searchEngine.searchMedia(q, limit, decodedCursor);
 
       return res.status(200).json({
         success: true,
         data: results.data.map(formatTweet),
+        cursor: results.cursor,
         total: results.total,
         query: q,
       });
@@ -152,11 +194,10 @@ export function twitterSearchRoutes(
   /**
    * GET /api/search/document?id=xxx&type=tweet
    * Returns the raw indexed document for inspection
-   * ✅ FIXED: Now properly reads 'id' from query params
    */
   router.get("/search/document", async (req: Request, res: Response) => {
     try {
-      const { id, type } = req.query; // ✅ FIXED: Get id from query, not from user auth
+      const { id, type } = req.query;
 
       if (!id || typeof id !== "string") {
         return res.status(400).json({

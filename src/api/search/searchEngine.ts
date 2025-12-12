@@ -3,8 +3,15 @@ import { Indexer } from "./indexer";
 import { Parser, ParsedTweet, ParsedUser } from "./parser";
 import { PersistenceManager } from "./persistence";
 
+export interface SearchCursor {
+  id?: string;
+  createdAt?: string;
+  score?: number;
+}
+
 export interface SearchResult<T> {
   data: T[];
+  cursor: string | null; // Encoded cursor for next page
   total: number;
 }
 
@@ -22,6 +29,7 @@ export class SearchEngine {
 
   /**
    * Search for top results (tweets + users)
+   * No pagination for top results - always returns top 3 of each
    */
   searchTop(query: string, limit: number = 6): TopSearchResult {
     const parsedQuery = this.parser.parseQuery(query);
@@ -71,27 +79,56 @@ export class SearchEngine {
   }
 
   /**
-   * Search for people only
+   * Search for people with cursor pagination
    */
-  searchPeople(query: string, limit: number = 20): SearchResult<ParsedUser> {
+  searchPeople(
+    query: string,
+    limit: number = 20,
+    cursor?: SearchCursor
+  ): SearchResult<ParsedUser> {
     const queryTokens = query.toLowerCase().split(/\s+/).filter(t => t.length > 0);
     const userIds = this.indexer.searchUsers(queryTokens);
 
-    const users = this.indexer
+    // Get all matching users and sort by score
+    let users = this.indexer
       .getUsers(Array.from(userIds))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+      .sort((a, b) => b.score - a.score);
+
+    // Apply cursor filtering if provided
+    if (cursor?.id && cursor?.score !== undefined) {
+      const cursorIndex = users.findIndex(
+        u => u.id === cursor.id && u.score === cursor.score
+      );
+      if (cursorIndex !== -1) {
+        users = users.slice(cursorIndex + 1);
+      }
+    }
+
+    // Take limit + 1 to check if there's a next page
+    const hasNextPage = users.length > limit;
+    const paginatedUsers = hasNextPage ? users.slice(0, limit) : users;
+
+    // Generate next cursor
+    const lastUser = paginatedUsers[paginatedUsers.length - 1];
+    const nextCursor = hasNextPage && lastUser
+      ? this.encodeCursor({ id: lastUser.id, score: lastUser.score })
+      : null;
 
     return {
-      data: users,
+      data: paginatedUsers,
+      cursor: nextCursor,
       total: userIds.size,
     };
   }
 
   /**
-   * Search for latest tweets
+   * Search for latest tweets with cursor pagination
    */
-  searchLatest(query: string, limit: number = 20): SearchResult<ParsedTweet> {
+  searchLatest(
+    query: string,
+    limit: number = 20,
+    cursor?: SearchCursor
+  ): SearchResult<ParsedTweet> {
     const parsedQuery = this.parser.parseQuery(query);
 
     let tweetIds = new Set<string>();
@@ -113,21 +150,49 @@ export class SearchEngine {
     });
 
     // Sort by creation date (latest first)
-    const tweets = this.indexer
+    let tweets = this.indexer
       .getTweets(Array.from(tweetIds))
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    // Apply cursor filtering if provided
+    if (cursor?.id && cursor?.createdAt) {
+      const cursorDate = new Date(cursor.createdAt).getTime();
+      const cursorIndex = tweets.findIndex(
+        t => t.id === cursor.id && t.createdAt.getTime() === cursorDate
+      );
+      if (cursorIndex !== -1) {
+        tweets = tweets.slice(cursorIndex + 1);
+      }
+    }
+
+    // Take limit + 1 to check if there's a next page
+    const hasNextPage = tweets.length > limit;
+    const paginatedTweets = hasNextPage ? tweets.slice(0, limit) : tweets;
+
+    // Generate next cursor
+    const lastTweet = paginatedTweets[paginatedTweets.length - 1];
+    const nextCursor = hasNextPage && lastTweet
+      ? this.encodeCursor({ 
+          id: lastTweet.id, 
+          createdAt: lastTweet.createdAt.toISOString() 
+        })
+      : null;
 
     return {
-      data: tweets,
+      data: paginatedTweets,
+      cursor: nextCursor,
       total: tweetIds.size,
     };
   }
 
   /**
-   * Search for tweets with media
+   * Search for tweets with media and cursor pagination
    */
-  searchMedia(query: string, limit: number = 20): SearchResult<ParsedTweet> {
+  searchMedia(
+    query: string,
+    limit: number = 20,
+    cursor?: SearchCursor
+  ): SearchResult<ParsedTweet> {
     const parsedQuery = this.parser.parseQuery(query);
 
     let tweetIds = new Set<string>();
@@ -159,13 +224,33 @@ export class SearchEngine {
     });
 
     // Sort by score (engagement)
-    const tweets = this.indexer
+    let tweets = this.indexer
       .getTweets(Array.from(tweetIds))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+      .sort((a, b) => b.score - a.score);
+
+    // Apply cursor filtering if provided
+    if (cursor?.id && cursor?.score !== undefined) {
+      const cursorIndex = tweets.findIndex(
+        t => t.id === cursor.id && t.score === cursor.score
+      );
+      if (cursorIndex !== -1) {
+        tweets = tweets.slice(cursorIndex + 1);
+      }
+    }
+
+    // Take limit + 1 to check if there's a next page
+    const hasNextPage = tweets.length > limit;
+    const paginatedTweets = hasNextPage ? tweets.slice(0, limit) : tweets;
+
+    // Generate next cursor
+    const lastTweet = paginatedTweets[paginatedTweets.length - 1];
+    const nextCursor = hasNextPage && lastTweet
+      ? this.encodeCursor({ id: lastTweet.id, score: lastTweet.score })
+      : null;
 
     return {
-      data: tweets,
+      data: paginatedTweets,
+      cursor: nextCursor,
       total: tweetIds.size,
     };
   }
@@ -200,5 +285,24 @@ export class SearchEngine {
 
     this.indexer.importIndex(indexDoc);
     return true;
+  }
+
+  /**
+   * Encode cursor to base64 string (similar to your encoderService)
+   */
+  private encodeCursor(cursor: SearchCursor): string {
+    return Buffer.from(JSON.stringify(cursor)).toString('base64');
+  }
+
+  /**
+   * Decode cursor from base64 string (similar to your encoderService)
+   */
+  decodeCursor(encodedCursor: string): SearchCursor | null {
+    try {
+      const decoded = Buffer.from(encodedCursor, 'base64').toString('utf-8');
+      return JSON.parse(decoded);
+    } catch {
+      return null;
+    }
   }
 }
