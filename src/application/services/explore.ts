@@ -84,6 +84,7 @@ export class ExploreService {
     const tweet = await prisma.tweet.findUnique({
       where: { id: tweetId },
       select: {
+        tweetType: true,
         createdAt: true,
         likesCount: true,
         retweetCount: true,
@@ -108,6 +109,7 @@ export class ExploreService {
       where: { id: tweetId },
       data: { score },
     });
+    if (tweet.tweetType === "REPLY") return;
     await redisClient.zAdd(GLOBAL_FEED_KEY, {
       score,
       value: tweetId,
