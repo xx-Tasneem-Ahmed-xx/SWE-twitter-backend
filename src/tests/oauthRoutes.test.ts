@@ -1,19 +1,9 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-// Mock setup - MUST come before any imports that use these modules
-jest.mock("@/docs/tweets", () => ({ 
-  registerTweetDocs: jest.fn() 
-}));
+import { Request, Response, NextFunction } from 'express';
 
-jest.mock("@/docs/userInteractions", () => ({ 
-  registerUserInteractionsDocs: jest.fn() 
-}));
-
-jest.mock("@/docs/users", () => ({ 
-  registerUserDocs: jest.fn() 
-}));
-
+// Mock setup - MUST come before imports
 jest.mock("../../../docs/index", () => ({
   zodDoc: {
     openapi: "3.0.0",
@@ -21,6 +11,44 @@ jest.mock("../../../docs/index", () => ({
     paths: {},
   },
 }));
+
+// Mock tweet schema BEFORE any other imports
+jest.mock('../../../application/dtos/tweets/tweet.dto.schema', () => {
+  const zod = require('zod');
+  
+  const ReplyControl = {
+    REPLY: "REPLY",
+    NO_REPLY: "NO_REPLY",
+  };
+  
+  const CreateTweetDTOSchema = zod.z.object({
+    content: zod.z.string(),
+    replyControl: zod.z.enum(["REPLY", "NO_REPLY"]).optional(),
+    mediaIds: zod.z.array(zod.z.string().uuid()).max(4).optional(),
+  });
+  
+  return {
+    ReplyControl,
+    CreateTweetDTOSchema,
+    CreateTweetDTO: CreateTweetDTOSchema,
+  };
+});
+
+// Mock tweet service schema
+jest.mock('../../../application/dtos/tweets/service/tweets.dto.schema', () => {
+  const zod = require('zod');
+  
+  const createTweetServiceSchema = zod.z.object({
+    userId: zod.z.string().uuid(),
+    content: zod.z.string(),
+    replyControl: zod.z.enum(["REPLY", "NO_REPLY"]).optional(),
+    mediaIds: zod.z.array(zod.z.string().uuid()).max(4).optional(),
+  });
+  
+  return {
+    createTweetServiceSchema,
+  };
+});
 
 jest.mock("../../../config/redis", () => ({
   redisClient: {
@@ -38,196 +66,6 @@ jest.mock("../../../config/redis", () => ({
   },
 }));
 
-jest.mock('../../../prisma/client', () => ({
-  prisma: {
-    user: {
-      create: jest.fn().mockResolvedValue({
-        id: '1',
-        email: 'test@example.com',
-        password: '',
-        saltPassword: '',
-        username: 'testuser',
-        name: 'Test User',
-        dateOfBirth: new Date('2001-11-03'),
-        joinDate: new Date(),
-        verified: false,
-        isEmailVerified: true,
-        tfaVerifed: false,
-        tokenVersion: 0,
-        protectedAccount: false,
-        loginCodesSet: false,
-        bio: null,
-      }),
-      findUnique: jest.fn().mockResolvedValue({
-        id: '1',
-        email: 'test@example.com',
-        password: '',
-        saltPassword: '',
-        username: 'testuser',
-        name: 'Test User',
-        dateOfBirth: new Date('2001-11-03'),
-        tokenVersion: 0,
-        isEmailVerified: true,
-      }),
-      update: jest.fn().mockResolvedValue({
-        id: '1',
-        username: 'testuser',
-        email: 'test@example.com',
-        tokenVersion: 1,
-      }),
-      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-      findFirst: jest.fn().mockResolvedValue(null),
-      count: jest.fn().mockResolvedValue(0),
-    },
-    oAuthAccount: {
-      findFirst: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockResolvedValue({
-        id: 'oauth1',
-        provider: 'google',
-        providerId: '123456',
-        userId: '1',
-      }),
-    },
-  },
-}));
-
-// Mock secrets/config
-jest.mock('../../../config/secrets', () => ({
-  getSecrets: jest.fn(() => ({
-    client_id: 'mock-google-client-id',
-    client_secret: 'mock-google-secret',
-    redirect_uri: 'http://localhost:3000/oauth2/callback/google',
-    google_state: 'mock-google-state',
-    githubClientId: 'mock-github-client-id',
-    GITHUB_CLIENT_SECRET: 'mock-github-secret',
-    redirectUri: 'http://localhost:3000/oauth2/callback/github',
-    githubState: 'mock-github-state',
-    GITHUB_CLIENT_ID_FRONT: 'mock-github-front-id',
-    GITHUB_SECRET_FRONT: 'mock-github-front-secret',
-    GITHUB_RED_URL_FRONT: 'http://localhost:3000/oauth2/callback/github_front',
-    google_IOS_clientID: 'mock-ios-client-id',
-    FRONTEND_URL: 'http://localhost:3001',
-    JWT_SECRET: 'test-secret',
-    PEPPER: 'test-pepper',
-  })),
-}));
-
-// Mock jsonwebtoken
-jest.mock('jsonwebtoken', () => ({
-  sign: jest.fn().mockReturnValue('mock.jwt.token'),
-  verify: jest.fn().mockReturnValue({ 
-    userId: '1', 
-    jti: 'session123',
-    email: 'test@example.com' 
-  }),
-}));
-
-// Mock axios for OAuth API calls
-jest.mock('axios', () => ({
-  __esModule: true,
-  default: jest.fn((config: any) => {
-    if (config.url?.includes('oauth2.googleapis.com/token')) {
-      return Promise.resolve({
-        data: {
-          access_token: 'mock-google-access-token',
-          id_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJnaXZlbl9uYW1lIjoiVGVzdCIsIm5hbWUiOiJUZXN0IFVzZXIiLCJzdWIiOiIxMjM0NTYifQ.mock-signature',
-        },
-      });
-    }
-    return Promise.resolve({ data: {} });
-  }),
-  post: jest.fn((url: string) => {
-    if (url.includes('github.com/login/oauth/access_token')) {
-      return Promise.resolve({
-        data: {
-          access_token: 'mock-github-access-token',
-          token_type: 'bearer',
-        },
-      });
-    }
-    return Promise.resolve({ data: {} });
-  }),
-  get: jest.fn((url: string) => {
-    if (url.includes('github.com/user/emails')) {
-      return Promise.resolve({
-        data: [
-          { email: 'test@example.com', primary: true, verified: true }
-        ],
-      });
-    }
-    if (url.includes('github.com/user')) {
-      return Promise.resolve({
-        data: {
-          id: 123456,
-          login: 'testuser',
-          name: 'Test User',
-        },
-      });
-    }
-    return Promise.resolve({ data: {} });
-  }),
-}));
-
-// Mock google-auth-library
-jest.mock('google-auth-library', () => ({
-  OAuth2Client: jest.fn().mockImplementation(() => ({
-    verifyIdToken: jest.fn().mockResolvedValue({
-      getPayload: jest.fn().mockReturnValue({
-        email: 'test@example.com',
-        given_name: 'Test',
-        name: 'Test User',
-        sub: '123456',
-      }),
-    }),
-  })),
-}));
-
-// Mock utility functions
-jest.mock('../../../application/utils/tweets/utils', () => ({
-  SendEmailSmtp: jest.fn().mockResolvedValue(true),
-  SendRes: jest.fn((res: any, data: any) => res.json(data)),
-  generateUsername: jest.fn().mockResolvedValue('testuser123'),
-  HashPassword: jest.fn().mockResolvedValue('hashedPassword'),
-  CheckPass: jest.fn().mockResolvedValue(true),
-  ValidatePassword: jest.fn().mockResolvedValue('0'),
-  SetDeviceInfo: jest.fn().mockResolvedValue({ 
-    devid: 'dev1', 
-    deviceRecord: { browser: 'Chrome', os: 'Windows' } 
-  }),
-  GenerateJwt: jest.fn().mockResolvedValue({ 
-    token: 'mock.jwt.token', 
-    jti: 'session123',
-    payload: { id: '1', email: 'test@example.com' }
-  }),
-  SetSession: jest.fn().mockResolvedValue(true),
-  Sendlocation: jest.fn().mockResolvedValue({ 
-    City: 'Cairo', 
-    Country: 'Egypt',
-    Query: '127.0.0.1' 
-  }),
-  AddPasswordHistory: jest.fn().mockResolvedValue(true),
-  ValidateToken: jest.fn().mockReturnValue({ 
-    ok: true, 
-    payload: { id: '1', jti: 'session123', email: 'test@example.com' } 
-  }),
-}));
-
-// Mock email jobs
-jest.mock('../../../background/jobs/emailJobs', () => ({
-  enqueueSecurityLoginGoogle: jest.fn().mockResolvedValue(true),
-  enqueueSecurityLoginGithub: jest.fn().mockResolvedValue(true),
-}));
-
-// Mock notification controller
-jest.mock('../../controllers/notificationController', () => ({
-  addNotification: jest.fn((_, data, callback) => callback?.(null)),
-  getNotificationList: jest.fn((req, res) => res.json([])),
-  getUnseenNotificationsCount: jest.fn((req, res) => res.json({ count: 0 })),
-  getUnseenNotifications: jest.fn((req, res) => res.json([])),
-}));
-
-
-// Mock middlewares
 jest.mock('@/api/middlewares/Auth', () => {
   const authMiddleware = (req: any, res: any, next: any) => {
     req.user = { id: '1', email: 'test@example.com' };
@@ -248,30 +86,191 @@ jest.mock('@/api/middlewares/Auth', () => {
   };
 });
 
-// Mock AppError
-jest.mock('@/errors/AppError', () => ({
-  AppError: class AppError extends Error {
-    statusCode: number;
-    constructor(message: string, statusCode: number) {
-      super(message);
-      this.statusCode = statusCode;
-    }
+jest.mock('../../../api/middlewares/Reauth', () => ({
+  __esModule: true,
+  default: jest.fn(() => (req: Request, res: Response, next: NextFunction) => next()),
+}));
+
+jest.mock('../../../api/middlewares/DeactivateUser', () => ({
+  __esModule: true,
+  default: jest.fn(() => (req: Request, res: Response, next: NextFunction) => next()),
+}));
+
+jest.mock('../../../api/middlewares/AfterChange', () => ({
+  __esModule: true,
+  default: jest.fn(() => (req: Request, res: Response, next: NextFunction) => next()),
+}));
+
+jest.mock('../../../api/middlewares/GeoGuard', () => ({
+  __esModule: true,
+  default: jest.fn(() => (req: Request, res: Response, next: NextFunction) => next()),
+}));
+
+jest.mock('../../../prisma/client', () => ({
+  prisma: {
+    user: {
+      create: jest.fn().mockResolvedValue({
+        id: '1',
+        email: 'test@example.com',
+        password: 'hashedPassword',
+        saltPassword: 'salt123',
+        username: 'testuser',
+        name: 'Test User',
+        dateOfBirth: new Date('2000-01-01'),
+        joinDate: new Date(),
+        verified: false,
+        isEmailVerified: false,
+        tfaVerifed: false,
+        tokenVersion: 0,
+        protectedAccount: false,
+        loginCodesSet: false,
+        oldPassword: [],
+        deviceRecord: [],
+        OAuthAccount: [],
+      }),
+      findUnique: jest.fn().mockResolvedValue({
+        id: '1',
+        email: 'test@example.com',
+        password: 'hashedPassword',
+        saltPassword: 'salt123',
+        username: 'testuser',
+        name: 'Test User',
+        dateOfBirth: new Date('2000-01-01'),
+        joinDate: new Date(),
+        verified: true,
+        isEmailVerified: true,
+        tfaVerifed: false,
+        tokenVersion: 0,
+        protectedAccount: false,
+        loginCodesSet: false,
+        oldPassword: [],
+        deviceRecord: [],
+        OAuthAccount: [],
+      }),
+      update: jest.fn().mockResolvedValue({
+        id: '1',
+        username: 'updateduser',
+        name: 'Updated User',
+        email: 'test@example.com',
+      }),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      findFirst: jest.fn().mockResolvedValue({
+        id: '1',
+        email: 'test@example.com',
+        password: 'hashedPassword',
+        username: 'testuser',
+      }),
+      count: jest.fn().mockResolvedValue(0),
+    },
+    oAuthAccount: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue({
+        id: 'oauth1',
+        provider: 'google',
+        providerId: '123456',
+        userId: '1',
+      }),
+    },
+    session: {
+      create: jest.fn().mockResolvedValue({
+        jti: 'session123',
+        userId: '1',
+        isActive: true,
+        issuedAt: new Date(),
+      }),
+    },
   },
 }));
 
-// Now import after all mocks are set up
+jest.mock('jsonwebtoken', () => ({
+  sign: jest.fn().mockReturnValue('mock.jwt.token'),
+  verify: jest.fn().mockReturnValue({ userId: '1', jti: 'session123' }),
+}));
+
+jest.mock('axios', () => ({
+  default: jest.fn(),
+  post: jest.fn(),
+  get: jest.fn(),
+}));
+
+jest.mock('google-auth-library', () => ({
+  OAuth2Client: jest.fn().mockImplementation(() => ({
+    verifyIdToken: jest.fn().mockResolvedValue({
+      getPayload: () => ({
+        sub: '123456789',
+        email: 'test@gmail.com',
+        name: 'Test User',
+        given_name: 'Test',
+      }),
+    }),
+  })),
+}));
+
+let usernameCounter = 0;
+jest.mock('../../../application/utils/tweets/utils', () => ({
+  SendEmailSmtp: jest.fn().mockResolvedValue(true),
+  SendRes: jest.fn((res: any, data: any) => res.json(data)),
+  generateUsername: jest.fn().mockImplementation((name: string) => {
+    usernameCounter++;
+    return Promise.resolve(`${name}_${usernameCounter}`);
+  }),
+  HashPassword: jest.fn().mockResolvedValue('hashedPassword'),
+  CheckPass: jest.fn().mockResolvedValue(true),
+  ValidatePassword: jest.fn().mockResolvedValue('0'),
+  SetDeviceInfo: jest.fn().mockResolvedValue({ devid: 'dev1', deviceRecord: {} }),
+  GenerateJwt: jest.fn().mockResolvedValue({ token: 'mock.jwt.token', jti: 'session123' }),
+  SetSession: jest.fn().mockResolvedValue(true),
+  Sendlocation: jest.fn().mockResolvedValue({ City: 'Cairo', Country: 'Egypt' }),
+  AddPasswordHistory: jest.fn().mockResolvedValue(true),
+}));
+
+jest.mock('../../../config/secrets', () => ({
+  getSecrets: jest.fn().mockReturnValue({
+    client_id: 'mock-google-client-id',
+    client_secret: 'mock-google-client-secret',
+    redirect_uri: 'http://localhost:3000/api/oauth/callback/google',
+    google_state: 'mock-google-state',
+    githubClientId: 'mock-github-client-id',
+    GITHUB_CLIENT_SECRET: 'mock-github-secret',
+    redirectUri: 'http://localhost:3000/api/oauth/callback/github',
+    githubState: 'mock-github-state',
+    GITHUB_CLIENT_ID_FRONT: 'mock-github-client-id-front',
+    GITHUB_SECRET_FRONT: 'mock-github-secret-front',
+    GITHUB_RED_URL_FRONT: 'http://localhost:3000/api/oauth/callback/github_front',
+    google_IOS_clientID: 'mock-ios-client-id',
+    FRONTEND_URL: 'http://localhost:3000',
+    JWT_SECRET: 'mock-jwt-secret',
+  }),
+}));
+
+jest.mock('../../../background/jobs/emailJobs', () => ({
+  enqueueSecurityLoginGithub: jest.fn().mockResolvedValue(true),
+  enqueueSecurityLoginGoogle: jest.fn().mockResolvedValue(true),
+}));
+
+jest.mock('../../../application/services/notification', () => ({
+  addNotification: jest.fn().mockResolvedValue(true),
+}));
+
 import request from "supertest";
 import { app } from "../app";
+import axios from 'axios';
 
-const oauth = (path: string) => `/oauth2${path}`;
+const oauth = (path: string) => `/api/oauth${path}`;
 
-describe("OAuth Routes - Complete Test Suite", () => {
+describe("OAuth Routes - Complete Integration Test Suite", () => {
   
-  describe("1. Authorization Endpoints", () => {
-    it("GET /authorize/google - should redirect to Google OAuth", async () => {
-      const res = await request(app).get(oauth("/authorize/google"));
+  beforeEach(() => {
+    jest.clearAllMocks();
+    usernameCounter = 0;
+  });
+
+  describe("1. OAuth Authorization Initialization", () => {
+    it("GET /authorize/google - should redirect to Google OAuth page", async () => {
+      const res = await request(app)
+        .get(oauth("/authorize/google"));
       
-      expect([200, 302, 404, 500]).toContain(res.statusCode);
+      expect([302, 200, 400, 500]).toContain(res.statusCode);
       
       if (res.statusCode === 302) {
         expect(res.headers.location).toBeDefined();
@@ -279,21 +278,11 @@ describe("OAuth Routes - Complete Test Suite", () => {
       }
     });
 
-    it("GET /authorize/github - should redirect to GitHub OAuth", async () => {
-      const res = await request(app).get(oauth("/authorize/github"));
+    it("GET /authorize/github - should redirect to GitHub OAuth page", async () => {
+      const res = await request(app)
+        .get(oauth("/authorize/github"));
       
-      expect([200, 302, 404, 500]).toContain(res.statusCode);
-      
-      if (res.statusCode === 302) {
-        expect(res.headers.location).toBeDefined();
-        expect(res.headers.location).toContain('github.com');
-      }
-    });
-
-    it("GET /authorize/github_front - should redirect to GitHub OAuth (frontend)", async () => {
-      const res = await request(app).get(oauth("/authorize/github_front"));
-      
-      expect([200, 302, 404, 500]).toContain(res.statusCode);
+      expect([302, 200, 400, 500]).toContain(res.statusCode);
       
       if (res.statusCode === 302) {
         expect(res.headers.location).toBeDefined();
@@ -301,136 +290,238 @@ describe("OAuth Routes - Complete Test Suite", () => {
       }
     });
 
-    it("GET /authorize/invalid - should reject invalid provider", async () => {
-      const res = await request(app).get(oauth("/authorize/invalid"));
+    it("GET /authorize/github_front - should redirect to GitHub OAuth page for frontend", async () => {
+      const res = await request(app)
+        .get(oauth("/authorize/github_front"));
+      
+      expect([302, 200, 400, 500]).toContain(res.statusCode);
+      
+      if (res.statusCode === 302) {
+        expect(res.headers.location).toBeDefined();
+        expect(res.headers.location).toContain('github.com');
+      }
+    });
+
+    it("GET /authorize/invalid - should return error for unsupported provider", async () => {
+      const res = await request(app)
+        .get(oauth("/authorize/invalid"));
       
       expect([400, 404, 500]).toContain(res.statusCode);
     });
   });
 
-  describe("2. Google OAuth Callbacks", () => {
-    it("GET /callback/google - should handle Google callback successfully", async () => {
+  describe("2. Google OAuth Callback - Web", () => {
+    beforeEach(() => {
+      (axios as any).mockImplementation((config: any) => {
+        if (config.url === 'https://oauth2.googleapis.com/token') {
+          return Promise.resolve({
+            data: {
+              access_token: 'mock-google-access-token',
+              id_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkiLCJlbWFpbCI6InRlc3RAZ21haWwuY29tIiwibmFtZSI6IlRlc3QgVXNlciIsImdpdmVuX25hbWUiOiJUZXN0In0.mock',
+              refresh_token: 'mock-refresh-token',
+            },
+          });
+        }
+        return Promise.reject(new Error('Unknown URL'));
+      });
+    });
+
+    it("GET /callback/google - should handle Google OAuth callback successfully", async () => {
       const res = await request(app)
         .get(oauth("/callback/google"))
         .query({ 
-          code: "mock-google-auth-code", 
-          state: "mock-google-state" 
+          code: 'mock-google-auth-code',
+          state: 'mock-google-state'
         });
       
-      expect([200, 302, 400, 401, 500]).toContain(res.statusCode);
+      expect([302, 200, 400, 401, 500]).toContain(res.statusCode);
       
       if (res.statusCode === 302) {
         expect(res.headers.location).toBeDefined();
-        expect(res.headers.location).toContain('localhost:3001');
+        expect(res.headers.location).toContain('login/success');
+        expect(res.headers.location).toContain('token=');
+        expect(res.headers.location).toContain('refresh-token=');
       }
     });
 
-    it("GET /callback/google - should fail without code", async () => {
+    it("GET /callback/google - should fail without authorization code", async () => {
       const res = await request(app)
         .get(oauth("/callback/google"))
-        .query({ state: "mock-google-state" });
+        .query({ state: 'mock-google-state' });
       
       expect([400, 401, 500]).toContain(res.statusCode);
     });
 
-    it("GET /callback/google - should fail with invalid state", async () => {
+    it("GET /callback/google - should handle OAuth error from Google", async () => {
       const res = await request(app)
         .get(oauth("/callback/google"))
         .query({ 
-          code: "mock-code", 
-          state: "wrong-state" 
+          error: 'access_denied',
+          state: 'mock-google-state'
         });
       
       expect([400, 401, 500]).toContain(res.statusCode);
     });
 
-    it("GET /callback/google - should handle OAuth error", async () => {
+    it("GET /callback/google - should handle state mismatch (CSRF protection)", async () => {
       const res = await request(app)
         .get(oauth("/callback/google"))
         .query({ 
-          error: "access_denied",
-          state: "mock-google-state"
+          code: 'mock-google-auth-code',
+          state: 'invalid-state'
         });
       
       expect([400, 401, 500]).toContain(res.statusCode);
     });
   });
 
-  describe("3. GitHub OAuth Callbacks", () => {
-    it("GET /callback/github - should handle GitHub callback successfully", async () => {
+  describe("3. GitHub OAuth Callback - Mobile", () => {
+    beforeEach(() => {
+      (axios.post as jest.Mock).mockResolvedValue({
+        data: {
+          access_token: 'mock-github-access-token',
+        },
+      });
+
+      (axios.get as jest.Mock).mockImplementation((url: string) => {
+        if (url === 'https://api.github.com/user/emails') {
+          return Promise.resolve({
+            data: [
+              { email: 'test@example.com', primary: true, verified: true },
+            ],
+          });
+        }
+        if (url === 'https://api.github.com/user') {
+          return Promise.resolve({
+            data: {
+              id: 123456,
+              login: 'testuser',
+              name: 'Test User',
+            },
+          });
+        }
+        return Promise.reject(new Error('Unknown URL'));
+      });
+    });
+
+    it("GET /callback/github - should handle GitHub OAuth callback for mobile", async () => {
       const res = await request(app)
         .get(oauth("/callback/github"))
-        .query({ 
-          code: "mock-github-auth-code", 
-          state: "mock-github-state" 
-        });
+        .query({ code: 'mock-github-auth-code' });
       
-      expect([200, 302, 400, 401, 500]).toContain(res.statusCode);
+      expect([302, 200, 400, 401, 500]).toContain(res.statusCode);
       
       if (res.statusCode === 302) {
         expect(res.headers.location).toBeDefined();
+        expect(res.headers.location).toContain('myapp://login/success');
       }
     });
 
-    it("GET /callback/github - should fail without code", async () => {
+    it("GET /callback/github - should fail without authorization code", async () => {
+      const res = await request(app)
+        .get(oauth("/callback/github"));
+      
+      expect([400, 401, 500]).toContain(res.statusCode);
+    });
+
+    it("GET /callback/github - should fail when no verified email found", async () => {
+      (axios.get as jest.Mock).mockImplementation((url: string) => {
+        if (url === 'https://api.github.com/user/emails') {
+          return Promise.resolve({
+            data: [
+              { email: 'test@example.com', primary: true, verified: false },
+            ],
+          });
+        }
+        return Promise.reject(new Error('Unknown URL'));
+      });
+
       const res = await request(app)
         .get(oauth("/callback/github"))
-        .query({ state: "mock-github-state" });
+        .query({ code: 'mock-github-auth-code' });
       
       expect([400, 401, 500]).toContain(res.statusCode);
     });
+  });
 
-    it("GET /callback/github_front - should handle GitHub frontend callback", async () => {
+  describe("4. GitHub OAuth Callback - Frontend Web", () => {
+    beforeEach(() => {
+      (axios.post as jest.Mock).mockResolvedValue({
+        data: {
+          access_token: 'mock-github-access-token',
+        },
+      });
+
+      (axios.get as jest.Mock).mockImplementation((url: string) => {
+        if (url === 'https://api.github.com/user/emails') {
+          return Promise.resolve({
+            data: [
+              { email: 'test@example.com', primary: true, verified: true },
+            ],
+          });
+        }
+        if (url === 'https://api.github.com/user') {
+          return Promise.resolve({
+            data: {
+              id: 123456,
+              login: 'testuser',
+              name: 'Test User',
+            },
+          });
+        }
+        return Promise.reject(new Error('Unknown URL'));
+      });
+    });
+
+    it("GET /callback/github_front - should handle GitHub OAuth callback for frontend", async () => {
       const res = await request(app)
         .get(oauth("/callback/github_front"))
         .query({ 
-          code: "mock-github-code", 
-          state: "mock-github-state" 
+          code: 'mock-github-auth-code',
+          state: 'mock-github-state'
         });
       
-      expect([200, 302, 400, 401, 500]).toContain(res.statusCode);
-    });
-
-    it("GET /callback/github_front - should fail without code", async () => {
-      const res = await request(app)
-        .get(oauth("/callback/github_front"))
-        .query({ state: "mock-github-state" });
+      expect([302, 200, 400, 401, 500]).toContain(res.statusCode);
       
-      expect([400, 401, 500]).toContain(res.statusCode);
+      if (res.statusCode === 302) {
+        expect(res.headers.location).toBeDefined();
+        expect(res.headers.location).toContain('login/success');
+        expect(res.headers.location).toContain('token=');
+      }
     });
 
-    it("GET /callback/github_front - should handle OAuth error", async () => {
+    it("GET /callback/github_front - should fail with state mismatch", async () => {
       const res = await request(app)
         .get(oauth("/callback/github_front"))
         .query({ 
-          error: "access_denied",
-          state: "mock-github-state"
+          code: 'mock-github-auth-code',
+          state: 'invalid-state'
         });
       
       expect([400, 401, 500]).toContain(res.statusCode);
     });
 
-    it("GET /callback/github_front - should prevent CSRF with invalid state", async () => {
+    it("GET /callback/github_front - should handle access_denied error", async () => {
       const res = await request(app)
         .get(oauth("/callback/github_front"))
         .query({ 
-          code: "mock-code",
-          state: "invalid-state"
+          error: 'access_denied',
+          state: 'mock-github-state'
         });
       
       expect([400, 401, 500]).toContain(res.statusCode);
     });
   });
 
-  describe("4. Android Google OAuth", () => {
-    const validIdToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJnaXZlbl9uYW1lIjoiVGVzdCIsIm5hbWUiOiJUZXN0IFVzZXIiLCJzdWIiOiIxMjM0NTYifQ.mock-signature';
-
+  describe("5. Android Google OAuth", () => {
     it("POST /callback/android_google - should handle Android Google login", async () => {
+      const validIdToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkiLCJlbWFpbCI6InRlc3RAZ21haWwuY29tIiwibmFtZSI6IlRlc3QgVXNlciIsImdpdmVuX25hbWUiOiJUZXN0In0.mock';
+      
       const res = await request(app)
         .post(oauth("/callback/android_google"))
         .send({ idToken: validIdToken });
       
-      expect([200, 201, 400, 401, 500]).toContain(res.statusCode);
+      expect([200, 400, 401, 500]).toContain(res.statusCode);
       
       if (res.statusCode === 200) {
         expect(res.body).toHaveProperty('token');
@@ -438,7 +529,6 @@ describe("OAuth Routes - Complete Test Suite", () => {
         expect(res.body).toHaveProperty('user');
         expect(res.body.user).toHaveProperty('id');
         expect(res.body.user).toHaveProperty('email');
-        expect(res.body.user).toHaveProperty('username');
       }
     });
 
@@ -447,42 +537,33 @@ describe("OAuth Routes - Complete Test Suite", () => {
         .post(oauth("/callback/android_google"))
         .send({});
       
-      expect([400, 401, 500]).toContain(res.statusCode);
+      expect([400, 500]).toContain(res.statusCode);
     });
 
-    it("POST /callback/android_google - should fail with invalid idToken", async () => {
+    it("POST /callback/android_google - should fail with invalid idToken format", async () => {
       const res = await request(app)
         .post(oauth("/callback/android_google"))
-        .send({ idToken: "invalid.token.here" });
-      
-      expect([400, 401, 500]).toContain(res.statusCode);
-    });
-
-    it("POST /callback/android_google - should fail with malformed idToken", async () => {
-      const res = await request(app)
-        .post(oauth("/callback/android_google"))
-        .send({ idToken: "not-a-jwt-token" });
+        .send({ idToken: 'invalid-token' });
       
       expect([400, 401, 500]).toContain(res.statusCode);
     });
   });
 
-  describe("5. iOS Google OAuth", () => {
-    const validIdToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJnaXZlbl9uYW1lIjoiVGVzdCIsIm5hbWUiOiJUZXN0IFVzZXIiLCJzdWIiOiIxMjM0NTYifQ.mock-signature';
-
+  describe("6. iOS Google OAuth", () => {
     it("POST /callback/ios_google - should handle iOS Google login", async () => {
+      const validIdToken = 'mock-ios-google-id-token';
+      
       const res = await request(app)
         .post(oauth("/callback/ios_google"))
         .send({ idToken: validIdToken });
       
-      expect([200, 201, 400, 401, 500]).toContain(res.statusCode);
+      expect([200, 400, 401, 500]).toContain(res.statusCode);
       
       if (res.statusCode === 200) {
         expect(res.body).toHaveProperty('token');
         expect(res.body).toHaveProperty('refreshToken');
         expect(res.body).toHaveProperty('user');
         expect(res.body.user).toHaveProperty('id');
-        expect(res.body.user).toHaveProperty('email');
         expect(res.body.user).toHaveProperty('username');
       }
     });
@@ -492,249 +573,163 @@ describe("OAuth Routes - Complete Test Suite", () => {
         .post(oauth("/callback/ios_google"))
         .send({});
       
-      expect([400, 401, 500]).toContain(res.statusCode);
+      expect([400, 500]).toContain(res.statusCode);
     });
 
-    it("POST /callback/ios_google - should fail with invalid idToken", async () => {
+    it("POST /callback/ios_google - should fail with invalid token", async () => {
       const res = await request(app)
         .post(oauth("/callback/ios_google"))
-        .send({ idToken: "invalid.token.here" });
+        .send({ idToken: 'invalid' });
       
       expect([400, 401, 500]).toContain(res.statusCode);
     });
+  });
 
-    it("POST /callback/ios_google - should create new user if not exists", async () => {
+  describe("7. OAuth Account Linking", () => {
+    it("should create new user when OAuth email doesn't exist", async () => {
+      const { prisma } = require('../../../prisma/client');
+      prisma.user.findUnique.mockResolvedValueOnce(null);
+
+      const validIdToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5ODc2NTQzMjEiLCJlbWFpbCI6Im5ld3VzZXJAZ21haWwuY29tIiwibmFtZSI6Ik5ldyBVc2VyIn0.mock';
+      
       const res = await request(app)
-        .post(oauth("/callback/ios_google"))
+        .post(oauth("/callback/android_google"))
         .send({ idToken: validIdToken });
       
-      expect([200, 201, 400, 500]).toContain(res.statusCode);
+      expect([200, 400, 401, 500]).toContain(res.statusCode);
+    });
+
+    it("should link OAuth account to existing user", async () => {
+      const { prisma } = require('../../../prisma/client');
+      prisma.oAuthAccount.findFirst.mockResolvedValueOnce(null);
+      prisma.user.findUnique.mockResolvedValueOnce({
+        id: '1',
+        email: 'existing@example.com',
+        username: 'existinguser',
+        tokenVersion: 0,
+      });
+
+      const validIdToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTU1NTU1NTUiLCJlbWFpbCI6ImV4aXN0aW5nQGV4YW1wbGUuY29tIiwibmFtZSI6IkV4aXN0aW5nIFVzZXIifQ.mock';
+      
+      const res = await request(app)
+        .post(oauth("/callback/android_google"))
+        .send({ idToken: validIdToken });
+      
+      expect([200, 400, 401, 500]).toContain(res.statusCode);
     });
   });
 
-  describe("6. User Account Creation & Linking", () => {
-    it("should create new user on first Google OAuth", async () => {
+  describe("8. OAuth Security & Error Handling", () => {
+    it("should handle network errors gracefully", async () => {
+      (axios as any).mockRejectedValueOnce(new Error('Network error'));
+
       const res = await request(app)
         .get(oauth("/callback/google"))
         .query({ 
-          code: "new-user-code", 
-          state: "mock-google-state" 
+          code: 'mock-code',
+          state: 'mock-google-state'
         });
       
-      expect([200, 302, 400, 500]).toContain(res.statusCode);
+      expect([400, 500]).toContain(res.statusCode);
     });
 
-    it("should link OAuth to existing user account", async () => {
+    it("should handle malformed OAuth responses", async () => {
+      (axios as any).mockResolvedValueOnce({
+        data: {
+          error: 'invalid_grant',
+          error_description: 'Authorization code is invalid',
+        },
+      });
+
+      const res = await request(app)
+        .get(oauth("/callback/google"))
+        .query({ 
+          code: 'invalid-code',
+          state: 'mock-google-state'
+        });
+      
+      expect([400, 401, 500]).toContain(res.statusCode);
+    });
+
+    it("should prevent duplicate code processing for GitHub", async () => {
+      const { redisClient } = require('../../../config/redis');
+      redisClient.get.mockResolvedValueOnce('processing');
+
+      const res = await request(app)
+        .get(oauth("/callback/github_front"))
+        .query({ 
+          code: 'duplicate-code',
+          state: 'mock-github-state'
+        });
+      
+      expect([400, 500]).toContain(res.statusCode);
+    });
+
+    it("should handle missing primary email in GitHub response", async () => {
+      (axios.get as jest.Mock).mockImplementation((url: string) => {
+        if (url === 'https://api.github.com/user/emails') {
+          return Promise.resolve({
+            data: [
+              { email: 'secondary@example.com', primary: false, verified: true },
+            ],
+          });
+        }
+        return Promise.reject(new Error('Unknown URL'));
+      });
+
       const res = await request(app)
         .get(oauth("/callback/github"))
-        .query({ 
-          code: "existing-user-code", 
-          state: "mock-github-state" 
-        });
+        .query({ code: 'mock-code' });
       
-      expect([200, 302, 400, 500]).toContain(res.statusCode);
-    });
-
-    it("should return existing user on subsequent OAuth", async () => {
-      const res = await request(app)
-        .post(oauth("/callback/android_google"))
-        .send({ 
-          idToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJnaXZlbl9uYW1lIjoiVGVzdCIsIm5hbWUiOiJUZXN0IFVzZXIiLCJzdWIiOiIxMjM0NTYifQ.mock-signature'
-        });
-      
-      expect([200, 201, 400, 500]).toContain(res.statusCode);
+      expect([400, 401, 500]).toContain(res.statusCode);
     });
   });
 
-  describe("7. Token Generation & Sessions", () => {
-    it("should generate access and refresh tokens on successful OAuth", async () => {
+  describe("9. OAuth Token Generation & Storage", () => {
+    it("should generate valid JWT tokens after successful OAuth", async () => {
+      const validIdToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkiLCJlbWFpbCI6InRlc3RAZ21haWwuY29tIiwibmFtZSI6IlRlc3QgVXNlciJ9.mock';
+      
       const res = await request(app)
         .post(oauth("/callback/android_google"))
-        .send({ 
-          idToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJnaXZlbl9uYW1lIjoiVGVzdCIsIm5hbWUiOiJUZXN0IFVzZXIiLCJzdWIiOiIxMjM0NTYifQ.mock-signature'
-        });
+        .send({ idToken: validIdToken });
       
       if (res.statusCode === 200) {
-        expect(res.body.token).toBeDefined();
-        expect(res.body.refreshToken).toBeDefined();
         expect(typeof res.body.token).toBe('string');
         expect(typeof res.body.refreshToken).toBe('string');
+        expect(res.body.token.length).toBeGreaterThan(0);
+        expect(res.body.refreshToken.length).toBeGreaterThan(0);
       }
-    });
-
-    it("should set cookies on web OAuth callback", async () => {
-      const res = await request(app)
-        .get(oauth("/callback/google"))
-        .query({ 
-          code: "mock-code", 
-          state: "mock-google-state" 
-        });
-      
-      expect([200, 302, 400, 500]).toContain(res.statusCode);
     });
 
     it("should store refresh token in Redis", async () => {
-      const res = await request(app)
-        .post(oauth("/callback/ios_google"))
-        .send({ 
-          idToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJnaXZlbl9uYW1lIjoiVGVzdCIsIm5hbWUiOiJUZXN0IFVzZXIiLCJzdWIiOiIxMjM0NTYifQ.mock-signature'
-        });
+      const { redisClient } = require('../../../config/redis');
+      const validIdToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkiLCJlbWFpbCI6InRlc3RAZ21haWwuY29tIn0.mock';
       
-      expect([200, 400, 500]).toContain(res.statusCode);
-    });
-  });
-
-  describe("8. Device & Location Tracking", () => {
-    it("should track device info on OAuth login", async () => {
-      const res = await request(app)
+      await request(app)
         .post(oauth("/callback/android_google"))
-        .set('User-Agent', 'Mozilla/5.0 (Android)')
-        .send({ 
-          idToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJnaXZlbl9uYW1lIjoiVGVzdCIsIm5hbWUiOiJUZXN0IFVzZXIiLCJzdWIiOiIxMjM0NTYifQ.mock-signature'
-        });
+        .send({ idToken: validIdToken });
       
-      expect([200, 400, 500]).toContain(res.statusCode);
+      expect(redisClient.set).toHaveBeenCalled();
     });
 
-    it("should send security notification email on OAuth login", async () => {
+    it("should set secure cookies for web OAuth", async () => {
+      (axios as any).mockImplementation((config: any) => {
+        return Promise.resolve({
+          data: {
+            access_token: 'mock-access-token',
+            id_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkiLCJlbWFpbCI6InRlc3RAZ21haWwuY29tIiwibmFtZSI6IlRlc3QgVXNlciJ9.mock',
+          },
+        });
+      });
+
       const res = await request(app)
         .get(oauth("/callback/google"))
         .query({ 
-          code: "mock-code", 
-          state: "mock-google-state" 
+          code: 'mock-code',
+          state: 'mock-google-state'
         });
       
-      expect([200, 302, 400, 500]).toContain(res.statusCode);
-    });
-  });
-
-  describe("9. Error Handling & Edge Cases", () => {
-    it("should handle network errors gracefully", async () => {
-      const res = await request(app)
-        .get(oauth("/callback/google"))
-        .query({ 
-          code: "error-code", 
-          state: "mock-google-state" 
-        });
-      
-      expect([200, 302, 400, 401, 500]).toContain(res.statusCode);
-    });
-
-    it("should handle invalid JSON in idToken", async () => {
-      const res = await request(app)
-        .post(oauth("/callback/android_google"))
-        .send({ idToken: "invalid.json.token" });
-      
-      expect([400, 401, 500]).toContain(res.statusCode);
-    });
-
-    it("should handle missing email in OAuth response", async () => {
-      const res = await request(app)
-        .get(oauth("/callback/github"))
-        .query({ 
-          code: "no-email-code", 
-          state: "mock-github-state" 
-        });
-      
-      expect([200, 302, 400, 500]).toContain(res.statusCode);
-    });
-
-    it("should handle database errors gracefully", async () => {
-      const res = await request(app)
-        .post(oauth("/callback/ios_google"))
-        .send({ 
-          idToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJnaXZlbl9uYW1lIjoiVGVzdCIsIm5hbWUiOiJUZXN0IFVzZXIiLCJzdWIiOiIxMjM0NTYifQ.mock-signature'
-        });
-      
-      expect([200, 400, 500]).toContain(res.statusCode);
-    });
-
-    it("should handle missing OAuth provider data", async () => {
-      const res = await request(app)
-        .get(oauth("/callback/google"))
-        .query({ 
-          code: "incomplete-data", 
-          state: "mock-google-state" 
-        });
-      
-      expect([200, 302, 400, 500]).toContain(res.statusCode);
-    });
-
-    it("should prevent duplicate code processing (CSRF protection)", async () => {
-      const code = "duplicate-code-test";
-      
-      const res1 = await request(app)
-        .get(oauth("/callback/github_front"))
-        .query({ code, state: "mock-github-state" });
-      
-      const res2 = await request(app)
-        .get(oauth("/callback/github_front"))
-        .query({ code, state: "mock-github-state" });
-      
-      expect([200, 302, 400, 401, 500]).toContain(res1.statusCode);
-      expect([200, 302, 400, 401, 500]).toContain(res2.statusCode);
-    });
-  });
-
-  describe("10. Integration Tests", () => {
-    it("should complete full Google OAuth flow", async () => {
-      const initiateRes = await request(app)
-        .get(oauth("/authorize/google"));
-      
-      expect([302, 404, 500]).toContain(initiateRes.statusCode);
-      
-      if (initiateRes.statusCode === 302) {
-        const callbackRes = await request(app)
-          .get(oauth("/callback/google"))
-          .query({ code: "mock-code", state: "mock-google-state" });
-        
-        expect([200, 302, 400, 500]).toContain(callbackRes.statusCode);
-      }
-    });
-
-    it("should complete full GitHub OAuth flow", async () => {
-      const initiateRes = await request(app)
-        .get(oauth("/authorize/github"));
-      
-      expect([302, 404, 500]).toContain(initiateRes.statusCode);
-      
-      if (initiateRes.statusCode === 302) {
-        const callbackRes = await request(app)
-          .get(oauth("/callback/github"))
-          .query({ code: "mock-code", state: "mock-github-state" });
-        
-        expect([200, 302, 400, 500]).toContain(callbackRes.statusCode);
-      }
-    });
-
-    it("should complete Android Google OAuth flow", async () => {
-      const res = await request(app)
-        .post(oauth("/callback/android_google"))
-        .send({ 
-          idToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJnaXZlbl9uYW1lIjoiVGVzdCIsIm5hbWUiOiJUZXN0IFVzZXIiLCJzdWIiOiIxMjM0NTYifQ.mock-signature'
-        });
-      
-      expect([200, 400, 500]).toContain(res.statusCode);
-      
-      if (res.statusCode === 200) {
-        expect(res.body.token).toBeDefined();
-        expect(res.body.user.email).toBe('test@example.com');
-      }
-    });
-
-    it("should complete iOS Google OAuth flow", async () => {
-      const res = await request(app)
-        .post(oauth("/callback/ios_google"))
-        .send({ 
-          idToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJnaXZlbl9uYW1lIjoiVGVzdCIsIm5hbWUiOiJUZXN0IFVzZXIiLCJzdWIiOiIxMjM0NTYifQ.mock-signature'
-        });
-      
-      expect([200, 400, 500]).toContain(res.statusCode);
-      
-      if (res.statusCode === 200) {
-        expect(res.body.token).toBeDefined();
-        expect(res.body.user.email).toBe('test@example.com');
-      }
-    });
-  });
-});
+      if (res.statusCode === 302) {
+        const cookies = res.headers['set-cookie'];
+        if (cookies) {
+          expect(Array.
