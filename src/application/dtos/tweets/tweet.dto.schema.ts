@@ -133,6 +133,6 @@ export const SearchDTOSchema = z
   .object({
     query: StringSchema,
     peopleFilter: z.enum(PeopleFilter).default(PeopleFilter.ANYONE),
-    searchTab: z.enum(SearchTab).default(SearchTab.TOP),
+    searchTab: z.enum(SearchTab).default(SearchTab.LATEST),
   })
   .extend(CursorDTOSchema.shape);

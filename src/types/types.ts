@@ -1,6 +1,7 @@
 export type SearchParams = {
+  userId: string;
   where: any;
-  select: any;
   limit: number;
-  cursor?: string | null;
+  query: string;
+  cursor?: { id: string };
 };
