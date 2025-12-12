@@ -1,7 +1,5 @@
 import { getSecrets } from "./config/secrets";
-import { prisma as clientPrisma } from "@/prisma/client";
-
-const prisma = clientPrisma;
+import { prisma } from "./prisma/client";
 
 export async function connectToDatabase() {
   try {

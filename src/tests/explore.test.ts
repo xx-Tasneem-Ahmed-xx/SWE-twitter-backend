@@ -9,11 +9,22 @@ import {
 import z from "zod";
 import { User } from "@prisma/client";
 import { redis } from "@/application/services/timeline";
+import { RESPONSES } from "@/application/constants/responses";
+import { checkUserInteractions } from "@/application/utils/tweet.utils";
 let connectToDatabase: any;
 const exploreService = ExploreService.getInstance();
+
 jest.mock("@/application/services/notification", () => ({
   addNotification: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock("@/application/utils/tweet.utils", () => {
+  const actual = jest.requireActual("@/application/utils/tweet.utils");
+  return {
+    ...actual,
+    checkUserInteractions: jest.fn((tweets) => tweets),
+  };
+});
+
 beforeAll(async () => {
   await initRedis();
   await loadSecrets();
@@ -223,6 +234,49 @@ describe("ExploreService", () => {
     });
   });
 
+  describe("getUserPreferredCategories", () => {
+    it("should return user preferred categories", async () => {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          preferredCategories: {
+            set: [],
+            connect: [{ name: CAT1 }, { name: CAT3 }],
+          },
+        },
+        select: { id: true },
+      });
+
+      const res = await exploreService.getUserPreferredCategories(user.id);
+      expect(res).toEqual({
+        preferredCategories: [{ name: CAT1 }, { name: CAT3 }],
+      });
+    });
+
+    it("should return empty array if user has no preferred categories", async () => {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          preferredCategories: {
+            deleteMany: {},
+          },
+        },
+        select: { id: true },
+      });
+      const res = await exploreService.getUserPreferredCategories(user.id);
+
+      expect(res).toEqual({
+        preferredCategories: [],
+      });
+    });
+
+    it("should throw NOT_FOUND if user does not exist", async () => {
+      await expect(
+        exploreService.getUserPreferredCategories("invalid-id")
+      ).rejects.toThrow(RESPONSES.ERRORS.NOT_FOUND.message);
+    });
+  });
+
   describe("calculateTweetScore", () => {
     it("calculates and updates score, populates global and category feeds", async () => {
       await exploreService.calculateTweetScore(tweetId);
@@ -297,6 +351,79 @@ describe("ExploreService", () => {
         -1
       );
       expect(zrange.length).toBe(5);
+    });
+  });
+
+  describe("hydrateTweets", () => {
+    beforeAll(async () => {
+      await prisma.tweet.create({
+        data: {
+          id: "h1",
+          userId: user.id,
+          content: "first tweet",
+          tweetType: "REPLY",
+          score: 10,
+        },
+      });
+
+      await prisma.tweet.create({
+        data: {
+          id: "h2",
+          userId: user.id,
+          content: "second tweet",
+          tweetType: "QUOTE",
+          score: 20,
+        },
+      });
+
+      await prisma.tweet.create({
+        data: {
+          id: "h3",
+          userId: user.id,
+          content: "third tweet",
+          tweetType: "TWEET",
+          score: 30,
+        },
+      });
+    });
+
+    it("should hydrate tweets in the same order as ids", async () => {
+      const res = await exploreService["hydrateTweets"](user.id, [
+        "h2",
+        "h1",
+        "h3",
+      ]);
+
+      expect(res.map((t) => t.id)).toEqual(["h2", "h1", "h3"]);
+      expect(checkUserInteractions).toHaveBeenCalledWith(res);
+    });
+
+    it("should filter out non-existent tweet ids", async () => {
+      const res = await exploreService["hydrateTweets"](user.id, [
+        "h1",
+        "invalid",
+        "h3",
+      ]);
+
+      expect(res.map((t) => t.id)).toEqual(["h1", "h3"]);
+    });
+
+    it("should return empty array if no ids provided", async () => {
+      const res = await exploreService["hydrateTweets"](user.id, []);
+      expect(res).toEqual([]);
+    });
+
+    it("should return empty array if none of the ids exist", async () => {
+      const res = await exploreService["hydrateTweets"](user.id, [
+        "bad1",
+        "bad2",
+      ]);
+      expect(res).toEqual([]);
+    });
+
+    it("should include score field in hydrated tweets", async () => {
+      const res = await exploreService["hydrateTweets"](user.id, ["h1"]);
+      expect(res[0].score).toBe(10);
     });
   });
 

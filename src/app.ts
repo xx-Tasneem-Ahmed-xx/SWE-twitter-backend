@@ -38,7 +38,6 @@ import {
 } from "./api/controllers/SearchEngine";
 // Type assertion for GeoGurd
 import { apiRoutes } from "./api/routes/searchRoutes";
-import { PrismaClient } from "@prisma/client";
 import { getKey } from "./application/services/secrets";
 import { SSErequest } from "./application/services/ServerSideEvents";
 const app = express();
