@@ -14,7 +14,11 @@ export interface SearchResult<T> {
   cursor: string | null; // Encoded cursor for next page
   total: number;
 }
-
+export interface SearchResult2<T> {
+  data: T;
+  cursor: string | null; // Encoded cursor for next page
+  total: number;
+}
 export interface TopSearchResult {
   tweets: ParsedTweet[];
   users: ParsedUser[];
@@ -31,52 +35,101 @@ export class SearchEngine {
    * Search for top results (tweets + users)
    * No pagination for top results - always returns top 3 of each
    */
-  searchTop(query: string, limit: number = 6): TopSearchResult {
-    const parsedQuery = this.parser.parseQuery(query);
+ /**
+ * Search for top results (tweets + users) with cursor pagination
+ */
+searchTop(
+  query: string,
+  limit: number = 6,
+  cursor?: SearchCursor
+): SearchResult2<TopSearchResult> {
 
-    // Search tweets
-    let tweetIds = new Set<string>();
 
-    if (parsedQuery.tokens.length > 0) {
-      tweetIds = this.indexer.searchTweets(parsedQuery.tokens);
-    }
+  const parsedQuery = this.parser.parseQuery(query);
 
-    // Add hashtag results
-    parsedQuery.hashtags.forEach((hashtag) => {
-      const hashtagResults = this.indexer.searchByHashtag(hashtag);
-      hashtagResults.forEach((id) => tweetIds.add(id));
-    });
+  // --- TWEETS SEARCH ---
+  let tweetIds = new Set<string>();
 
-    // Add mention results
-    parsedQuery.mentions.forEach((mention) => {
-      const mentionResults = this.indexer.searchByMention(mention);
-      mentionResults.forEach((id) => tweetIds.add(id));
-    });
-
-    // Get tweets and sort by score
-    const tweets = this.indexer
-      .getTweets(Array.from(tweetIds))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3); // Top 3 tweets
-
-    // Search users
-    let userIds = new Set<string>();
-
-    if (parsedQuery.tokens.length > 0 || query.trim().length > 0) {
-      const queryTokens = query.toLowerCase().split(/\s+/).filter(t => t.length > 0);
-      userIds = this.indexer.searchUsers(queryTokens);
-    }
-
-    const users = this.indexer
-      .getUsers(Array.from(userIds))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3); // Top 3 users
-
-    return {
-      tweets,
-      users,
-    };
+  if (parsedQuery.tokens.length > 0) {
+    tweetIds = this.indexer.searchTweets(parsedQuery.tokens);
   }
+
+  parsedQuery.hashtags.forEach((hashtag) => {
+    this.indexer.searchByHashtag(hashtag).forEach(id => tweetIds.add(id));
+  });
+
+  parsedQuery.mentions.forEach((mention) => {
+    this.indexer.searchByMention(mention).forEach(id => tweetIds.add(id));
+  });
+
+  // Sort by score DESC
+  let tweets = this.indexer
+    .getTweets(Array.from(tweetIds))
+    .sort((a, b) => b.score - a.score);
+
+  // Apply cursor to tweets
+  if (cursor?.id && cursor?.score !== undefined) {
+    const cursorIndex = tweets.findIndex(
+      t => t.id === cursor.id && t.score === cursor.score
+    );
+    if (cursorIndex !== -1) {
+      tweets = tweets.slice(cursorIndex + 1);
+    }
+  }
+
+  const hasNextPageTweets = tweets.length > limit;
+  const paginatedTweets = hasNextPageTweets ? tweets.slice(0, limit) : tweets;
+
+  const lastTweet = paginatedTweets[paginatedTweets.length - 1];
+  const nextTweetCursor = hasNextPageTweets && lastTweet
+    ? this.encodeCursor({ id: lastTweet.id, score: lastTweet.score })
+    : null;
+
+
+
+  // --- USERS SEARCH ---
+  let userIds = new Set<string>();
+  if (query.trim().length > 0) {
+    const queryTokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+    userIds = this.indexer.searchUsers(queryTokens);
+  }
+
+  let users = this.indexer
+    .getUsers(Array.from(userIds))
+    .sort((a, b) => b.score - a.score);
+
+  // Apply cursor to users also
+  if (cursor?.id && cursor?.score !== undefined) {
+    const cursorIndex = users.findIndex(
+      u => u.id === cursor.id && u.score === cursor.score
+    );
+    if (cursorIndex !== -1) {
+      users = users.slice(cursorIndex + 1);
+    }
+  }
+
+  const hasNextPageUsers = users.length > limit;
+  const paginatedUsers = hasNextPageUsers ? users.slice(0, limit) : users;
+
+  const lastUser = paginatedUsers[paginatedUsers.length - 1];
+  const nextUserCursor = hasNextPageUsers && lastUser
+    ? this.encodeCursor({ id: lastUser.id, score: lastUser.score })
+    : null;
+
+
+  // Final cursor → whichever exists (tweet or user)
+  const nextCursor = nextTweetCursor || nextUserCursor;
+
+  return {
+    data: {
+      tweets: paginatedTweets,
+      users: paginatedUsers,
+    },
+    cursor: nextCursor,
+    total: tweetIds.size + userIds.size,
+  };
+}
+
 
   /**
    * Search for people with cursor pagination

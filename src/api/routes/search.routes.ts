@@ -20,35 +20,51 @@ export function twitterSearchRoutes(
    * Returns top 3 users and top 3 tweets (like Twitter's top tab)
    * No pagination - always returns top results
    */
-  router.get("/search/top", async (req: Request, res: Response) => {
-    try {
-      const { q } = req.query;
+ router.get("/search/top", async (req: Request, res: Response) => {
+  try {
+    const { q, cursor } = req.query;
 
-      if (!q || typeof q !== "string") {
-        return res.status(400).json({
-          success: false,
-          message: "Query parameter 'q' is required",
-        });
-      }
-
-      const results = searchEngine.searchTop(q);
-
-      return res.status(200).json({
-        success: true,
-        data: {
-          users: results.users.map(formatUser),
-          tweets: results.tweets.map(formatTweet),
-        },
-        query: q,
-      });
-    } catch (error) {
-      console.error("Search top error:", error);
-      return res.status(500).json({
+    if (!q || typeof q !== "string") {
+      return res.status(400).json({
         success: false,
-        message: "Internal server error",
+        message: "Query parameter 'q' is required",
       });
     }
-  });
+
+    // Decode cursor if provided
+    let decodedCursor = undefined;
+    if (cursor && typeof cursor === "string") {
+      decodedCursor = searchEngine.decodeCursor(cursor);
+      if (!decodedCursor) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid cursor",
+        });
+      }
+    }
+
+    // Call searchTop with optional cursor
+    const results = searchEngine.searchTop(q, 6, decodedCursor);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        users: results.data.users.map(formatUser),
+        tweets: results.data.tweets.map(formatTweet),
+      },
+      cursor: results.cursor,
+      total: results.total,
+      query: q,
+    });
+  } catch (error) {
+    console.error("Search top error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+});
+
 
   /**
    * GET /api/search/people?q=query&limit=20&cursor=xxx
