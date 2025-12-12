@@ -172,25 +172,6 @@ export async function Create(
 const code="111111";
     await redisClient.set(`Signup:code:${input.email}`, code, { EX: 15 * 60 });
 
-//     const message: string = `Subject: Verify Your Email Address 
-
-// Hello ${input.name},
-
-// Thank you for signing up to Artimesa!  
-// To complete your registration and verify your email address, please enter the verification code below:
-
-//  Your verification code: ${code}
-
-// This code will expire in 15 minutes.   
-// If you didn't sign up for this account, you can safely ignore this message.
-
-// Welcome aboard,  
-// — The Artemisa Team 
-// `;
-
-    // utils.SendEmailSmtp(res, input.email, message).catch((err) => {
-    //   throw new AppError("Failed to send verification email", 500);
-    // });
 await enqueueVerifyEmail(input.email, input.name, code);
     await redisClient.set(`Signup:user:${input.email}`, JSON.stringify(input), {
       EX: 60 * 60,
@@ -513,23 +494,7 @@ export async function FinalizeSignup(
     });
     await utils.SetSession(req, created.id, jti);
 
-//     const completeMsg = `Subject: Welcome to Artimesa 
 
-// Hello ${created.name},
-
-// Your registration is now complete!   
-// You can log in anytime using your email: ${created.email}
-
-// We're thrilled to have you on board at Artimesa — enjoy exploring our community! 
-
-// If you didn't create this account, please contact our support team immediately.
-
-// — The Artimesa Team 
-// `;
-
-//     utils.SendEmailSmtp(res, created.email, completeMsg).catch((err) => {
-//       throw new AppError("Failed to send welcome email", 500);
-//     });
 await enqueueWelcomeEmail(created.email, created.name);
 
     return utils.SendRes(res, {
@@ -867,25 +832,9 @@ export async function ForgetPassword(
 
     //222 const code = Math.floor(100000 + Math.random() * 900000).toString();
 const code="111111";
-//     const message = `
-// Hi ${user.username},
-
-// You requested a password reset for your Artemisa account.
-
-//  Your password reset code is: ${code}
-
-// This code is valid for 15 minutes.
-
-// If you didn't request this change, please ignore this email or contact Artemisa support immediately.
-
-// — The Artemisa Team
-// `;
 await enqueuePasswordResetEmail(user.email, user.username, code); 
     await redisClient.set(`Reset:code:${email}`, code, { EX: 15 *  60 });
  
-     // utils.SendEmailSmtp(res, email, message).catch((err) => {
-     //   throw new AppError("Failed to send reset code email", 500);
-    // });
 
     return utils.SendRes(res, {
       message: "Reset code sent via email. Check your inbox!",
