@@ -325,7 +325,15 @@ export class TweetController {
       const userId = (req as any).user.id;
       const payload = { ...req.query };
       const parsedPayload = SearchDTOSchema.parse(payload);
-      const tweets = tweetService.searchTweets({ ...parsedPayload, userId });
+      const decodedCursor = encoderService.decode<{
+        id: string;
+      }>(req.query.cursor as string);
+
+      const tweets = await tweetService.searchTweets({
+        ...parsedPayload,
+        cursor: decodedCursor ?? undefined,
+        userId,
+      });
       res.status(200).json(tweets);
     } catch (error) {
       next(error);
