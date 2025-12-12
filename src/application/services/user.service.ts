@@ -52,8 +52,16 @@ export class UserService {
 
         _count: {
           select: {
-            followers: true,
-            followings: true,
+            followers: {
+              where: {
+                status: "ACCEPTED", // Filter for accepted followers
+              },
+            },
+            followings: {
+              where: {
+                status: "ACCEPTED", // Filter for accepted followings
+              },
+            },
           },
         },
       },
@@ -90,6 +98,7 @@ export class UserService {
             followerId: user.id,
             followingId: viewerId,
           },
+          status: "ACCEPTED", // Check for accepted status on relation
         },
       }),
       prisma.follow.findUnique({
@@ -98,6 +107,7 @@ export class UserService {
             followerId: viewerId,
             followingId: user.id,
           },
+          status: "ACCEPTED", // Check for accepted status on relation
         },
       }),
       prisma.mute.findUnique({
