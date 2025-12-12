@@ -247,7 +247,6 @@ searchTop(
     cursor?: SearchCursor
   ): SearchResult<ParsedTweet> {
     const parsedQuery = this.parser.parseQuery(query);
-
     let tweetIds = new Set<string>();
 
     // Start with media tweets only
@@ -284,7 +283,7 @@ searchTop(
     // Apply cursor filtering if provided
     if (cursor?.id && cursor?.score !== undefined) {
       const cursorIndex = tweets.findIndex(
-        t => t.id === cursor.id && t.score === cursor.score
+        (t) => t.id === cursor.id && t.score === cursor.score
       );
       if (cursorIndex !== -1) {
         tweets = tweets.slice(cursorIndex + 1);
@@ -297,9 +296,10 @@ searchTop(
 
     // Generate next cursor
     const lastTweet = paginatedTweets[paginatedTweets.length - 1];
-    const nextCursor = hasNextPage && lastTweet
-      ? this.encodeCursor({ id: lastTweet.id, score: lastTweet.score })
-      : null;
+    const nextCursor =
+      hasNextPage && lastTweet
+        ? this.encodeCursor({ id: lastTweet.id, score: lastTweet.score })
+        : null;
 
     return {
       data: paginatedTweets,
@@ -307,6 +307,7 @@ searchTop(
       total: tweetIds.size,
     };
   }
+
 
   /**
    * Get index statistics

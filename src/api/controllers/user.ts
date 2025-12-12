@@ -613,17 +613,7 @@ if (!exists){
     const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
     const location = await utils.Sendlocation(ip as string);
 
-//     const emailMessage = `Hello ${user.username},
 
-//  Your account was just accessed!
-// Time: ${new Date().toLocaleString()}
-
-// If this was not you, immediately change your password!
-// — The Artemisa Team`;
-
-//     utils.SendEmailSmtp(res, email, emailMessage).catch((err) => {
-//       throw new AppError("Failed to send login notification email", 500);
-//     });
 await enqueueLoginAlertEmail(user.email, user.username);
     // Safely derive browser and country values whether deviceRecord/location are objects or strings
     const deviceBrowser =
@@ -913,17 +903,7 @@ export async function ResetPassword(
         ? JSON.stringify(deviceRecord, null, 2)
         : deviceRecord || "unknown";
 
-//     const emailMessage = `Hello ${user.username},
 
-//  Your password was just changed!
-//  Time: ${new Date().toLocaleString()}
-
-// If this wasn't you, secure your account immediately!
-// — Artemisa Team`;
-
-//     utils.SendEmailSmtp(res, email, emailMessage).catch(() => {
-//       throw new AppError("Failed to send password change notification", 500);
-//     });
 await enqueuePasswordChangedAlert(user.email, user.username);
     const deviceBrowser =
       typeof deviceRecord === "object" && deviceRecord
@@ -2546,8 +2526,14 @@ export async function CallbackIOSGoogle(
       user = oauth.user;
     } else {
       user = await prisma.user.findUnique({ where: { email } });
-      if (!user) {
-        newuser=true;
+      if (user) {
+          newuser=false;
+        await prisma.oAuthAccount.create({
+          data: { provider: "google", providerId, userId: user.id },
+        });
+      } else {
+    
+          newuser=true;
         const username = await utils.generateUsername(name);
         user = await prisma.user.create({
           data: {
@@ -2561,11 +2547,6 @@ export async function CallbackIOSGoogle(
               create: { provider: "google", providerId },
             },
           },
-        });
-      } else {
-        newuser=false;
-        await prisma.oAuthAccount.create({
-          data: { provider: "google", providerId, userId: user.id },
         });
       }
     }
