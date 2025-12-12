@@ -8,9 +8,7 @@ import {
 } from "../../application/dtos/chat/messages.dto";
 import { socketService } from "@/app";
 import { sendPushNotification } from "@/application/services/FCMService";
-import { AppError } from "@/errors/AppError";
-import { any } from "zod";
-import { get } from "http";
+
 
 export const getChatUsersId = async (chatId: string): Promise<string[]> => {
     const usersId = await prisma.chat.findUnique({
@@ -40,7 +38,9 @@ const getUnseenMessagesCountofChat = async (chatId: string, userId: string) => {
       },
     });
     return unseenMessagesCount;
-  } catch (error) {}
+  } catch (error) {
+    return 0;
+  }
 };
 
 export const CreateChatFun = async (
@@ -305,10 +305,23 @@ export const updateMessageStatus = async (chatId: string, userId: string) => {
           status: "READ",
         },
       });
-      await resetUnseenChatCount(userId);
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          unseenChatCount: { decrement: 1 },
+        },
+      });
+      if (socketService.checkSocketStatus(userId)) {
+        socketService.sendUnseenChatsCount(
+          userId,
+          (updatedUser as any)?.unseenChatCount || 0
+        );
+      }
       return true;
     }
   } catch (error) {
+    console.log(error);
+    
     return false;
   }
 };
@@ -495,27 +508,6 @@ export const addMessageToChat = async (
         createdAt: messageInput.createdAt,
       },
     });
-    if (
-      messageInput.data.messageMedia &&
-      messageInput.data.messageMedia.length > 0
-    ) {
-      for (const mediaRaw of messageInput.data.messageMedia) {
-        let mediaObj: any;
-        if (mediaRaw && typeof (mediaRaw as any).safeParse === "function") {
-          const result = (mediaRaw as any).safeParse(mediaRaw);
-          mediaObj = result.success ? result.data : {};
-        } else {
-          mediaObj = mediaRaw;
-        }
-
-        await prisma.messageMedia.create({
-          data: {
-            messageId: newMessage.id,
-            mediaId: mediaObj.mediaId,
-          },
-        });
-      }
-    }
     const createdMessage = await prisma.message.findUniqueOrThrow({
       where: { id: newMessage.id },
       include: {
@@ -556,7 +548,6 @@ export const addMessageToChat = async (
           where: { id: recipientId },
         });
       }
-      //to handle website socket message sending
       if (socketService.checkSocketStatus(recipientId)) {
         socketService.sendMessageToChat(recipientId, {
           createdMessage,
@@ -574,7 +565,7 @@ export const addMessageToChat = async (
       });
       const fcmTokens =
         userFCMTokens.length > 0
-          ? userFCMTokens.map((t) => t.token).flat()
+          ? userFCMTokens.flatMap((t) => t.token)
           : [];
       if (fcmTokens && fcmTokens.length > 0) {
         const notificationPayload = {
@@ -617,6 +608,9 @@ export const getUnseenMessagesCountOfUser = async (
 ) => {
   try {
     const userId = (req as any).user.id;
+    if (!userId) {
+      responseUtils.throwError("USER_ID_REQUIRED");
+    }
     let totalUnseenMessages = 0;
     const chats = await prisma.chatUser.findMany({
       where: { userId: userId },
@@ -673,16 +667,19 @@ export const resetUnseenChatCount = async (
   userId: string
 ): Promise<void> => {
   try {
-    await prisma.user.update({
-      where: { id: userId},
-      data: {
-        unseenChatCount: 0,
-      }
-    })
+    // await prisma.user.update({
+    //   where: { id: userId},
+    //   data: {
+    //     unseenChatCount: 0,
+    //   }
+    // })
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
       if(socketService.checkSocketStatus(userId)){
         socketService.sendUnseenChatsCount(
           userId,
-          0
+          user?.unseenChatCount || 0
         );
       }
   } catch (error) {

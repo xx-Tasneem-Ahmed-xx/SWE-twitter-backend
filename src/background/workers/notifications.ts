@@ -3,6 +3,7 @@ import { redisClient, initRedis } from "@/config/redis";
 import { bullRedisConfig } from "@/background/config/redis";
 import { prisma } from "@/prisma/client";
 import { loadSecrets } from "@/config/secrets";
+import { sendSSEMessage } from "@/application/services/ServerSideEvents";
 
 async function startWorker() {
   await initRedis();
