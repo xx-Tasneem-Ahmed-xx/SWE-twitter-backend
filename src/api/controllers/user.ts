@@ -1,5 +1,4 @@
-import dotenv from "dotenv";
-dotenv.config();
+
 import * as utils from "../../application/utils/tweets/utils";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";

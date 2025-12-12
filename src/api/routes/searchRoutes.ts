@@ -1,4 +1,4 @@
-import {Logger,Crawler, Parser, Indexer, SearchEngine, PersistenceManager, ParsedDocument, CrawledTweet, CrawledUser, CrawledHashtag} from '../controllers/SearchEngine';
+import {ChatParser,ChatCrawler,CrawledConversation,CrawledMessage,ChatSearchEngine,Logger,Crawler, Parser, Indexer, SearchEngine, PersistenceManager, ParsedDocument, CrawledTweet, CrawledUser, CrawledHashtag} from '../controllers/SearchEngine';
 import { Router, Request, Response } from 'express';
 
 import tweetService from '@/application/services/tweets';
@@ -156,71 +156,71 @@ export function apiRoutes(
 
   // ===== SEARCH ENDPOINTS =====
 
-  router.get('/search', (req: Request, res: Response) => {
-    try {
-      const { 
-        q, 
-        limit = '20', 
-        offset = '0', 
-        type = 'all',
-        fuzzy = 'false',
-        phrase = 'false'
-      } = req.query;
+  // router.get('/search', (req: Request, res: Response) => {
+  //   try {
+  //     const { 
+  //       q, 
+  //       limit = '20', 
+  //       offset = '0', 
+  //       type = 'all',
+  //       fuzzy = 'false',
+  //       phrase = 'false'
+  //     } = req.query;
       
-      if (!q || typeof q !== 'string') {
-        return res.status(400).json({ error: 'Query parameter "q" is required' });
-      }
+  //     if (!q || typeof q !== 'string') {
+  //       return res.status(400).json({ error: 'Query parameter "q" is required' });
+  //     }
 
-      const searchLimit = Math.min(parseInt(limit as string, 10) || 20, 100);
-      const searchOffset = Math.max(parseInt(offset as string, 10) || 0, 0);
-      const useFuzzy = fuzzy === 'true';
-      const usePhrase = phrase === 'true';
+  //     const searchLimit = Math.min(parseInt(limit as string, 10) || 20, 100);
+  //     const searchOffset = Math.max(parseInt(offset as string, 10) || 0, 0);
+  //     const useFuzzy = fuzzy === 'true';
+  //     const usePhrase = phrase === 'true';
 
-      logger.info(`Search: q="${q}" type="${type}" limit=${searchLimit} offset=${searchOffset}`);
+  //     logger.info(`Search: q="${q}" type="${type}" limit=${searchLimit} offset=${searchOffset}`);
 
-      const results = searchEngine.search(q, {
-        limit: searchLimit,
-        offset: searchOffset,
-        type: type as any || 'all',
-        useFuzzy,
-        usePhrase
-      });
+  //     const results = searchEngine.search(q, {
+  //       limit: searchLimit,
+  //       offset: searchOffset,
+  //       type: type as any || 'all',
+  //       useFuzzy,
+  //       usePhrase
+  //     });
 
-      res.json(results);
-    } catch (error) {
-      logger.error('Search failed', error);
-      res.status(500).json({ error: 'Search failed', details: String(error) });
-    }
-  });
+  //     res.json(results);
+  //   } catch (error) {
+  //     logger.error('Search failed', error);
+  //     res.status(500).json({ error: 'Search failed', details: String(error) });
+  //   }
+  // });
 
-  router.get('/search/:type', (req: Request, res: Response) => {
-    try {
-      const { type } = req.params;
-      const { q, limit = '20', offset = '0', fuzzy = 'false', phrase = 'false' } = req.query;
+  // router.get('/search/:type', (req: Request, res: Response) => {
+  //   try {
+  //     const { type } = req.params;
+  //     const { q, limit = '20', offset = '0', fuzzy = 'false', phrase = 'false' } = req.query;
       
-      if (!q || typeof q !== 'string') {
-        return res.status(400).json({ error: 'Query parameter "q" is required' });
-      }
+  //     if (!q || typeof q !== 'string') {
+  //       return res.status(400).json({ error: 'Query parameter "q" is required' });
+  //     }
 
-      if (!['tweet', 'user', 'hashtag', 'url'].includes(type)) {
-        return res.status(400).json({ error: 'Invalid type. Must be: tweet, user, hashtag, or url' });
-      }
+  //     if (!['tweet', 'user', 'hashtag', 'url'].includes(type)) {
+  //       return res.status(400).json({ error: 'Invalid type. Must be: tweet, user, hashtag, or url' });
+  //     }
 
-      const searchLimit = Math.min(parseInt(limit as string, 10) || 20, 100);
-      const searchOffset = Math.max(parseInt(offset as string, 10) || 0, 0);
-      const useFuzzy = fuzzy === 'true';
-      const usePhrase = phrase === 'true';
+  //     const searchLimit = Math.min(parseInt(limit as string, 10) || 20, 100);
+  //     const searchOffset = Math.max(parseInt(offset as string, 10) || 0, 0);
+  //     const useFuzzy = fuzzy === 'true';
+  //     const usePhrase = phrase === 'true';
 
-      logger.info(`Search by type: q="${q}" type="${type}" limit=${searchLimit}`);
+  //     logger.info(`Search by type: q="${q}" type="${type}" limit=${searchLimit}`);
 
-      const results = searchEngine.searchByType(q, type as any, searchLimit, searchOffset);
+  //     const results = searchEngine.searchByType(q, type as any, searchLimit, searchOffset);
 
-      res.json(results);
-    } catch (error) {
-      logger.error('Search by type failed', error);
-      res.status(500).json({ error: 'Search by type failed', details: String(error) });
-    }
-  });
+  //     res.json(results);
+  //   } catch (error) {
+  //     logger.error('Search by type failed', error);
+  //     res.status(500).json({ error: 'Search by type failed', details: String(error) });
+  //   }
+  // });
 
   // ===== STATS & INFO ENDPOINTS =====
 
@@ -398,16 +398,7 @@ export function apiRoutes(
   return router;
 }
 
-
-export function twitterSearchRoutes() {
-  const router = Router();
-  const logger = new Logger('TwitterSearch');
-
-  // ===========================
-  // HELPER FUNCTIONS
-  // ===========================
-
-  const calculateEngagementScore = (tweet: any) => {
+ const calculateEngagementScore = (tweet: any) => {
     const likesWeight = 1;
     const retweetsWeight = 2;
     const repliesWeight = 1.5;
@@ -451,11 +442,24 @@ export function twitterSearchRoutes() {
     }
     
     // Followers count boost
-    score += (user._count?.followers || 0) * 0.01;
+    score += (user.followersCount || 0) * 0.01;
     
     return score;
   };
 
+export function twitterSearchRoutes(crawler: Crawler,
+  parser: Parser,
+  indexer: Indexer,
+  searchEngine: SearchEngine,
+  persistence: PersistenceManager) {
+  const router = Router();
+  const logger = new Logger('TwitterSearch');
+
+  // ===========================
+  // HELPER FUNCTIONS
+  // ===========================
+
+ 
   // ===========================
   // 1. TOP - Mixed results (Tweets + Users like X)
   // ===========================
@@ -463,144 +467,56 @@ export function twitterSearchRoutes() {
     try {
       const {
         q = '',
-        cursor = null,
-        userId,
+     
+        
       } = req.query;
-
+const userId=(req as any).user?.id;
       if (!userId) {
         return res.status(401).json({ error: 'User ID required' });
       }
 
+      if (!q || typeof q !== 'string') {
+        return res.status(400).json({ error: 'Query parameter "q" is required' });
+      }
+
       logger.info(`Top search: q="${q}"`);
 
-      // Search tweets
-      const tweets = await prisma.tweet.findMany({
-        where: {
-          OR: [
-            { content: { contains: q as string, mode: 'insensitive' } },
-            {
-              hashtags: {
-                some: {
-                  hash: {
-                    tag_text: { contains: q as string, mode: 'insensitive' },
-                  },
-                },
-              },
-            },
-          ],
-        },
-        select: {
-          id: true,
-          content: true,
-          createdAt: true,
-          likesCount: true,
-          repliesCount: true,
-          quotesCount: true,
-          retweetCount: true,
-          replyControl: true,
-          tweetType: true,
-          parentId: true,
-          userId: true,
-          user: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              profileMedia: { select: { id: true } },
-              protectedAccount: true,
-              verified: true,
-            },
-          },
-          tweetLikes: {
-            where: { userId: userId as string },
-            select: { userId: true },
-          },
-          retweets: {
-            where: { userId: userId as string },
-            select: { userId: true },
-          },
-          tweetBookmark: {
-            where: { userId: userId as string },
-            select: { userId: true },
-          },
-          tweetMedia: {
-            select: {
-              mediaId: true,
-              media: {
-                select: {
-                  id: true,
-                  type: true,
-                },
-              },
-            },
-          },
-        },
-        take: 50, // Fetch more for scoring
-      });
+      // Search tweets using search engine
+      const tweetResults =searchEngine.searchByType(q, "tweet", 50, 0,indexer.getDocuments());
+      console.log("doc",indexer.getDocuments());
+      // Search users using search engine
+      const userResults = searchEngine.searchByType(q, "user", 10, 0,indexer.getDocuments());
+console.log("tweetResults",tweetResults,"userResults",userResults);
+      
+          
+     
 
-      // Search users
-      const users = await prisma.user.findMany({
-        where: {
-          OR: [
-            { username: { contains: q as string, mode: 'insensitive' } },
-            { name: { contains: q as string, mode: 'insensitive' } },
-            { bio: { contains: q as string, mode: 'insensitive' } },
-          ],
-        },
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          bio: true,
-          verified: true,
-          protectedAccount: true,
-          profileMedia: { select: { id: true } },
-          coverMedia: { select: { id: true } },
-          _count: {
-            select: {
-              followers: true,
-              followings: true,
-              tweet: true,
-            },
-          },
-          followers: {
-            where: { followerId: userId as string },
-            select: { followerId: true },
-          },
-        },
-        take: 10,
-      });
+     
 
-      // Score and sort tweets
-      const scoredTweets = tweets
-        .map(({tweet}:any) => ({
+    
+     
+      const scoredTweets = tweetResults.results
+        .map((tweet: any) => ({
           ...tweet,
           score: calculateEngagementScore(tweet),
-          isLiked: tweet.tweetLikes.length > 0,
-          isRetweeted: tweet.retweets.length > 0,
-          isBookmarked: tweet.tweetBookmark.length > 0,
           type: 'tweet' as const,
         }))
-        .sort(({a, b}:any) => b.score - a.score)
+        .sort((a: any, b: any) => b.score - a.score)
         .slice(0, 20);
 
       // Score and sort users
-      const scoredUsers = users
+      const scoredUsers = userResults.results
         .map((user: any) => ({
           ...user,
-          score: calculateUserRelevanceScore(user, q as string),
-          followersCount: user._count?.followers || 0,
-          followingsCount: user._count?.followings || 0,
-          tweetsCount: user._count?.tweet || 0,
-          isFollowing: (user.followers && user.followers.length > 0) || false,
+          score: calculateUserRelevanceScore(user, q),
           type: 'user' as const,
         }))
-        .sort(({a, b}:any) => b.score - a.score)
+        .sort((a: any, b: any) => b.score - a.score)
         .slice(0, 3); // Top 3 users like X
 
       // Remove internal fields
-      const cleanedUsers = scoredUsers.map(({ score, _count, followers, ...user }: any) => user);
-      const cleanedTweets = scoredTweets.map(({ score, tweetLikes, retweets, tweetBookmark, ...tweet }: any) => tweet);
+      const cleanedUsers = scoredUsers.map(({ score, ...user }: any) => user);
+      const cleanedTweets = scoredTweets.map(({ score, ...tweet }: any) => tweet);
 
       res.json({
         query: q,
@@ -623,103 +539,33 @@ export function twitterSearchRoutes() {
       const {
         q = '',
         limit = '20',
-        cursor = null,
-        userId,
+        offset = '0',
+        
       } = req.query;
-
+const userId=(req as any).user?.id;
       if (!userId) {
         return res.status(401).json({ error: 'User ID required' });
       }
 
+      if (!q || typeof q !== 'string') {
+        return res.status(400).json({ error: 'Query parameter "q" is required' });
+      }
+
       const searchLimit = Math.min(parseInt(limit as string, 10) || 20, 100);
+      const searchOffset = Math.max(parseInt(offset as string, 10) || 0, 0);
 
       logger.info(`Latest search: q="${q}" limit=${searchLimit}`);
 
-      const tweets = await prisma.tweet.findMany({
-        where: {
-          OR: [
-            { content: { contains: q as string, mode: 'insensitive' } },
-            {
-              hashtags: {
-                some: {
-                  hash: {
-                    tag_text: { contains: q as string, mode: 'insensitive' },
-                  },
-                },
-              },
-            },
-          ],
-        },
-        select: {
-          id: true,
-          content: true,
-          createdAt: true,
-          likesCount: true,
-          repliesCount: true,
-          quotesCount: true,
-          retweetCount: true,
-          replyControl: true,
-          tweetType: true,
-          parentId: true,
-          userId: true,
-          user: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              profileMedia: { select: { id: true } },
-              protectedAccount: true,
-              verified: true,
-            },
-          },
-          tweetLikes: {
-            where: { userId: userId as string },
-            select: { userId: true },
-          },
-          retweets: {
-            where: { userId: userId as string },
-            select: { userId: true },
-          },
-          tweetBookmark: {
-            where: { userId: userId as string },
-            select: { userId: true },
-          },
-          tweetMedia: {
-            select: {
-              mediaId: true,
-              media: {
-                select: {
-                  id: true,
-                  type: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: searchLimit + 1,
-        ...(cursor && { cursor: { id: cursor as string }, skip: 1 }),
-      });
-
-      const hasNextPage = tweets.length > searchLimit;
-      const results = hasNextPage ? tweets.slice(0, -1) : tweets;
-
-      const tweetsWithInteractions = results.map((tweet: any) => ({
-        ...tweet,
-        isLiked: tweet.tweetLikes.length > 0,
-        isRetweeted: tweet.retweets.length > 0,
-        isBookmarked: tweet.tweetBookmark.length > 0,
-      }));
-
-      // Remove internal fields
-      const cleanedTweets = tweetsWithInteractions.map(({ tweetLikes, retweets, tweetBookmark, ...tweet }: any) => tweet);
+      // Search tweets using search engine
+      const results = searchEngine.searchByType(q, 'tweet', searchLimit, searchOffset);
 
       res.json({
         query: q,
         type: 'latest',
-        results: cleanedTweets,
-        total: results.length,
-        cursor: hasNextPage ? results[results.length - 1].id : null,
+        results: results.results,
+        total: results.total,
+        limit: searchLimit,
+        offset: searchOffset,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -736,77 +582,43 @@ export function twitterSearchRoutes() {
       const {
         q = '',
         limit = '20',
-        cursor = null,
-        userId,
+        offset = '0',
+        
       } = req.query;
-
+const userId=(req as any).user?.id;
       if (!userId) {
         return res.status(401).json({ error: 'User ID required' });
       }
 
+      if (!q || typeof q !== 'string') {
+        return res.status(400).json({ error: 'Query parameter "q" is required' });
+      }
+
       const searchLimit = Math.min(parseInt(limit as string, 10) || 20, 100);
+      const searchOffset = Math.max(parseInt(offset as string, 10) || 0, 0);
 
       logger.info(`People search: q="${q}" limit=${searchLimit}`);
 
-      const users = await prisma.user.findMany({
-        where: {
-          OR: [
-            { username: { contains: q as string, mode: 'insensitive' } },
-            { name: { contains: q as string, mode: 'insensitive' } },
-            { bio: { contains: q as string, mode: 'insensitive' } },
-          ],
-        },
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          bio: true,
-          verified: true,
-          protectedAccount: true,
-          profileMedia: { select: { id: true } },
-          coverMedia: { select: { id: true } },
-         
-          _count: {
-            select: {
-              followers: true,
-              followings: true,
-              tweet: true,
-            },
-          },
-          followers: {
-            where: { followerId: userId as string },
-            select: { followerId: true },
-          },
-        },
-        take: searchLimit + 1,
-        ...(cursor && { cursor: { id: cursor as string }, skip: 1 }),
-      });
+      // Search users using search engine
+      const userResults = searchEngine.searchByType(q, 'user', searchLimit * 2, searchOffset);
 
       // Score users by relevance
-      const scoredUsers = users.map((user: any) => ({
+      const scoredUsers = userResults.results.map((user: any) => ({
         ...user,
-        score: calculateUserRelevanceScore(user, q as string),
+        score: calculateUserRelevanceScore(user, q),
       }));
 
-      scoredUsers.sort(({a, b}: any) => b.score - a.score);
+      scoredUsers.sort((a: any, b: any) => b.score - a.score);
 
-      const hasNextPage = scoredUsers.length > searchLimit;
-      const results = hasNextPage ? scoredUsers.slice(0, -1) : scoredUsers;
-
-      const usersWithFollowStatus = results.map(({ score, _count, followers, ...user }: any) => ({
-        ...user,
-        followersCount: _count?.followers || 0,
-        followingsCount: _count?.followings || 0,
-        tweetsCount: _count?.tweet || 0,
-        isFollowing: followers && followers.length > 0,
-      }));
+      const results = scoredUsers.slice(0, searchLimit);
 
       res.json({
         query: q,
         type: 'people',
-        results: usersWithFollowStatus,
+        results: results.map(({ score, ...user }: any) => user),
         total: results.length,
-        cursor: hasNextPage ? results[results.length - 1].id : null,
+        limit: searchLimit,
+        offset: searchOffset,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -823,113 +635,40 @@ export function twitterSearchRoutes() {
       const {
         q = '',
         limit = '20',
-        cursor = null,
-        userId,
+        offset = '0',
+        
       } = req.query;
-
+const userId=(req as any).user?.id;
       if (!userId) {
         return res.status(401).json({ error: 'User ID required' });
       }
 
+      if (!q || typeof q !== 'string') {
+        return res.status(400).json({ error: 'Query parameter "q" is required' });
+      }
+
       const searchLimit = Math.min(parseInt(limit as string, 10) || 20, 100);
+      const searchOffset = Math.max(parseInt(offset as string, 10) || 0, 0);
 
       logger.info(`Media search: q="${q}" limit=${searchLimit}`);
 
-      const tweets = await prisma.tweet.findMany({
-        where: {
-          AND: [
-            {
-              OR: [
-                { content: { contains: q as string, mode: 'insensitive' } },
-                {
-                  hashtags: {
-                    some: {
-                      hash: {
-                        tag_text: { contains: q as string, mode: 'insensitive' },
-                      },
-                    },
-                  },
-                },
-              ],
-            },
-            {
-              tweetMedia: {
-                some: {}, // Must have at least one media
-              },
-            },
-          ],
-        },
-        select: {
-          id: true,
-          content: true,
-          createdAt: true,
-          likesCount: true,
-          repliesCount: true,
-          quotesCount: true,
-          retweetCount: true,
-          replyControl: true,
-          tweetType: true,
-          parentId: true,
-          userId: true,
-          user: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              profileMedia: { select: { id: true } },
-              protectedAccount: true,
-              verified: true,
-            },
-          },
-          tweetLikes: {
-            where: { userId: userId as string },
-            select: { userId: true },
-          },
-          retweets: {
-            where: { userId: userId as string },
-            select: { userId: true },
-          },
-          tweetBookmark: {
-            where: { userId: userId as string },
-            select: { userId: true },
-          },
-          tweetMedia: {
-            select: {
-              mediaId: true,
-              media: {
-                select: {
-                  id: true,
-                  type: true,
-                  
-                },
-              },
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: searchLimit + 1,
-        ...(cursor && { cursor: { id: cursor as string }, skip: 1 }),
-      });
+      // Search tweets using search engine
+      const tweetResults = searchEngine.searchByType(q, 'tweet', searchLimit * 3, searchOffset);
 
-      const hasNextPage = tweets.length > searchLimit;
-      const results = hasNextPage ? tweets.slice(0, -1) : tweets;
+      // Filter tweets that have media
+      const tweetsWithMedia = tweetResults.results.filter((tweet: any) => 
+        tweet.tweetMedia && tweet.tweetMedia.length > 0
+      );
 
-      const tweetsWithInteractions = results.map((tweet: any) => ({
-        ...tweet,
-        isLiked: tweet.tweetLikes.length > 0,
-        isRetweeted: tweet.retweets.length > 0,
-        isBookmarked: tweet.tweetBookmark.length > 0,
-      }));
-
-      // Remove internal fields
-      const cleanedTweets = tweetsWithInteractions.map(({ tweetLikes, retweets, tweetBookmark, ...tweet }: any) => tweet);
+      const results = tweetsWithMedia.slice(0, searchLimit);
 
       res.json({
         query: q,
         type: 'media',
-        results: cleanedTweets,
+        results: results,
         total: results.length,
-        cursor: hasNextPage ? results[results.length - 1].id : null,
+        limit: searchLimit,
+        offset: searchOffset,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -939,624 +678,206 @@ export function twitterSearchRoutes() {
   });
 
   // ===========================
-  // 5. LISTS - Search communities/groups (like X screenshot)
+  // 5. GENERIC SEARCH BY TYPE
   // ===========================
-//   router.get('/search/lists', async (req: Request, res: Response) => {
-//     try {
-//       const {
-//         q = '',
-//         limit = '20',
-//         cursor = null,
-//         userId,
-//       } = req.query;
+  return router;
 
-//       if (!userId) {
-//         return res.status(401).json({ error: 'User ID required' });
-//       }
-
-//       const searchLimit = Math.min(parseInt(limit as string, 10) || 20, 100);
-
-//       logger.info(`Lists search: q="${q}" limit=${searchLimit}`);
-
-//       // Check if Community/List model exists
-//       try {
-//         const communities = await prisma.community.findMany({
-//           where: {
-//             OR: [
-//               { name: { contains: q as string, mode: 'insensitive' } },
-//               { description: { contains: q as string, mode: 'insensitive' } },
-//             ],
-//           },
-//           select: {
-//             id: true,
-//             name: true,
-//             description: true,
-//             bannerImage: true,
-//             avatarImage: true,
-//             isPrivate: true,
-//             createdAt: true,
-//             creatorId: true,
-//             creator: {
-//               select: {
-//                 id: true,
-//                 name: true,
-//                 username: true,
-//                 profileMedia: { select: { id: true } },
-//                 verified: true,
-//               },
-//             },
-//             _count: {
-//               select: {
-//                 members: true,
-//                 followers: true,
-//               },
-//             },
-//             // Get some member profile pictures (first 3)
-//             members: {
-//               take: 3,
-//               select: {
-//                 user: {
-//                   select: {
-//                     id: true,
-//                     username: true,
-//                     profileMedia: { select: { id: true } },
-//                   },
-//                 },
-//               },
-//             },
-//             // Check if current user is a member
-//             followers: {
-//               where: { userId: userId as string },
-//               select: { userId: true },
-//             },
-//           },
-//           orderBy: [
-//             { _count: { members: 'desc' } }, // Most members first
-//             { createdAt: 'desc' },
-//           ],
-//           take: searchLimit + 1,
-//           ...(cursor && { cursor: { id: cursor as string }, skip: 1 }),
-//         });
-
-//         const hasNextPage = communities.length > searchLimit;
-//         const results = hasNextPage ? communities.slice(0, -1) : communities;
-
-//         const communitiesWithDetails = results.map((community: any) => ({
-//           id: community.id,
-//           name: community.name,
-//           description: community.description,
-//           bannerImage: community.bannerImage,
-//           avatarImage: community.avatarImage,
-//           isPrivate: community.isPrivate,
-//           createdAt: community.createdAt,
-//           membersCount: community._count?.members || 0,
-//           followersCount: community._count?.followers || 0,
-//           // Profile pictures of some members for display
-//           memberPreviews: community.members?.map((m: any) => ({
-//             id: m.user.id,
-//             username: m.user.username,
-//             profileMedia: m.user.profileMedia,
-//           })) || [],
-//           creator: community.creator,
-//           isJoined: community.followers && community.followers.length > 0,
-//           isMember: community.followers && community.followers.length > 0,
-//         }));
-
-//         res.json({
-//           query: q,
-//           type: 'lists',
-//           results: communitiesWithDetails,
-//           total: results.length,
-//           cursor: hasNextPage ? results[results.length - 1].id : null,
-//           timestamp: new Date().toISOString(),
-//         });
-//       } catch (communityError: any) {
-//         // If Community model doesn't exist, try List model as fallback
-//         try {
-//           const lists = await prisma.list.findMany({
-//             where: {
-//               OR: [
-//                 { name: { contains: q as string, mode: 'insensitive' } },
-//                 { description: { contains: q as string, mode: 'insensitive' } },
-//               ],
-//             },
-//             select: {
-//               id: true,
-//               name: true,
-//               description: true,
-//               isPrivate: true,
-//               createdAt: true,
-//               userId: true,
-//               _count: {
-//                 select: {
-//                   members: true,
-//                 },
-//               },
-//               members: {
-//                 take: 3,
-//                 select: {
-//                   user: {
-//                     select: {
-//                       id: true,
-//                       username: true,
-//                       profileMedia: { select: { id: true } },
-//                     },
-//                   },
-//                 },
-//               },
-//             },
-//             orderBy: [
-//               { _count: { members: 'desc' } },
-//               { createdAt: 'desc' },
-//             ],
-//             take: searchLimit + 1,
-//             ...(cursor && { cursor: { id: cursor as string }, skip: 1 }),
-//           });
-
-//           const hasNextPage = lists.length > searchLimit;
-//           const results = hasNextPage ? lists.slice(0, -1) : lists;
-
-//           const listsWithDetails = results.map((list: any) => ({
-//             id: list.id,
-//             name: list.name,
-//             description: list.description,
-//             isPrivate: list.isPrivate,
-//             createdAt: list.createdAt,
-//             membersCount: list._count?.members || 0,
-//             memberPreviews: list.members?.map((m: any) => ({
-//               id: m.user.id,
-//               username: m.user.username,
-//               profileMedia: m.user.profileMedia,
-//             })) || [],
-//           }));
-
-//           res.json({
-//             query: q,
-//             type: 'lists',
-//             results: listsWithDetails,
-//             total: results.length,
-//             cursor: hasNextPage ? results[results.length - 1].id : null,
-//             timestamp: new Date().toISOString(),
-//           });
-//         } catch (listError: any) {
-//           // Neither Community nor List model exists
-//           logger.warn('Community/List model not found in schema');
-//           res.json({
-//             query: q,
-//             type: 'lists',
-//             results: [],
-//             total: 0,
-//             cursor: null,
-//             timestamp: new Date().toISOString(),
-//             message: 'Communities/Lists feature not available - Model not found in database schema',
-//           });
-//         }
-//       }
-//     } catch (error) {
-//       logger.error('Lists search failed', error);
-//       res.status(500).json({ 
-//         error: 'Search failed', 
-//         details: String(error),
-//         query: req.query.q || '',
-//         type: 'lists',
-//         results: [],
-//       });
-//     }
-//   });
-
-//   return router;
-// }
 }
 
-
-
-export function chatSearchRoutes() {
+export function chatSearchRoutes(
+  parser: Parser,
+  indexer: Indexer,
+  searchEngine: SearchEngine,
+  persistence: PersistenceManager
+) {
   const router = Router();
-  const logger = new Logger('ChatSearch');
+  const chatSearchEngine = new ChatSearchEngine(
+    prisma,
+    parser,
+    indexer,
+    searchEngine,
+    persistence
+  );
+  const logger = new Logger('ChatSearchRoutes');
 
   // ===========================
-  // HELPER FUNCTIONS
+  // SEARCH MESSAGES
   // ===========================
-
-  const calculateUserRelevanceScore = (user: any, query: string, currentUserId: string) => {
-    let score = 0;
-    const lowerQuery = query.toLowerCase();
-    
-    // Exact username match gets highest score
-    if (user.username.toLowerCase() === lowerQuery) {
-      score += 1000;
-    } else if (user.username.toLowerCase().startsWith(lowerQuery)) {
-      score += 500;
-    } else if (user.username.toLowerCase().includes(lowerQuery)) {
-      score += 100;
-    }
-    
-    // Name match
-    if (user.name?.toLowerCase().includes(lowerQuery)) {
-      score += 50;
-    }
-    
-    // Verified users get boost
-    if (user.verified) {
-      score += 200;
-    }
-    
-    // Existing conversation with this user gets boost
-    if (user.hasExistingConversation) {
-      score += 300;
-    }
-    
-    // Recent message activity boost
-    if (user.lastMessageAt) {
-      const hoursSinceLastMessage = 
-        (Date.now() - new Date(user.lastMessageAt).getTime()) / (1000 * 60 * 60);
-      if (hoursSinceLastMessage < 24) {
-        score += 150;
-      } else if (hoursSinceLastMessage < 168) { // Within a week
-        score += 75;
-      }
-    }
-    
-    // Followers/Following boost
-    if (user.isFollowing) {
-      score += 100;
-    }
-    if (user.isFollower) {
-      score += 50;
-    }
-    
-    return score;
-  };
-
-  // ===========================
-  // SEARCH PEOPLE TO CHAT WITH
-  // ===========================
-  router.get('/chat/search', async (req: Request, res: Response) => {
+  router.get('/chat/search/messages', async (req: Request, res: Response) => {
     try {
       const {
         q = '',
         limit = '20',
-        cursor = null,
-        userId,
+        offset = '0',
+       
       } = req.query;
-
+const userId=(req as any).user?.id;
       if (!userId) {
         return res.status(401).json({ error: 'User ID required' });
       }
 
+      if (!q || (q as string).trim().length === 0) {
+        return res.status(400).json({ error: 'Search query required' });
+      }
+
       const searchLimit = Math.min(parseInt(limit as string, 10) || 20, 50);
+      const searchOffset = parseInt(offset as string, 10) || 0;
 
-      logger.info(`Chat search: q="${q}" limit=${searchLimit} userId=${userId}`);
-
-      // Get existing conversations to boost those users
-      const existingConversations = await prisma.chat.findMany({
-        where: {
-          chatUsers: {
-            some: { userId: userId as string },
-          },
-        },
-        select: {
-          id: true,
-          chatUsers: {
-            where: { userId: { not: userId as string } },
-            select: { userId: true },
-          },
-          messages: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-            select: { createdAt: true },
-          },
-        },
-      });
-
-      const existingConversationUserIds = new Set(
-        existingConversations.flatMap(conv => 
-          conv.chatUsers.map(p => p.userId)
-        )
+      const results = await chatSearchEngine.searchMessages(
+        q as string,
+        userId as string,
+        searchLimit,
+        searchOffset
       );
 
-      const conversationLastMessageMap = new Map(
-        existingConversations.map(conv => {
-          const otherUserId = conv.chatUsers[0]?.userId;
-          const lastMessageAt = conv.messages[0]?.createdAt;
-          return [otherUserId, lastMessageAt];
-        })
-      );
-
-      // Search users
-      const users = await prisma.user.findMany({
-        where: {
-          AND: [
-            {
-              OR: [
-                { username: { contains: q as string, mode: 'insensitive' } },
-                { name: { contains: q as string, mode: 'insensitive' } },
-              ],
-            },
-            // Don't include current user
-            { id: { not: userId as string } },
-            // Don't include blocked users
-            {
-              AND: [
-                { blocked: { none: { blockerId: userId as string } } },
-                { blockers: { none: { blockedId: userId as string } } },
-              ],
-            },
-          ],
-        },
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          bio: true,
-          verified: true,
-          protectedAccount: true,
-          profileMedia: { select: { id: true } },
-          // Check if following each other
-          followers: {
-            where: { followerId: userId as string },
-            select: { followerId: true },
-          },
-          followings: {
-            where: { followingId: userId as string },
-            select: { followingId: true },
-          },
-          _count: {
-            select: {
-              followers: true,
-            },
-          },
-        },
-        take: searchLimit + 1,
-        ...(cursor && { cursor: { id: cursor as string }, skip: 1 }),
-      });
-
-      // Score and enrich users
-      const enrichedUsers = users.map((user: any) => {
-        const hasExistingConversation = existingConversationUserIds.has(user.id);
-        const lastMessageAt = conversationLastMessageMap.get(user.id);
-        
-        return {
-          ...user,
-          hasExistingConversation,
-          lastMessageAt,
-          isFollowing: user.followers && user.followers.length > 0,
-          isFollower: user.followings && user.followings.length > 0,
-          score: calculateUserRelevanceScore(
-            {
-              ...user,
-              hasExistingConversation,
-              lastMessageAt,
-              isFollowing: user.followers && user.followers.length > 0,
-              isFollower: user.followings && user.followings.length > 0,
-            },
-            q as string,
-            userId as string
-          ),
-        };
-      });
-
-      // Sort by relevance score
-      enrichedUsers.sort((a, b) => b.score - a.score);
-
-      const hasNextPage = enrichedUsers.length > searchLimit;
-      const results = hasNextPage ? enrichedUsers.slice(0, -1) : enrichedUsers;
-
-      // Clean up response
-      const cleanedUsers = results.map(({ score, followers, followings, _count, ...user }: any) => ({
-        ...user,
-        followersCount: _count?.followers || 0,
-      }));
-
-      res.json({
-        query: q,
-        results: cleanedUsers,
-        total: results.length,
-        cursor: hasNextPage ? results[results.length - 1].id : null,
-        timestamp: new Date().toISOString(),
-      });
+      res.json(results);
     } catch (error) {
-      logger.error('Chat search failed', error);
-      res.status(500).json({ error: 'Search failed', details: String(error) });
+      logger.error('Message search failed', error);
+      res.status(500).json({ 
+        error: 'Search failed', 
+        details: String(error) 
+      });
     }
   });
 
   // ===========================
-  // GET RECENT CONVERSATIONS
+  // SEARCH CONVERSATIONS
   // ===========================
-  router.get('/chat/recent', async (req: Request, res: Response) => {
+  router.get('/chat/search/conversations', async (req: Request, res: Response) => {
     try {
       const {
+        q = '',
         limit = '20',
-        cursor = null,
-        userId,
+        offset = '0',
+       
       } = req.query;
+const userId=(req as any).user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      if (!q || (q as string).trim().length === 0) {
+        return res.status(400).json({ error: 'Search query required' });
+      }
+
+      const searchLimit = Math.min(parseInt(limit as string, 10) || 20, 50);
+      const searchOffset = parseInt(offset as string, 10) || 0;
+
+      const results = await chatSearchEngine.searchConversations(
+        q as string,
+        userId as string,
+        searchLimit,
+        searchOffset
+      );
+
+      res.json(results);
+    } catch (error) {
+      logger.error('Conversation search failed', error);
+      res.status(500).json({ 
+        error: 'Search failed', 
+        details: String(error) 
+      });
+    }
+  });
+
+  // ===========================
+  // SEARCH ALL (MESSAGES + CONVERSATIONS)
+  // ===========================
+  router.get('/chat/search/all', async (req: Request, res: Response) => {
+    try {
+      const {
+        q = '',
+        limit = '20',
+        offset = '0',
+      
+      } = req.query;
+const userId=(req as any).user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      if (!q || (q as string).trim().length === 0) {
+        return res.status(400).json({ error: 'Search query required' });
+      }
+
+      const searchLimit = Math.min(parseInt(limit as string, 10) || 20, 50);
+      const searchOffset = parseInt(offset as string, 10) || 0;
+
+      const results = await chatSearchEngine.searchAll(
+        q as string,
+        userId as string,
+        searchLimit,
+        searchOffset
+      );
+
+      res.json(results);
+    } catch (error) {
+      logger.error('Combined search failed', error);
+      res.status(500).json({ 
+        error: 'Search failed', 
+        details: String(error) 
+      });
+    }
+  });
+
+  // ===========================
+  // REINDEX USER CHATS
+  // ===========================
+  router.post('/chat/search/reindex', async (req: Request, res: Response) => {
+    try {
+      const userId=(req as any).user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: 'User ID required' });
       }
 
-      const searchLimit = Math.min(parseInt(limit as string, 10) || 20, 50);
+      logger.info(`Reindexing chats for user ${userId}`);
 
-      logger.info(`Recent conversations: limit=${searchLimit} userId=${userId}`);
-
-      const conversations = await prisma.chat.findMany({
-        where: {
-          chatUsers: {
-            some: { userId: userId as string },
-          },
-        },
-        select: {
-          id: true,
-          createdAt: true,
-          chatUsers: {
-            where: { userId: { not: userId as string } },
-            select: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  username: true,
-                  verified: true,
-                  profileMedia: { select: { id: true } },
-                },
-              },
-            },
-          },
-          messages: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-            select: {
-              id: true,
-              content: true,
-              createdAt: true,
-              userId: true,
-              status: true,
-            },
-          },
-          _count: {
-            select: {
-              messages: {
-                where: {
-                  AND: [
-                    { userId: { not: userId as string } },
-                    { status: MessageStatus.SENT },
-                  ],
-                },
-              },
-            },
-          },
-        },
-        orderBy: { updatedAt: 'desc' },
-        take: searchLimit + 1,
-        ...(cursor && { cursor: { id: cursor as string }, skip: 1 }),
-      });
-
-      const hasNextPage = conversations.length > searchLimit;
-      const results = hasNextPage ? conversations.slice(0, -1) : conversations;
-
-      const formattedConversations = results.map((conv: any) => {
-        const otherUser = conv.participants[0]?.user;
-        const lastMessage = conv.messages[0];
-        const unreadCount = conv._count?.messages || 0;
-
-        return {
-          conversationId: conv.id,
-          user: otherUser,
-          lastMessage: lastMessage ? {
-            id: lastMessage.id,
-            content: lastMessage.content,
-            createdAt: lastMessage.createdAt,
-            isSentByMe: lastMessage.senderId === userId,
-            isRead: lastMessage.isRead,
-          } : null,
-          unreadCount,
-          createdAt: conv.createdAt,
-        };
-      });
+      await chatSearchEngine.indexUserChats(userId, true);
 
       res.json({
-        results: formattedConversations,
-        total: results.length,
-        cursor: hasNextPage ? results[results.length - 1].id : null,
-        timestamp: new Date().toISOString(),
+        success: true,
+        message: 'Chats reindexed successfully',
+        userId,
+        timestamp: new Date().toISOString()
       });
     } catch (error) {
-      logger.error('Failed to get recent conversations', error);
-      res.status(500).json({ error: 'Failed to get conversations', details: String(error) });
+      logger.error('Reindex failed', error);
+      res.status(500).json({ 
+        error: 'Reindex failed', 
+        details: String(error) 
+      });
     }
   });
 
   // ===========================
-  // GET OR CREATE CONVERSATION
+  // GET INDEX STATS
   // ===========================
-//   router.post('/chat/conversation', async (req: Request, res: Response) => {
-//     try {
-//       const { userId, otherUserId } = req.body;
+  router.get('/chat/search/stats', async (req: Request, res: Response) => {
+    try {
+      const userId=(req as any).user?.id;
 
-//       if (!userId || !otherUserId) {
-//         return res.status(400).json({ error: 'userId and otherUserId required' });
-//       }
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
 
-//       logger.info(`Get/Create conversation: user=${userId} other=${otherUserId}`);
+      const stats = indexer.getIndexStats();
 
-//       // Check if conversation already exists
-//       const existingConversation = await prisma.chat.findFirst({
-//         where: {
-//           AND: [
-//             { chatUsers: { some: { userId } } },
-//             { chatUsers: { some: { userId: otherUserId } } },
-//           ],
-//         },
-//         select: {
-//           id: true,
-//           chatUsers: {
-//             where: { userId: otherUserId },
-//             select: {
-//               user: {
-//                 select: {
-//                   id: true,
-//                   name: true,
-//                   username: true,
-//                   verified: true,
-//                   profileMedia: { select: { id: true } },
-//                 },
-//               },
-//             },
-//           },
-//         },
-//       });
+      res.json({
+        ...stats,
+        userId,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      logger.error('Failed to get stats', error);
+      res.status(500).json({ 
+        error: 'Failed to get stats', 
+        details: String(error) 
+      });
+    }
+  });
 
-//       if (existingConversation) {
-//         return res.json({
-//           conversationId: existingConversation.id,
-//           user: existingConversation.chatUsers[0]?.user,
-//           isNew: false,
-//         });
-//       }
-
-//       // Create new conversation
-//       const newConversation = await prisma.chat.create({
-//         data: {
-//           chatUsers: {
-//             create: [
-//               { userId },
-//               { userId: otherUserId },
-//             ],
-//           },
-//         },
-//         select: {
-//           id: true,
-//           chatUsers: {
-//             where: { userId: otherUserId },
-//             select: {
-//               user: {
-//                 select: {
-//                   id: true,
-//                   name: true,
-//                   username: true,
-//                   verified: true,
-//                   profileMedia: { select: { id: true } },
-//                 },
-//               },
-//             },
-//           },
-//         },
-//       });
-
-//       res.json({
-//         conversationId: newConversation.id,
-//         user: newConversation.Message[0]?.user,
-//         isNew: true,
-//       });
-//     } catch (error) {
-//       logger.error('Failed to get/create conversation', error);
-//       res.status(500).json({ error: 'Failed to process conversation', details: String(error) });
-//     }
-//   });
-
-//   return router;
-// }
-
+  return router;
 }
+
 export default {twitterSearchRoutes,chatSearchRoutes};

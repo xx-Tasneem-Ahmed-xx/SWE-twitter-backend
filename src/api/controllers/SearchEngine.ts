@@ -34,6 +34,541 @@ export class Logger {
   }
 }
 
+
+// ===========================
+// TYPES & INTERFACES
+// ===========================
+
+export interface CrawledMessage {
+  id: string;
+  content: string;
+  chatId: string;
+  userId: string;
+  createdAt: Date;
+  status: string;
+  user: {
+    id: string;
+    name: string;
+    username: string;
+    verified: boolean;
+    profileMedia: { id: string } | null;
+  };
+}
+
+export interface CrawledConversation {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  participants: Array<{
+    id: string;
+    name: string;
+    username: string;
+    verified: boolean;
+    profileMedia: { id: string } | null;
+  }>;
+  lastMessage: {
+    id: string;
+    content: string;
+    createdAt: Date;
+    userId: string;
+  } | null;
+  messageCount: number;
+}
+
+// ===========================
+// CHAT CRAWLER EXTENSION
+// ===========================
+
+export class ChatCrawler {
+  private prisma: PrismaClient;
+  private logger = new Logger('ChatCrawler');
+  private batchSize = 500;
+
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma;
+  }
+
+  // Crawl all messages for a specific user
+  async crawlUserMessages(
+    userId: string,
+    limit: number = 1000,
+    offset: number = 0
+  ): Promise<CrawledMessage[]> {
+    this.logger.info(`Crawling messages for user ${userId}: limit=${limit}, offset=${offset}`);
+
+    try {
+      const messages = await this.prisma.message.findMany({
+        where: {
+          chat: {
+            chatUsers: {
+              some: { userId }
+            }
+          }
+        },
+        take: limit,
+        skip: offset,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          content: true,
+          chatId: true,
+          userId: true,
+          createdAt: true,
+          status: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              verified: true,
+              profileMedia: { select: { id: true } }
+            }
+          }
+        }
+      });
+
+      this.logger.info(`Crawled ${messages.length} messages`);
+      return messages as CrawledMessage[];
+    } catch (error) {
+      this.logger.error('Error crawling messages', error);
+      return [];
+    }
+  }
+
+  // Crawl all conversations for a specific user
+  async crawlUserConversations(
+    userId: string,
+    limit: number = 1000,
+    offset: number = 0
+  ): Promise<CrawledConversation[]> {
+    this.logger.info(`Crawling conversations for user ${userId}: limit=${limit}, offset=${offset}`);
+
+    try {
+      const conversations = await this.prisma.chat.findMany({
+        where: {
+          chatUsers: {
+            some: { userId }
+          }
+        },
+        take: limit,
+        skip: offset,
+        orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true,
+          createdAt: true,
+          updatedAt: true,
+          chatUsers: {
+            where: { userId: { not: userId } },
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  username: true,
+                  verified: true,
+                  profileMedia: { select: { id: true } }
+                }
+              }
+            }
+          },
+          messages: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              content: true,
+              createdAt: true,
+              userId: true
+            }
+          },
+          _count: {
+            select: { messages: true }
+          }
+        }
+      });
+
+      this.logger.info(`Crawled ${conversations.length} conversations`);
+      
+      return conversations.map((conv: any) => ({
+        id: conv.id,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
+        participants: conv.chatUsers.map((cu: any) => cu.user),
+        lastMessage: conv.messages[0] || null,
+        messageCount: conv._count.messages
+      }));
+    } catch (error) {
+      this.logger.error('Error crawling conversations', error);
+      return [];
+    }
+  }
+
+  // Search messages in conversations (fallback to DB when index not ready)
+  async searchMessagesInDB(
+    query: string,
+    userId: string,
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<CrawledMessage[]> {
+    this.logger.info(`DB search messages: query="${query}" userId=${userId}`);
+
+    try {
+      const messages = await this.prisma.message.findMany({
+        where: {
+          AND: [
+            { content: { contains: query, mode: 'insensitive' } },
+            {
+              chat: {
+                chatUsers: {
+                  some: { userId }
+                }
+              }
+            }
+          ]
+        },
+        take: limit,
+        skip: offset,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          content: true,
+          chatId: true,
+          userId: true,
+          createdAt: true,
+          status: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              verified: true,
+              profileMedia: { select: { id: true } }
+            }
+          }
+        }
+      });
+
+      return messages as CrawledMessage[];
+    } catch (error) {
+      this.logger.error('Error searching messages in DB', error);
+      return [];
+    }
+  }
+}
+
+// ===========================
+// CHAT PARSER EXTENSION
+// ===========================
+
+export class ChatParser {
+  private parser: Parser;
+  private logger = new Logger('ChatParser');
+
+  constructor(parser: Parser) {
+    this.parser = parser;
+  }
+
+  parseMessage(message: CrawledMessage): ParsedDocument {
+    const tokenizer = this.parser.getTokenizer();
+    const { tokens, stemmed } = tokenizer.tokenizeAndStem(message.content);
+
+    return {
+      id: `msg_${message.id}`,
+      type: 'message' as any,
+      tokens,
+      stemmedTokens: stemmed,
+      data: message,
+      timestamp: message.createdAt.getTime(),
+      length: tokens.length
+    };
+  }
+
+  parseConversation(conversation: CrawledConversation): ParsedDocument {
+    const tokenizer = this.parser.getTokenizer();
+    
+    // Create searchable text from participants and last message
+    const participantNames = conversation.participants
+      .map(p => `${p.username} ${p.name || ''}`)
+      .join(' ');
+    
+    const lastMessageContent = conversation.lastMessage?.content || '';
+    const searchText = `${participantNames} ${lastMessageContent}`;
+    
+    const { tokens, stemmed } = tokenizer.tokenizeAndStem(searchText);
+
+    return {
+      id: `conv_${conversation.id}`,
+      type: 'conversation' as any,
+      tokens,
+      stemmedTokens: stemmed,
+      data: conversation,
+      timestamp: conversation.updatedAt.getTime(),
+      length: tokens.length
+    };
+  }
+
+  parseMultipleMessages(messages: CrawledMessage[]): ParsedDocument[] {
+    return messages.map(msg => this.parseMessage(msg));
+  }
+
+  parseMultipleConversations(conversations: CrawledConversation[]): ParsedDocument[] {
+    return conversations.map(conv => this.parseConversation(conv));
+  }
+}
+
+// ===========================
+// CHAT SEARCH ENGINE
+// ===========================
+
+export class ChatSearchEngine {
+  private chatCrawler: ChatCrawler;
+  private chatParser: ChatParser;
+  private indexer: Indexer;
+  private searchEngine: SearchEngine;
+  private persistence: PersistenceManager;
+  private logger = new Logger('ChatSearchEngine');
+  private userIndexCache: Map<string, number> = new Map();
+
+  constructor(
+    prisma: PrismaClient,
+    parser: Parser,
+    indexer: Indexer,
+    searchEngine: SearchEngine,
+    persistence: PersistenceManager
+  ) {
+    this.chatCrawler = new ChatCrawler(prisma);
+    this.chatParser = new ChatParser(parser);
+    this.indexer = indexer;
+    this.searchEngine = searchEngine;
+    this.persistence = persistence;
+  }
+
+  // Index user's messages and conversations
+  async indexUserChats(userId: string, forceReindex: boolean = false): Promise<void> {
+    const cacheKey = `chat_index_${userId}`;
+    const lastIndexTime = this.userIndexCache.get(userId) || 0;
+    const now = Date.now();
+
+    // Don't reindex if done recently (within 5 minutes) unless forced
+    if (!forceReindex && (now - lastIndexTime) < 5 * 60 * 1000) {
+      this.logger.info(`Skipping reindex for user ${userId} (recently indexed)`);
+      return;
+    }
+
+    this.logger.info(`Indexing chats for user ${userId}`);
+
+    try {
+      // Crawl messages
+      const messages = await this.chatCrawler.crawlUserMessages(userId, 1000, 0);
+      const parsedMessages = this.chatParser.parseMultipleMessages(messages);
+      
+      // Crawl conversations
+      const conversations = await this.chatCrawler.crawlUserConversations(userId, 1000, 0);
+      const parsedConversations = this.chatParser.parseMultipleConversations(conversations);
+
+      // Index all documents
+      this.indexer.indexMultiple([...parsedMessages, ...parsedConversations]);
+
+      // Update cache
+      this.userIndexCache.set(userId, now);
+
+      // Save to Redis
+      await this.persistence.saveIndex(
+        {
+          documents: Array.from(this.indexer.getDocuments().entries()),
+          invertedIndex: Object.fromEntries(
+            Object.entries(this.indexer.getInvertedIndex()).map(([k, v]) => [k, Array.from(v)])
+          ),
+          stemmedIndex: Object.fromEntries(
+            Object.entries(this.indexer.getStemmedIndex()).map(([k, v]) => [k, Array.from(v)])
+          )
+        },
+        cacheKey
+      );
+
+      this.logger.info(
+        `Indexed ${messages.length} messages and ${conversations.length} conversations for user ${userId}`
+      );
+    } catch (error) {
+      this.logger.error('Failed to index user chats', error);
+      throw error;
+    }
+  }
+
+  // Search messages using the search engine
+  async searchMessages(
+    query: string,
+    userId: string,
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<any> {
+    this.logger.info(`Searching messages: query="${query}" userId=${userId}`);
+
+    try {
+      // Ensure user's chats are indexed
+      await this.indexUserChats(userId);
+
+      // Search using the search engine
+      const results = this.searchEngine.search(query,this.indexer.getDocuments(), {
+        limit: limit * 2, // Get more results to filter
+        offset,
+        type: 'all' as any,
+        useFuzzy: true
+      });
+
+      // Filter for messages only and belonging to user's chats
+      const messageResults = results.results
+        .filter((r: any) => r.id.startsWith('msg_'))
+        .filter((r: any) => {
+          // Additional filtering can be done here if needed
+          return true;
+        })
+        .slice(0, limit);
+
+      return {
+        query,
+        results: messageResults.map((r: any) => ({
+          message: r.data,
+          score: r.score,
+          relevance: r.relevance,
+          matchedTokens: r.matchedTokens
+        })),
+        total: messageResults.length,
+        page: Math.floor(offset / limit) + 1,
+        pageSize: limit,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      this.logger.error('Message search failed', error);
+      // Fallback to DB search
+      const messages = await this.chatCrawler.searchMessagesInDB(query, userId, limit, offset);
+      return {
+        query,
+        results: messages.map(m => ({ message: m, score: 1, relevance: 50 })),
+        total: messages.length,
+        page: 1,
+        pageSize: limit,
+        timestamp: new Date().toISOString(),
+        fallback: true
+      };
+    }
+  }
+
+  // Search conversations using the search engine
+  async searchConversations(
+    query: string,
+    userId: string,
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<any> {
+    this.logger.info(`Searching conversations: query="${query}" userId=${userId}`);
+
+    try {
+      // Ensure user's chats are indexed
+      await this.indexUserChats(userId);
+
+      // Search using the search engine
+      const results = this.searchEngine.search(query, this.indexer.getDocuments(),{
+        limit: limit * 2,
+        offset,
+        type: 'all' as any,
+        useFuzzy: true
+      });
+
+      // Filter for conversations only
+      const conversationResults = results.results
+        .filter((r: any) => r.id.startsWith('conv_'))
+        .slice(0, limit);
+
+      return {
+        query,
+        results: conversationResults.map((r: any) => ({
+          conversation: r.data,
+          score: r.score,
+          relevance: r.relevance,
+          matchedTokens: r.matchedTokens
+        })),
+        total: conversationResults.length,
+        page: Math.floor(offset / limit) + 1,
+        pageSize: limit,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      this.logger.error('Conversation search failed', error);
+      throw error;
+    }
+  }
+
+  // Search both messages and conversations
+  async searchAll(
+    query: string,
+    userId: string,
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<any> {
+    this.logger.info(`Searching all chats: query="${query}" userId=${userId}`);
+
+    try {
+      // Ensure user's chats are indexed
+      await this.indexUserChats(userId);
+
+      // Search using the search engine
+      const results = this.searchEngine.search(query,this.indexer.getDocuments(), {
+        limit,
+        offset,
+        type: 'all' as any,
+        useFuzzy: true
+      });
+
+      // Separate messages and conversations
+      const messages = results.results
+        .filter((r: any) => r.id.startsWith('msg_'))
+        .map((r: any) => ({
+          type: 'message',
+          message: r.data,
+          score: r.score,
+          relevance: r.relevance
+        }));
+
+      const conversations = results.results
+        .filter((r: any) => r.id.startsWith('conv_'))
+        .map((r: any) => ({
+          type: 'conversation',
+          conversation: r.data,
+          score: r.score,
+          relevance: r.relevance
+        }));
+
+      return {
+        query,
+        messages,
+        conversations,
+        total: results.total,
+        page: results.page,
+        pageSize: results.pageSize,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      this.logger.error('Combined search failed', error);
+      throw error;
+    }
+  }
+}
+
+// ===========================
+// CHAT SEARCH ROUTES
+// ===========================
+
+
+// ===========================
+// EXPORT
+// ===========================
+
+
+// ===========================
+// INTERFACES
+// ===========================
+
 export interface CrawledTweet {
   id: string;
   content: string;
@@ -42,7 +577,23 @@ export interface CrawledTweet {
   createdAt: Date;
   likesCount: number;
   retweetCount: number;
+  repliesCount: number;
+  quotesCount: number;
   hashtags: string[];
+  user: {
+    id: string;
+    name: string;
+    username: string;
+    verified: boolean;
+    profileMedia: { id: string } | null;
+  };
+  tweetMedia: Array<{
+    mediaId: string;
+    media: {
+      id: string;
+      type: string;
+    };
+  }>;
 }
 
 export interface CrawledUser {
@@ -51,8 +602,12 @@ export interface CrawledUser {
   name: string | null;
   bio: string | null;
   verified: boolean;
-  followersCount?: number;
-  followingsCount?: number;
+  protectedAccount: boolean;
+  followersCount: number;
+  followingsCount: number;
+  tweetsCount: number;
+  profileMedia: { id: string } | null;
+  coverMedia: { id: string } | null;
 }
 
 export interface CrawledHashtag {
@@ -60,6 +615,363 @@ export interface CrawledHashtag {
   tag: string;
   tweetCount: number;
 }
+
+// ===========================
+// CRAWLER CLASS
+// ===========================
+
+export class Crawler {
+  private prisma: PrismaClient;
+  private logger = new Logger('Crawler');
+  private batchSize = 500;
+
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma;
+  }
+
+  // ===========================
+  // CRAWL TWEETS
+  // ===========================
+  async crawlTweets(
+    limit: number = 1000,
+    offset: number = 0,
+    userId?: string
+  ): Promise<CrawledTweet[]> {
+    this.logger.info(`Crawling tweets: limit=${limit}, offset=${offset}`);
+
+    try {
+      const tweets = await this.prisma.tweet.findMany({
+        take: limit,
+        skip: offset,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          content: true,
+          userId: true,
+          createdAt: true,
+          likesCount: true,
+          retweetCount: true,
+          repliesCount: true,
+          quotesCount: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              verified: true,
+              profileMedia: { select: { id: true } },
+            },
+          },
+          hashtags: {
+            include: {
+              hash: { select: { tag_text: true } },
+            },
+          },
+          tweetMedia: {
+            select: {
+              mediaId: true,
+              media: {
+                select: {
+                  id: true,
+                  type: true,
+                },
+              },
+            },
+          },
+          ...(userId && {
+            tweetLikes: {
+              where: { userId },
+              select: { userId: true },
+            },
+            retweets: {
+              where: { userId },
+              select: { userId: true },
+            },
+            tweetBookmark: {
+              where: { userId },
+              select: { userId: true },
+            },
+          }),
+        },
+      });
+
+      this.logger.info(`Crawled ${tweets.length} tweets`);
+      
+      return tweets.map((tweet: any) => ({
+        id: tweet.id,
+        content: tweet.content,
+        userId: tweet.userId,
+        username: tweet.user.username,
+        createdAt: tweet.createdAt,
+        likesCount: tweet.likesCount || 0,
+        retweetCount: tweet.retweetCount || 0,
+        repliesCount: tweet.repliesCount || 0,
+        quotesCount: tweet.quotesCount || 0,
+        hashtags: tweet.hashtags.map((h: any) => h.hash.tag_text),
+        user: tweet.user,
+        tweetMedia: tweet.tweetMedia,
+        ...(userId && {
+          isLiked: tweet.tweetLikes?.length > 0,
+          isRetweeted: tweet.retweets?.length > 0,
+          isBookmarked: tweet.tweetBookmark?.length > 0,
+        }),
+      }));
+    } catch (error) {
+      this.logger.error('Error crawling tweets', error);
+      return [];
+    }
+  }
+
+  // ===========================
+  // CRAWL USERS
+  // ===========================
+  async crawlUsers(
+    limit: number = 1000,
+    offset: number = 0,
+    currentUserId?: string
+  ): Promise<CrawledUser[]> {
+    this.logger.info(`Crawling users: limit=${limit}, offset=${offset}`);
+
+    try {
+      const users = await this.prisma.user.findMany({
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          bio: true,
+          verified: true,
+          protectedAccount: true,
+          profileMedia: { select: { id: true } },
+          coverMedia: { select: { id: true } },
+          _count: {
+            select: {
+              followers: true,
+              followings: true,
+              tweet: true,
+            },
+          },
+          ...(currentUserId && {
+            followers: {
+              where: { followerId: currentUserId },
+              select: { followerId: true },
+            },
+          }),
+        },
+      });
+
+      this.logger.info(`Crawled ${users.length} users`);
+      
+      return users.map((user: any) => ({
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        bio: user.bio,
+        verified: user.verified,
+        protectedAccount: user.protectedAccount,
+        followersCount: user._count?.followers || 0,
+        followingsCount: user._count?.followings || 0,
+        tweetsCount: user._count?.tweet || 0,
+        profileMedia: user.profileMedia,
+        coverMedia: user.coverMedia,
+        ...(currentUserId && {
+          isFollowing: user.followers?.length > 0,
+        }),
+      }));
+    } catch (error) {
+      this.logger.error('Error crawling users', error);
+      return [];
+    }
+  }
+
+  // ===========================
+  // CRAWL HASHTAGS
+  // ===========================
+  async crawlHashtags(
+    limit: number = 1000,
+    offset: number = 0
+  ): Promise<CrawledHashtag[]> {
+    this.logger.info(`Crawling hashtags: limit=${limit}, offset=${offset}`);
+
+    try {
+      const hashtags = await this.prisma.hash.findMany({
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          tag_text: true,
+          _count: {
+            select: {
+              tweets: true,
+            },
+          },
+        },
+        orderBy: {
+          tweets: {
+            _count: 'desc',
+          },
+        },
+      });
+
+      this.logger.info(`Crawled ${hashtags.length} hashtags`);
+      
+      return hashtags.map((hash) => ({
+        id: hash.id,
+        tag: hash.tag_text,
+        tweetCount: hash._count?.tweets || 0,
+      }));
+    } catch (error) {
+      this.logger.error('Error crawling hashtags', error);
+      return [];
+    }
+  }
+
+  // ===========================
+  // SEARCH TWEETS
+  // ===========================
+ 
+  // ===========================
+  // SEARCH USERS
+  // ===========================
+  // async crawlUsers(
+  //   query: string,
+  //   currentUserId: string,
+  //   limit: number = 20,
+  //   offset: number = 0
+  // ): Promise<CrawledUser[]> {
+  //   this.logger.info(`Searching users: query="${query}" limit=${limit}`);
+
+  //   try {
+  //     const users = await this.prisma.user.findMany({
+  //       where: {
+  //         OR: [
+  //           { username: { contains: query, mode: 'insensitive' } },
+  //           { name: { contains: query, mode: 'insensitive' } },
+  //           { bio: { contains: query, mode: 'insensitive' } },
+  //         ],
+  //       },
+  //       take: limit,
+  //       skip: offset,
+  //       select: {
+  //         id: true,
+  //         username: true,
+  //         name: true,
+  //         bio: true,
+  //         verified: true,
+  //         protectedAccount: true,
+  //         profileMedia: { select: { id: true } },
+  //         coverMedia: { select: { id: true } },
+  //         _count: {
+  //           select: {
+  //             followers: true,
+  //             followings: true,
+  //             tweet: true,
+  //           },
+  //         },
+  //         followers: {
+  //           where: { followerId: currentUserId },
+  //           select: { followerId: true },
+  //         },
+  //       },
+  //     });
+
+  //     return users.map((user: any) => ({
+  //       id: user.id,
+  //       username: user.username,
+  //       name: user.name,
+  //       bio: user.bio,
+  //       verified: user.verified,
+  //       protectedAccount: user.protectedAccount,
+  //       followersCount: user._count?.followers || 0,
+  //       followingsCount: user._count?.followings || 0,
+  //       tweetsCount: user._count?.tweet || 0,
+  //       profileMedia: user.profileMedia,
+  //       coverMedia: user.coverMedia,
+  //       isFollowing: user.followers?.length > 0,
+  //     }));
+  //   } catch (error) {
+  //     this.logger.error('Error searching users', error);
+  //     return [];
+  //   }
+  // }
+
+  // ===========================
+  // BATCH OPERATIONS
+  // ===========================
+  async crawlInBatches(
+    type: 'tweets' | 'users' | 'hashtags',
+    totalLimit: number = 10000,
+    userId?: string
+  ) {
+    this.logger.info(`Starting batch crawl: type=${type}, limit=${totalLimit}`);
+    const allData = [];
+    let offset = 0;
+
+    while (offset < totalLimit) {
+      const batchLimit = Math.min(this.batchSize, totalLimit - offset);
+      let batchData: any[] = [];
+
+      if (type === 'tweets') {
+        batchData = await this.crawlTweets(batchLimit, offset, userId);
+      } else if (type === 'users') {
+        batchData = await this.crawlUsers(batchLimit, offset, userId);
+      } else if (type === 'hashtags') {
+        batchData = await this.crawlHashtags(batchLimit, offset);
+      }
+
+      if (batchData.length === 0) break;
+      allData.push(...batchData);
+      offset += batchData.length;
+
+      this.logger.debug(`Batch progress: ${offset}/${totalLimit}`);
+    }
+
+    this.logger.info(`Batch crawl complete: collected ${allData.length} items`);
+    return allData;
+  }
+
+  async crawlAll(userId?: string) {
+    return Promise.all([
+      this.crawlTweets(1000, 0, userId),
+      this.crawlUsers(1000, 0, userId),
+      this.crawlHashtags(1000, 0),
+    ]);
+  }
+
+  async crawlUrl(url: string) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) return null;
+      const html = await response.text();
+      return { url, html };
+    } catch (error) {
+      // Handle fetch abort separately for clearer logs
+      if ((error as any)?.name === "AbortError") {
+        this.logger.warn(`Fetch aborted due to timeout for URL ${url}`);
+      } else {
+        this.logger.error(`Error crawling URL ${url}`, error);
+      }
+      return null;
+    }
+  }
+
+  async crawlMultiple(urls: string[]) {
+    const results = await Promise.allSettled(
+      urls.map((url) => this.crawlUrl(url))
+    );
+    return results
+      .map((r) => (r.status === "fulfilled" ? r.value : null))
+      .filter((r) => r !== null);
+  }
+}
+
+
 
 export interface ParsedDocument {
   id: string;
@@ -440,180 +1352,180 @@ export class FuzzyMatcher {
 // DATABASE CRAWLER
 // ===========================
 
-export class Crawler {
-  private prisma: PrismaClient;
-  private logger = new Logger("Crawler");
-  private batchSize = 500;
+// export class Crawler {
+//   private prisma: PrismaClient;
+//   private logger = new Logger("Crawler");
+//   private batchSize = 500;
 
-  constructor(prisma: PrismaClient) {
-    this.prisma = prisma;
-  }
+//   constructor(prisma: PrismaClient) {
+//     this.prisma = prisma;
+//   }
 
-  async crawlTweets(
-    limit: number = 1000,
-    offset: number = 0
-  ): Promise<CrawledTweet[]> {
-    this.logger.info(`Crawling tweets: limit=${limit}, offset=${offset}`);
+//   async crawlTweets(
+//     limit: number = 1000,
+//     offset: number = 0
+//   ): Promise<CrawledTweet[]> {
+//     this.logger.info(`Crawling tweets: limit=${limit}, offset=${offset}`);
 
-    try {
-      const tweets = await this.prisma.tweet.findMany({
-        take: limit,
-        skip: offset,
-        orderBy: { createdAt: "desc" },
-        include: {
-          user: { select: { username: true } },
-          hashtags: { include: { hash: true } },
-        },
-      });
+//     try {
+//       const tweets = await this.prisma.tweet.findMany({
+//         take: limit,
+//         skip: offset,
+//         orderBy: { createdAt: "desc" },
+//         include: {
+//           user: { select: { username: true } },
+//           hashtags: { include: { hash: true } },
+//         },
+//       });
 
-      this.logger.info(`Crawled ${tweets.length} tweets`);
-      return tweets.map((tweet) => ({
-        id: tweet.id,
-        content: tweet.content,
-        userId: tweet.userId,
-        username: tweet.user.username,
-        createdAt: tweet.createdAt,
-        likesCount: tweet.likesCount || 0,
-        retweetCount: tweet.retweetCount || 0,
-        hashtags: tweet.hashtags.map((h) => h.hash.tag_text),
-      }));
-    } catch (error) {
-      this.logger.error("Error crawling tweets", error);
-      return [];
-    }
-  }
+//       this.logger.info(`Crawled ${tweets.length} tweets`);
+//       return tweets.map((tweet) => ({
+//         id: tweet.id,
+//         content: tweet.content,
+//         userId: tweet.userId,
+//         username: tweet.user.username,
+//         createdAt: tweet.createdAt,
+//         likesCount: tweet.likesCount || 0,
+//         retweetCount: tweet.retweetCount || 0,
+//         hashtags: tweet.hashtags.map((h) => h.hash.tag_text),
+//       }));
+//     } catch (error) {
+//       this.logger.error("Error crawling tweets", error);
+//       return [];
+//     }
+//   }
 
-  async crawlUsers(
-    limit: number = 1000,
-    offset: number = 0
-  ): Promise<CrawledUser[]> {
-    this.logger.info(`Crawling users: limit=${limit}, offset=${offset}`);
+//   async crawlUsers(
+//     limit: number = 1000,
+//     offset: number = 0
+//   ): Promise<CrawledUser[]> {
+//     this.logger.info(`Crawling users: limit=${limit}, offset=${offset}`);
 
-    try {
-      const users = await this.prisma.user.findMany({
-        take: limit,
-        skip: offset,
-        select: {
-          id: true,
-          username: true,
-          name: true,
-          bio: true,
-          verified: true,
-          _count: { select: { followers: true, followings: true } },
-        },
-      });
+//     try {
+//       const users = await this.prisma.user.findMany({
+//         take: limit,
+//         skip: offset,
+//         select: {
+//           id: true,
+//           username: true,
+//           name: true,
+//           bio: true,
+//           verified: true,
+//           _count: { select: { followers: true, followings: true } },
+//         },
+//       });
 
-      this.logger.info(`Crawled ${users.length} users`);
-      return users.map((user) => ({
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        bio: user.bio,
-        verified: user.verified,
-        followersCount: user._count?.followers || 0,
-        followingsCount: user._count?.followings || 0,
-      }));
-    } catch (error) {
-      this.logger.error("Error crawling users", error);
-      return [];
-    }
-  }
+//       this.logger.info(`Crawled ${users.length} users`);
+//       return users.map((user) => ({
+//         id: user.id,
+//         username: user.username,
+//         name: user.name,
+//         bio: user.bio,
+//         verified: user.verified,
+//         followersCount: user._count?.followers || 0,
+//         followingsCount: user._count?.followings || 0,
+//       }));
+//     } catch (error) {
+//       this.logger.error("Error crawling users", error);
+//       return [];
+//     }
+//   }
 
-  async crawlHashtags(
-    limit: number = 1000,
-    offset: number = 0
-  ): Promise<CrawledHashtag[]> {
-    this.logger.info(`Crawling hashtags: limit=${limit}, offset=${offset}`);
+//   async crawlHashtags(
+//     limit: number = 1000,
+//     offset: number = 0
+//   ): Promise<CrawledHashtag[]> {
+//     this.logger.info(`Crawling hashtags: limit=${limit}, offset=${offset}`);
 
-    try {
-      const hashtags = await this.prisma.hash.findMany({
-        take: limit,
-        skip: offset,
-        include: { _count: { select: { tweets: true } } },
-      });
+//     try {
+//       const hashtags = await this.prisma.hash.findMany({
+//         take: limit,
+//         skip: offset,
+//         include: { _count: { select: { tweets: true } } },
+//       });
 
-      this.logger.info(`Crawled ${hashtags.length} hashtags`);
-      return hashtags.map((hash) => ({
-        id: hash.id,
-        tag: hash.tag_text,
-        tweetCount: hash._count?.tweets || 0,
-      }));
-    } catch (error) {
-      this.logger.error("Error crawling hashtags", error);
-      return [];
-    }
-  }
+//       this.logger.info(`Crawled ${hashtags.length} hashtags`);
+//       return hashtags.map((hash) => ({
+//         id: hash.id,
+//         tag: hash.tag_text,
+//         tweetCount: hash._count?.tweets || 0,
+//       }));
+//     } catch (error) {
+//       this.logger.error("Error crawling hashtags", error);
+//       return [];
+//     }
+//   }
 
-  async crawlUrl(url: string) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+//   async crawlUrl(url: string) {
+//     try {
+//       const controller = new AbortController();
+//       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      const response = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeoutId);
+//       const response = await fetch(url, { signal: controller.signal });
+//       clearTimeout(timeoutId);
 
-      if (!response.ok) return null;
-      const html = await response.text();
-      return { url, html };
-    } catch (error) {
-      // Handle fetch abort separately for clearer logs
-      if ((error as any)?.name === "AbortError") {
-        this.logger.warn(`Fetch aborted due to timeout for URL ${url}`);
-      } else {
-        this.logger.error(`Error crawling URL ${url}`, error);
-      }
-      return null;
-    }
-  }
+//       if (!response.ok) return null;
+//       const html = await response.text();
+//       return { url, html };
+//     } catch (error) {
+//       // Handle fetch abort separately for clearer logs
+//       if ((error as any)?.name === "AbortError") {
+//         this.logger.warn(`Fetch aborted due to timeout for URL ${url}`);
+//       } else {
+//         this.logger.error(`Error crawling URL ${url}`, error);
+//       }
+//       return null;
+//     }
+//   }
 
-  async crawlMultiple(urls: string[]) {
-    const results = await Promise.allSettled(
-      urls.map((url) => this.crawlUrl(url))
-    );
-    return results
-      .map((r) => (r.status === "fulfilled" ? r.value : null))
-      .filter((r) => r !== null);
-  }
+//   async crawlMultiple(urls: string[]) {
+//     const results = await Promise.allSettled(
+//       urls.map((url) => this.crawlUrl(url))
+//     );
+//     return results
+//       .map((r) => (r.status === "fulfilled" ? r.value : null))
+//       .filter((r) => r !== null);
+//   }
 
-  async crawlInBatches(
-    type: "tweets" | "users" | "hashtags",
-    totalLimit: number = 10000
-  ) {
-    this.logger.info(`Starting batch crawl: type=${type}, limit=${totalLimit}`);
-    const allData = [];
-    let offset = 0;
+//   async crawlInBatches(
+//     type: "tweets" | "users" | "hashtags",
+//     totalLimit: number = 10000
+//   ) {
+//     this.logger.info(`Starting batch crawl: type=${type}, limit=${totalLimit}`);
+//     const allData = [];
+//     let offset = 0;
 
-    while (offset < totalLimit) {
-      const batchLimit = Math.min(this.batchSize, totalLimit - offset);
-      let batchData: string | any[] = [];
+//     while (offset < totalLimit) {
+//       const batchLimit = Math.min(this.batchSize, totalLimit - offset);
+//       let batchData: string | any[] = [];
 
-      if (type === "tweets") {
-        batchData = await this.crawlTweets(batchLimit, offset);
-      } else if (type === "users") {
-        batchData = await this.crawlUsers(batchLimit, offset);
-      } else if (type === "hashtags") {
-        batchData = await this.crawlHashtags(batchLimit, offset);
-      }
+//       if (type === "tweets") {
+//         batchData = await this.crawlTweets(batchLimit, offset);
+//       } else if (type === "users") {
+//         batchData = await this.crawlUsers(batchLimit, offset);
+//       } else if (type === "hashtags") {
+//         batchData = await this.crawlHashtags(batchLimit, offset);
+//       }
 
-      if (batchData.length === 0) break;
-      allData.push(...batchData);
-      offset += batchData.length;
+//       if (batchData.length === 0) break;
+//       allData.push(...batchData);
+//       offset += batchData.length;
 
-      this.logger.debug(`Batch progress: ${offset}/${totalLimit}`);
-    }
+//       this.logger.debug(`Batch progress: ${offset}/${totalLimit}`);
+//     }
 
-    this.logger.info(`Batch crawl complete: collected ${allData.length} items`);
-    return allData;
-  }
+//     this.logger.info(`Batch crawl complete: collected ${allData.length} items`);
+//     return allData;
+//   }
 
-  async crawlAll() {
-    return Promise.all([
-      this.crawlTweets(),
-      this.crawlUsers(),
-      this.crawlHashtags(),
-    ]);
-  }
-}
+//   async crawlAll() {
+//     return Promise.all([
+//       this.crawlTweets(),
+//       this.crawlUsers(),
+//       this.crawlHashtags(),
+//     ]);
+//   }
+// }
 
 // ===========================
 // PARSER
@@ -886,6 +1798,7 @@ export class SearchEngine {
 
   search(
     query: string,
+    document?:Map<string, ParsedDocument>,
     options: {
       limit?: number;
       offset?: number;
@@ -903,6 +1816,7 @@ export class SearchEngine {
     } = options;
 
     if (!query || query.trim().length === 0) {
+      console.log("there is no query");
       return {
         query,
         type,
@@ -921,6 +1835,7 @@ export class SearchEngine {
 
     if (tokens.length === 0) {
       this.logger.warn("No valid tokens from query", { query });
+      console.log("No valid tokens from query");
       return {
         query,
         type,
@@ -951,7 +1866,8 @@ export class SearchEngine {
       });
     }
 
-    const documents = this.indexer.getDocuments();
+    const documents =  document || this.indexer.getDocuments();
+    console.log("document get in serach is",documents);
     const results: SearchResult[] = [];
     const collectionSize = documents.size;
 
@@ -1030,134 +1946,16 @@ export class SearchEngine {
 
   searchByType(
     query: string,
+   
     type: "tweet" | "user" | "hashtag" | "url",
     limit: number = 20,
-    offset: number = 0
+    offset: number = 0,
+     document?: Map<string, ParsedDocument>
   ): PaginatedResults {
-    return this.search(query, { type, limit, offset });
+    return this.search(query, document,{ type, limit, offset });
   }
 }
 
-// ===========================
-// EXPRESS API
-// ===========================
-
-// ===========================
-// INITIALIZATION & SETUP
-// ===========================
-
-// export async function initializeSearchEngine(redisUrl?: string) {
-//   const logger = new Logger("Init");
-
-//   try {
-//     const { REDIS_URL } = getSecrets();
-//     const prisma = clientPrisma;
-//     const crawler = new Crawler(prisma);
-//     const parser = new Parser();
-//     const indexer = new Indexer();
-//     const persistence = new PersistenceManager(redisUrl || REDIS_URL);
-//     const searchEngine = new SearchEngine(indexer, parser, persistence);
-
-//     logger.info("Search engine created, loading index...");
-
-//     // ============================================
-//     // 1) LOAD INDEX FROM REDIS IF EXISTS
-//     // ============================================
-//     const loaded = await persistence.loadIndex("search_index");
-//     if (loaded) {
-//       logger.info("✔ Loaded index from Redis");
-//     } else {
-//       logger.warn("⚠ No index found in Redis — doing full crawl");
-
-//       // ===============================
-//       // 2) FULL CRAWL (FIRST RUN ONLY)
-//       // ===============================
-//       const tweets = await crawler.crawlTweets(1000, 0);
-//       const users = await crawler.crawlUsers(1000, 0);
-//       const hashtags = await crawler.crawlHashtags(1000, 0);
-
-//       const parsedTweets = tweets.map(t => parser.parseTweet(t));
-//       const parsedUsers = users.map(u => parser.parseUser(u));
-//       const parsedHashtags = hashtags.map(h => parser.parseHashtag(h));
-
-//       indexer.indexMultiple([
-//         ...parsedTweets,
-//         ...parsedUsers,
-//         ...parsedHashtags,
-//       ]);
-
-//       await persistence.saveIndex(indexer.getIndexStats(), "search_index");
-
-//       logger.info("✔ Full index created and saved");
-//     }
-
-//     // ============================================
-//     // 3) SCHEDULE INCREMENTAL UPDATES
-//     // ============================================
-//     // ============================================
-// // 3) SCHEDULE INCREMENTAL UPDATES
-// // ============================================
-// setInterval(async () => {
-//   try {
-//     logger.info("Running incremental update...");
-
-//     // 1) Get current index stats (offsets)
-//     const stats = indexer.getIndexStats();
-
-//     const {
-//       tweets,
-//       users,
-//       hashtags
-//     } = stats;
-
-//     const limit = 200; // how many items to fetch per update
-
-//     // 2) TWEETS incremental update
-//     const newTweets = await crawler.crawlTweets(limit, tweets);
-//     const parsedTweets = newTweets.map(t => parser.parseTweet(t));
-//     indexer.indexMultiple(parsedTweets);
-
-//     // 3) USERS incremental update
-//     const newUsers = await crawler.crawlUsers(limit, users);
-//     const parsedUsers = newUsers.map(u => parser.parseUser(u));
-//     indexer.indexMultiple(parsedUsers);
-
-//     // 4) HASHTAGS incremental update
-//     const newHashtags = await crawler.crawlHashtags(limit, hashtags);
-//     const parsedHashtags = newHashtags.map(h => parser.parseHashtag(h));
-//     indexer.indexMultiple(parsedHashtags);
-
-//     // 5) Save updated index to Redis
-//     await persistence.saveIndex(indexer.getIndexStats(), "search_index");
-
-//     logger.info(
-//       `✔ Incremental update: +${parsedTweets.length} tweets, +${parsedUsers.length} users, +${parsedHashtags.length} hashtags`
-//     );
-//   } catch (err) {
-//     logger.error("Incremental update failed:", err);
-//   }
-// }, 1000 * 60 * 60); // every 1 hour
-
-
-//     logger.info("Search engine initialized successfully");
-
-//     return {
-//       crawler,
-//       parser,
-//       indexer,
-//       searchEngine,
-//       persistence,
-//       apiRoutes: (app: any) =>
-//         app.use(
-//           "/api",
-//           apiRoutes(crawler, parser, indexer, searchEngine, persistence)
-//         ),
-//     };
-//   } catch (error) {
-//     logger.error("Failed to initialize search engine", error);
-//     throw error;
-//   }
-// }
 
 export async function initializeSearchEngine(redisUrl?: string) {
   const logger = new Logger("Init");

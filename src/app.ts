@@ -24,14 +24,14 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { StorageSystem } from "@/application/services/storeageSystem";
 import {admin, initializeFirebase} from './application/services/firebaseInitializer'
 import cookieParser from "cookie-parser";
-import { initializeSearchEngine } from "./api/controllers/SearchEngine";
+// import { initializeSearchEngine } from "./api/controllers/SearchEngine";
 import { no } from "zod/v4/locales";
 import { Crawler, Parser, Indexer, SearchEngine } from './api/controllers/SearchEngine';
 // Type assertion for GeoGurd
 import { apiRoutes } from './api/routes/searchRoutes';
 import { PrismaClient } from "@prisma/client";
 import { getKey } from "./application/services/secrets";
-import {twitterSearchRoutes,chatSearchRoutes}from "@/api/routes/searchRoutes";
+// import {twitterSearchRoutes,chatSearchRoutes}from "@/api/routes/searchRoutes";
 const app = express();
 app.use(cors());
 app.use(helmet());
@@ -58,15 +58,37 @@ export { storageService };
 
 const socketService = new SocketService(io);
 export { socketService };
-
+import { initializeSearchEngine } from "./api/search/initialize";
+import { twitterSearchRoutes } from "./api/routes/search.routes";
+// src/api/routes/search.routes.ts
 initializeSearchEngine()
   .then(({ crawler, parser, indexer, searchEngine, persistence }) => {
-    app.use('/api', apiRoutes(crawler, parser, indexer, searchEngine, persistence));
+    app.use('/api', twitterSearchRoutes(crawler, parser, indexer, searchEngine, persistence));
   })
   .catch((err) => {
     console.error('Failed to initialize search engine:', err);
   });
-
+// initializeSearchEngine()
+//   .then(({ crawler, parser, indexer, searchEngine, persistence }) => {
+//     app.use('/api', apiRoutes(crawler, parser, indexer, searchEngine, persistence));
+//   })
+//   .catch((err) => {
+//     console.error('Failed to initialize search engine:', err);
+//   });
+// initializeSearchEngine()
+//   .then(({ crawler, parser, indexer, searchEngine, persistence }) => {
+//     app.use('/api', twitterSearchRoutes(crawler, parser, indexer, searchEngine, persistence));
+//   })
+//   .catch((err) => {
+//     console.error('Failed to initialize search engine:', err);
+//   });
+//   initializeSearchEngine()
+//   .then(({ crawler, parser, indexer, searchEngine, persistence }) => {
+//     app.use('/api', chatSearchRoutes( parser, indexer, searchEngine, persistence));
+//   })
+//   .catch((err) => {
+//     console.error('Failed to initialize search engine:', err);
+//   });
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use("/api/auth", authRoutes);
 app.use("/oauth2", oauthRoutes);
@@ -81,7 +103,7 @@ app.use("/api/home", timelineRoutes);
 app.use("/api/users", userRouter);
 app.use("/api/hashtags", hashtagsRoutes);
 app.use("/api", userInteractionsRoutes);
-app.use("/api",twitterSearchRoutes,chatSearchRoutes);
+
 
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
 app.use(errorHandler);
