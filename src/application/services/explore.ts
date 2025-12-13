@@ -247,7 +247,7 @@ export class ExploreService {
     return allowed;
   }
 
-  async seedExploreFeeds(tweetIds: string[]) {
+  async seedExploreCache(tweetIds: string[]) {
     for (let i = 0; i < tweetIds.length; i += BATCH_SIZE) {
       const batch = tweetIds.slice(i, i + BATCH_SIZE);
       await Promise.all(batch.map((id) => this.calculateTweetScore(id)));

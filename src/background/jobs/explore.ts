@@ -33,7 +33,7 @@ export async function enqueueSeedExploreFeedJob(
   });
 }
 
-export async function seedExploreFeeds() {
+export async function seedExploreCache() {
   const allTweets = await prisma.tweet.findMany({
     select: { id: true },
   });

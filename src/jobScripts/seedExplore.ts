@@ -1,7 +1,7 @@
 import { prisma } from "@/prisma/client";
 import { enqueueSeedExploreFeedJob } from "@/background/jobs/explore";
 
-export async function seedExploreFeeds() {
+export async function seedExploreCache() {
   const allTweets = await prisma.tweet.findMany({
     select: { id: true },
   });
