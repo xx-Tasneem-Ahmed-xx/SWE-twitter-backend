@@ -1005,7 +1005,7 @@ describe("Hashtags autocomplete & trends service", () => {
     }
   });
 
-  test("fetchHashtagTweets returns only TWEET type (no replies, quotes, retweets)", async () => {
+  test("fetchHashtagTweets returns all tweet types with replies at the end", async () => {
     // Create a hashtag
     const hashTag = "testfilter";
     const hash = await prisma.hash.upsert({
@@ -1031,6 +1031,7 @@ describe("Hashtags autocomplete & trends service", () => {
     });
 
     const normalTweetId = `normal_ht_${Date.now()}`;
+    const quoteTweetId = `quote_ht_${Date.now()}`;
     const replyTweetId = `reply_ht_${Date.now()}`;
 
     await prisma.tweet.createMany({
@@ -1043,6 +1044,13 @@ describe("Hashtags autocomplete & trends service", () => {
           createdAt: new Date(),
         },
         {
+          id: quoteTweetId,
+          userId: testUserId,
+          content: `Quote tweet #${hashTag}`,
+          tweetType: "QUOTE",
+          createdAt: new Date(),
+        },
+        {
           id: replyTweetId,
           userId: testUserId,
           content: `Reply tweet #${hashTag}`,
@@ -1052,10 +1060,11 @@ describe("Hashtags autocomplete & trends service", () => {
       ],
     });
 
-    // Link both tweets to the hashtag
+    // Link all tweets to the hashtag
     await prisma.tweetHash.createMany({
       data: [
         { tweetId: normalTweetId, hashId: hash.id },
+        { tweetId: quoteTweetId, hashId: hash.id },
         { tweetId: replyTweetId, hashId: hash.id },
       ],
     });
@@ -1068,24 +1077,24 @@ describe("Hashtags autocomplete & trends service", () => {
       10
     );
 
-    // All returned tweets should have tweetType "TWEET" (reply should be filtered out)
+    // All tweet types should be returned
     expect(result.tweets).toBeDefined();
-    result.tweets.forEach((tweet: any) => {
-      expect(tweet.tweetType).toBe("TWEET");
-    });
+    expect(result.tweets.length).toBe(3);
 
-    // The reply tweet should NOT be in the results
-    const replyInResults = result.tweets.find(
-      (t: any) => t.id === replyTweetId
-    );
-    expect(replyInResults).toBeUndefined();
+    // Verify all tweet types are present
+    const tweetTypes = result.tweets.map((t: any) => t.tweetType);
+    expect(tweetTypes).toContain("TWEET");
+    expect(tweetTypes).toContain("QUOTE");
+    expect(tweetTypes).toContain("REPLY");
 
     // Cleanup
     await prisma.tweetHash.deleteMany({
-      where: { tweetId: { in: [normalTweetId, replyTweetId] } },
+      where: {
+        tweetId: { in: [normalTweetId, quoteTweetId, replyTweetId] },
+      },
     });
     await prisma.tweet.deleteMany({
-      where: { id: { in: [normalTweetId, replyTweetId] } },
+      where: { id: { in: [normalTweetId, quoteTweetId, replyTweetId] } },
     });
     await prisma.user.delete({ where: { id: testUserId } });
   });
