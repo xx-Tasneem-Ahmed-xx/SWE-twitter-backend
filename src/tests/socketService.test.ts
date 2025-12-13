@@ -22,13 +22,13 @@ jest.mock("@/api/controllers/notificationController", () => ({
   markNotificationsAsRead: jest.fn(),
 }));
 
-jest.mock("@/application/utils/tweets/utils", () => ({
+jest.mock("@/application/utils/utils", () => ({
   ValidateToken: jest.fn(),
 }));
 
 import { SocketService } from "@/application/services/socketService";
 import { Server, Socket } from "socket.io";
-import * as utils from "@/application/utils/tweets/utils";
+import * as utils from "@/application/utils/utils";
 import { redisClient } from "@/config/redis";
 import {
   addMessageToChat,
@@ -123,14 +123,19 @@ describe("SocketService", () => {
 
     it("should setup socket connections on initialization", () => {
       socketService = new SocketService(mockIO);
-      expect(mockIO.on).toHaveBeenCalledWith("connection", expect.any(Function));
+      expect(mockIO.on).toHaveBeenCalledWith(
+        "connection",
+        expect.any(Function)
+      );
     });
 
     it("should have all required methods", () => {
       socketService = new SocketService(mockIO);
       expect(typeof socketService.checkSocketStatus).toBe("function");
       expect(typeof socketService.sendNotificationToUser).toBe("function");
-      expect(typeof socketService.sendUnseenNotificationsCount).toBe("function");
+      expect(typeof socketService.sendUnseenNotificationsCount).toBe(
+        "function"
+      );
       expect(typeof socketService.sendUnseenChatsCount).toBe("function");
       expect(typeof socketService.sendMessageToChat).toBe("function");
       expect(typeof socketService.sendDeletedChatToUser).toBe("function");
@@ -142,7 +147,7 @@ describe("SocketService", () => {
     beforeEach(() => {
       const toChainMock = { emit: jest.fn() };
       (mockIO.to as jest.Mock).mockReturnValue(toChainMock);
-      
+
       socketService = new SocketService(mockIO);
     });
 
@@ -326,7 +331,10 @@ describe("SocketService", () => {
         const userId = "user-123";
         const mockRoom = new Set(["socket-1", "socket-2"]);
 
-        (mockIO.sockets.adapter.rooms as Map<string, Set<string>>).set(userId, mockRoom);
+        (mockIO.sockets.adapter.rooms as Map<string, Set<string>>).set(
+          userId,
+          mockRoom
+        );
 
         const result = socketService.checkSocketStatus(userId);
 
@@ -344,7 +352,10 @@ describe("SocketService", () => {
 
       it("should return false when user room is empty", () => {
         const userId = "user-123";
-        (mockIO.sockets.adapter.rooms as Map<string, Set<string>>).set(userId, new Set());
+        (mockIO.sockets.adapter.rooms as Map<string, Set<string>>).set(
+          userId,
+          new Set()
+        );
 
         const result = socketService.checkSocketStatus(userId);
 
@@ -355,7 +366,11 @@ describe("SocketService", () => {
     describe("sendNotificationToUser", () => {
       it("should emit notification to user", () => {
         const userId = "user-123";
-        const notification = { id: "notif-1", title: "Test", body: "Test notification" };
+        const notification = {
+          id: "notif-1",
+          title: "Test",
+          body: "Test notification",
+        };
 
         const toChainMock = { emit: jest.fn() };
         (mockIO.to as jest.Mock).mockReturnValue(toChainMock);
@@ -363,7 +378,10 @@ describe("SocketService", () => {
         socketService.sendNotificationToUser(userId, notification);
 
         expect(mockIO.to).toHaveBeenCalledWith(userId);
-        expect(toChainMock.emit).toHaveBeenCalledWith("notification", notification);
+        expect(toChainMock.emit).toHaveBeenCalledWith(
+          "notification",
+          notification
+        );
       });
     });
 
@@ -485,9 +503,12 @@ describe("SocketService", () => {
       const connectionHandler = (mockIO.on as jest.Mock).mock.calls[0][1];
       await connectionHandler(mockSocket);
 
-      expect(mockSocket.emit).toHaveBeenCalledWith("auth-error", expect.objectContaining({
-        message: "Authentication failed",
-      }));
+      expect(mockSocket.emit).toHaveBeenCalledWith(
+        "auth-error",
+        expect.objectContaining({
+          message: "Authentication failed",
+        })
+      );
       expect(mockSocket.disconnect).toHaveBeenCalled();
     });
 
@@ -506,9 +527,12 @@ describe("SocketService", () => {
       const connectionHandler = (mockIO.on as jest.Mock).mock.calls[0][1];
       await connectionHandler(testSocketMissing);
 
-      expect(testSocketMissing.emit).toHaveBeenCalledWith("auth-error", expect.objectContaining({
-        message: "Authentication failed",
-      }));
+      expect(testSocketMissing.emit).toHaveBeenCalledWith(
+        "auth-error",
+        expect.objectContaining({
+          message: "Authentication failed",
+        })
+      );
       expect(testSocketMissing.disconnect).toHaveBeenCalled();
     });
   });
@@ -522,7 +546,10 @@ describe("SocketService", () => {
       const userId = "user-123";
       const mockRoom = new Set(["socket-1", "socket-2", "socket-3"]);
 
-      (mockIO.sockets.adapter.rooms as Map<string, Set<string>>).set(userId, mockRoom);
+      (mockIO.sockets.adapter.rooms as Map<string, Set<string>>).set(
+        userId,
+        mockRoom
+      );
 
       const isActive = socketService.checkSocketStatus(userId);
       expect(isActive).toBe(true);
