@@ -38,7 +38,6 @@ import {
 } from "./api/controllers/SearchEngine";
 // Type assertion for GeoGurd
 import { apiRoutes } from "./api/routes/searchRoutes";
-import { PrismaClient } from "@prisma/client";
 import { getKey } from "./application/services/secrets";
 import { SSErequest } from "./application/services/ServerSideEvents";
 const app = express();
@@ -80,11 +79,11 @@ initializeSearchEngine()
   });
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
+app.get('/events/:userId', SSErequest);
 app.use("/api/auth", authRoutes);
 app.use("/oauth2", oauthRoutes);
 app.use(Auth());
 
-app.get('/events', SSErequest);
  
 app.use("/api/dm", ChatRouter);
 app.use("/api/media", mediaRouter);

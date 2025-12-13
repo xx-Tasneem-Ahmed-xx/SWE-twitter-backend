@@ -38,7 +38,7 @@ import { enqueueUpdateScoreJob } from "@/background/jobs/explore";
 
 export class TweetService {
   private async validateId(id: string) {
-    if (!id || typeof id !== "string") {
+    if (!id) {
       responseUtils.throwError("INVALID_ID");
     }
     const tweet = await prisma.tweet.findUnique({ where: { id } });
@@ -47,7 +47,7 @@ export class TweetService {
 
   private async getActor(userId: string) {
     return await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
     });
   }
 
@@ -77,13 +77,14 @@ export class TweetService {
 
     if (mentionedUsers.length === 0) return;
 
-    mentionedUsers.forEach(async (user) =>
-      await addNotification(user.id as UUID, {
-        title: "MENTION",
-        body: `${mentioner?.name} mentioned you`,
-        tweetId,
-        actorId: mentionerId,
-      })
+    mentionedUsers.forEach(
+      async (user) =>
+        await addNotification(user.id as UUID, {
+          title: "MENTION",
+          body: `${mentioner?.name} mentioned you`,
+          tweetId,
+          actorId: mentionerId,
+        })
     );
 
     await tx.mention.createMany({
@@ -108,16 +109,18 @@ export class TweetService {
       tweetId,
     }));
 
-    await tx.tweetMedia.createMany({ data });
+    await tx.tweetMedia.createMany({ data, skipDuplicates: true });
   }
 
   private formatUser(user: any) {
+    if (!user) return {};
     const { _count, ...restUser } = user ?? {};
     return {
       ...restUser,
       isFollowed: (_count?.followers ?? 0) > 0,
     };
   }
+
   public checkUserInteractions(tweets: any[]) {
     return tweets.map((t) => {
       const { tweetLikes, retweets, tweetBookmark, user, ...tweet } = t;
@@ -144,6 +147,7 @@ export class TweetService {
         tweet: {
           select: tweetSelectFields(currentUserId),
         },
+        user: { select: userSelectFields(currentUserId) },
       },
       orderBy: [{ createdAt: "desc" }, { userId: "desc" }],
       take: dto.limit + 1,
@@ -161,7 +165,7 @@ export class TweetService {
     const normalizedRetweets = retweetedTweets.map((r) => ({
       ...r.tweet,
       createdAt: r.createdAt,
-      retweeter: this.formatUser(tweets[0].user),
+      retweeter: this.formatUser(r.user),
     }));
 
     const allTweets = [...tweets, ...normalizedRetweets]
@@ -244,7 +248,6 @@ export class TweetService {
         content: quote.content,
       }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
 
-
       enqueueUpdateScoreJob({ tweetId: dto.parentId });
 
       const actor = await this.getActor(dto.userId);
@@ -299,7 +302,6 @@ export class TweetService {
         tweetId: reply.id,
         content: reply.content,
       }).catch(() => console.log("Failed to enqueue categorize job for tweet"));
-
 
       enqueueUpdateScoreJob({ tweetId: dto.parentId });
 
@@ -793,11 +795,10 @@ export class TweetService {
       parsedDTO.peopleFilter
     );
 
-    const selectFields = tweetSelectFields(dto.userId);
-
     const searchParams = {
       where: wherePrismaFilter,
-      select: selectFields,
+      userId: dto.userId,
+      query: dto.query,
       limit: parsedDTO.limit,
       cursor: parsedDTO.cursor,
     };
@@ -814,28 +815,83 @@ export class TweetService {
     }
   }
 
-  private async searchLatestTweets({
-    where,
-    select,
-    limit,
-    cursor,
-  }: SearchParams) {
-    return prisma.tweet.findMany({
-      where,
-      select,
-      orderBy: { createdAt: "desc" },
-      take: limit + 1,
-      ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+  private async searchLatestTweets(dto: SearchParams) {
+    const tweets = await prisma.$queryRaw<any[]>`
+    SELECT 
+      t.id,
+      ts_rank_cd(
+        to_tsvector('english', t.content),
+        plainto_tsquery('english', ${dto.query})
+      ) as relevance
+    FROM tweets t
+    WHERE to_tsvector('english', t.content) @@ plainto_tsquery('english', ${
+      dto.query
+    })
+    ORDER BY relevance DESC, t."createdAt" DESC, t.id DESC
+    LIMIT ${dto.limit + 1}
+    ${dto.cursor ? Prisma.sql`OFFSET 1` : Prisma.empty}
+  `;
+
+    const tweetIds = tweets.slice(0, dto.limit).map((t) => t.id);
+
+    const fullTweets = await prisma.tweet.findMany({
+      where: { id: { in: tweetIds } },
+      select: tweetSelectFields(dto.userId),
     });
+
+    const tweetMap = new Map(fullTweets.map((t) => [t.id, t]));
+
+    const orderedTweets = tweetIds
+      .map((id) => tweetMap.get(id))
+      .filter((t): t is NonNullable<typeof t> => t !== undefined);
+
+    const { cursor, paginatedRecords } = updateCursor(
+      orderedTweets,
+      dto.limit,
+      (record) => ({ id: record.id })
+    );
+
+    const data = this.checkUserInteractions(paginatedRecords);
+
+    return { data, cursor };
   }
 
-  private async searchTopTweets({
-    where,
-    select,
-    limit,
-    cursor,
-  }: SearchParams) {
-    //if top calculate score for each tweet then sort accrodingly
+  private async searchTopTweets(dto: SearchParams) {
+    const tweets = await prisma.$queryRaw<any[]>`
+    SELECT 
+      t.*,
+      ts_rank_cd(to_tsvector('english', t.content), plainto_tsquery('english', ${
+        dto.query
+      })) as relevance
+    FROM tweets t
+    WHERE to_tsvector('english', t.content) @@ plainto_tsquery('english', ${
+      dto.query
+    })
+    ORDER BY relevance DESC, t.score DESC, t."createdAt" DESC, t.id DESC
+    LIMIT ${dto.limit + 1}
+    ${dto.cursor ? Prisma.sql`OFFSET 1` : Prisma.empty}
+  `;
+
+    const tweetIds = tweets.slice(0, dto.limit).map((t) => t.id);
+    const fullTweets = await prisma.tweet.findMany({
+      where: { id: { in: tweetIds } },
+      select: tweetSelectFields(dto.userId),
+    });
+    const tweetMap = new Map(fullTweets.map((t) => [t.id, t]));
+
+    const orderedTweets = tweetIds
+      .map((id) => tweetMap.get(id))
+      .filter((t): t is NonNullable<typeof t> => t !== undefined);
+
+    const { cursor, paginatedRecords } = updateCursor(
+      orderedTweets,
+      dto.limit,
+      (record) => ({ id: record.id })
+    );
+
+    const data = this.checkUserInteractions(paginatedRecords);
+
+    return { data, cursor };
   }
 
   private async generateFilter(

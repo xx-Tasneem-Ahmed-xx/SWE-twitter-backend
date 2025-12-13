@@ -15,6 +15,7 @@ import {
   CATEGORY_FEED_KEY,
   BATCH_SIZE,
 } from "@/background/constants";
+import * as responseUtils from "@/application/utils/response.utils";
 import { redisClient } from "@/config/redis";
 import { encoderService } from "./encoder";
 
@@ -63,6 +64,15 @@ export class ExploreService {
     });
   }
 
+  async getUserPreferredCategories(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredCategories: { select: { name: true } } },
+    });
+    if (!user) responseUtils.throwError("NOT_FOUND");
+    return user;
+  }
+
   async calculateTweetScore(tweetId: string) {
     const W_LIKES = 0.2;
     const W_RETWEETS = 0.5;
@@ -74,6 +84,7 @@ export class ExploreService {
     const tweet = await prisma.tweet.findUnique({
       where: { id: tweetId },
       select: {
+        tweetType: true,
         createdAt: true,
         likesCount: true,
         retweetCount: true,
@@ -98,6 +109,7 @@ export class ExploreService {
       where: { id: tweetId },
       data: { score },
     });
+    if (tweet.tweetType === "REPLY") return;
     await redisClient.zAdd(GLOBAL_FEED_KEY, {
       score,
       value: tweetId,
@@ -154,10 +166,14 @@ export class ExploreService {
     }
 
     const hydrated = await this.hydrateTweets(userId, resultIds);
+    const nextCursor =
+      resultIds.length < limit
+        ? null
+        : encoderService.encode(cursor + resultIds.length);
 
     return {
       data: hydrated,
-      cursor: encoderService.encode(cursor + resultIds.length),
+      cursor: nextCursor,
     };
   }
 
