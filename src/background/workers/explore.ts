@@ -8,7 +8,7 @@ import {
   TweetScoreUpdate,
 } from "../types/jobs";
 import { ExploreService } from "@/application/services/explore";
-import { seedExploreFeeds } from "@/jobScripts/seedExplore";
+import { seedExploreCache } from "@/jobScripts/seedExplore";
 
 async function startWorker() {
   await initRedis();
@@ -34,7 +34,7 @@ async function startWorker() {
         }
         case "seed-explore-feed": {
           if ("tweetIds" in job.data && Array.isArray(job.data.tweetIds))
-            await exploreService.seedExploreFeeds(job.data.tweetIds);
+            await exploreService.seedExploreCache(job.data.tweetIds);
 
           break;
         }
@@ -60,7 +60,7 @@ async function startWorker() {
     console.error("worker error", err);
   });
 
-  await seedExploreFeeds();
+  await seedExploreCache();
 }
 
 startWorker().catch((err) => {
