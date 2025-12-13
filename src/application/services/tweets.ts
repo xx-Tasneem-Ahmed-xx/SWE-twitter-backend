@@ -806,113 +806,95 @@ export class TweetService {
     }
   }
 
-  private async searchLatestTweets(dto: SearchParams) {
-    let followingIds: string[] = [];
-    if (dto.peopleFilter === PeopleFilter.FOLLOWINGS) {
-      const followingRecords = await prisma.follow.findMany({
-        where: { followerId: dto.userId },
-        select: { followingId: true },
-      });
-      followingIds = followingRecords.map((record) => record.followingId);
-
-      if (followingIds.length === 0) {
-        return { data: [], cursor: null };
-      }
-    }
-
-    const tweets = await prisma.$queryRaw<any[]>`
-    SELECT 
-      t.id,
-      ts_rank_cd(
-        to_tsvector('english', t.content),
-        plainto_tsquery('english', ${dto.query})
-      ) as relevance
-    FROM tweets t
-    WHERE to_tsvector('english', t.content) @@ plainto_tsquery('english', ${
-      dto.query
-    })
-    ${
-      followingIds.length > 0
-        ? Prisma.sql`AND t."userId"::uuid IN (${Prisma.join(
-            followingIds.map((id) => Prisma.sql`${id}::uuid`)
-          )})`
-        : Prisma.empty
-    }
-    ORDER BY relevance DESC, t."createdAt" DESC, t.id DESC
-    LIMIT ${dto.limit + 1}
-    ${dto.cursor ? Prisma.sql`OFFSET 1` : Prisma.empty}
-  `;
-
-    const tweetIds = tweets.map((t) => t.id);
-
-    const fullTweets = await prisma.tweet.findMany({
-      where: { id: { in: tweetIds } },
-      select: tweetSelectFields(dto.userId),
+  private async getFollowingIds(userId: string): Promise<string[]> {
+    const followingRecords = await prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
     });
-
-    const tweetMap = new Map(fullTweets.map((t) => [t.id, t]));
-
-    const orderedTweets = tweetIds
-      .map((id) => tweetMap.get(id))
-      .filter((t): t is NonNullable<typeof t> => t !== undefined);
-
-    const { cursor, paginatedRecords } = updateCursor(
-      orderedTweets,
-      dto.limit,
-      (record) => ({ id: record.id })
-    );
-
-    const data = this.checkUserInteractions(paginatedRecords);
-
-    return { data, cursor };
+    return followingRecords.map((record) => record.followingId);
   }
 
-  private async searchTopTweets(dto: SearchParams) {
-    let followingIds: string[] = [];
-    if (dto.peopleFilter === PeopleFilter.FOLLOWINGS) {
-      const followingRecords = await prisma.follow.findMany({
-        where: { followerId: dto.userId },
-        select: { followingId: true },
-      });
-      followingIds = followingRecords.map((record) => record.followingId);
-
-      if (followingIds.length === 0) {
-        return { data: [], cursor: null };
-      }
-    }
-
-    const tweets = await prisma.$queryRaw<any[]>`
-    SELECT 
-      t.*,
-      ts_rank_cd(to_tsvector('english', t.content), plainto_tsquery('english', ${
-        dto.query
-      })) as relevance
-    FROM tweets t
-    WHERE to_tsvector('english', t.content) @@ plainto_tsquery('english', ${
-      dto.query
-    })
-  ${
-    followingIds.length > 0
+  private buildUserFilterSql(followingIds: string[]): Prisma.Sql {
+    return followingIds.length > 0
       ? Prisma.sql`AND t."userId"::uuid IN (${Prisma.join(
           followingIds.map((id) => Prisma.sql`${id}::uuid`)
         )})`
-      : Prisma.empty
+      : Prisma.empty;
   }
-    ORDER BY relevance DESC, t.score DESC, t."createdAt" DESC, t.id DESC
-    LIMIT ${dto.limit + 1}
-    ${dto.cursor ? Prisma.sql`OFFSET 1` : Prisma.empty}
-  `;
 
-    const tweetIds = tweets.map((t) => t.id);
+  private buildCursorSql(cursor?: { id: string }): Prisma.Sql {
+    return cursor ? Prisma.sql`OFFSET 1` : Prisma.empty;
+  }
+
+  private async executeSearchQuery(
+    query: string,
+    limit: number,
+    cursor: { id: string } | undefined,
+    followingIds: string[],
+    orderBy: string
+  ): Promise<any[]> {
+    const userFilterSql = this.buildUserFilterSql(followingIds);
+    const cursorSql = this.buildCursorSql(cursor);
+
+    return await prisma.$queryRaw<any[]>`
+      SELECT 
+        t.*,
+        ts_rank_cd(
+          to_tsvector('english', t.content),
+          plainto_tsquery('english', ${query})
+        ) as relevance
+      FROM tweets t
+      WHERE to_tsvector('english', t.content) @@ plainto_tsquery('english', ${query})
+      ${userFilterSql}
+      ORDER BY ${Prisma.raw(orderBy)}
+      LIMIT ${limit + 1}
+      ${cursorSql}
+    `;
+  }
+
+  private async hydrateTweets(
+    tweetIds: string[],
+    userId: string
+  ): Promise<any[]> {
     const fullTweets = await prisma.tweet.findMany({
       where: { id: { in: tweetIds } },
-      select: tweetSelectFields(dto.userId),
+      select: tweetSelectFields(userId),
     });
+
     const tweetMap = new Map(fullTweets.map((t) => [t.id, t]));
 
-    const orderedTweets = tweetIds
+    return tweetIds
       .map((id) => tweetMap.get(id))
       .filter((t): t is NonNullable<typeof t> => t !== undefined);
+  }
+
+  private async performSearch(
+    dto: SearchParams,
+    orderBy: string
+  ): Promise<{ data: any[]; cursor: string | null }> {
+    let followingIds: string[] = [];
+
+    if (dto.peopleFilter === PeopleFilter.FOLLOWINGS) {
+      followingIds = await this.getFollowingIds(dto.userId);
+
+      if (followingIds.length === 0) {
+        return { data: [], cursor: null };
+      }
+    }
+
+    const tweets = await this.executeSearchQuery(
+      dto.query,
+      dto.limit,
+      dto.cursor,
+      followingIds,
+      orderBy
+    );
+
+    const tweetIds = tweets.map((t) => t.id);
+    const orderedTweets = await this.hydrateTweets(
+      tweetIds,
+      dto.userId
+    );
 
     const { cursor, paginatedRecords } = updateCursor(
       orderedTweets,
@@ -923,6 +905,17 @@ export class TweetService {
     const data = this.checkUserInteractions(paginatedRecords);
 
     return { data, cursor };
+  }
+
+  private async searchLatestTweets(dto: SearchParams) {
+    const orderBy = 'relevance DESC, t."createdAt" DESC, t.id DESC';
+    return this.performSearch(dto, orderBy);
+  }
+
+  private async searchTopTweets(dto: SearchParams) {
+    const orderBy =
+      'relevance DESC, t.score DESC, t."createdAt" DESC, t.id DESC';
+    return this.performSearch(dto, orderBy);
   }
 }
 
