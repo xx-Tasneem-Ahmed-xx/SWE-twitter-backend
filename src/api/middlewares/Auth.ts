@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import prisma from "../../database";
-import * as utils from "../../application/utils/tweets/utils";
+import * as utils from "../../application/utils/utils";
 import { redisClient } from "../../config/redis";
-import { JwtUserPayload, GeoData } from "../../application/utils/tweets/utils";
+import { JwtUserPayload, GeoData } from "../../application/utils/utils";
 
 // --- Custom Type Definitions ---
 interface AuthUser {

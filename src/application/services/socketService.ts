@@ -1,12 +1,12 @@
 import { Server as SocketIOServer, Socket } from "socket.io";
 import prisma from "../../database";
-import * as utils from "../utils/tweets/utils";
+import * as utils from "../utils/utils";
 import { redisClient } from "../../config/redis";
 import {
   addMessageToChat,
   resetUnseenChatCount,
   updateMessageStatus,
-  getChatUsersId
+  getChatUsersId,
 } from "@/api/controllers/messagesController";
 import { markNotificationsAsRead } from "@/api/controllers/notificationController";
 import { newMessageInput } from "../dtos/chat/messages.dto";
@@ -39,8 +39,11 @@ export class SocketService {
 
         this.setupUserEvents(socket, userId);
         const user = await prisma.user.findUnique({ where: { id: userId } });
-        this.sendUnseenNotificationsCount(userId, user?.unseenNotificationCount || 0);
-        this.sendUnseenChatsCount(userId, user?.unseenChatCount || 0); 
+        this.sendUnseenNotificationsCount(
+          userId,
+          user?.unseenNotificationCount || 0
+        );
+        this.sendUnseenChatsCount(userId, user?.unseenChatCount || 0);
 
         socket.emit("authenticated", {
           userId,
@@ -125,8 +128,6 @@ export class SocketService {
     }
   }
 
-  
-
   private setupUserEvents(socket: Socket, userId: string): void {
     socket.on("typing", async (data: { chatId: string; isTyping: boolean }) => {
       const usersId = (await getChatUsersId(data.chatId)).filter(
@@ -163,7 +164,9 @@ export class SocketService {
     socket.on("add-message", async (data: { message: newMessageInput }) => {
       try {
         const messageId = await addMessageToChat(data.message, userId);
-        this.io.to(userId).emit("message-added", { chatId: data.message.chatId, messageId });
+        this.io
+          .to(userId)
+          .emit("message-added", { chatId: data.message.chatId, messageId });
       } catch (error) {
         console.error("Error adding message to chat via socket:", error);
       }
@@ -191,15 +194,18 @@ export class SocketService {
     this.io.to(recipientId).emit("notification", notification);
   }
 
-  public sendUnseenNotificationsCount(recipientId: string, count: number): void {
+  public sendUnseenNotificationsCount(
+    recipientId: string,
+    count: number
+  ): void {
     this.io.to(recipientId).emit("unseen-notifications-count", { count });
-  }     
+  }
 
-   public sendUnseenChatsCount(recipientId: string, count: number): void {
+  public sendUnseenChatsCount(recipientId: string, count: number): void {
     console.log("sent unseen chats count");
-    
+
     this.io.to(recipientId).emit("unseen-chats-count", { count });
-  }     
+  }
 
   public sendMessageToChat(recipientId: string, message: any): void {
     this.io.to(recipientId).emit("new-message", message);

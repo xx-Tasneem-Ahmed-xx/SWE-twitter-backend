@@ -1,6 +1,6 @@
-import * as utils from "../../application/utils/tweets/utils";
+import * as utils from "../../application/utils/utils";
 import { redisClient } from "../../config/redis";
-import { GeoData } from "../../application/utils/tweets/utils";
+import { GeoData } from "../../application/utils/utils";
 import { Request, Response, NextFunction } from "express";
 import { AppError } from "@/errors/AppError";
 

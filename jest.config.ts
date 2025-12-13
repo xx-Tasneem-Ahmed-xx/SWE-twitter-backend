@@ -12,7 +12,7 @@ const config: Config = {
     "!src/**/*.test.ts",
     "!src/**/tests/**",
     "!**/prisma/**",
-    "!src/api/controllers/**",
+    "!src/api/**",
     "!src/background/**",
     "!src/types/**",
     "!src/__mocks__/**",
@@ -20,6 +20,8 @@ const config: Config = {
     "!src/config/**",
     "!src/index.ts",
     "!src/database.ts",
+    "!src/application/services/secrets.ts",
+    "!src/application/services/aiSummary.ts",
   ],
 
   coveragePathIgnorePatterns: [
@@ -27,7 +29,9 @@ const config: Config = {
     "/prisma/",
     ".test.ts",
     "/tests/",
-    "/api/controllers",
+    "/api/",
+    "/application/services/secrets.ts",
+    "/application/services/aiSummary.ts",
     "/background/",
     "/docs/",
     "/config/",

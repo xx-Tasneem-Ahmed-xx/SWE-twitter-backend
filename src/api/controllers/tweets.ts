@@ -7,7 +7,7 @@ import {
   CreateTweetDTOSchema,
   SearchDTOSchema,
 } from "@/application/dtos/tweets/tweet.dto.schema";
-import { resolveUsernameToId } from "@/application/utils/tweets/utils";
+import { resolveUsernameToId } from "@/application/utils/utils";
 import { Request, Response, NextFunction } from "express";
 import * as responseUtils from "@/application/utils/response.utils";
 import tweetService from "@/application/services/tweets";
