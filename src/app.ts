@@ -31,7 +31,7 @@ import { Crawler, Parser, Indexer, SearchEngine } from './api/controllers/Search
 import { apiRoutes } from './api/routes/searchRoutes';
 import { PrismaClient } from "@prisma/client";
 import { getKey } from "./application/services/secrets";
-// import {twitterSearchRoutes,chatSearchRoutes}from "@/api/routes/searchRoutes";
+import { setupChatSearchAPI } from "./chat/search/initializeChatSearch";
 const app = express();
 app.use(cors());
 app.use(helmet());
@@ -68,6 +68,39 @@ initializeSearchEngine()
   .catch((err) => {
     console.error('Failed to initialize search engine:', err);
   });
+  // app.ts or server.ts
+
+import { initializeChatSearchEngine } from "@/chat/search/initializeChatSearch";
+import { chatSearchRoutes } from "@/api/routes/chatSearch.routes";
+
+
+initializeChatSearchEngine()
+  .then(
+    ({
+      chatCrawler,
+      chatParser,
+      chatIndexer,
+      chatSearchEngine,
+      chatPersistence,
+    }) => {
+      app.use(
+        "/api",
+        chatSearchRoutes(
+          chatCrawler,
+          chatParser,
+          chatIndexer,
+          chatSearchEngine,
+          chatPersistence
+        )
+      );
+
+      console.log("✅ Chat search routes initialized");
+    }
+  )
+  .catch((err) => {
+    console.error("❌ Failed to initialize chat search engine:", err);
+  });
+
 // initializeSearchEngine()
 //   .then(({ crawler, parser, indexer, searchEngine, persistence }) => {
 //     app.use('/api', apiRoutes(crawler, parser, indexer, searchEngine, persistence));
@@ -89,6 +122,7 @@ initializeSearchEngine()
 //   .catch((err) => {
 //     console.error('Failed to initialize search engine:', err);
 //   });
+
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use("/api/auth", authRoutes);
 app.use("/oauth2", oauthRoutes);

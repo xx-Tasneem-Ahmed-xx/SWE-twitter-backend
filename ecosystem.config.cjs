@@ -31,6 +31,7 @@ module.exports = {
       { name: "worker-notifications", file: "notifications.ts" },
       { name: "worker-emails", file: "Email.ts" },
       { name: "worker-search-indexer", file: "searchIndexer.ts" },
+       { name: "worker-search-chat", file: "chatSearchWorker.ts" },
     ].map((worker) => ({
       name: worker.name,
       script: path.join("src", "background", "workers", worker.file),

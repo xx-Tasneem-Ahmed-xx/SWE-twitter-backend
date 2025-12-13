@@ -21,6 +21,7 @@ async function start() {
 
   // defer app import until secrets are loaded
   const { default: httpServer } = await import("@/app");
+ 
   httpServer.listen(port, () => console.log(`Server running on port ${port}`));
 }
 
