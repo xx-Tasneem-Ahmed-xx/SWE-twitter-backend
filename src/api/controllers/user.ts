@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
-import * as utils from "../../application/utils/tweets/utils";
+import * as utils from "../../application/utils/utils";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
@@ -280,9 +280,7 @@ export async function Verify_signup_email(
       throw new AppError("Verification code is incorrect", 401);
     }
 
-    const userJson: any= await redisClient.get(
-      `Signup:user:${email}`
-    );
+    const userJson: any = await redisClient.get(`Signup:user:${email}`);
 
     if (!userJson) {
       throw new AppError("User data not found, please sign up again", 400);
@@ -314,9 +312,7 @@ export async function FinalizeSignup(
       throw new AppError("Email and password are required", 400);
     }
 
-    const userJson: any = await redisClient.get(
-      `Signup:verified:${email}`
-    );
+    const userJson: any = await redisClient.get(`Signup:verified:${email}`);
 
     if (!userJson) {
       throw new AppError("You must verify your email first", 400);

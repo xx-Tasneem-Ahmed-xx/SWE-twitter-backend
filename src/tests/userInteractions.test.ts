@@ -45,7 +45,7 @@ beforeAll(async () => {
     "@/application/services/userInteractions"
   );
 
-  resolveUsernameToId = (await import("@/application/utils/tweets/utils"))
+  resolveUsernameToId = (await import("@/application/utils/utils"))
     .resolveUsernameToId;
 
   FollowsListResponseSchema = (

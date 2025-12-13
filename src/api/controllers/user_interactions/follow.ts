@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { resolveUsernameToId } from "@/application/utils/tweets/utils";
+import { resolveUsernameToId } from "@/application/utils/utils";
 import * as responseUtils from "@/application/utils/response.utils";
 import { UserInteractionParamsSchema } from "@/application/dtos/userInteractions/userInteraction.dto.schema";
 import {
