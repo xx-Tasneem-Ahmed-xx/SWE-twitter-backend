@@ -21,7 +21,6 @@ import {
   generateTweetCategory,
   generateTweetSumamry,
 } from "@/application/services/aiSummary";
-import { SearchServiceSchema } from "@/application/dtos/tweets/service/tweets.dto.schema";
 import {
   PeopleFilter,
   SearchTab,
@@ -787,23 +786,15 @@ export class TweetService {
   }
 
   async searchTweets(dto: SearchServiceDTO) {
-    const parsedDTO = SearchServiceSchema.parse(dto);
-
-    const wherePrismaFilter = this.generateFilter(
-      parsedDTO.query,
-      parsedDTO.userId,
-      parsedDTO.peopleFilter
-    );
-
     const searchParams = {
-      where: wherePrismaFilter,
       userId: dto.userId,
+      peopleFilter: dto.peopleFilter,
       query: dto.query,
-      limit: parsedDTO.limit,
-      cursor: parsedDTO.cursor,
+      limit: dto.limit,
+      cursor: dto.cursor,
     };
 
-    switch (parsedDTO.searchTab) {
+    switch (dto.searchTab) {
       case SearchTab.LATEST:
         return this.searchLatestTweets(searchParams);
 
@@ -816,6 +807,19 @@ export class TweetService {
   }
 
   private async searchLatestTweets(dto: SearchParams) {
+    let followingIds: string[] = [];
+    if (dto.peopleFilter === PeopleFilter.FOLLOWINGS) {
+      const followingRecords = await prisma.follow.findMany({
+        where: { followerId: dto.userId },
+        select: { followingId: true },
+      });
+      followingIds = followingRecords.map((record) => record.followingId);
+
+      if (followingIds.length === 0) {
+        return { data: [], cursor: null };
+      }
+    }
+
     const tweets = await prisma.$queryRaw<any[]>`
     SELECT 
       t.id,
@@ -827,12 +831,19 @@ export class TweetService {
     WHERE to_tsvector('english', t.content) @@ plainto_tsquery('english', ${
       dto.query
     })
+    ${
+      followingIds.length > 0
+        ? Prisma.sql`AND t."userId"::uuid IN (${Prisma.join(
+            followingIds.map((id) => Prisma.sql`${id}::uuid`)
+          )})`
+        : Prisma.empty
+    }
     ORDER BY relevance DESC, t."createdAt" DESC, t.id DESC
     LIMIT ${dto.limit + 1}
     ${dto.cursor ? Prisma.sql`OFFSET 1` : Prisma.empty}
   `;
 
-    const tweetIds = tweets.slice(0, dto.limit).map((t) => t.id);
+    const tweetIds = tweets.map((t) => t.id);
 
     const fullTweets = await prisma.tweet.findMany({
       where: { id: { in: tweetIds } },
@@ -857,6 +868,19 @@ export class TweetService {
   }
 
   private async searchTopTweets(dto: SearchParams) {
+    let followingIds: string[] = [];
+    if (dto.peopleFilter === PeopleFilter.FOLLOWINGS) {
+      const followingRecords = await prisma.follow.findMany({
+        where: { followerId: dto.userId },
+        select: { followingId: true },
+      });
+      followingIds = followingRecords.map((record) => record.followingId);
+
+      if (followingIds.length === 0) {
+        return { data: [], cursor: null };
+      }
+    }
+
     const tweets = await prisma.$queryRaw<any[]>`
     SELECT 
       t.*,
@@ -867,12 +891,19 @@ export class TweetService {
     WHERE to_tsvector('english', t.content) @@ plainto_tsquery('english', ${
       dto.query
     })
+  ${
+    followingIds.length > 0
+      ? Prisma.sql`AND t."userId"::uuid IN (${Prisma.join(
+          followingIds.map((id) => Prisma.sql`${id}::uuid`)
+        )})`
+      : Prisma.empty
+  }
     ORDER BY relevance DESC, t.score DESC, t."createdAt" DESC, t.id DESC
     LIMIT ${dto.limit + 1}
     ${dto.cursor ? Prisma.sql`OFFSET 1` : Prisma.empty}
   `;
 
-    const tweetIds = tweets.slice(0, dto.limit).map((t) => t.id);
+    const tweetIds = tweets.map((t) => t.id);
     const fullTweets = await prisma.tweet.findMany({
       where: { id: { in: tweetIds } },
       select: tweetSelectFields(dto.userId),
@@ -892,36 +923,6 @@ export class TweetService {
     const data = this.checkUserInteractions(paginatedRecords);
 
     return { data, cursor };
-  }
-
-  private async generateFilter(
-    query: string,
-    userId: string,
-    peopleFilter: PeopleFilter
-  ) {
-    const where: any = {
-      OR: [
-        { content: { contains: query, mode: "insensitive" } },
-        {
-          hashtags: {
-            some: {
-              hash: { tag_text: { contains: query, mode: "insensitive" } },
-            },
-          },
-        },
-      ],
-    };
-
-    if (peopleFilter === PeopleFilter.FOLLOWINGS) {
-      const followingRecords = await prisma.follow.findMany({
-        where: { followerId: userId },
-        select: { followingId: true },
-      });
-      const followingIds = followingRecords.map((record) => record.followingId);
-
-      where.userId = { in: followingIds };
-    }
-    return where;
   }
 }
 

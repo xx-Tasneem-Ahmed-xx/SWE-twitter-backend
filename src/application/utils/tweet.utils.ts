@@ -165,6 +165,7 @@ export const tweetSelectFields = (userId?: string) => {
     repliesCount: true,
     quotesCount: true,
     retweetCount: true,
+    score: true,
     replyControl: true,
     tweetType: true,
     parentId: true,

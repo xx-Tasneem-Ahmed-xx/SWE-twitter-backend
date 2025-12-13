@@ -1,6 +1,8 @@
+import { PeopleFilter } from "@/application/dtos/tweets/tweet.dto.schema";
+
 export type SearchParams = {
   userId: string;
-  where: any;
+  peopleFilter: PeopleFilter;
   limit: number;
   query: string;
   cursor?: { id: string };
