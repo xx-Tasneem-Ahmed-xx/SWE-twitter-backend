@@ -12,7 +12,7 @@ export async function enqueueUpdateScoreJob(payload: TweetScoreUpdate) {
       type: "exponential",
       delay: 3000,
     },
-    delay: 0,
+    delay: 5000,
     lifo: false,
     removeOnComplete: { age: 3600, count: 100 },
     removeOnFail: { age: 86400, count: 500 },
