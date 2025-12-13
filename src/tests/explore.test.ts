@@ -442,7 +442,7 @@ describe("ExploreService", () => {
         },
       });
 
-      await exploreService.seedExploreFeeds([tweet.id]);
+      await exploreService.seedExploreCache([tweet.id]);
 
       const res = await exploreService.getFeed({ userId: user.id, limit: 10 });
       expect(res.data.map((t) => t.id)).toContain(tweet.id);
@@ -461,7 +461,7 @@ describe("ExploreService", () => {
           },
         },
       });
-      const tweet2 = await prisma.tweet.create({
+      await prisma.tweet.create({
         data: {
           id: "c2",
           userId: user.id,
@@ -505,7 +505,7 @@ describe("ExploreService", () => {
         },
       });
 
-      await exploreService.seedExploreFeeds([blockedTweet.id, mutedTweet.id]);
+      await exploreService.seedExploreCache([blockedTweet.id, mutedTweet.id]);
 
       const res = await exploreService.getFeed({ userId: user.id, limit: 10 });
       expect(res.data.find((t) => t.id === "tb")).toBeUndefined();
@@ -532,7 +532,7 @@ describe("ExploreService", () => {
         },
       });
 
-      await exploreService.seedExploreFeeds([t1.id, t2.id]);
+      await exploreService.seedExploreCache([t1.id, t2.id]);
 
       const first = await exploreService.getFeed({ userId: user.id, limit: 1 });
       const cursor = encoderService.decode<number>(first.cursor as string);
@@ -547,6 +547,295 @@ describe("ExploreService", () => {
       expect([first.data[0].id, second.data[0].id]).toEqual(
         expect.arrayContaining([t1.id, t2.id])
       );
+    });
+  });
+
+  describe("seedExploreCache", () => {
+    let tweet1: any, tweet2: any, tweet3: any;
+
+    beforeEach(async () => {
+      await redis.flushall();
+
+      tweet1 = await prisma.tweet.create({
+        data: {
+          id: "seed1",
+          userId: user.id,
+          content: "Seed tweet 1",
+          tweetType: "TWEET",
+          score: 15,
+          likesCount: 10,
+          retweetCount: 5,
+          tweetCategories: {
+            create: [{ category: { connect: { name: CAT1 } } }],
+          },
+        },
+      });
+
+      tweet2 = await prisma.tweet.create({
+        data: {
+          id: "seed2",
+          userId: user2.id,
+          content: "Seed tweet 2",
+          tweetType: "TWEET",
+          score: 25,
+          likesCount: 20,
+          retweetCount: 10,
+          tweetCategories: {
+            create: [
+              { category: { connect: { name: CAT1 } } },
+              { category: { connect: { name: CAT2 } } },
+            ],
+          },
+        },
+      });
+
+      tweet3 = await prisma.tweet.create({
+        data: {
+          id: "seed3",
+          userId: user.id,
+          content: "Seed tweet 3",
+          tweetType: "TWEET",
+          score: 5,
+          likesCount: 2,
+          tweetCategories: {
+            create: [{ category: { connect: { name: CAT3 } } }],
+          },
+        },
+      });
+    });
+
+    afterEach(async () => {
+      await prisma.tweet.deleteMany({
+        where: { id: { in: ["seed1", "seed2", "seed3"] } },
+      });
+    });
+
+    it("should populate global feed with all tweets", async () => {
+      await exploreService.seedExploreCache([tweet1.id, tweet2.id, tweet3.id]);
+
+      const globalFeed = await redisClient.zRange("explore:global", 0, -1, {
+        REV: true,
+      });
+
+      expect(globalFeed).toContain(tweet1.id);
+      expect(globalFeed).toContain(tweet2.id);
+      expect(globalFeed).toContain(tweet3.id);
+    });
+
+    it("should populate category feeds correctly", async () => {
+      await exploreService.seedExploreCache([tweet1.id, tweet2.id, tweet3.id]);
+
+      const cat1Feed = await redisClient.zRange(
+        `explore:category:${CAT1}`,
+        0,
+        -1,
+        { REV: true }
+      );
+      expect(cat1Feed).toContain(tweet1.id);
+      expect(cat1Feed).toContain(tweet2.id);
+      expect(cat1Feed).not.toContain(tweet3.id);
+
+      const cat2Feed = await redisClient.zRange(
+        `explore:category:${CAT2}`,
+        0,
+        -1,
+        { REV: true }
+      );
+      expect(cat2Feed).toContain(tweet2.id);
+      expect(cat2Feed).not.toContain(tweet1.id);
+
+      const cat3Feed = await redisClient.zRange(
+        `explore:category:${CAT3}`,
+        0,
+        -1,
+        { REV: true }
+      );
+      expect(cat3Feed).toContain(tweet3.id);
+    });
+
+    it("should order tweets by score in descending order", async () => {
+      await exploreService.seedExploreCache([tweet1.id, tweet2.id, tweet3.id]);
+
+      const globalFeed = await redisClient.zRange("explore:global", 0, -1, {
+        REV: true,
+      });
+
+      expect(globalFeed[0]).toBe(tweet2.id);
+      expect(globalFeed[1]).toBe(tweet1.id);
+      expect(globalFeed[2]).toBe(tweet3.id);
+    });
+
+    it("should update tweet scores in database", async () => {
+      await exploreService.seedExploreCache([tweet1.id, tweet2.id, tweet3.id]);
+
+      const updatedTweet1 = await prisma.tweet.findUnique({
+        where: { id: tweet1.id },
+      });
+      const updatedTweet2 = await prisma.tweet.findUnique({
+        where: { id: tweet2.id },
+      });
+      const updatedTweet3 = await prisma.tweet.findUnique({
+        where: { id: tweet3.id },
+      });
+
+      expect(updatedTweet1?.score).toBeGreaterThan(0);
+      expect(updatedTweet2?.score).toBeGreaterThan(0);
+      expect(updatedTweet3?.score).toBeGreaterThan(0);
+
+      expect(updatedTweet2?.score).toBeGreaterThan(updatedTweet1!.score);
+      expect(updatedTweet1?.score).toBeGreaterThan(updatedTweet3!.score);
+    });
+
+    it("should handle empty tweet ids array", async () => {
+      await exploreService.seedExploreCache([]);
+
+      const globalFeed = await redisClient.zRange("explore:global", 0, -1);
+      expect(globalFeed.length).toBe(0);
+    });
+
+    it("should skip non-existent tweet ids", async () => {
+      await exploreService.seedExploreCache([
+        tweet1.id,
+        "nonexistent-id",
+        tweet2.id,
+      ]);
+
+      const globalFeed = await redisClient.zRange("explore:global", 0, -1, {
+        REV: true,
+      });
+
+      expect(globalFeed).toContain(tweet1.id);
+      expect(globalFeed).toContain(tweet2.id);
+      expect(globalFeed).not.toContain("nonexistent-id");
+      expect(globalFeed.length).toBe(2);
+    });
+
+    it("should handle tweets with no categories", async () => {
+      const noCatTweet = await prisma.tweet.create({
+        data: {
+          id: "nocat",
+          userId: user.id,
+          content: "No category tweet",
+          tweetType: "TWEET",
+          score: 10,
+        },
+      });
+
+      await exploreService.seedExploreCache([noCatTweet.id]);
+
+      const globalFeed = await redisClient.zRange("explore:global", 0, -1);
+      expect(globalFeed).toContain(noCatTweet.id);
+
+      const cat1Feed = await redisClient.zRange(
+        `explore:category:${CAT1}`,
+        0,
+        -1
+      );
+      expect(cat1Feed).not.toContain(noCatTweet.id);
+
+      await prisma.tweet.delete({ where: { id: noCatTweet.id } });
+    });
+
+    it("should handle tweets with multiple categories", async () => {
+      const multiCatTweet = await prisma.tweet.create({
+        data: {
+          id: "multicat",
+          userId: user.id,
+          content: "Multi category tweet",
+          tweetType: "TWEET",
+          score: 20,
+          tweetCategories: {
+            create: [
+              { category: { connect: { name: CAT1 } } },
+              { category: { connect: { name: CAT2 } } },
+              { category: { connect: { name: CAT3 } } },
+            ],
+          },
+        },
+      });
+
+      await exploreService.seedExploreCache([multiCatTweet.id]);
+
+      const cat1Feed = await redisClient.zRange(
+        `explore:category:${CAT1}`,
+        0,
+        -1
+      );
+      const cat2Feed = await redisClient.zRange(
+        `explore:category:${CAT2}`,
+        0,
+        -1
+      );
+      const cat3Feed = await redisClient.zRange(
+        `explore:category:${CAT3}`,
+        0,
+        -1
+      );
+
+      expect(cat1Feed).toContain(multiCatTweet.id);
+      expect(cat2Feed).toContain(multiCatTweet.id);
+      expect(cat3Feed).toContain(multiCatTweet.id);
+
+      await prisma.tweet.delete({ where: { id: multiCatTweet.id } });
+    });
+
+    it("should maintain correct scores across global and category feeds", async () => {
+      await exploreService.seedExploreCache([tweet1.id, tweet2.id]);
+
+      const globalScore1 = await redisClient.zScore(
+        "explore:global",
+        tweet1.id
+      );
+      const cat1Score1 = await redisClient.zScore(
+        `explore:category:${CAT1}`,
+        tweet1.id
+      );
+
+      expect(globalScore1).toBe(cat1Score1);
+
+      const globalScore2 = await redisClient.zScore(
+        "explore:global",
+        tweet2.id
+      );
+      const cat1Score2 = await redisClient.zScore(
+        `explore:category:${CAT1}`,
+        tweet2.id
+      );
+      const cat2Score2 = await redisClient.zScore(
+        `explore:category:${CAT2}`,
+        tweet2.id
+      );
+
+      expect(globalScore2).toBe(cat1Score2);
+      expect(globalScore2).toBe(cat2Score2);
+    });
+
+    it("should process large batch of tweets", async () => {
+      const batchTweets = [];
+      for (let i = 0; i < 50; i++) {
+        const tweet = await prisma.tweet.create({
+          data: {
+            id: `batch${i}`,
+            userId: user.id,
+            content: `Batch tweet ${i}`,
+            tweetType: "TWEET",
+            score: i,
+            tweetCategories: {
+              create: [{ category: { connect: { name: CAT1 } } }],
+            },
+          },
+        });
+        batchTweets.push(tweet.id);
+      }
+
+      await exploreService.seedExploreCache(batchTweets);
+
+      const globalFeed = await redisClient.zRange("explore:global", 0, -1);
+      expect(globalFeed.length).toBeGreaterThanOrEqual(50);
+
+      await prisma.tweet.deleteMany({
+        where: { id: { in: batchTweets } },
+      });
     });
   });
 });
