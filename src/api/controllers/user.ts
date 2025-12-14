@@ -1,5 +1,5 @@
 
-import * as utils from "../../application/utils/tweets/utils";
+import * as utils from "../../application/utils/utils";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
