@@ -234,7 +234,7 @@ jest.mock('jsonwebtoken', () => ({
 
 // Mock utility functions with counter for unique usernames
 let usernameCounter = 0;
-jest.mock('../application/utils/tweets/utils', () => ({
+jest.mock('../application/utils/utils', () => ({
   SendEmailSmtp: jest.fn().mockResolvedValue(true),
   SendRes: jest.fn((res: any, data: any) => res.json(data)),
   generateUsername: jest.fn().mockImplementation((name: string) => {
@@ -260,9 +260,11 @@ jest.mock('../application/utils/tweets/utils', () => ({
   NotOldPassword: jest.fn().mockResolvedValue('0'),
 }));
 
+// FIXED: Added missing getMentionNotifications function
 jest.mock('../api/controllers/notificationController', () => ({
   addNotification: jest.fn((_, data, callback) => callback?.(null)),
   getNotificationList: jest.fn((req, res) => res.json([])),
+  getMentionNotifications: jest.fn((req, res) => res.json([])),
   getUnseenNotificationsCount: jest.fn((req, res) => res.json({ count: 0 })),
   getUnseenNotifications: jest.fn((req, res) => res.json([])),
 }));

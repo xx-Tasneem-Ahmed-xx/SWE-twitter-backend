@@ -16,15 +16,15 @@ class Logger {
   constructor(private context: string) {}
 
   info(message: string) {
-    console.log(`[${this.context}] ℹ️  ${message}`); // ✅ FIXED: Template literal syntax
+    console.log(`[${this.context}]   ${message}`); //  FIXED: Template literal syntax
   }
 
   warn(message: string) {
-    console.log(`[${this.context}] ⚠️  ${message}`); // ✅ FIXED
+    console.log(`[${this.context}]   ${message}`); //  FIXED
   }
 
   error(message: string, error?: any) {
-    console.error(`[${this.context}] ❌ ${message}`, error || ""); // ✅ FIXED
+    console.error(`[${this.context}]  ${message}`, error || ""); //  FIXED
   }
 }
 
@@ -45,7 +45,7 @@ export async function initializeSearchEngine(redisUrl?: string) {
     const persistence = new PersistenceManager(redisUrl || REDIS_URL);
     const searchEngine = new SearchEngine(indexer, parser, persistence);
 
-    // ✅ Initialize the job system with components
+    //  Initialize the job system with components
     initializeJobSystem({ crawler, parser, indexer, searchEngine, persistence });
 
     // ============================================
@@ -60,12 +60,12 @@ export async function initializeSearchEngine(redisUrl?: string) {
       
       const metadata = await persistence.getIndexMetadata("search_index");
       if (metadata) {
-        logger.info(`Index last updated: ${metadata.lastUpdated}`); // ✅ FIXED
-        logger.info(`Stats: ${JSON.stringify(metadata.stats)}`); // ✅ FIXED
+        logger.info(`Index last updated: ${metadata.lastUpdated}`); //  FIXED
+        logger.info(`Stats: ${JSON.stringify(metadata.stats)}`); //  FIXED
       }
 
       const stats = searchEngine.getStats();
-      logger.info(`Current index: ${stats.totalTweets} tweets, ${stats.totalUsers} users`); // ✅ FIXED
+      logger.info(`Current index: ${stats.totalTweets} tweets, ${stats.totalUsers} users`); //  FIXED
       
     } else {
       logger.warn("⚠ No index found in Redis");
@@ -104,7 +104,7 @@ export async function initializeSearchEngine(redisUrl?: string) {
  */
 export async function setupSearchAPI(app: any) {
   try {
-    console.log("🔧 Setting up search API...");
+    console.log(" Setting up search API...");
     
     // Initialize search engine
     const components = await initializeSearchEngine();
@@ -123,19 +123,11 @@ export async function setupSearchAPI(app: any) {
       )
     );
 
-    console.log("✅ Search API routes registered at /api/search/*");
-    console.log("   - GET /api/search/top?q=query");
-    console.log("   - GET /api/search/people?q=query");
-    console.log("   - GET /api/search/latest?q=query");
-    console.log("   - GET /api/search/media?q=query");
-    console.log("   - GET /api/search/document?id=xxx&type=tweet");
-    console.log("   - GET /api/search/stats");
-    console.log("   - POST /api/search/reindex");
-
+    
     return components;
     
   } catch (error) {
-    console.error("❌ Failed to setup search API:", error);
+    console.error(" Failed to setup search API:", error);
     throw error;
   }
 }

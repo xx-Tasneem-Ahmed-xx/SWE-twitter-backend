@@ -22,7 +22,7 @@ async function startWorker() {
   await initRedis();
   await loadSecrets();
 
-  logger.info("🚀 Starting search indexer worker...");
+  logger.info(" Starting search indexer worker...");
 
   const { REDIS_URL } = getSecrets();
   
@@ -30,7 +30,7 @@ async function startWorker() {
  
   
 
-  logger.info("✅ Database connected");
+  logger.info(" Database connected");
 
   // Initialize search components
   const crawler = new Crawler(prisma);
@@ -38,12 +38,12 @@ async function startWorker() {
   const indexer = new Indexer();
   const persistence = new PersistenceManager(REDIS_URL);
 
-  logger.info("✅ Search components initialized");
+  logger.info(" Search components initialized");
 
   // Load existing index from Redis
   const loaded = await persistence.loadIndex("search_index");
   if (loaded) {
-    logger.info("✅ Loaded existing index from Redis");
+    logger.info(" Loaded existing index from Redis");
   } else {
     logger.warn("⚠ No existing index found in Redis");
   }
@@ -51,7 +51,7 @@ async function startWorker() {
   const searchIndexerWorker = new Worker<SearchIndexJobData>(
     "search-indexer",
     async (job) => {
-      logger.info(`📊 Processing ${job.data.type} indexing job: ${job.id}`);
+      logger.info(` Processing ${job.data.type} indexing job: ${job.id}`);
 
       try {
         if (job.data.type === "full") {
@@ -75,7 +75,7 @@ async function startWorker() {
           await persistence.saveIndex(indexer.getIndexStats(), "search_index");
 
           logger.info(
-            `✅ Full index created: ${parsedTweets.length} tweets, ${parsedUsers.length} users, ${parsedHashtags.length} hashtags`
+            ` Full index created: ${parsedTweets.length} tweets, ${parsedUsers.length} users, ${parsedHashtags.length} hashtags`
           );
 
           return {
@@ -112,7 +112,7 @@ async function startWorker() {
           await persistence.saveIndex(indexer.getIndexStats(), "search_index");
 
           logger.info(
-            `✅ Incremental update: +${parsedTweets.length} tweets, +${parsedUsers.length} users, +${parsedHashtags.length} hashtags`
+            ` Incremental update: +${parsedTweets.length} tweets, +${parsedUsers.length} users, +${parsedHashtags.length} hashtags`
           );
 
           return {
@@ -124,7 +124,7 @@ async function startWorker() {
           };
         }
       } catch (error) {
-        logger.error(`❌ Indexing job failed:`, error);
+        logger.error(` Indexing job failed:`, error);
         throw error;
       }
     },
@@ -136,16 +136,16 @@ async function startWorker() {
 
   searchIndexerWorker.on("completed", (job) => {
     logger.info(
-      `✅ [search-indexer.worker] Job completed: ${job.id} (${job.data.type})`
+      ` [search-indexer.worker] Job completed: ${job.id} (${job.data.type})`
     );
   });
 
   searchIndexerWorker.on("failed", (job, err) => {
-    logger.error(`❌ [search-indexer.worker] Job failed: ${job?.id}`, err);
+    logger.error(` [search-indexer.worker] Job failed: ${job?.id}`, err);
   });
 
   searchIndexerWorker.on("error", (err) => {
-    logger.error("❌ [search-indexer.worker] Worker error:", err);
+    logger.error(" [search-indexer.worker] Worker error:", err);
   });
 
   // Handle graceful shutdown
@@ -161,10 +161,10 @@ async function startWorker() {
     process.exit(0);
   });
 
-  logger.info("✅ Search indexer worker started successfully");
+  logger.info(" Search indexer worker started successfully");
 }
 
 startWorker().catch((err) => {
-  logger.error("❌ [search-indexer.worker] Failed to start:", err);
+  logger.error(" [search-indexer.worker] Failed to start:", err);
   process.exit(1);
 });

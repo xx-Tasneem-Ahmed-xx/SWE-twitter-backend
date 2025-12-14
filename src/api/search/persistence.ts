@@ -16,7 +16,7 @@ export class PersistenceManager {
   async saveIndex(key: string, indexDoc: IndexDocument): Promise<void> {
     const serialized = this.serializeIndex(indexDoc);
     await this.redis.set(key, JSON.stringify(serialized));
-    console.log(`✅ Index saved to Redis with key: ${key}`);
+    console.log(` Index saved to Redis with key: ${key}`);
   }
 
   /**

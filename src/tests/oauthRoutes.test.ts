@@ -12,6 +12,11 @@ jest.mock("../docs/index", () => ({
   },
 }));
 
+// Mock setupTests to prevent actual Redis connection
+jest.mock('../setupTests', () => ({
+  __esModule: true,
+}));
+
 jest.mock('../application/dtos/tweets/tweet.dto.schema', () => {
   const zod = require('zod');
   const ReplyControl = { REPLY: "REPLY", NO_REPLY: "NO_REPLY" };
@@ -48,6 +53,7 @@ jest.mock("../config/redis", () => ({
     scan: jest.fn().mockResolvedValue({ cursor: "0", keys: [] }),
     lRange: jest.fn().mockResolvedValue([]),
   },
+  initRedis: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('@/api/middlewares/Auth', () => {
@@ -127,6 +133,36 @@ jest.mock('../prisma/client', () => ({
       create: jest.fn().mockResolvedValue({
         jti: 'session123', userId: '1', isActive: true, issuedAt: new Date(),
       }),
+      findFirst: jest.fn().mockResolvedValue({
+        jti: 'session123', userId: '1', isActive: true, issuedAt: new Date(),
+      }),
+      findMany: jest.fn().mockResolvedValue([
+        {
+          jti: 'session123', userId: '1', isActive: true, issuedAt: new Date(),
+          deviceInfoId: 'dev1',
+        },
+      ]),
+      update: jest.fn().mockResolvedValue({
+        jti: 'session123', userId: '1', isActive: false,
+      }),
+      delete: jest.fn().mockResolvedValue({
+        jti: 'session123',
+      }),
+    },
+    oldPassword: {
+      create: jest.fn().mockResolvedValue({
+        id: 'old1', userId: '1', password: 'oldHashedPassword',
+      }),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    deviceRecord: {
+      create: jest.fn().mockResolvedValue({
+        id: 'dev1', city: 'Cairo', country: 'Egypt', userId: '1', lastLogin: new Date(),
+      }),
+      findFirst: jest.fn().mockResolvedValue(null),
+      update: jest.fn().mockResolvedValue({
+        id: 'dev1', lastLogin: new Date(),
+      }),
     },
   },
 }));
@@ -136,7 +172,7 @@ jest.mock('jsonwebtoken', () => ({
   verify: jest.fn().mockReturnValue({ userId: '1', jti: 'session123' }),
 }));
 
-// Fixed axios mock - use default export mock
+// Fixed axios mock
 const mockAxios = jest.fn();
 const mockAxiosPost = jest.fn();
 const mockAxiosGet = jest.fn();
@@ -159,7 +195,7 @@ jest.mock('google-auth-library', () => ({
 }));
 
 let usernameCounter = 0;
-jest.mock('../application/utils/tweets/utils', () => ({
+jest.mock('../application/utils/utils', () => ({
   SendEmailSmtp: jest.fn().mockResolvedValue(true),
   SendRes: jest.fn((res: any, data: any) => res.json(data)),
   generateUsername: jest.fn().mockImplementation((name: string) => {
@@ -174,6 +210,15 @@ jest.mock('../application/utils/tweets/utils', () => ({
   SetSession: jest.fn().mockResolvedValue(true),
   Sendlocation: jest.fn().mockResolvedValue({ City: 'Cairo', Country: 'Egypt' }),
   AddPasswordHistory: jest.fn().mockResolvedValue(true),
+  Attempts: jest.fn().mockResolvedValue(false),
+  IncrAttempts: jest.fn().mockResolvedValue(true),
+  RestAttempts: jest.fn().mockResolvedValue(true),
+  ResetAttempts: jest.fn().mockResolvedValue(false),
+  IncrResetAttempts: jest.fn().mockResolvedValue(true),
+  RsetResetAttempts: jest.fn().mockResolvedValue(true),
+  ValidateToken: jest.fn().mockReturnValue({ ok: true, payload: { id: '1', jti: 'session123' } }),
+  AnalisePass: jest.fn().mockReturnValue({ score: 4 }),
+  NotOldPassword: jest.fn().mockResolvedValue('0'),
 }));
 
 jest.mock('../config/secrets', () => ({
@@ -193,6 +238,7 @@ jest.mock('../config/secrets', () => ({
     FRONTEND_URL: 'http://localhost:3000',
     JWT_SECRET: 'mock-jwt-secret',
   }),
+  loadSecrets: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../background/jobs/emailJobs', () => ({
@@ -202,6 +248,14 @@ jest.mock('../background/jobs/emailJobs', () => ({
 
 jest.mock('../application/services/notification', () => ({
   addNotification: jest.fn().mockResolvedValue(true),
+}));
+
+jest.mock('../api/controllers/notificationController', () => ({
+  addNotification: jest.fn((_, data, callback) => callback?.(null)),
+  getNotificationList: jest.fn((req, res) => res.json([])),
+  getMentionNotifications: jest.fn((req, res) => res.json([])),
+  getUnseenNotificationsCount: jest.fn((req, res) => res.json({ count: 0 })),
+  getUnseenNotifications: jest.fn((req, res) => res.json([])),
 }));
 
 import request from "supertest";
@@ -431,7 +485,6 @@ describe("OAuth Routes - Complete Integration Test Suite", () => {
         expect(res.body.token).toBeDefined();
         expect(res.body.refreshToken).toBeDefined();
       }
-      // Accept 404 if route doesn't exist
       expect([200, 400, 401, 404, 500]).toContain(res.statusCode);
     });
 
@@ -442,11 +495,9 @@ describe("OAuth Routes - Complete Integration Test Suite", () => {
         .post(oauth("/callback/android_google"))
         .send({ idToken: token });
       
-      // Only check if route exists and succeeded
       if (res.statusCode === 200) {
         expect(redisClient.set).toHaveBeenCalled();
       } else {
-        // If route doesn't exist, test passes
         expect([200, 404]).toContain(res.statusCode);
       }
     });

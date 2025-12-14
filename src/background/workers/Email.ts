@@ -17,16 +17,16 @@ import { bullRedisConfig } from "../config/redis";
 import nodemailer from "nodemailer";
 
 async function startWorker() {
-  console.log("🚀 [emails.worker] Starting email worker...");
+  console.log(" [emails.worker] Starting email worker...");
 
   await initRedis();
-  console.log("✅ [emails.worker] Redis initialized");
+  console.log(" [emails.worker] Redis initialized");
 
   await loadSecrets();
-  console.log("✅ [emails.worker] Secrets loaded");
+  console.log(" [emails.worker] Secrets loaded");
 
   const { Mail_email, Mail_password } = getSecrets();
-  console.log("✅ [emails.worker] Email credentials loaded:", Mail_email);
+  console.log(" [emails.worker] Email credentials loaded:", Mail_email);
 
   const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -38,12 +38,12 @@ async function startWorker() {
     },
   });
 
-  console.log("✅ [emails.worker] Transporter created");
+  console.log(" [emails.worker] Transporter created");
 
   const emailWorker = new Worker<EmailJobData>(
     "emails",
     async (job) => {
-      console.log("📧 [emails.worker] Processing job:", job.id, "to:", job.data.to);
+      console.log(" [emails.worker] Processing job:", job.id, "to:", job.data.to);
 
       const { to, subject, message, templateType } = job.data;
 
@@ -55,16 +55,16 @@ async function startWorker() {
           text: message,
         };
 
-        console.log("📤 [emails.worker] Sending email...");
+        console.log(" [emails.worker] Sending email...");
         await transporter.sendMail(mailOptions);
 
         console.log(
-          `✅ [emails.worker] Email sent! Job: ${job.name}, ID: ${job.id}, To: ${to}, Template: ${templateType}`
+          ` [emails.worker] Email sent! Job: ${job.name}, ID: ${job.id}, To: ${to}, Template: ${templateType}`
         );
 
         return { success: true, to, templateType };
       } catch (error) {
-        console.error(`❌ [emails.worker] Failed to send email to ${to}:`, error);
+        console.error(` [emails.worker] Failed to send email to ${to}:`, error);
         throw error;
       }
     },
@@ -75,21 +75,21 @@ async function startWorker() {
   );
 
   emailWorker.on("completed", (job) => {
-    console.log(`✅ [emails.worker] Job completed: ${job.name}, ID: ${job.id}, To: ${job.data.to}`);
+    console.log(` [emails.worker] Job completed: ${job.name}, ID: ${job.id}, To: ${job.data.to}`);
   });
 
   emailWorker.on("failed", (job, err) => {
-    console.error(`❌ [emails.worker] Job failed: ${job?.id}`, err);
+    console.error(` [emails.worker] Job failed: ${job?.id}`, err);
   });
 
   emailWorker.on("error", (err) => {
-    console.error("❌ [emails.worker] Worker error:", err);
+    console.error(" [emails.worker] Worker error:", err);
   });
 
-  console.log("✅ [emails.worker] Email worker started successfully and waiting for jobs");
+  console.log(" [emails.worker] Email worker started successfully and waiting for jobs");
 }
 
 startWorker().catch((err) => {
-  console.error("❌ [emails.worker] Failed to start:", err);
+  console.error(" [emails.worker] Failed to start:", err);
   process.exit(1);
 });

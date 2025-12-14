@@ -114,17 +114,17 @@ export const chatSearchWorker = new Worker<ChatSearchJobData>(
  */
 async function processFullIndex(data: FullChatIndexJob): Promise<string> {
   const { userId } = data;
-  console.log(`🔄 Starting full chat index for user ${userId}...`);
+  console.log(` Starting full chat index for user ${userId}...`);
   const startTime = Date.now();
 
   try {
     // Clear existing index
     chatIndexer.clear();
-    console.log("🧹 Cleared existing chat index");
+    console.log(" Cleared existing chat index");
 
     // First pass: collect all user IDs
     const allUserIds: string[] = [];
-    console.log("👥 Collecting user IDs...");
+    console.log(" Collecting user IDs...");
 
     for await (const batch of chatCrawler.crawlChatUsersInBatches(
       userId,
@@ -134,12 +134,12 @@ async function processFullIndex(data: FullChatIndexJob): Promise<string> {
     }
 
     // Get unread message counts for all users
-    console.log("📬 Fetching unread message counts...");
+    console.log("Fetching unread message counts...");
     const unreadCounts = await chatCrawler.getUnreadCounts(userId, allUserIds);
 
     // Second pass: index all users with unread status
     let userCount = 0;
-    console.log("📝 Indexing chat users...");
+    console.log(" Indexing chat users...");
 
     for await (const batch of chatCrawler.crawlChatUsersInBatches(
       userId,
@@ -153,21 +153,21 @@ async function processFullIndex(data: FullChatIndexJob): Promise<string> {
       userCount += batch.length;
 
       if (userCount % 5000 === 0) {
-        console.log(`  ⏳ Indexed ${userCount} chat users...`);
+        console.log(`   Indexed ${userCount} chat users...`);
       }
     }
 
     // Save to Redis with user-specific key
-    console.log("💾 Saving chat index to Redis...");
+    console.log(" Saving chat index to Redis...");
     await chatSearchEngine.saveIndex(`chat_search_index:${userId}`);
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    const message = `✅ Chat index complete for user ${userId} in ${duration}s (${userCount} users)`;
+    const message = ` Chat index complete for user ${userId} in ${duration}s (${userCount} users)`;
     console.log(message);
 
     return message;
   } catch (error) {
-    console.error(`❌ Chat index failed for user ${userId}:`, error);
+    console.error(` Chat index failed for user ${userId}:`, error);
     throw error;
   }
 }
@@ -230,7 +230,7 @@ async function processIncrementalUpdate(
 
     return message;
   } catch (error) {
-    console.error("❌ Incremental update failed:", error);
+    console.error(" Incremental update failed:", error);
     throw error;
   }
 }
@@ -240,7 +240,7 @@ async function processIncrementalUpdate(
  */
 async function processUpdateUnread(data: UpdateUnreadJob): Promise<string> {
   const { userId, unreadMap } = data;
-  console.log(`📬 Updating unread counts for user ${userId}...`);
+  console.log(` Updating unread counts for user ${userId}...`);
 
   try {
     // Load user's index
@@ -260,12 +260,12 @@ async function processUpdateUnread(data: UpdateUnreadJob): Promise<string> {
     // Save updated index
     await chatSearchEngine.saveIndex(`chat_search_index:${userId}`);
 
-    const message = `✅ Updated unread counts for user ${userId}`;
+    const message = ` Updated unread counts for user ${userId}`;
     console.log(message);
 
     return message;
   } catch (error) {
-    console.error(`❌ Failed to update unread counts for ${userId}:`, error);
+    console.error(` Failed to update unread counts for ${userId}:`, error);
     throw error;
   }
 }
@@ -275,7 +275,7 @@ async function processUpdateUnread(data: UpdateUnreadJob): Promise<string> {
  */
 async function processFollowChange(data: FollowChangeJob): Promise<string> {
   const { userId, targetUserId, action } = data;
-  console.log(`🔄 Follow change: ${userId} ${action} ${targetUserId}`);
+  console.log(` Follow change: ${userId} ${action} ${targetUserId}`);
 
   try {
     // Enqueue full index jobs for both users
@@ -289,12 +289,12 @@ async function processFollowChange(data: FollowChangeJob): Promise<string> {
       userId: targetUserId,
     });
 
-    const message = `✅ Queued index rebuild for users ${userId} and ${targetUserId}`;
+    const message = ` Queued index rebuild for users ${userId} and ${targetUserId}`;
     console.log(message);
 
     return message;
   } catch (error) {
-    console.error(`❌ Failed to handle follow change:`, error);
+    console.error(` Failed to handle follow change:`, error);
     throw error;
   }
 }
@@ -302,31 +302,31 @@ async function processFollowChange(data: FollowChangeJob): Promise<string> {
 // Worker event handlers
 
 chatSearchWorker.on("completed", (job) => {
-  console.log(`✅ Job ${job.id} completed:`, job.returnvalue);
+  console.log(` Job ${job.id} completed:`, job.returnvalue);
 });
 
 chatSearchWorker.on("failed", (job, err) => {
-  console.error(`❌ Job ${job?.id} failed:`, err.message);
+  console.error(`Job ${job?.id} failed:`, err.message);
 });
 
 chatSearchWorker.on("error", (err) => {
-  console.error("❌ Worker error:", err);
+  console.error(" Worker error:", err);
 });
 
 chatSearchWorker.on("stalled", (jobId) => {
-  console.warn(`⚠️ Job ${jobId} stalled`);
+  console.warn(` Job ${jobId} stalled`);
 });
 
 // Graceful shutdown
 process.on("SIGTERM", async () => {
-  console.log("🛑 SIGTERM received, closing chat search worker...");
+  console.log(" SIGTERM received, closing chat search worker...");
   await chatSearchWorker.close();
   await connection.quit();
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
-  console.log("🛑 SIGINT received, closing chat search worker...");
+  console.log(" SIGINT received, closing chat search worker...");
   await chatSearchWorker.close();
   await connection.quit();
   process.exit(0);
@@ -342,7 +342,7 @@ export async function enqueueFullChatIndex(userId: string): Promise<void> {
     type: "full-index",
     userId,
   });
-  console.log(`📋 Enqueued full chat index job for user ${userId}`);
+  console.log(` Enqueued full chat index job for user ${userId}`);
 }
 
 /**
@@ -355,7 +355,7 @@ export async function enqueueIncrementalUpdate(
     type: "incremental-update",
     userIds,
   });
-  console.log("📋 Enqueued incremental chat update job");
+  console.log(" Enqueued incremental chat update job");
 }
 
 /**
@@ -370,7 +370,7 @@ export async function enqueueUpdateUnread(
     userId,
     unreadMap,
   });
-  console.log(`📋 Enqueued unread update job for user ${userId}`);
+  console.log(` Enqueued unread update job for user ${userId}`);
 }
 
 /**
@@ -387,7 +387,7 @@ export async function enqueueFollowChange(
     targetUserId,
     action,
   });
-  console.log(`📋 Enqueued follow change job: ${userId} ${action} ${targetUserId}`);
+  console.log(` Enqueued follow change job: ${userId} ${action} ${targetUserId}`);
 }
 
 /**
@@ -408,7 +408,7 @@ export async function scheduleIncrementalUpdates(): Promise<void> {
     }
   );
 
-  console.log("⏰ Scheduled incremental chat updates (every 60 seconds)");
+  console.log(" Scheduled incremental chat updates (every 60 seconds)");
 }
 
-console.log("✅ Chat search worker initialized");
+console.log(" Chat search worker initialized");
