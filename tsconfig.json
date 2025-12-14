@@ -4,31 +4,20 @@
     "module": "commonjs",
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "rootDir": ".",
+    "rootDir": "src",
     "outDir": "dist",
     "strict": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    },
+    "baseUrl": "./src",
+    "paths": { "@/*": ["*"] },
     "types": ["node", "express", "jest"],
-    "typeRoots": ["./node_modules/@types", "./src/types"],
-    "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true
+    "typeRoots": ["./node_modules/@types", "./src/types"]
   },
   "include": [
     "src/**/*",
     "src",
     "src/types/express.d.ts",
-    "src/types/**/*.d.ts",
-    "prisma/**/*"
+    "src/types/**/*.d.ts"
   ],
-  "exclude": ["node_modules", "dist"],
-  "ts-node": {
-    "require": ["tsconfig-paths/register"],
-    "compilerOptions": {
-      "module": "commonjs"
-    }
-  }
+  "exclude": ["node_modules", "dist"]
 }
