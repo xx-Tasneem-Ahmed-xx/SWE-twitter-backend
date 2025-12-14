@@ -2,12 +2,8 @@ import { Worker } from "bullmq";
 import { redisClient, initRedis } from "../../config/redis";
 import { bullRedisConfig } from "../config/redis";
 import { prisma } from "@/prisma/client";
-<<<<<<< HEAD
-import { loadSecrets } from "../../config/secrets";
-=======
 import { loadSecrets } from "@/config/secrets";
 import { sendSSEMessage } from "@/application/services/ServerSideEvents";
->>>>>>> 3534ee9f5d7b20f2e807b00aaa2746d91a47d014
 
 async function startWorker() {
   await initRedis();
