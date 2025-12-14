@@ -1,20 +1,11 @@
 import { NextFunction, Request, Response } from "express";
 import { prisma } from "@/prisma/client";
-import { NotificationInputSchema } from "@/application/dtos/notification/notification.dto.schema";
+import * as responseUtils from "@/application/utils/response.utils";
 import { socketService } from "../../app";
-import { sendPushNotification } from "@/application/services/FCMService";
-import { UUID } from "crypto";
-import { z } from "zod";
 import { NotificationTitle } from "@prisma/client";
-import { AppError } from "@/errors/AppError";
-import type { NotificationJobData } from "@/background/types/jobs";
-import { redisClient } from "@/config/redis";
-import { enqueueNewNotificationJob } from "@/background/jobs/notificationsJob";
-import {
-  addNotification,
-  sendOverFCM,
-  sendOverSocket,
-} from "@/application/services/notification";
+
+
+
 export const getNotificationList = async (
   req: Request,
   res: Response,
@@ -26,7 +17,7 @@ export const getNotificationList = async (
       where: { id: userId },
     });
     if (!user) {
-      throw new AppError("Unauthorized", 401);
+      responseUtils.throwError("UNAUTHORIZED_ACCESS");
     }
     await prisma.user.update({
       where: { id: userId },
@@ -40,6 +31,8 @@ export const getNotificationList = async (
           select: {
             name: true,
             profileMediaId: true,
+            username: true,
+            id: true,
           },
         },
       },
@@ -48,6 +41,34 @@ export const getNotificationList = async (
     return res.status(200).json({ notifications });
   } catch (error) {
     console.error("Error fetching notifications:", error);
+    next(error);
+  }
+};
+
+export const getMentionNotifications = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = (req as any).user.id;
+    const mentionNotifications = await prisma.notification.findMany({
+      where: { userId, title: NotificationTitle.MENTION},
+      orderBy: { createdAt: "desc" },
+      include: {
+        actor: {
+          select: {
+            name: true,
+            profileMediaId: true,
+            username: true,
+            id: true,
+          },
+        },
+      },
+    });
+    return res.status(200).json({ mentionNotifications });
+  } catch (error) {
+    console.error("Error fetching mention notifications:", error);
     next(error);
   }
 };
@@ -64,10 +85,10 @@ export const getUnseenNotificationsCount = async (
     });
 
     if (!user) {
-      throw new AppError("Unauthorized", 401);
+      responseUtils.throwError("UNAUTHORIZED_ACCESS");
     }
 
-    const unseenCount = user.unseenNotificationCount || 0;
+    const unseenCount = user!.unseenNotificationCount || 0;
     return res.status(200).json({ unseenCount });
   } catch (error) {
     next(error);
@@ -82,7 +103,7 @@ export const getUnseenNotifications = async (
   try {
     const userId = (req as any).user.id;
     if (!userId) {
-      throw new AppError("Unauthorized", 401);
+      responseUtils.throwError("UNAUTHORIZED_USER");
     }
     await prisma.user.update({
       where: { id: userId },
@@ -90,6 +111,16 @@ export const getUnseenNotifications = async (
     });
     const unseenNotifications = await prisma.notification.findMany({
       where: { userId, isRead: false },
+      include: {
+        actor: {
+          select: {
+            name: true,
+            profileMediaId: true,
+            username: true,
+            id: true,
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
     return res.status(200).json({ unseenNotifications });
@@ -99,48 +130,27 @@ export const getUnseenNotifications = async (
   }
 };
 
-export const markNotificationsAsRead = async (notificationId: string) => {
+export const markNotificationsAsRead = async (userId: string) => {
   try {
-    const userId = (
-      await prisma.notification.findUnique({
-        where: { id: notificationId },
-        select: { userId: true },
-      })
-    )?.userId;
-    const updatedNotification = await prisma.notification.update({
-      where: { id: notificationId },
+   
+    await prisma.notification.updateMany({
+      where: { userId, isRead: false },
       data: { isRead: true },
     });
-    if (updatedNotification) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          unseenNotificationCount: {
-            decrement: 1,
-          },
-        },
-      });
-    }
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        unseenNotificationCount: 0
+      },
+    });
+    socketService.sendUnseenNotificationsCount(
+      userId,
+      0
+    );
+    return;
   } catch (error) {
     console.error("Error marking notifications as read:", error);
     return error;
   }
 };
 
-export const addNotificationController = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const recipientId = req.params.recipientId;
-    const notificationData = req.body;
-    const data = NotificationInputSchema.parse(notificationData);
-
-    await addNotification(recipientId, data);
-
-    res.status(200).json({ message: "Notification sent successfully" });
-  } catch (error) {
-    next(error);
-  }
-};

@@ -1,5 +1,5 @@
-import path from "path";
-import fs from "fs";
+import path from "node:path";
+import fs from "node:fs";
 import swaggerJsdoc from "swagger-jsdoc";
 import {
   OpenAPIRegistry,
@@ -17,9 +17,10 @@ import { registerChatDocs } from "@/docs/chats";
 import { registerMediaDocs } from "@/docs/media";
 import { registerUserDocs } from "@/docs/users";
 import { registerNotificationDocs } from "@/docs/notification";
-
+import { registerExploreDocs } from "@/docs//explore";
 const registry = new OpenAPIRegistry();
 registerTweetDocs(registry);
+registerExploreDocs(registry);
 registerTimelineAndExploreDocs(registry);
 registerUserInteractionsDocs(registry);
 registerHashtagAndTrendsDocs(registry);
@@ -77,12 +78,12 @@ const jsdocSpec = swaggerJsdoc(jsdocOptions) as OpenAPIObject;
 const mergedDoc: OpenAPIObject = {
   ...zodDoc,
   paths: {
-    ...(zodDoc.paths || {}),
-    ...(jsdocSpec.paths || {}),
+    ...zodDoc.paths,
+    ...jsdocSpec.paths,
   },
   components: {
-    ...(zodDoc.components || {}),
-    ...(jsdocSpec.components || {}),
+    ...zodDoc.components,
+    ...jsdocSpec.components,
   },
 };
 

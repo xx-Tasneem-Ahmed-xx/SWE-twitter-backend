@@ -2,9 +2,9 @@
 // FIX: Added necessary imports from 'express' and 'GeoData' from 'utils'
 import { Request, Response, NextFunction } from "express"; // <-- FIX: Import NextFunction
 // import { prisma } from "../../database.js";
-import * as utils from "../../application/utils/tweets/utils";
+import * as utils from "../../application/utils/utils";
 import { redisClient } from "../../config/redis";
-import { GeoData } from "../../application/utils/tweets/utils"; // <-- FIX: Import GeoData
+import { GeoData } from "../../application/utils/utils"; // <-- FIX: Import GeoData
 
 // Custom request interface to safely access IP properties
 // FIX: Removed conflicting standard Express properties (ip, connection, socket)
@@ -19,24 +19,33 @@ interface RequestWithIP extends Request {
  * - Blocks requests from Ukraine or Russia (same message as Go)
  */
 export default function GeoGurd() {
-  return async function (req: RequestWithIP, res: Response, next: NextFunction): Promise<void | Response> {
+  return async function (
+    req: RequestWithIP,
+    res: Response,
+    next: NextFunction
+  ): Promise<void | Response> {
     try {
       // Access standard properties from the base Request type
-      const remoteAddr: string | undefined = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress;
-      
+      const remoteAddr: string | undefined =
+        req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress;
+
       // Use the imported function utils.Sendlocation
-      const data: GeoData | null = await utils.Sendlocation(remoteAddr).catch(() => null); 
-      
+      const data: GeoData | null = await utils
+        .Sendlocation(remoteAddr)
+        .catch(() => null);
+
       if (!data) return next("something went wrong"); // If no geo data, allow request (same as Go)
 
       // Check both 'Country' (from GeoData interface) and 'country' (just in case of inconsistency)
-      const country: string = data.Country || (data as any).country || ""; 
-      
+      const country: string = data.Country || (data as any).country || "";
+
       if (country === "Ukraine" || country === "Russia") {
         // Exactly matches text from Go (intentionally explicit)
-        return next(new Error("access from your location is restricted,fuck u"));
+        return next(
+          new Error("access from your location is restricted,fuck u")
+        );
       }
-      
+
       next();
     } catch (err) {
       console.error("GeoGurd error:", err);

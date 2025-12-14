@@ -13,10 +13,23 @@ async function startWorker() {
   const hashtagWorker = new Worker<HashtagJobData>(
     "hashtags",
     async (job) => {
+      const { tweetId, content } = job.data;
+
+      const tweetExists = await prisma.tweet.findUnique({
+        where: { id: tweetId },
+        select: { id: true },
+      });
+
+      if (!tweetExists) {
+        throw new Error(
+          `Tweet ${tweetId} not found (attempt ${job.attemptsMade + 1}/${
+            job.opts.attempts || 3
+          }) - transaction may not be committed yet`
+        );
+      }
+
       switch (job.name) {
         case "extract": {
-          const { tweetId, content } = job.data;
-
           await prisma.$transaction(async (tx) => {
             await attachHashtagsToTweet(tweetId, content, tx);
           });
@@ -25,7 +38,6 @@ async function startWorker() {
         }
 
         case "categorize-tweet": {
-          const { tweetId, content } = job.data;
           const { default: tweetService } = await import(
             "../../application/services/tweets"
           );

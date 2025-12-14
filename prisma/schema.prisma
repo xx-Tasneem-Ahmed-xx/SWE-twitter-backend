@@ -132,6 +132,7 @@ model Tweet {
   repliesCount   Int          @default(0)
   quotesCount    Int          @default(0)
   replyControl   ReplyControl @default(EVERYONE)
+  score          Float        @default(0)
   parentId       String?
   tweetType      TweetType
 
@@ -148,7 +149,6 @@ model Tweet {
   Notification    Notification[]
   notInteresteds  NotInterested[]
   spamReports     SpamReport[]
-  category        Category[]
   tweetCategories TweetCategory[]
 
   @@unique([lastActivityAt, id])
@@ -398,8 +398,8 @@ model NotInterested {
   userId    String
   tweetId   String
 
-  user  User  @relation(fields: [userId], references: [id])
-  tweet Tweet @relation(fields: [tweetId], references: [id])
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
 }
 
 model SpamReport {
@@ -409,8 +409,8 @@ model SpamReport {
   reporterId String
   tweetId    String
 
-  reporter User  @relation(fields: [reporterId], references: [id])
-  tweet    Tweet @relation(fields: [tweetId], references: [id])
+  reporter User  @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  tweet    Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
 }
 
 model Category {
@@ -418,7 +418,6 @@ model Category {
   name            String          @unique
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
-  tweets          Tweet[]
   users           User[]          @relation("UserPreferredCategories")
   tweetCategories TweetCategory[]
 }
@@ -427,11 +426,11 @@ model TweetCategory {
   tweetId    String
   categoryId String
 
-  tweet    Tweet    @relation(fields: [tweetId], references: [id])
-  category Category @relation(fields: [categoryId], references: [id])
+  tweet    Tweet    @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@id([tweetId, categoryId])
-  @@map("tweet_categories")
+  @@map("tweetCategories")
 }
 
 enum ReplyControl {

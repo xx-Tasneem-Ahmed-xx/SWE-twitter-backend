@@ -1,31 +1,28 @@
+// hashtagservice.ts
 import { extractHashtags } from "twitter-text";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/prisma/client";
 import { AppError } from "@/errors/AppError";
 import { redisClient } from "@/config/redis";
 import { encoderService } from "@/application/services/encoder";
-import tweetService from "@/application/services/tweets";
+import * as utils from "@/application/utils/hashtag.utils";
+import { fetchWhoToFollow } from "@/application/services/userInteractions";
+import { ExploreService } from "@/application/services/explore";
+import {
+  checkUserInteractions,
+  tweetSelectFields,
+} from "@/application/utils/tweet.utils";
 
 // Trends configuration constants
-const TRENDS_CACHE_KEY = "trends:global";
-const TRENDS_CACHE_TTL = 60 * 30; // 30 minutes in seconds
-const TRENDS_LIMIT = 30; // Top 30 trends
-const TREND_PERIOD_HOURS = 24; // Last 24 hours
+const TRENDS_CACHE_TTL = 60 * 15;
+const TRENDS_LIMIT = 30;
+const TREND_PERIOD_HOURS = 24;
+const TREND_CACHE_KEY = (category: utils.TrendCategory) =>
+  `trends:category:${category.toLowerCase()}`;
 
-// Trend data structure
-export type TrendData = {
-  id: string; // Encoded hashtag ID
-  hashtag: string;
-  tweetCount: number;
-  likesCount: number;
-  score: number;
-  rank: number;
-};
-
-// Extracts and normalizes hashtags from the given text.
+// Extracts and normalizes hashtags from text
 export function extractAndNormalizeHashtags(text?: string | null): string[] {
   if (!text) return [];
-
   const rawTags = extractHashtags(text) || [];
   const seen = new Set<string>();
   const normalized: string[] = [];
@@ -33,8 +30,7 @@ export function extractAndNormalizeHashtags(text?: string | null): string[] {
   for (const raw of rawTags) {
     if (!raw) continue;
     const tag = raw.trim().toLowerCase();
-    if (tag.length === 0) continue;
-    if (tag.length > 100) continue;
+    if (!tag || tag.length > 100) continue;
     if (!seen.has(tag)) {
       seen.add(tag);
       normalized.push(tag);
@@ -43,56 +39,56 @@ export function extractAndNormalizeHashtags(text?: string | null): string[] {
   return normalized;
 }
 
-// Helper: find existing hashes for a set of tags
+// Find existing hashes
 export async function findExistingHashes(
   tx: Prisma.TransactionClient,
   tags: string[]
 ) {
-  if (!tags || tags.length === 0)
-    return [] as { id: string; tag_text: string }[];
+  if (!tags.length) return [];
   return tx.hash.findMany({
     where: { tag_text: { in: tags } },
     select: { id: true, tag_text: true },
   });
 }
 
-// Helper: create missing hashes in batch (skipDuplicates to tolerate races)
+// Create missing hashes in batch
 export async function createMissingHashes(
   tx: Prisma.TransactionClient,
   missingTags: string[]
 ) {
-  if (!missingTags || missingTags.length === 0) return;
+  if (!missingTags.length) return;
   await tx.hash.createMany({
     data: missingTags.map((tag) => ({ tag_text: tag })),
     skipDuplicates: true,
   });
 }
 
-// Helper: get all hashes (id + tag_text) for a set of tags
+// Get all hashes by tags
 export async function getAllHashesByTags(
   tx: Prisma.TransactionClient,
   tags: string[]
 ) {
-  if (!tags || tags.length === 0)
-    return [] as { id: string; tag_text: string }[];
+  if (!tags.length) return [];
   return tx.hash.findMany({
     where: { tag_text: { in: tags } },
     select: { id: true, tag_text: true },
   });
 }
 
-// Helper: create tweet-hash relations in batch
+// Create tweet-hash relations
 export async function createTweetHashRelations(
   tx: Prisma.TransactionClient,
   tweetId: string,
   hashRows: { id: string; tag_text: string }[]
 ) {
-  if (!hashRows || hashRows.length === 0) return;
-  const tweetHashRows = hashRows.map((h) => ({ tweetId, hashId: h.id }));
-  await tx.tweetHash.createMany({ data: tweetHashRows, skipDuplicates: true });
+  if (!hashRows.length) return;
+  await tx.tweetHash.createMany({
+    data: hashRows.map((h) => ({ tweetId, hashId: h.id })),
+    skipDuplicates: true,
+  });
 }
 
-// Attach hashtags found in the text to the given tweet
+// Attach hashtags to a tweet
 export async function attachHashtagsToTweet(
   tweetId: string,
   text: string | null | undefined,
@@ -103,7 +99,7 @@ export async function attachHashtagsToTweet(
     throw new AppError("Server Error: transaction client is required", 500);
 
   const tags = extractAndNormalizeHashtags(text);
-  if (!tags || tags.length === 0) return;
+  if (!tags.length) return;
 
   const existing = await findExistingHashes(tx, tags);
   const existingSet = new Set(existing.map((h) => h.tag_text));
@@ -115,27 +111,42 @@ export async function attachHashtagsToTweet(
   await createTweetHashRelations(tx, tweetId, allHashes);
 }
 
-// Calculate trends for a given period.
+// -------------------- Trends --------------------
+
+// Calculate trends
 export async function calculateTrends(
-  periodHours: number = TREND_PERIOD_HOURS,
-  options?: { matchingIds?: string[]; limit?: number }
-): Promise<TrendData[]> {
+  category: utils.TrendCategory,
+  options?: {
+    matchingIds?: string[];
+    limit?: number;
+  },
+  periodHours: number = TREND_PERIOD_HOURS
+): Promise<utils.TrendData[]> {
   const cutoffDate = new Date();
   cutoffDate.setHours(cutoffDate.getHours() - periodHours);
-
   const whereClause: any = {
-    tweet: { createdAt: { gte: cutoffDate } },
+    tweet: {
+      createdAt: { gte: cutoffDate },
+      ...(category === utils.TrendCategory.Global
+        ? {}
+        : {
+            tweetCategories: {
+              some: {
+                category: {
+                  name: category,
+                },
+              },
+            },
+          }),
+    },
   };
-
-  if (options?.matchingIds && options.matchingIds.length > 0) {
+  if (options?.matchingIds?.length) {
     whereClause.hashId = { in: options.matchingIds };
   }
-
   const relations = await prisma.tweetHash.findMany({
     where: whereClause,
     select: { hashId: true, tweet: { select: { likesCount: true } } },
   });
-
   const agg = new Map<string, { tweetCount: number; likesSum: number }>();
   for (const r of relations) {
     const cur = agg.get(r.hashId) || { tweetCount: 0, likesSum: 0 };
@@ -143,203 +154,228 @@ export async function calculateTrends(
     cur.likesSum += r.tweet?.likesCount ?? 0;
     agg.set(r.hashId, cur);
   }
-
   const entries = Array.from(agg.entries()).map(([hashId, v]) => ({
     hashId,
     tweetCount: v.tweetCount,
     likesSum: v.likesSum,
   }));
 
-  if (entries.length === 0) return [];
+  if (!entries.length) return [];
 
-  const maxTweet = Math.max(...entries.map((e) => e.tweetCount));
-  const maxLikes = Math.max(...entries.map((e) => e.likesSum));
-
-  const tweetWeight = 0.63;
-  const likesWeight = 0.37;
-
-  entries.forEach((e) => {
-    const tweetNorm = maxTweet > 0 ? e.tweetCount / maxTweet : 0;
-    const likesNorm = maxLikes > 0 ? e.likesSum / maxLikes : 0;
-    (e as any).score = tweetNorm * tweetWeight + likesNorm * likesWeight;
-  });
-
-  entries.sort((a, b) => (b as any).score - (a as any).score);
-
-  const take = options?.limit ?? TRENDS_LIMIT;
-  const top = entries.slice(0, take);
-
-  const hashIds = top.map((t) => t.hashId);
-  const hashes = await prisma.hash.findMany({
-    where: { id: { in: hashIds } },
-    select: { id: true, tag_text: true },
-  });
-  const hashMap = new Map(hashes.map((h) => [h.id, h.tag_text]));
-
-  const trends: TrendData[] = top
-    .map((item, index) => {
-      const hashtag = hashMap.get(item.hashId) || "";
-      if (!hashtag) return null;
-
-      return {
-        id: encoderService.encode(item.hashId),
-        hashtag,
-        tweetCount: item.tweetCount,
-        likesCount: item.likesSum,
-        score: Number(((item as any).score ?? 0).toFixed(4)),
-        rank: index + 1,
-      };
-    })
-    .filter((t): t is TrendData => t !== null);
-
-  return trends;
+  const scored = utils.calculateTrendScores(entries);
+  const limited = utils.sortAndTake(scored, options?.limit ?? TRENDS_LIMIT);
+  return utils.mapToTrendData(limited, prisma);
 }
 
-// Cache a list of trends and set updatedAt timestamp
-export async function cacheTrends(trends: TrendData[]) {
-  const cacheData = { trends, updatedAt: new Date().toISOString() };
-  await redisClient.setEx(
-    TRENDS_CACHE_KEY,
-    TRENDS_CACHE_TTL,
-    JSON.stringify(cacheData)
-  );
+// Cache trends
+export async function cacheTrends(
+  trends: utils.TrendData[],
+  category: utils.TrendCategory
+) {
+  if (trends.length > 0) {
+    await redisClient.setEx(
+      TREND_CACHE_KEY(category),
+      TRENDS_CACHE_TTL,
+      JSON.stringify({ trends, updatedAt: new Date().toISOString() })
+    );
+  } else {
+    console.warn(
+      `Skipping cache update for ${category} trends - no data to cache`
+    );
+  }
 }
 
-// Backwards-compatible function used by the worker: calculate and cache trends
-export async function calculateAndCacheTrends(
-  periodHours: number = TREND_PERIOD_HOURS
-): Promise<void> {
-  const trends = await calculateTrends(periodHours);
-  await cacheTrends(trends);
-  console.log(`Calculated and cached ${trends.length} trends`);
+// Calculate & cache trends
+export async function calculateAndCacheTrends(category: utils.TrendCategory) {
+  const trends = await calculateTrends(category);
+  await cacheTrends(trends, category);
+  console.log(`Calculated & cached ${trends.length} trends for ${category}`);
 }
 
-// Fetch trends from cache
-export const fetchTrends = async (
-  limit: number = TRENDS_LIMIT,
-  query?: string | null
-) => {
-  if (query && query.trim().length > 0) {
-    const q = query.trim().toLowerCase();
+// -------------------- fetch and worker --------------------
 
-    const matching = await prisma.hash.findMany({
-      where: { tag_text: { startsWith: q, mode: "insensitive" } },
-      select: { id: true, tag_text: true },
-      take: 500,
-    });
-
-    if (!matching || matching.length === 0) {
-      return { trends: [], updatedAt: new Date().toISOString() };
-    }
-    const matchingIds = matching.map((m) => m.id);
-    const trends = await calculateTrends(TREND_PERIOD_HOURS, {
-      matchingIds,
-      limit,
-    });
-    return {
-      trends: trends,
-      updatedAt: new Date().toISOString(),
-    };
-  }
-
-  // No query: use existing cache-first behavior for global trends
-  const cached = await redisClient.get(TRENDS_CACHE_KEY);
-  if (cached) {
-    try {
-      const data = JSON.parse(cached);
-      return {
-        trends: data.trends.slice(0, limit),
-        updatedAt: data.updatedAt,
-      };
-    } catch (err) {
-      console.error("Error parsing cached trends (v2):", err);
-    }
-  }
-
-  // No versioned cache: calculate and cache (cacheTrends will also overwrite legacy key)
-  await calculateAndCacheTrends(TREND_PERIOD_HOURS);
-  const newCached = await redisClient.get(TRENDS_CACHE_KEY);
-  if (newCached) {
-    const data = JSON.parse(newCached);
-    return {
-      trends: data.trends.slice(0, limit),
-      updatedAt: data.updatedAt,
-    };
-  }
-  return {
-    trends: [],
-    updatedAt: new Date().toISOString(),
-  };
-};
-
-// Fetch tweets for a specific hashtag with pagination
+// Fetch tweets for a hashtag
 export const fetchHashtagTweets = async (
   hashtagId: string,
+  userId: string,
   cursor?: { id: string; createdAt: string } | null,
-  limit: number = 30,
-  userId?: string | null
+  limit: number = 30
 ) => {
-  const hash = await prisma.hash.findUnique({
-    where: {
-      id: hashtagId,
-    },
-  });
+  const hash = await prisma.hash.findUnique({ where: { id: hashtagId } });
+  if (!hash) throw new AppError("Hashtag not found", 404);
 
-  if (!hash) {
-    throw new AppError("Hashtag not found", 404);
-  }
-
-  const where: any = {
-    hashId: hash.id,
-  };
-
-  if (cursor) {
-    const cursorDate = new Date(cursor.createdAt);
-    where.tweet = {
-      OR: [
-        { createdAt: { lt: cursorDate } },
-        { AND: [{ createdAt: cursorDate }, { id: { lt: cursor.id } }] },
-      ],
-    };
-  }
-
-  // select the same fields used by the tweet service's `getTweet` response
-  const tweetSelect = (tweetService as any).tweetSelectFields(userId ?? "");
+  const excludedUserIds = await utils.getExcludedUserIds(userId, prisma);
+  const cursorCondition = utils.buildCursorCondition(cursor);
+  const tweetSelect = tweetSelectFields(userId);
 
   const tweetHashes = await prisma.tweetHash.findMany({
-    where,
-    include: {
+    where: {
+      hashId: hash.id,
       tweet: {
-        select: tweetSelect,
+        ...cursorCondition,
+        ...(excludedUserIds.length > 0
+          ? { userId: { notIn: excludedUserIds } }
+          : {}),
       },
     },
+    include: { tweet: { select: tweetSelect } },
     orderBy: [{ tweet: { createdAt: "desc" } }, { tweet: { id: "desc" } }],
     take: limit + 1,
   });
 
   const hasMore = tweetHashes.length > limit;
-  const rows = hasMore ? tweetHashes.slice(0, limit) : tweetHashes;
-  const rawTweets = rows.map((r) => r.tweet);
+  const rawTweets = (hasMore ? tweetHashes.slice(0, limit) : tweetHashes).map(
+    (r) => r.tweet
+  );
+  const nextCursor = utils.buildNextCursor(rawTweets, hasMore, encoderService);
 
-  // reuse tweet service's interaction checker to compute isLiked/isRetweeted/isBookmarked
-  const data = (tweetService as any).checkUserInteractions(rawTweets);
+  const data = checkUserInteractions(rawTweets);
+  return { tweets: data, nextCursor, hasMore };
+};
 
-  const nextCursor = hasMore
-    ? (() => {
-        const lastTweet: any = rawTweets[rawTweets.length - 1];
-        return encoderService.encode({
-          id: lastTweet.id,
-          createdAt:
-            lastTweet && lastTweet.createdAt
-              ? (lastTweet.createdAt as Date).toISOString()
-              : new Date().toISOString(),
-        });
-      })()
-    : null;
+// -------------------- Fetch Trends --------------------
+
+// Helper: Validate and parse category from string
+export function parseCategory(categoryParam: string): utils.TrendCategory {
+  const normalized = categoryParam.toLowerCase();
+  const validCategories = Object.values(utils.TrendCategory);
+
+  const category = validCategories.find(
+    (cat) => cat.toLowerCase() === normalized
+  );
+  if (!category) {
+    throw new AppError(
+      `Invalid category. Must be one of: ${validCategories.join(", ")}`,
+      400
+    );
+  }
+  return category;
+}
+
+// Helper function: read cached data
+export const readCachedData = async (redisKey: string) => {
+  const cached = await redisClient.get(redisKey);
+  if (!cached) return null;
+
+  try {
+    return JSON.parse(cached);
+  } catch (err) {
+    console.error(`Error parsing cached data for key ${redisKey}:`, err);
+    return null;
+  }
+};
+
+// Helper function: get trends from query search
+export const getTrendsFromQuery = async (
+  query: string,
+  limit: number,
+  category: utils.TrendCategory
+) => {
+  const q = query.trim().toLowerCase();
+  const matching = await prisma.hash.findMany({
+    where: { tag_text: { startsWith: q, mode: "insensitive" } },
+    select: { id: true, tag_text: true },
+    take: 500,
+  });
+  if (!matching.length) {
+    return { trends: [], updatedAt: new Date().toISOString() };
+  }
+  const matchingIds = matching.map((m) => m.id);
+  const trends = await calculateTrends(
+    category,
+    { matchingIds, limit },
+    24 * 30
+  );
+  return { trends, updatedAt: new Date().toISOString() };
+};
+
+// fetch trends
+export const fetchTrends = async (
+  query?: string | null,
+  category: utils.TrendCategory = utils.TrendCategory.Global,
+  limit: number = TRENDS_LIMIT
+) => {
+  if (query?.trim()) return getTrendsFromQuery(query, limit, category);
+
+  const cached = await readCachedData(TREND_CACHE_KEY(category));
+  if (cached)
+    return {
+      trends: cached.trends.slice(0, limit),
+      updatedAt: cached.updatedAt,
+    };
+
+  await calculateAndCacheTrends(category);
+  const newCached = await readCachedData(TREND_CACHE_KEY(category));
+  return newCached
+    ? {
+        trends: newCached.trends.slice(0, limit),
+        updatedAt: newCached.updatedAt,
+      }
+    : { trends: [], updatedAt: new Date().toISOString() };
+};
+
+// fetch viral tweets - now uses explore service
+export const fetchViralTweets = async (
+  userId: string,
+  category: utils.TrendCategory = utils.TrendCategory.Global,
+  limit: number = 5
+) => {
+  const exploreService = ExploreService.getInstance();
+
+  const result = await exploreService.getFeed({
+    userId,
+    category: category === utils.TrendCategory.Global ? undefined : category,
+    limit,
+  });
 
   return {
-    tweets: data,
-    nextCursor,
-    hasMore,
+    tweets: result.data,
+    updatedAt: new Date().toISOString(),
   };
 };
+
+// fetch category trending data
+export const fetchCategoryData = async (
+  categoryParam: string | utils.TrendCategory,
+  userId: string
+) => {
+  const category =
+    typeof categoryParam === "string"
+      ? parseCategory(categoryParam)
+      : categoryParam;
+
+  const [trendsData, viralData] = await Promise.all([
+    fetchTrends(null, category),
+    fetchViralTweets(userId, category),
+  ]);
+  return {
+    category,
+    trends: trendsData.trends,
+    viralTweets: viralData.tweets,
+    updatedAt: trendsData.updatedAt,
+  };
+};
+
+// fetch all categories trending data
+export const fetchAllCategoriesData = async (userId: string) => {
+  const categories = Object.values(utils.TrendCategory);
+
+  const [categoriesData, whoToFollow] = await Promise.all([
+    Promise.all(
+      categories.map((category) => fetchCategoryData(category, userId))
+    ),
+    fetchWhoToFollow(userId, 5),
+  ]);
+
+  return {
+    categories: categoriesData,
+    whoToFollow,
+  };
+};
+
+// -------------------- Worker Function --------------------
+export async function TrendingHashtagsAndTweets() {
+  for (const category of Object.values(utils.TrendCategory)) {
+    await calculateAndCacheTrends(category);
+  }
+}

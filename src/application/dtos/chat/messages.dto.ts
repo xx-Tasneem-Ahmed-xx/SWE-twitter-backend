@@ -1,18 +1,10 @@
-import {z} from "zod";
-import type { mediaSchema, messageMediaInput } from "../media/media.schema.dto";
+import type { messageMediaInput } from "../media/media.schema.dto";
 
 
 export class CreateChatInput {
   DMChat?: boolean;
   userId!: string;
 }
-
-// export class MessageAttachment {
-//   name?: string;
-//   url?: string;
-//   size?: number;
-//   type?: string;
-// }
 
 export class MessageData {
   messageMedia?: typeof messageMediaInput[];
@@ -34,4 +26,5 @@ export class newMessageInput {
   data!: MessageData;
   recipientId?: string[];
   chatId?: string;
+  createdAt!: Date;
 }

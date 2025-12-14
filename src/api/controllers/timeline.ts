@@ -1,5 +1,5 @@
-// src/api/controllers/timeline.controller.ts
 import { Request, Response, NextFunction } from "express";
+import * as responseUtils from "@/application/utils/response.utils";
 import { TimelineService } from "@/application/services/timeline";
 import { CursorDTOSchema } from "../../application/dtos/timeline/timeline.dto.schema";
 
@@ -8,10 +8,9 @@ const svc = new TimelineService();
 export class TimelineController {
   async getTimeline(req: Request, res: Response, next: NextFunction) {
     try {
-      //TODO: WHEN LOGIN WORKS
       const userId = (req as any).user?.id;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      // const userId = "00505325-856b-4569-9529-210a1b255989"; // "Jerry Donnelly"
+      if (!userId) responseUtils.throwError("UNAUTHORIZED_USER");
+      // const userId = "11122384-f064-44ec-8036-c60c539dfc53"; // "Jerry Donnelly"
       const parsed = CursorDTOSchema.parse({
         cursor: req.query.cursor,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
@@ -26,10 +25,9 @@ export class TimelineController {
 
   async getForYou(req: Request, res: Response, next: NextFunction) {
     try {
-      //TODO: WHEN LOGIN WORKS
       const userId = (req as any).user?.id;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      // const userId = "00505325-856b-4569-9529-210a1b255989"; // "Charlotte Kuvalis II"
+      if (!userId) responseUtils.throwError("UNAUTHORIZED_USER");
+      // const userId = "11122384-f064-44ec-8036-c60c539dfc53"; // "Charlotte Kuvalis II"
 
       const parsed = CursorDTOSchema.parse({
         cursor: req.query.cursor,

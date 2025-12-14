@@ -1,7 +1,7 @@
 // jobs/emailJobs.ts
 import { emailQueue } from "../queues/index";
 import type { EmailJobData } from "../types/jobs";
-import { emailTemplates } from "../../application/utils/tweets/emailTemplates";
+import { emailTemplates } from "../../application/utils/emailTemplates";
 
 export const enqueueEmailJob = async (payload: EmailJobData) => {
   console.log("[enqueueEmailJob] Adding email job to queue:", payload);

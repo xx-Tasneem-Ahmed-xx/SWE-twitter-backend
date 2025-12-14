@@ -1,10 +1,12 @@
 import { Server as SocketIOServer, Socket } from "socket.io";
 import prisma from "../../database";
-import * as utils from "../utils/tweets/utils";
+import * as utils from "../utils/utils";
 import { redisClient } from "../../config/redis";
 import {
   addMessageToChat,
+  resetUnseenChatCount,
   updateMessageStatus,
+  getChatUsersId,
 } from "@/api/controllers/messagesController";
 import { markNotificationsAsRead } from "@/api/controllers/notificationController";
 import { newMessageInput } from "../dtos/chat/messages.dto";
@@ -36,6 +38,12 @@ export class SocketService {
         socket.data.userId = userId;
 
         this.setupUserEvents(socket, userId);
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        this.sendUnseenNotificationsCount(
+          userId,
+          user?.unseenNotificationCount || 0
+        );
+        this.sendUnseenChatsCount(userId, user?.unseenChatCount || 0);
 
         socket.emit("authenticated", {
           userId,
@@ -120,27 +128,9 @@ export class SocketService {
     }
   }
 
-  public async getAllUsers(chatId: string): Promise<string[]> {
-    const usersId = await prisma.chat.findUnique({
-      where: {
-        id: chatId,
-      },
-      select: {
-        chatUsers: {
-          select: {
-            userId: true,
-          },
-        },
-      },
-    });
-    return (
-      usersId?.chatUsers.map((user: { userId: string }) => user.userId) || []
-    );
-  }
-
   private setupUserEvents(socket: Socket, userId: string): void {
     socket.on("typing", async (data: { chatId: string; isTyping: boolean }) => {
-      const usersId = (await this.getAllUsers(data.chatId)).filter(
+      const usersId = (await getChatUsersId(data.chatId)).filter(
         (id) => id !== userId
       );
       for (const id of usersId) {
@@ -154,7 +144,7 @@ export class SocketService {
 
     socket.on("open-chat", async (data: { chatId: string }) => {
       await updateMessageStatus(data.chatId, userId);
-      const usersId = await this.getAllUsers(data.chatId);
+      const usersId = await getChatUsersId(data.chatId);
 
       for (const id of usersId) {
         if (id !== userId) {
@@ -165,7 +155,7 @@ export class SocketService {
 
     socket.on("open-notification", async (data: { notificationId: string }) => {
       try {
-        await markNotificationsAsRead(data.notificationId);
+        await markNotificationsAsRead(userId);
       } catch (error) {
         console.error("Error marking notification as read:", error);
       }
@@ -174,9 +164,19 @@ export class SocketService {
     socket.on("add-message", async (data: { message: newMessageInput }) => {
       try {
         const messageId = await addMessageToChat(data.message, userId);
-        this.io.to(userId).emit("message-added", { chatId: data.message.chatId, messageId });
+        this.io
+          .to(userId)
+          .emit("message-added", { chatId: data.message.chatId, messageId });
       } catch (error) {
         console.error("Error adding message to chat via socket:", error);
+      }
+    });
+
+    socket.on("open-message-tab", async () => {
+      try {
+        await resetUnseenChatCount(userId);
+      } catch (error) {
+        console.error("Error handling open-message-tab event:", error);
       }
     });
 
@@ -194,8 +194,25 @@ export class SocketService {
     this.io.to(recipientId).emit("notification", notification);
   }
 
+  public sendUnseenNotificationsCount(
+    recipientId: string,
+    count: number
+  ): void {
+    this.io.to(recipientId).emit("unseen-notifications-count", { count });
+  }
+
+  public sendUnseenChatsCount(recipientId: string, count: number): void {
+    console.log("sent unseen chats count");
+
+    this.io.to(recipientId).emit("unseen-chats-count", { count });
+  }
+
   public sendMessageToChat(recipientId: string, message: any): void {
     this.io.to(recipientId).emit("new-message", message);
+  }
+
+  public sendDeletedChatToUser(recipientId: string, chatId: string): void {
+    this.io.to(recipientId).emit("chat-deleted", { chatId });
   }
 
   public getConnectedUsersCount(): number {

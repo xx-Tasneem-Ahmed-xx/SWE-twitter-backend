@@ -1,9 +1,17 @@
 import { Worker } from "bullmq";
+<<<<<<< HEAD
 import { bullRedisConfig } from "../config/redis";
 import { calculateAndCacheTrends } from "../../application/services/hashtags";
 import type { TrendUpdateJobData } from "../types/jobs";
 import { loadSecrets } from "../../config/secrets";
 import { initRedis } from "../../config/redis";
+=======
+import { bullRedisConfig } from "@/background/config/redis";
+import { TrendingHashtagsAndTweets } from "@/application/services/hashtags";
+import type { TrendUpdateJobData } from "@/background/types/jobs";
+import { loadSecrets } from "@/config/secrets";
+import { initRedis } from "@/config/redis";
+>>>>>>> 3534ee9f5d7b20f2e807b00aaa2746d91a47d014
 
 async function startWorker() {
   await initRedis();
@@ -18,7 +26,7 @@ async function startWorker() {
         `[trends.worker] Starting trend calculation for ${periodHours} hours`
       );
 
-      await calculateAndCacheTrends(periodHours);
+      await TrendingHashtagsAndTweets();
 
       return;
     },

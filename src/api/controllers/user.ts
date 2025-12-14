@@ -1,5 +1,4 @@
-
-import * as utils from "../../application/utils/tweets/utils";
+import * as utils from "../../application/utils/utils";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
@@ -264,7 +263,7 @@ export async function Verify_signup_email(
       throw new AppError("Email and code are required", 400);
     }
 
-    const stored: string | null = await redisClient.get(`Signup:code:${email}`);
+    const stored: any = await redisClient.get(`Signup:code:${email}`);
 
     if (!stored) {
       throw new AppError(
@@ -277,9 +276,7 @@ export async function Verify_signup_email(
       throw new AppError("Verification code is incorrect", 401);
     }
 
-    const userJson: string | null = await redisClient.get(
-      `Signup:user:${email}`
-    );
+    const userJson: any = await redisClient.get(`Signup:user:${email}`);
 
     if (!userJson) {
       throw new AppError("User data not found, please sign up again", 400);
@@ -431,9 +428,7 @@ export async function FinalizeSignup(
     const passValidation = await utils.ValidatePassword(password);
     if (passValidation !== "0") throw new AppError(passValidation, 400);
 
-    const userJson: string | null = await redisClient.get(
-      `Signup:verified:${email}`
-    );
+    const userJson: any = await redisClient.get(`Signup:verified:${email}`);
 
     if (!userJson) {
       throw new AppError("You must verify your email first", 400);

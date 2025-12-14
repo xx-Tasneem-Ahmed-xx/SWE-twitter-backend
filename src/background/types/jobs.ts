@@ -10,6 +10,18 @@ export type TrendUpdateJobData = {
   periodHours: number;
 };
 
+export type ExploreJobData = {
+  categoryName: string;
+};
+
+export type TweetScoreUpdate = {
+  tweetId: string;
+};
+
+export type SeedExploreFeedJobData = {
+  tweetIds: string[];
+};
+
 export type NotificationJobData = {
   recipientId: string;
   title: NotificationTitle;
