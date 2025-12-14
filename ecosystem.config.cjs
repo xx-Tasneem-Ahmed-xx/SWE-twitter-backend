@@ -1,4 +1,4 @@
-const path = require("path");
+const path = require("node:path");
 const dotenv = require("dotenv");
 
 module.exports = {
@@ -26,12 +26,14 @@ module.exports = {
       },
     },
     ...[
-      { name: "worker-hashtags", file: "hashtags.ts" },
-      { name: "worker-trends", file: "trends.ts" },
-      { name: "worker-notifications", file: "notifications.ts" },
-      { name: "worker-emails", file: "Email.ts" },
-      { name: "worker-search-indexer", file: "searchIndexer.ts" },
-       { name: "worker-search-chat", file: "chatSearchWorker.ts" },
+      { name: "worker-hashtags", file: "hashtags.js" },
+      { name: "worker-trends", file: "trends.js" },
+      { name: "worker-explore", file: "explore.js" },
+      { name: "worker-notifications", file: "notifications.js" },
+      { name: "worker-emails", file: "Email.js" },
+      { name: "worker-search-indexer", file: "searchIndexer.js" },
+       { name: "worker-search-chat", file: "chatSearchWorker.js" },
+      // add more workers here
     ].map((worker) => ({
       name: worker.name,
       script: path.join("src", "background", "workers", worker.file),

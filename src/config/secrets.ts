@@ -38,7 +38,7 @@ const SECRET_KEYS = [
 type SecretKey = (typeof SECRET_KEYS)[number];
 
 interface Secrets {
-  PORT: String;
+  PORT: string;
   JWT_SECRET: string;
   PEPPER: string;
   DOMAIN: string;

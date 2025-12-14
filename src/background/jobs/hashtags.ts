@@ -6,11 +6,12 @@ import type {
 
 export async function enqueueHashtagJob(payload: HashtagJobData) {
   await hashtagsQueue.add("extract", payload, {
-    attempts: 3,
+    attempts: 5,
     backoff: {
       type: "exponential",
-      delay: 1000,
+      delay: 2000,
     },
+    delay: 4000, 
     removeOnComplete: { count: 500 },
     removeOnFail: { count: 500 },
   });
@@ -23,7 +24,7 @@ export async function enqueueCategorizeTweetJob(payload: HashtagJobData) {
       type: "exponential",
       delay: 3000,
     },
-    delay: 0,
+    delay: 5000,
     lifo: false,
     removeOnComplete: { age: 3600, count: 500 }, // 1 hour
     removeOnFail: { age: 86400, count: 500 }, // 24 hours
@@ -40,7 +41,7 @@ export async function enqueueTrendUpdateJob(payload: TrendUpdateJobData) {
     removeOnComplete: { count: 100 },
     removeOnFail: { count: 100 },
     repeat: {
-      pattern: "*/30 * * * *", // Every 30 minutes (cron format)
+      pattern: "*/15 * * * *", // Every 15 minutes (cron format)
     },
   });
 }

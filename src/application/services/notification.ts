@@ -7,6 +7,7 @@ import { NotificationJobData } from "@/background/types/jobs";
 import { NotificationInputSchema } from "../dtos/notification/notification.dto.schema";
 import z from "zod";
 import { redisClient } from "@/config/redis";
+import { sendSSEMessage } from "./ServerSideEvents";
 
 export const sendOverSocket = (recipientId: string, notification: any) => {
   const isActive: boolean = socketService.checkSocketStatus(recipientId);
@@ -25,7 +26,7 @@ export const sendOverFCM = async (
     where: { userId: recipientId },
   });
   const fcmTokens =
-    userFCMTokens.length > 0 ? userFCMTokens.map((t) => t.token).flat() : [];
+    userFCMTokens.length > 0 ? userFCMTokens.flatMap((t) => t.token) : [];
 
   if (fcmTokens && fcmTokens.length > 0) {
     const notificationPayload = {
@@ -56,11 +57,11 @@ export const addNotification = async (
     NotificationTitle.LOGIN,
   ];
   const tweetRelevantTitles: NotificationTitle[] = [
-    NotificationTitle.MENTION,
-    NotificationTitle.REPLY,
+    //NotificationTitle.MENTION,
+    //NotificationTitle.REPLY,
     NotificationTitle.RETWEET,
     NotificationTitle.LIKE,
-    NotificationTitle.QUOTE,
+    //NotificationTitle.QUOTE,
   ];
 
   if (systemRelevantTitles.includes(data.title as NotificationTitle)) {
@@ -95,10 +96,7 @@ export const addNotification = async (
       newNotification
     );
   } else {
-    const actor = await prisma.user.findUnique({
-      where: { id: data.actorId },
-      select: { id: true, name: true, username: true, profileMediaId: true },
-    });
+    
 
     const newNotification = {
       userId: recipientId,
@@ -120,7 +118,6 @@ export const addNotification = async (
       };
       await enqueueNewNotificationJob(jobData, key);
     } else {
-      // Immediate notifications that are not tweet-relevant
       const createdNotification = await prisma.notification.create({
         data: newNotification,
         include: {
@@ -128,6 +125,8 @@ export const addNotification = async (
             select: {
               name: true,
               profileMediaId: true,
+              username: true,
+              id: true,
             },
           },
         },
@@ -142,8 +141,13 @@ export const addNotification = async (
     }
   }
 
-  await prisma.user.update({
-    where: { id: recipientId },
-    data: { unseenNotificationCount: { increment: 1 } },
-  });
+  const updatedUser = await prisma.user.update({
+      where: { id: recipientId },
+      data: { unseenNotificationCount: { increment: 1 } },
+
+    });
+    socketService.sendUnseenNotificationsCount(
+      recipientId,
+      updatedUser.unseenNotificationCount || 0
+    );
 };

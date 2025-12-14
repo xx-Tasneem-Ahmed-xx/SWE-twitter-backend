@@ -11,17 +11,15 @@ router
 
 router.route("/likedtweets").get(tweetController.getLikedTweets);
 
+router.route("/users/:username/medias").get(tweetController.getUserMedias);
+
+router
+  .route("/users/:username/mentioned")
+  .get(tweetController.getMentionedTweets);
+
 router.route("/users/:username").get(tweetController.getUserTweets);
 
 router.route("/search").get(tweetController.searchTweets);
-
-router.route("/users/:username/mentioned").get(tweetController.getMentionedTweets);
-
-router
-  .route("/:id")
-  .get(tweetController.getTweet)
-  .patch(tweetController.updateTweet)
-  .delete(tweetController.deleteTweet);
 
 router
   .route("/:id/retweets")
@@ -31,11 +29,12 @@ router
 
 router
   .route("/:id/quotes")
+  .get(tweetController.getTweetRepliesOrQuotes)
   .post(validateBody(CreateTweetDTOSchema), tweetController.createQuote);
 
 router
   .route("/:id/replies")
-  .get(tweetController.getTweetReplies)
+  .get(tweetController.getTweetRepliesOrQuotes)
   .post(validateBody(CreateTweetDTOSchema), tweetController.createReply);
 
 router
@@ -45,5 +44,11 @@ router
   .delete(tweetController.deleteLike);
 
 router.route("/:id/summary").get(tweetController.getTweetSummary);
+
+router
+  .route("/:id")
+  .get(tweetController.getTweet)
+  .patch(tweetController.updateTweet)
+  .delete(tweetController.deleteTweet);
 
 export default router;

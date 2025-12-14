@@ -12,26 +12,34 @@ import ChatRouter from "@/api/routes/chatRoutes";
 import notificationRoutes from "@/api/routes/notificationRoutes";
 import mediaRouter from "@/api/routes/media";
 import tweetRoutes from "@/api/routes/tweets";
+import exploreRoutes from "@/api/routes/explore";
 import timelineRoutes from "@/api/routes/timeline";
 import userInteractionsRoutes from "@/api/routes/userInteractions";
 import userRouter from "@/api/routes/user.routes";
 import hashtagsRoutes from "@/api/routes/hashtags";
 import { errorHandler } from "@/api/middlewares/errorHandler";
-import  authRoutes  from "@/api/routes/authRoutes";
+import authRoutes from "@/api/routes/authRoutes";
 import Auth from "@/api/middlewares/Auth";
 import oauthRoutes from "./api/routes/oauthRoutes";
 import { S3Client } from "@aws-sdk/client-s3";
 import { StorageSystem } from "@/application/services/storeageSystem";
-import {admin, initializeFirebase} from './application/services/firebaseInitializer'
+import {
+  admin,
+  initializeFirebase,
+} from "./application/services/firebaseInitializer";
 import cookieParser from "cookie-parser";
 // import { initializeSearchEngine } from "./api/controllers/SearchEngine";
 import { no } from "zod/v4/locales";
-import { Crawler, Parser, Indexer, SearchEngine } from './api/controllers/SearchEngine';
+import {
+  Crawler,
+  Parser,
+  Indexer,
+  SearchEngine,
+} from "./api/controllers/SearchEngine";
 // Type assertion for GeoGurd
-import { apiRoutes } from './api/routes/searchRoutes';
-import { PrismaClient } from "@prisma/client";
+import { apiRoutes } from "./api/routes/searchRoutes";
 import { getKey } from "./application/services/secrets";
-import { setupChatSearchAPI } from "./chat/search/initializeChatSearch";
+import { SSErequest } from "./application/services/ServerSideEvents";
 const app = express();
 app.use(cors());
 app.use(helmet());
@@ -124,9 +132,11 @@ initializeChatSearchEngine()
 //   });
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
+app.get('/events/:userId', SSErequest);
 app.use("/api/auth", authRoutes);
 app.use("/oauth2", oauthRoutes);
 app.use(Auth());
+
  
 app.use("/api/dm", ChatRouter);
 app.use("/api/media", mediaRouter);
@@ -134,6 +144,7 @@ app.use("/api/notifications", notificationRoutes);
 
 app.use("/api/tweets", tweetRoutes);
 app.use("/api/home", timelineRoutes);
+app.use("/api/explore", exploreRoutes);
 app.use("/api/users", userRouter);
 app.use("/api/hashtags", hashtagsRoutes);
 app.use("/api", userInteractionsRoutes);
