@@ -108,6 +108,7 @@ export const addNotification = async (
     };
 
     if (tweetRelevantTitles.includes(data.title as NotificationTitle)) {
+      if(recipientId === data.actorId) return;
       const key = `notifications:${recipientId}-${data.title}-tweet:${data.tweetId}`;
       await redisClient.lPush(key, JSON.stringify(newNotification));
 
