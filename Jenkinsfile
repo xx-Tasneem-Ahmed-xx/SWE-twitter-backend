@@ -189,7 +189,7 @@ EOF
                         echo "Running unit tests..."
                         npm i 
                         npm install --save-dev jest
-                        #npm run test
+                        npm run test
                     """
                 }
             }
@@ -232,7 +232,15 @@ EOF
                     script {
                         try {
                             sh """
-                                echo "Running up E2E tests..."
+                                dir('frontend') {
+                                    sh """
+                                        echo "Installing dependencies..."
+                                        npm ci
+                                        
+                                        echo "Running Cypress E2E tests..."
+                                        npx cypress run
+                                    """
+                                }
                             """
                         } catch (Exception e) {
                             echo "❌ E2E tests failed! Rolling back deployment..."
