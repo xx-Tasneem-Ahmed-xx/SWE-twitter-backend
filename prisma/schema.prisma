@@ -71,6 +71,9 @@ model User {
   spamReports         SpamReport[]
   preferredCategories Category[]      @relation("UserPreferredCategories")
 
+  @@index([joinDate])
+  @@index([verified])
+  @@index([reputation])
   @@map("users")
 }
 
@@ -153,6 +156,11 @@ model Tweet {
 
   @@unique([lastActivityAt, id])
   @@index([userId, createdAt])
+  @@index([score(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([tweetType])
+  @@index([parentId])
+  @@index([userId, tweetType])
   @@map("tweets")
 }
 
@@ -301,6 +309,8 @@ model Follow {
   following User @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@id([followerId, followingId])
+  @@index([followingId])
+  @@index([status])
 }
 
 model Mute {
