@@ -7,6 +7,8 @@
     "dev": "nodemon -r tsconfig-paths/register --watch 'src/**/*.ts' --exec ts-node src/index.ts",
     "build": "tsc && tsc-alias",
     "start": "node dist/index.js",
+    "lint": "eslint 'src/**/*.{js,jsx,ts,tsx}'",
+    "lint:fix": "eslint 'src/**/*.{js,jsx,ts,tsx}' --fix",
     "seed": "ts-node prisma/seed.ts",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
