@@ -231,17 +231,15 @@ EOF
                 container('nodejs') {
                     script {
                         try {
-                            sh """
-                                dir('frontend') {
-                                    sh """
-                                        echo "Installing dependencies..."
-                                        npm ci
-                                        
-                                        echo "Running Cypress E2E tests..."
-                                        npx cypress run
-                                    """
-                                }
-                            """
+                            dir('frontend') {
+                                sh """
+                                    echo "Installing dependencies..."
+                                    npm ci
+                                    
+                                    echo "Running Cypress E2E tests..."
+                                    npx cypress run
+                                """
+                            }
                         } catch (Exception e) {
                             echo "❌ E2E tests failed! Rolling back deployment..."
                             container('kubectl') { 
