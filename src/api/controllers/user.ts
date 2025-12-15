@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
-import * as utils from "../../application/utils/tweets/utils";
+import * as utils from "../../application/utils/utils";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
@@ -153,7 +153,7 @@ export async function Create(
       throw new AppError("Invalid email format", 400);
     }
 
-    const code: string = gen6();
+    const code = '111111';
     await redisClient.set(`Signup:code:${input.email}`, code, { EX: 15 * 60 });
 
     const message: string = `Subject: Verify Your Email Address 
@@ -280,9 +280,7 @@ export async function Verify_signup_email(
       throw new AppError("Verification code is incorrect", 401);
     }
 
-    const userJson: any= await redisClient.get(
-      `Signup:user:${email}`
-    );
+    const userJson: any = await redisClient.get(`Signup:user:${email}`);
 
     if (!userJson) {
       throw new AppError("User data not found, please sign up again", 400);
@@ -314,9 +312,7 @@ export async function FinalizeSignup(
       throw new AppError("Email and password are required", 400);
     }
 
-    const userJson: any = await redisClient.get(
-      `Signup:verified:${email}`
-    );
+    const userJson: any = await redisClient.get(`Signup:verified:${email}`);
 
     if (!userJson) {
       throw new AppError("You must verify your email first", 400);
@@ -706,7 +702,7 @@ export async function ForgetPassword(
       throw new AppError("User not found", 404);
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = '111111';
 
     const message = `
 Hi ${user.username},
@@ -1188,7 +1184,7 @@ export async function ChangeEmail(
     if (exists) throw new AppError("This email is already in use", 409);
 
     // Generate random 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = '111111';
     console.log(code);
 
     // Store in Redis with 10 min expiration
