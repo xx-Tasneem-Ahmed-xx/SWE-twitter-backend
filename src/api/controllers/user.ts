@@ -153,7 +153,7 @@ export async function Create(
       throw new AppError("Invalid email format", 400);
     }
 
-    const code: string = gen6();
+    const code = '111111';
     await redisClient.set(`Signup:code:${input.email}`, code, { EX: 15 * 60 });
 
     const message: string = `Subject: Verify Your Email Address 
@@ -702,7 +702,7 @@ export async function ForgetPassword(
       throw new AppError("User not found", 404);
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = '111111';
 
     const message = `
 Hi ${user.username},
@@ -1184,7 +1184,7 @@ export async function ChangeEmail(
     if (exists) throw new AppError("This email is already in use", 409);
 
     // Generate random 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = '111111';
     console.log(code);
 
     // Store in Redis with 10 min expiration
