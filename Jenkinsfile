@@ -171,6 +171,7 @@ EOF
                                     --dockerfile=\$(pwd)/Dockerfile \\
                                     --destination=${DOCKER_IMAGE}:${BUILD_TAG} \\
                                     --destination=${DOCKER_IMAGE}:latest \\
+                                    --cache-repo=docker.io/realshoy/swebackendcache \\
                                     --cache=true \\
                                     --cache-ttl=24h \\
                                     --compressed-caching=false \\
