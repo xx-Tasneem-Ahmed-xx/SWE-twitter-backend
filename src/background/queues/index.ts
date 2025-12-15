@@ -18,3 +18,4 @@ export const hashtagsQueue = createQueue("hashtags");
 export const trendsQueue = createQueue("trends");
 export const exploreQueue = createQueue("explore");
 export const notificationsQueue = createQueue("notifications");
+export const emailQueue = createQueue("emails");
