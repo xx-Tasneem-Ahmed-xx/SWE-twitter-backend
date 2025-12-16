@@ -28,7 +28,7 @@ import {
   initializeFirebase,
 } from "./application/services/firebaseInitializer";
 import cookieParser from "cookie-parser";
-import { initializeSearchEngine } from "./api/controllers/SearchEngine";
+// import { initializeSearchEngine } from "./api/controllers/SearchEngine";
 import { no } from "zod/v4/locales";
 import {
   Crawler,
@@ -66,17 +66,70 @@ export { storageService };
 
 const socketService = new SocketService(io);
 export { socketService };
-
+import { initializeSearchEngine } from "./api/search/initialize";
+import { twitterSearchRoutes } from "./api/routes/search.routes";
+// src/api/routes/search.routes.ts
 initializeSearchEngine()
   .then(({ crawler, parser, indexer, searchEngine, persistence }) => {
-    app.use(
-      "/api",
-      apiRoutes(crawler, parser, indexer, searchEngine, persistence)
-    );
+    app.use('/api', twitterSearchRoutes(crawler, parser, indexer, searchEngine, persistence));
   })
   .catch((err) => {
     console.error("Failed to initialize search engine:", err);
   });
+  // app.ts or server.ts
+
+import { initializeChatSearchEngine } from "@/chat/search/initializeChatSearch";
+import { chatSearchRoutes } from "@/api/routes/chatSearch.routes";
+
+
+initializeChatSearchEngine()
+  .then(
+    ({
+      chatCrawler,
+      chatParser,
+      chatIndexer,
+      chatSearchEngine,
+      chatPersistence,
+    }) => {
+      app.use(
+        "/api",
+        chatSearchRoutes(
+          chatCrawler,
+          chatParser,
+          chatIndexer,
+          chatSearchEngine,
+          chatPersistence
+        )
+      );
+
+      console.log("✅ Chat search routes initialized");
+    }
+  )
+  .catch((err) => {
+    console.error("❌ Failed to initialize chat search engine:", err);
+  });
+
+// initializeSearchEngine()
+//   .then(({ crawler, parser, indexer, searchEngine, persistence }) => {
+//     app.use('/api', apiRoutes(crawler, parser, indexer, searchEngine, persistence));
+//   })
+//   .catch((err) => {
+//     console.error('Failed to initialize search engine:', err);
+//   });
+// initializeSearchEngine()
+//   .then(({ crawler, parser, indexer, searchEngine, persistence }) => {
+//     app.use('/api', twitterSearchRoutes(crawler, parser, indexer, searchEngine, persistence));
+//   })
+//   .catch((err) => {
+//     console.error('Failed to initialize search engine:', err);
+//   });
+//   initializeSearchEngine()
+//   .then(({ crawler, parser, indexer, searchEngine, persistence }) => {
+//     app.use('/api', chatSearchRoutes( parser, indexer, searchEngine, persistence));
+//   })
+//   .catch((err) => {
+//     console.error('Failed to initialize search engine:', err);
+//   });
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.get('/events/:userId', SSErequest);
@@ -95,6 +148,7 @@ app.use("/api/explore", exploreRoutes);
 app.use("/api/users", userRouter);
 app.use("/api/hashtags", hashtagsRoutes);
 app.use("/api", userInteractionsRoutes);
+
 
 app.get("/", (req, res) => res.json({ message: "HELLO TEAM" }));
 app.use(errorHandler);

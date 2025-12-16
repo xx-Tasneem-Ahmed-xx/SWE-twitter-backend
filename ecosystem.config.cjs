@@ -17,15 +17,16 @@ module.exports = {
       },
       env_production: {
         NODE_ENV: "production",
-        ...dotenv.config({ path: path.resolve(__dirname, ".env.production") })
-          .parsed,
+        ...dotenv.config({ path: path.resolve(__dirname, ".env.production") }).parsed,
       },
     },
     ...[
       { name: "worker-hashtags", file: "hashtags.js" },
       { name: "worker-trends", file: "trends.js" },
-      { name: "worker-explore", file: "explore.js" },
       { name: "worker-notifications", file: "notifications.js" },
+      { name: "worker-emails", file: "Email.js" },
+      { name: "worker-search-indexer", file: "searchIndexer.js" },
+      { name: "worker-search-chat", file: "chatSearchWorker.js" },
       // add more workers here
     ].map((worker) => ({
       name: worker.name,
@@ -39,8 +40,7 @@ module.exports = {
       },
       env_production: {
         NODE_ENV: "production",
-        ...dotenv.config({ path: path.resolve(__dirname, ".env.production") })
-          .parsed,
+        ...dotenv.config({ path: path.resolve(__dirname, ".env.production") }).parsed,
       },
     })),
   ],

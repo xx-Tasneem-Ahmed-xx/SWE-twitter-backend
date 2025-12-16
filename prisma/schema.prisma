@@ -480,8 +480,12 @@ enum NotificationTitle {
   MENTION
   LOGIN
   PASSWORD_CHANGED
+  EMAIL_CHANGED
+  GOOGLE_REGSTER
+  GITHUB_REGSTER
+ login_new_device_location
+ 
 }
-
 enum MediaType {
   IMAGE
   VIDEO

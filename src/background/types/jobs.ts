@@ -1,4 +1,5 @@
 import { NotificationTitle } from "@prisma/client";
+import type { EmailTemplateType } from "../../application/utils/emailTemplates";
 
 export type HashtagJobData = {
   tweetId: string;
@@ -26,3 +27,23 @@ export type NotificationJobData = {
   title: NotificationTitle;
   tweetId?: string;
 };
+
+
+
+
+
+
+
+export interface EmailJobData {
+  to: string;
+  subject: string;
+  message: string;
+  templateType?: EmailTemplateType;
+}
+// src/background/types/jobs.ts
+// Add this to your existing types
+
+export interface SearchIndexJobData {
+  type: "full" | "incremental";
+  limit?: number;
+}

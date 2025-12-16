@@ -205,11 +205,11 @@ export async function generateUsername(name: string): Promise<string> {
   }
 
   for (;;) {
-    const adjective = faker.word.adjective();
+  
     const animal = faker.animal.type();
-    const unique = faker.string.alphanumeric({ length: 4 }).toLowerCase();
+    const unique = faker.string.alphanumeric({ length: 1 }).toLowerCase();
 
-    const username = `${base}_${adjective}${animal}_${unique}`;
+    const username = `${base}_${animal}${unique}`;
 
     if (!(await isTaken(username))) return username;
   }
@@ -786,8 +786,8 @@ The SOAH Security Team
 
 export async function ValidatePassword(password: string): Promise<string> {
   if (!password) return "password required";
-  if (password.length < 12 || password.length > 128)
-    return "password should be between 12 and 128";
+  if (password.length < 8 || password.length > 128)
+    return "password should be between 8 and 128";
 
   let upper: number = 0,
     lower: number = 0,
@@ -801,10 +801,10 @@ export async function ValidatePassword(password: string): Promise<string> {
     else sym++;
   }
 
-  if (lower < 3) return "password should contain atleast 3 lower case char";
-  if (upper < 3) return "password should contain atleast 3 upper case char";
-  if (sym < 3) return "password should contain atleast 3 symbol ";
-  if (num < 3) return "password should contain atleast 3 num";
+  if (lower < 1) return "password should contain atleast 1 lower case char";
+  if (upper < 1) return "password should contain atleast 1 upper case char";
+  if (sym < 1) return "password should contain atleast 1 symbol ";
+  if (num < 1) return "password should contain atleast 1 num";
 
   // check Pwned Passwords via k-anonymity (sha1 range API)
   const sha1sum: string = crypto

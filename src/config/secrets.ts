@@ -1,4 +1,4 @@
-import { getKeys } from "@/application/services/secrets";
+import { getKeys } from "../application/services/secrets";
 
 let secretValues: Secrets | null = null;
 
@@ -31,6 +31,7 @@ const SECRET_KEYS = [
   "REDIS_SECRET_CACHE_KEY",
   "FIREBASE_KEY_PATH",
   "GROQ_API_KEY",
+  "google_IOS_clientID",
   "COOKIE_DOMAIN",
 ] as const;
 
@@ -70,6 +71,7 @@ interface Secrets {
   REDIS_SECRET_CACHE_KEY: string;
   FIREBASE_KEY_PATH: string;
   GROQ_API_KEY: string;
+  google_IOS_clientID:string;
 }
 
 export async function loadSecrets() {
@@ -86,7 +88,7 @@ export async function loadSecrets() {
     client_secret: keys.CLIENT_SECRET,
     redirect_uri: keys.RED_URL_PRD,
     google_state: keys.GOOGLE_STATE,
-
+google_IOS_clientID:keys.google_IOS_clientID!,
     redirectUri: keys.GITHUB_RED_URL!,
     githubClientId: keys.GITHUB_CLIENT_ID!,
     githubRedirectUrl: keys.GITHUB_RED_URL!,

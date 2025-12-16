@@ -1,10 +1,10 @@
 import { Worker } from "bullmq";
-import { bullRedisConfig } from "@/background/config/redis";
-import { attachHashtagsToTweet } from "@/application/services/hashtags";
+import { bullRedisConfig } from "../config/redis";
+import { attachHashtagsToTweet } from "../../application/services/hashtags";
 import { prisma } from "@/prisma/client";
-import type { HashtagJobData } from "@/background/types/jobs";
-import { loadSecrets } from "@/config/secrets";
-import { initRedis } from "@/config/redis";
+import type { HashtagJobData } from "../types/jobs";
+import { loadSecrets } from "../../config/secrets";
+import { initRedis } from "../../config/redis";
 
 async function startWorker() {
   await initRedis();
@@ -39,7 +39,7 @@ async function startWorker() {
 
         case "categorize-tweet": {
           const { default: tweetService } = await import(
-            "@/application/services/tweets"
+            "../../application/services/tweets"
           );
 
           await prisma.$transaction(async (tx) => {

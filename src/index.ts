@@ -1,5 +1,5 @@
-import dotenv from "dotenv";
-dotenv.config();
+
+require("module-alias/register");
 
 import "module-alias/register";
 import { connectToDatabase } from "@/database";
@@ -21,6 +21,7 @@ async function start() {
 
   // defer app import until secrets are loaded
   const { default: httpServer } = await import("@/app");
+ 
   httpServer.listen(port, () => console.log(`Server running on port ${port}`));
 }
 

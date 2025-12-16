@@ -1,8 +1,8 @@
-import { hashtagsQueue, trendsQueue } from "@/background/queues/index";
+import { hashtagsQueue, trendsQueue } from "../queues/index";
 import type {
   HashtagJobData,
   TrendUpdateJobData,
-} from "@/background/types/jobs";
+} from "../types/jobs";
 
 export async function enqueueHashtagJob(payload: HashtagJobData) {
   await hashtagsQueue.add("extract", payload, {

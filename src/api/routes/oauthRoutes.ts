@@ -131,6 +131,99 @@ router.get("/callback/google", typedOauthController.CallbackGoogle);
  *         description: Internal error during token exchange, user lookup, or login email notification.
  */
 router.get("/callback/github", typedOauthController.CallbackGithub);
+/**
+ * @openapi
+ * /callback/github_front:
+ *   get:
+ *     tags:
+ *       - OAuth
+ *     summary: GitHub OAuth callback (Frontend Web)
+ *     description: >
+ *       Handles the **GitHub OAuth 2.0** login flow for **web frontend clients**.
+
+ *       This endpoint is called after the user authorizes your app on GitHub.
+ *       GitHub redirects here with a `code` and `state`.
+
+ *       The backend performs:
+ *       - Validates `error`, `code`, and `state` (CSRF protection)  
+ *       - Exchanges the authorization code for an **access token**  
+ *       - Fetches the user's GitHub emails and profile  
+ *       - Ensures the user has a verified primary email  
+ *       - Creates or links a `github` OAuth provider record  
+ *       - Generates JWT access & refresh tokens  
+ *       - Saves refresh token in Redis tied to the device  
+ *       - Logs device information + user login location  
+ *       - Sends a GitHub login security email  
+ *
+ *       **Response is NOT JSON.**  
+ *       The user is **redirected (302)** to the frontend with:
+ *       - access token  
+ *       - refresh token  
+ *       - user JSON  
+ *       all encoded in the URL query string.
+ *
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         required: true
+ *         description: >
+ *           Authorization code returned by GitHub.  
+ *           This code is exchanged for an access token.
+ *         schema:
+ *           type: string
+ *
+ *       - in: query
+ *         name: state
+ *         required: true
+ *         description: >
+ *           CSRF protection value.  
+ *           Must match the backend’s stored GitHub OAuth state.
+ *         schema:
+ *           type: string
+ *
+ *       - in: query
+ *         name: error
+ *         required: false
+ *         description: >
+ *           Error returned by GitHub when user denies permission.
+ *         schema:
+ *           type: string
+ *
+ *     responses:
+ *       302:
+ *         description: >
+ *           Redirects to the frontend login success page with query parameters:
+ *
+ *           - **token** → JWT access token  
+ *           - **refresh-token** → JWT refresh token  
+ *           - **user** → Encoded user info JSON  
+ *
+ *         headers:
+ *           Location:
+ *             description: >
+ *               Example redirect URL:  
+ *               `{FRONTEND_URL}/login/success?token={jwt}&refresh-token={jwt}&user={json}`
+ *             schema:
+ *               type: string
+ *
+ *       400:
+ *         description: >
+ *           Missing/invalid authorization code,  
+ *           GitHub OAuth `error`,  
+ *           or state mismatch (CSRF protection).
+ *
+ *       401:
+ *         description: >
+ *           Invalid or expired GitHub auth code  
+ *           OR GitHub account missing a verified primary email.
+ *
+ *       500:
+ *         description: >
+ *           Internal server error during GitHub token exchange,  
+ *           user creation, Redis operations, login email,  
+ *           or device info tracking.
+ */
+
 router.get("/callback/github_front", typedOauthController.CallbackGithubFront);
 /**
  * @openapi
@@ -191,7 +284,87 @@ router.get("/callback/github_front", typedOauthController.CallbackGithubFront);
  *         description: Internal server error during token validation, user creation, or login email process.
  */
 router.post("/callback/android_google", typedOauthController.CallbackAndroidGoogle);
+/**
+ * @openapi
+ * /callback/ios_google:
+ *   post:
+ *     tags:
+ *       - OAuth
+ *     summary: iOS Google OAuth callback
+ *     description: >
+ *       Handles Google Sign-In for **iOS mobile apps**.
 
+ *       iOS uses the **GoogleSignIn iOS SDK**, which returns an **ID token**
+ *       directly to the application — NOT an authorization code.
+
+ *       The iOS app sends that **ID token** to this backend endpoint.
+
+ *       This endpoint:
+ *       - Verifies the ID token with Google  
+ *       - Confirms the token audience matches the **iOS client ID**  
+ *       - Extracts user info (email, name, sub)  
+ *       - Creates a new user or links an existing Google provider account  
+ *       - Generates JWT access & refresh tokens  
+ *       - Saves refresh token in Redis with device binding  
+ *       - Logs login location + device info  
+ *
+ *       **This endpoint returns JSON (not redirect)**  
+ *       because iOS apps handle the tokens directly inside the app.
+ *
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - idToken
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *                 description: >
+ *                   Google ID token returned from the iOS GoogleSignIn SDK.
+ *                   This is a JWT, not an authorization code.
+ *
+ *     responses:
+ *       200:
+ *         description: >
+ *           Successful Google OAuth login.  
+ *           Returns access token, refresh token, and user info.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     dateOfBirth:
+ *                       type: string
+
+ *       400:
+ *         description: Missing idToken or malformed token.
+ *
+ *       401:
+ *         description: Token verification failed — invalid signature or wrong audience.
+ *
+ *       500:
+ *         description: Internal server error during token validation, user creation, or Redis operations.
+ */
+
+router.post("/callback/ios_google",typedOauthController.CallbackIOSGoogle);
 // router.get("/callback/facebook", typedOauthController.CallbackFacebook);
 // router.get("/callback/linkedin", typedOauthController.CallbackLinkedin);
 
@@ -204,3 +377,5 @@ router.post("/callback/android_google", typedOauthController.CallbackAndroidGoog
 // router.get("/get-sessions", Auth(), typedOauthController.GetSession);
 
 export default router;
+//routes :
+//router.get("/callback/google", typedOauthController.CallbackGoogle);router.get("/authorize/:provider", typedOauthController.Authorize);router.get("/callback/github", typedOauthController.CallbackGithub);router.get("/callback/github_front", typedOauthController.CallbackGithubFront);,router.post("/callback/android_google", typedOauthController.CallbackAndroidGoogle);,router.post("/callback/ios_google",typedOauthController.CallbackIOSGoogle);
