@@ -74,6 +74,7 @@ model User {
   @@index([joinDate])
   @@index([verified])
   @@index([reputation])
+  @@index([protectedAccount])
   @@map("users")
 }
 
@@ -311,6 +312,8 @@ model Follow {
   @@id([followerId, followingId])
   @@index([followingId])
   @@index([status])
+  @@index([followerId, status])
+  @@index([followingId, status])
 }
 
 model Mute {
@@ -321,6 +324,8 @@ model Mute {
   muted User @relation("Muted", fields: [mutedId], references: [id], onDelete: Cascade)
 
   @@id([muterId, mutedId])
+  @@index([muterId])
+  @@index([mutedId])
 }
 
 model Block {
@@ -331,6 +336,8 @@ model Block {
   blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
 
   @@id([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
 }
 
 model Mention {
