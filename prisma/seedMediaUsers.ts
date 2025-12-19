@@ -1,21 +1,23 @@
+import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const media = await prisma.$transaction([
     prisma.media.create({
       data: {
         name: "fire",
-        keyName: "https://cdn.example.com/photos/alice.jpg",
-        type: "IMAGE",
+        keyName: "https://cdn.example.com/photos/fire.jpg",
+        type: "GIF",
         size: 204800,
       },
     }),
     prisma.media.create({
       data: {
-        name: "fox",
-        keyName: "https://cdn.example.com/photos/bob.jpg",
+        name: "shopping center",
+        keyName: "https://cdn.example.com/photos/shopping.jpg",
         type: "IMAGE",
         size: 180000,
       },
@@ -23,15 +25,15 @@ async function main() {
     prisma.media.create({
       data: {
         name: "koka",
-        keyName: "https://cdn.example.com/photos/carol.jpg",
-        type: "IMAGE",
+        keyName: "https://cdn.example.com/photos/koka.jpg",
+        type: "VIDEO",
         size: 220000,
       },
     }),
     prisma.media.create({
       data: {
         name: "violet",
-        keyName: "https://cdn.example.com/photos/dave.jpg",
+        keyName: "https://cdn.example.com/photos/violet.jpg",
         type: "IMAGE",
         size: 210000,
       },
@@ -39,7 +41,7 @@ async function main() {
     prisma.media.create({
       data: {
         name: "sun",
-        keyName: "https://cdn.example.com/photos/eve.jpg",
+        keyName: "https://cdn.example.com/photos/sun.jpg",
         type: "IMAGE",
         size: 200000,
       },
