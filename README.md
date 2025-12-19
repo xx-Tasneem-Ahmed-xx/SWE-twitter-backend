@@ -4,18 +4,18 @@ A robust, scalable backend API for a Twitter-like social media platform built wi
 
 ## Table of Contents
 
-- [Features](#-features)
-- [Tech Stack](#-tech-stack)
-- [Architecture](#-architecture)
-- [Prerequisites](#-prerequisites)
-- [Installation](#-installation)
-- [Environment Configuration](#-environment-configuration)
-- [Running the Application](#-running-the-application)
-- [API Documentation](#-api-documentation)
-- [Database Management](#-database-management)
-- [Testing](#-testing)
-- [Project Structure](#-project-structure)
-- [Contributing](#-contributing)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Environment Configuration](#environment-configuration)
+- [Running the Application](#running-the-application)
+- [API Documentation](#api-documentation)
+- [Database Management](#database-management)
+- [Testing](#testing)
+- [Project Structure](#project-structure)
+- [Contributing](#contributing)
 
 ## Features
 
@@ -164,7 +164,6 @@ Before you begin, ensure you have the following installed:
 - **npm** (v10.9.3 or higher) - Comes with Node.js
 - **PostgreSQL** (v16.10 or higher) - [Download](https://www.postgresql.org/download/)
 - **Redis** (v7.0.15 or higher) - [Download](https://redis.io/download)
-
 
 ### Optional but Recommended
 
